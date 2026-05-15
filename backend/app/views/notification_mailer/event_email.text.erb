@@ -1,0 +1,7 @@
+<%= @notification.title %>
+
+<%= @notification.body %>
+
+<% if @notification.action_url.present? %>
+View in portal: <%= @notification.action_url %>
+<% end %>

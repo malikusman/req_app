@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+vendor/bundle/
+
+# Env
+.env
+.env.local
+backend/.env
+
+# Rails
+backend/log/*
+backend/tmp/*
+backend/storage/*
+!backend/log/.keep
+!backend/tmp/.keep
+
+# Build
+frontend/dist/
+backend/public/assets
+
+# OS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/

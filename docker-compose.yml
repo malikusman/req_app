@@ -1,0 +1,147 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: req_app
+      POSTGRES_PASSWORD: req_app
+      POSTGRES_DB: req_app_development
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U req_app -d req_app_development"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+
+  mailpit:
+    image: axllent/mailpit
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    ports:
+      - "3001:3000"
+
+  langgraph:
+    build:
+      context: ./agent
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: gpt-4o-mini
+      RAILS_INTERNAL_URL: http://rails:3000
+      INTERNAL_API_TOKEN: dev-internal-token
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      - redis
+
+  rails:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    command: bash -c "rm -f tmp/pids/server.pid && bundle exec rails db:prepare && bundle exec rails server -b 0.0.0.0"
+    volumes:
+      - ./backend:/app
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgres://req_app:req_app@postgres:5432/req_app_development
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: dev-jwt-secret-change-in-production
+      APP_HOST: http://localhost:5173
+      FROM_EMAIL: notifications@reqapp.local
+      SMTP_ADDRESS: mailpit
+      SMTP_PORT: 1025
+      META_VERIFY_TOKEN: req_app_verify_token
+      LANGGRAPH_URL: http://langgraph:8000
+      INTERNAL_API_TOKEN: dev-internal-token
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET: req-app
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GOTENBERG_URL: http://gotenberg:3000
+      API_PUBLIC_HOST: http://localhost:3000
+      RAILS_ENV: development
+    depends_on:
+      gotenberg:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      minio:
+        condition: service_started
+
+  sidekiq:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    command: bundle exec sidekiq
+    volumes:
+      - ./backend:/app
+    environment:
+      DATABASE_URL: postgres://req_app:req_app@postgres:5432/req_app_development
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: dev-jwt-secret-change-in-production
+      LANGGRAPH_URL: http://langgraph:8000
+      INTERNAL_API_TOKEN: dev-internal-token
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET: req-app
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GOTENBERG_URL: http://gotenberg:3000
+    depends_on:
+      - postgres
+      - redis
+      - mailpit
+      - minio
+      - gotenberg
+      - rails
+      - langgraph
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    command: npm run dev -- --host 0.0.0.0
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: http://localhost:3000
+    depends_on:
+      - rails
+
+volumes:
+  pg_data:
+  redis_data:
+  minio_data:
