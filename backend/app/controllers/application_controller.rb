@@ -6,6 +6,7 @@ class ApplicationController < ActionController::API
 
   rescue_from ActiveRecord::RecordNotFound, with: :not_found
   rescue_from ActiveRecord::RecordInvalid, with: :unprocessable
+  rescue_from Pundit::NotAuthorizedError, with: :forbidden
 
   private
 
@@ -19,5 +20,9 @@ class ApplicationController < ActionController::API
 
   def render_errors(messages, status: :unprocessable_entity)
     render json: { errors: Array(messages) }, status: status
+  end
+
+  def forbidden
+    render json: { error: "Forbidden" }, status: :forbidden
   end
 end

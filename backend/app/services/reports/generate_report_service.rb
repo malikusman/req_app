@@ -39,8 +39,11 @@ module Reports
         error_message: nil
       )
 
-      visibility = @company.merged_settings["skip_platform_review"] ? "shared_with_company" : @report.visibility
-      @report.update!(visibility: visibility) if @report.triggered_by_type == "CompanyUser"
+      if @company.reviewer_assignments.active.exists?
+        ReportReviews::BootstrapService.call(report: @report)
+      elsif @company.merged_settings["skip_platform_review"]
+        @report.update!(visibility: "shared_with_company", review_workflow_status: "platform_approved")
+      end
 
       NotificationService.notify_report_ready(company: @company, report: @report)
       @report

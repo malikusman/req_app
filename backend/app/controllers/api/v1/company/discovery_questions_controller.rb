@@ -5,9 +5,10 @@ module Api
     module Company
       class DiscoveryQuestionsController < BaseController
         def index
+          authorize :discovery_question, :index?
           messages = Message.joins(:conversation)
                             .where(conversations: { company_id: current_company.id })
-                            .where(direction: "outbound", is_discovery_question: true)
+                            .where(direction: "outbound", is_discovery_question: true, reviewer_followup: false)
                             .includes(conversation: :employee)
                             .order(created_at: :desc)
                             .limit(100)
@@ -21,6 +22,7 @@ module Api
         end
 
         def feedback
+          authorize :discovery_question, :feedback?
           message = Message.joins(:conversation)
                            .where(conversations: { company_id: current_company.id })
                            .find(params[:id])

@@ -63,6 +63,24 @@ module Whatsapp
       )
     end
 
+    def send_reviewer_followup_template(to:, employee_name:, company_name:)
+      template_name = ENV.fetch("META_TEMPLATE_REVIEWER_FOLLOWUP", "reviewer_followup_reopen")
+      send_template(
+        to: to,
+        template_name: template_name,
+        language_code: "en",
+        components: [
+          {
+            type: "body",
+            parameters: [
+              { type: "text", text: employee_name.presence || "there" },
+              { type: "text", text: company_name }
+            ]
+          }
+        ]
+      )
+    end
+
     def send_nudge_template(to:, employee_name:, company_name:)
       template_name = ENV.fetch("META_TEMPLATE_EMPLOYEE_NUDGE", "employee_discovery_nudge")
       send_template(

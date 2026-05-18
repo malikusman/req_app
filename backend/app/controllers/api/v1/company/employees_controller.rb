@@ -4,15 +4,14 @@ module Api
   module V1
     module Company
       class EmployeesController < BaseController
-        before_action :require_company_admin!, except: %i[index show]
-
         def index
-          employees = company_scope(Employee).order(created_at: :desc)
+          employees = policy_scope(Employee).order(created_at: :desc)
           render json: { employees: employees.map { |e| employee_json(e, include_nudge: true) } }
         end
 
         def show
-          employee = company_scope(Employee).find(params[:id])
+          employee = policy_scope(Employee).find(params[:id])
+          authorize employee, :show?
           active_code = employee.employee_access_codes.active.first
           latest_invitation = employee.employee_invitations.order(created_at: :desc).first
 
@@ -25,6 +24,7 @@ module Api
         end
 
         def create
+          authorize Employee, :create?
           result = InviteEmployeeService.call(
             company: current_company,
             phone_e164: params[:phone_e164],
@@ -42,6 +42,7 @@ module Api
         end
 
         def bulk_create
+          authorize Employee, :create?
           created = []
           batch_id = SecureRandom.uuid
 
@@ -64,7 +65,8 @@ module Api
         end
 
         def update_phone
-          employee = company_scope(Employee).find(params[:id])
+          employee = policy_scope(Employee).find(params[:id])
+          authorize employee, :update_phone?
           result = Employees::UpdatePhoneService.call(
             employee: employee,
             new_phone_e164: params[:phone_e164],
@@ -80,7 +82,8 @@ module Api
         end
 
         def nudge
-          employee = company_scope(Employee).find(params[:id])
+          employee = policy_scope(Employee).find(params[:id])
+          authorize employee, :nudge?
 
           if employee.participation_status == "completed"
             return render json: { error: "Employee already completed" }, status: :unprocessable_entity
@@ -100,10 +103,6 @@ module Api
         end
 
         private
-
-        def require_company_admin!
-          render json: { error: "Forbidden" }, status: :forbidden unless current_company_user.company_admin?
-        end
 
         def employee_json(employee, include_nudge: false)
           json = {

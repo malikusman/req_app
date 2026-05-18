@@ -39,7 +39,8 @@ module Reports
             "priority" => r.priority
           }
         end,
-        "delta_from_previous" => @delta
+        "delta_from_previous" => @delta,
+        "sections" => ReportSections::DEFINITIONS
       }
     end
   end

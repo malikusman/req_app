@@ -2,8 +2,12 @@
 
 module PlatformAuthenticatable
   extend ActiveSupport::Concern
+  include PunditAuthorizable
 
   included do
+    pundit_context do
+      AuthorizationContext.new(actor: current_platform_user, audience: :platform)
+    end
     before_action :authenticate_platform_user!
   end
 

@@ -9,6 +9,7 @@ Rails.application.routes.draw do
       namespace :auth do
         post "platform/login", to: "platform_sessions#create"
         post "company/login", to: "company_sessions#create"
+        post "reviewer/login", to: "reviewer_sessions#create"
       end
 
       get "webhooks/whatsapp", to: "webhooks/whatsapp#verify"
@@ -37,6 +38,40 @@ Rails.application.routes.draw do
         post "companies/:company_id/reports/:id/approve", to: "reports#approve"
         post "companies/:company_id/impersonate", to: "impersonations#create"
         get "monitoring", to: "monitoring#show"
+        resources :reviewers, only: %i[index show create update]
+        get "companies/:company_id/reviewer_assignments", to: "reviewer_assignments#index"
+        post "companies/:company_id/reviewer_assignments", to: "reviewer_assignments#create"
+        delete "companies/:company_id/reviewer_assignments/:id", to: "reviewer_assignments#destroy"
+        get "companies/:company_id/reviewer_chat", to: "reviewer_chat#index"
+      end
+
+      namespace :reviewer do
+        get "me", to: "me#show"
+        patch "profile", to: "profile#update"
+        resources :notifications, only: %i[index update] do
+          collection do
+            post :mark_all_read
+          end
+        end
+        resources :companies, only: %i[index show] do
+          resources :employees, only: %i[index show], controller: "employees"
+          resources :conversations, only: %i[index show], controller: "conversations"
+          get "signals", to: "intelligence#signals"
+          get "patterns", to: "intelligence#patterns"
+          get "recommendations", to: "intelligence#recommendations"
+          get "review_sync", to: "review_sync#show"
+          resources :reports, only: %i[index show], controller: "reports" do
+            resource :review, only: %i[show update], controller: "report_reviews" do
+              post :submit, on: :member
+              resources :comments, only: %i[index create update destroy], controller: "report_review_comments"
+              patch "section_states/:section_key", to: "report_review_section_states#update"
+            end
+          end
+          resources :info_requests, only: %i[index create show], controller: "info_requests"
+          post "employees/:employee_id/followup", to: "info_requests#create"
+          get "employees/:employee_id/followup", to: "info_requests#thread"
+          resources :chat_messages, only: %i[index create], controller: "chat_messages"
+        end
       end
 
       namespace :company do

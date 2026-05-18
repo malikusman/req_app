@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
 
-export type Portal = 'platform' | 'company';
+export type Portal = 'platform' | 'company' | 'reviewer';
 
 type PlatformSession = {
   portal: 'platform';
@@ -16,7 +16,13 @@ export type CompanySession = {
   impersonating?: boolean;
 };
 
-type Session = PlatformSession | CompanySession | null;
+export type ReviewerSession = {
+  portal: 'reviewer';
+  token: string;
+  user: { id: number; email: string; name: string };
+};
+
+type Session = PlatformSession | CompanySession | ReviewerSession | null;
 
 const AuthContext = createContext<{
   session: Session;
@@ -68,6 +74,11 @@ export function usePlatformToken() {
 export function useCompanyToken() {
   const { session } = useAuth();
   return session?.portal === 'company' ? session.token : null;
+}
+
+export function useReviewerToken() {
+  const { session } = useAuth();
+  return session?.portal === 'reviewer' ? session.token : null;
 }
 
 export function startImpersonation(

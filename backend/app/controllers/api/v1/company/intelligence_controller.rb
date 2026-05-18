@@ -5,6 +5,7 @@ module Api
     module Company
       class IntelligenceController < BaseController
         def snapshot
+          authorize current_company, :show?
           company = current_company
           company.update!(intelligence_snapshot: Intelligence::SnapshotBuilder.call(company: company)) if company.intelligence_snapshot.blank?
 
@@ -16,16 +17,19 @@ module Api
         end
 
         def signals
+          authorize current_company, :show?
           signals = company_scope(CompanySignal).order(strength: :desc)
           render json: { signals: signals.map { |s| signal_json(s) } }
         end
 
         def patterns
+          authorize current_company, :show?
           patterns = company_scope(Pattern).order(confidence: :desc)
           render json: { patterns: patterns.map { |p| pattern_json(p) } }
         end
 
         def timeline
+          authorize current_company, :show?
           events = company_scope(InsightTimelineEvent).order(occurred_at: :desc).limit(100)
           render json: { events: events.map { |e| timeline_json(e) } }
         end

@@ -18,6 +18,7 @@ export function PlatformLayout() {
         <div className="nav-links">
           <NavLink to="/platform/dashboard">Dashboard</NavLink>
           <NavLink to="/platform/companies">Companies</NavLink>
+          <NavLink to="/platform/reviewers">Reviewers</NavLink>
           <NavLink to="/platform/trials">Trials</NavLink>
           <NavLink to="/platform/playbooks">Playbooks</NavLink>
           <NavLink to="/platform/solutions">Solutions</NavLink>

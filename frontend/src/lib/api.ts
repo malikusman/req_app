@@ -30,6 +30,12 @@ export const api = {
       { method: 'POST', body: JSON.stringify({ email, password }) }
     ),
 
+  reviewerLogin: (email: string, password: string) =>
+    request<{ token: string; user: { id: number; email: string; name: string } }>(
+      '/api/v1/auth/reviewer/login',
+      { method: 'POST', body: JSON.stringify({ email, password }) }
+    ),
+
   companyLogin: (email: string, password: string) =>
     request<{
       token: string;
@@ -258,7 +264,157 @@ export const api = {
     request<ImpersonationResponse>(`/api/v1/platform/companies/${companyId}/impersonate`, { method: 'POST' }, token),
 
   platformMonitoring: (token: string) => request<PlatformMonitoring>('/api/v1/platform/monitoring', {}, token),
+
+  platformReviewers: (token: string) => request<{ reviewers: ReviewerUser[] }>('/api/v1/platform/reviewers', {}, token),
+
+  createPlatformReviewer: (token: string, payload: { email: string; name: string; password: string }) =>
+    request<{ reviewer: ReviewerUser }>('/api/v1/platform/reviewers', { method: 'POST', body: JSON.stringify({ reviewer: payload }) }, token),
+
+  companyReviewerAssignments: (token: string, companyId: number) =>
+    request<{ assignments: ReviewerAssignment[]; active_count: number }>(
+      `/api/v1/platform/companies/${companyId}/reviewer_assignments`,
+      {},
+      token
+    ),
+
+  assignReviewer: (token: string, companyId: number, reviewerUserId: number) =>
+    request<{ assignment: ReviewerAssignment }>(
+      `/api/v1/platform/companies/${companyId}/reviewer_assignments`,
+      { method: 'POST', body: JSON.stringify({ reviewer_user_id: reviewerUserId }) },
+      token
+    ),
+
+  removeReviewerAssignment: (token: string, companyId: number, assignmentId: number) =>
+    request<void>(`/api/v1/platform/companies/${companyId}/reviewer_assignments/${assignmentId}`, { method: 'DELETE' }, token),
+
+  reviewerMe: (token: string) => request<{ user: { id: number; email: string; name: string }; assignments: { company_id: number; company_name: string }[] }>('/api/v1/reviewer/me', {}, token),
+
+  reviewerCompanies: (token: string) => request<{ companies: ReviewerCompanySummary[] }>('/api/v1/reviewer/companies', {}, token),
+
+  reviewerCompany: (token: string, id: number) => request<{ company: ReviewerCompanyDetail }>(`/api/v1/reviewer/companies/${id}`, {}, token),
+
+  reviewerReport: (token: string, companyId: number, reportId: number) =>
+    request<{ report: ReviewerReportDetail }>(`/api/v1/reviewer/companies/${companyId}/reports/${reportId}`, {}, token),
+
+  reviewerReportReview: (token: string, companyId: number, reportId: number) =>
+    request<ReportReviewPayload>(`/api/v1/reviewer/companies/${companyId}/reports/${reportId}/review`, {}, token),
+
+  updateReviewerReportReview: (token: string, companyId: number, reportId: number, payload: { status?: string; overall_note?: string }) =>
+    request<ReportReviewPayload>(`/api/v1/reviewer/companies/${companyId}/reports/${reportId}/review`, { method: 'PATCH', body: JSON.stringify(payload) }, token),
+
+  submitReviewerReportReview: (token: string, companyId: number, reportId: number) =>
+    request<ReportReviewPayload>(`/api/v1/reviewer/companies/${companyId}/reports/${reportId}/review/submit`, { method: 'POST' }, token),
+
+  updateSectionState: (token: string, companyId: number, reportId: number, sectionKey: string, status: string) =>
+    request<{ section_state: { section_key: string; status: string } }>(
+      `/api/v1/reviewer/companies/${companyId}/reports/${reportId}/review/section_states/${sectionKey}`,
+      { method: 'PATCH', body: JSON.stringify({ status }) },
+      token
+    ),
+
+  addReviewComment: (token: string, companyId: number, reportId: number, comment: { section_key: string; body: string }) =>
+    request<{ comment: { id: number } }>(
+      `/api/v1/reviewer/companies/${companyId}/reports/${reportId}/review/comments`,
+      { method: 'POST', body: JSON.stringify({ comment }) },
+      token
+    ),
+
+  reviewerConversations: (token: string, companyId: number) =>
+    request<{ conversations: { id: number; employee_id: number; employee_name: string | null; status: string }[] }>(
+      `/api/v1/reviewer/companies/${companyId}/conversations`,
+      {},
+      token
+    ),
+
+  reviewerConversation: (token: string, companyId: number, conversationId: number) =>
+    request<{ conversation: { id: number; employee_id: number; status: string }; messages: { id: number; direction: string; body: string; reviewer_followup: boolean; created_at: string }[] }>(
+      `/api/v1/reviewer/companies/${companyId}/conversations/${conversationId}`,
+      {},
+      token
+    ),
+
+  reviewerFollowupThread: (token: string, companyId: number, employeeId: number) =>
+    request<{ threads: { id: number; body: string; status: string; replies: { body: string; received_at: string }[] }[] }>(
+      `/api/v1/reviewer/companies/${companyId}/employees/${employeeId}/followup`,
+      {},
+      token
+    ),
+
+  sendReviewerFollowup: (token: string, companyId: number, employeeId: number, body: string, reportId?: number) =>
+    request<{ info_request: { id: number } }>(
+      `/api/v1/reviewer/companies/${companyId}/employees/${employeeId}/followup`,
+      { method: 'POST', body: JSON.stringify({ body, report_id: reportId }) },
+      token
+    ),
+
+  reviewerChatMessages: (token: string, companyId: number) =>
+    request<{ messages: { id: number; body: string; sender_name: string; created_at: string; mine: boolean }[] }>(
+      `/api/v1/reviewer/companies/${companyId}/chat_messages`,
+      {},
+      token
+    ),
+
+  sendReviewerChat: (token: string, companyId: number, body: string) =>
+    request<{ message: { id: number } }>(
+      `/api/v1/reviewer/companies/${companyId}/chat_messages`,
+      { method: 'POST', body: JSON.stringify({ body }) },
+      token
+    ),
 };
+
+export interface ReviewerUser {
+  id: number;
+  email: string;
+  name: string;
+  status: string;
+}
+
+export interface ReviewerAssignment {
+  id: number;
+  status: string;
+  assigned_at: string;
+  reviewer_user: { id: number; name: string; email: string };
+}
+
+export interface ReviewerCompanySummary {
+  id: number;
+  name: string;
+  report_readiness_score: number;
+  completed_count: number;
+  invited_count: number;
+}
+
+export interface ReviewerCompanyDetail extends ReviewerCompanySummary {
+  participation: Record<string, unknown>;
+  latest_report: { id: number; version: number; status: string } | null;
+  my_review_status: string | null;
+  co_reviewer_count: number;
+}
+
+export interface ReviewerReportDetail {
+  id: number;
+  version: number;
+  status: string;
+  report_snapshot: Record<string, unknown>;
+  generated_at: string | null;
+}
+
+export interface ReportReviewPayload {
+  review: {
+    id: number;
+    status: string;
+    overall_note: string | null;
+    submitted_at: string | null;
+    section_states: { section_key: string; status: string }[];
+    comments: { id: number; section_key: string; body: string; reviewer_name: string }[];
+  };
+  co_reviewer_reviews: {
+    reviewer_name: string;
+    status: string;
+    section_states: { section_key: string; status: string }[];
+    comments: { section_key: string; body: string }[];
+  }[];
+}
 
 export interface AppNotification {
   id: number;

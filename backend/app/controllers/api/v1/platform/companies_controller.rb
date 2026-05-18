@@ -5,16 +5,18 @@ module Api
     module Platform
       class CompaniesController < BaseController
         def index
-          companies = ::Company.includes(:subscription).order(created_at: :desc)
+          companies = policy_scope(::Company).includes(:subscription).order(created_at: :desc)
           render json: { companies: companies.map { |c| company_json(c) } }
         end
 
         def show
-          company = ::Company.includes(:subscription, :company_users).find(params[:id])
+          company = policy_scope(::Company).includes(:subscription, :company_users).find(params[:id])
+          authorize company, :show?
           render json: { company: company_detail_json(company) }
         end
 
         def create
+          authorize ::Company, :create?
           company = nil
           ActiveRecord::Base.transaction do
             company = ::Company.create!(company_params)

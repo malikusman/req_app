@@ -4,9 +4,8 @@ module Api
   module V1
     module Company
       class BillingController < BaseController
-        before_action :require_company_admin!, except: [:show]
-
         def show
+          authorize :billing, :show?
           sub = current_company.subscription
           Subscriptions::PlanLimits.apply_defaults!(sub) if sub
           enforcer = Subscriptions::ConversationLimitEnforcer.new(company: current_company)
@@ -20,6 +19,7 @@ module Api
         end
 
         def checkout
+          authorize :billing, :checkout?
           plan = params.require(:plan)
           result = Billing::CheckoutService.create_session(company: current_company, plan: plan)
           render json: result
@@ -28,10 +28,6 @@ module Api
         end
 
         private
-
-        def require_company_admin!
-          render json: { error: "Forbidden" }, status: :forbidden unless current_company_user.company_admin?
-        end
 
         def subscription_json(sub)
           return nil unless sub

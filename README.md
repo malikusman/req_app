@@ -21,6 +21,16 @@ AI-powered workflow discovery via WhatsApp, with dual portals for platform opera
 ```bash
 cd req_app
 docker compose up --build
+
+# First time (or after Gemfile changes): migrate + seed
+docker compose run --rm rails bundle exec rails db:migrate db:seed
+```
+
+If Rails/Sidekiq fail with `Could not find stripe-...`, restart after `docker compose up --build` (compose runs `bundle install` on start) or run:
+
+```bash
+docker compose run --rm rails bundle install
+docker compose up
 ```
 
 - **Frontend:** http://localhost:5173
@@ -53,6 +63,21 @@ npm run dev
 |----------|---------------------|--------------|
 | Platform | admin@reqapp.local  | password123  |
 | Company  | admin@acme.local    | password123  |
+| Reviewer | reviewer@reqapp.local | password123 |
+
+Acme Corp has the seed reviewer assigned (max 2 per company; invisible to company admins).
+
+## Phase 8 (implemented) — Reviewer role & Pundit authorization
+
+- **Reviewer portal** — http://localhost:5173/reviewer/login — assigned companies, discovery read-only, report section review, WhatsApp follow-ups (hidden from company APIs), co-reviewer chat
+- **Platform reviewers** — `/platform/reviewers` — CRUD reviewer users; assign up to 2 active reviewers per company from Companies → Reviewers
+- **Report review workflow** — on report ready, `report_reviews` bootstrapped per assigned reviewer; platform approve gated until `reviews_complete` (unless `skip_platform_review` in company settings)
+- **Pundit** — `AuthorizationContext` for platform / company / reviewer audiences; policies on reports, employees, documents, assignments, etc.
+
+```bash
+# WhatsApp reviewer follow-up template (Meta)
+export META_TEMPLATE_REVIEWER_FOLLOWUP=reviewer_followup_reopen
+```
 
 ## Phase 7 (implemented) — Hardening & billing
 

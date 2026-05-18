@@ -5,7 +5,8 @@ module Api
     module Company
       class NotificationsController < BaseController
         def index
-          scope = Notification.where(recipient: current_company_user).order(created_at: :desc)
+          authorize Notification, :index?
+          scope = policy_scope(Notification).order(created_at: :desc)
           unread_count = scope.unread.count
           notifications = scope.limit(per_page).offset(offset)
 
@@ -18,13 +19,15 @@ module Api
         end
 
         def update
-          notification = Notification.where(recipient: current_company_user).find(params[:id])
+          notification = policy_scope(Notification).find(params[:id])
+          authorize notification, :update?
           notification.update!(read_at: Time.current) if notification.read_at.nil?
           render json: { notification: notification_json(notification) }
         end
 
         def mark_all_read
-          Notification.where(recipient: current_company_user, read_at: nil).update_all(read_at: Time.current)
+          authorize Notification, :mark_all_read?
+          policy_scope(Notification).unread.update_all(read_at: Time.current)
           render json: { ok: true, unread_count: 0 }
         end
 

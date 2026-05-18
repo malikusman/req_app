@@ -2,8 +2,12 @@
 
 module CompanyAuthenticatable
   extend ActiveSupport::Concern
+  include PunditAuthorizable
 
   included do
+    pundit_context do
+      AuthorizationContext.new(actor: current_company_user, audience: :company)
+    end
     before_action :authenticate_company_user!
     before_action :require_active_subscription!
   end
@@ -81,4 +85,5 @@ module CompanyAuthenticatable
 
     session.company_user
   end
+
 end

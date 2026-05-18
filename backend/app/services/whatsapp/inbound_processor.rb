@@ -141,6 +141,17 @@ module Whatsapp
     end
 
     def route_inbound_text(employee:, conversation:, text:, external_id:)
+      if ReviewerInfoRequest.open_for_employee(employee.id)
+        handled = Whatsapp::ReviewerFollowupHandler.new(
+          employee: employee,
+          conversation: conversation,
+          text: text,
+          external_id: external_id,
+          client: @client
+        ).handle
+        return if handled
+      end
+
       if conversation.discovery? || employee.onboarding_step == "verified"
         Whatsapp::DiscoveryHandler.new(employee: employee, conversation: conversation, client: @client)
                                    .handle_inbound_text(text, external_id: external_id)

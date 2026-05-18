@@ -4,9 +4,8 @@ module Api
   module V1
     module Company
       class OnboardingController < BaseController
-        before_action :require_company_admin!
-
         def show
+          authorize :onboarding, :show?
           render json: {
             step: current_step,
             company: {
@@ -19,6 +18,7 @@ module Api
         end
 
         def update_profile
+          authorize :onboarding, :update_profile?
           current_company.update!(
             display_name: params[:display_name].presence || current_company.name,
             locale: params[:locale].presence || "en"
@@ -27,16 +27,13 @@ module Api
         end
 
         def complete
+          authorize :onboarding, :complete?
           current_company.update!(portal_onboarding_completed_at: Time.current)
           current_company_user.update!(onboarding_completed_at: Time.current)
           render json: { ok: true, redirect_to: "/company/dashboard" }
         end
 
         private
-
-        def require_company_admin!
-          render json: { error: "Forbidden" }, status: :forbidden unless current_company_user.company_admin?
-        end
 
         def current_step
           return 3 if current_company.portal_onboarding_completed_at.present?

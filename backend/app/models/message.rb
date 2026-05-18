@@ -13,4 +13,7 @@ class Message < ApplicationRecord
   validates :direction, inclusion: { in: DIRECTIONS }
   validates :message_type, inclusion: { in: TYPES }
   validates :processing_status, inclusion: { in: PROCESSING_STATUSES }
+
+  scope :discovery_only, -> { where(reviewer_followup: false) }
+  scope :reviewer_followup_only, -> { where(reviewer_followup: true) }
 end

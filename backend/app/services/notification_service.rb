@@ -97,6 +97,101 @@ class NotificationService
     ENV.fetch("APP_HOST", "http://localhost:5173")
   end
 
+  def self.notify_reviewer_assigned(reviewer:, company:)
+    notify(
+      type: :reviewer_assigned,
+      company: company,
+      recipients: reviewer,
+      title: "New company assignment",
+      body: "You have been assigned to review #{company.display_name || company.name}.",
+      action_url: "#{app_host}/reviewer/companies/#{company.id}",
+      metadata: { company_id: company.id }
+    )
+  end
+
+  def self.notify_reviewer_report_ready(reviewer:, company:, report:)
+    notify(
+      type: :reviewer_report_ready,
+      company: company,
+      recipients: reviewer,
+      title: "Report ready for review",
+      body: "#{company.display_name || company.name} report v#{report.version} is ready.",
+      action_url: "#{app_host}/reviewer/companies/#{company.id}/reports/#{report.id}",
+      metadata: { report_id: report.id, company_id: company.id }
+    )
+  end
+
+  def self.notify_co_reviewer_commented(reviewer:, company:, report:)
+    notify(
+      type: :co_reviewer_commented,
+      company: company,
+      recipients: reviewer,
+      title: "Co-reviewer updated report",
+      body: "Your co-reviewer added feedback on #{company.display_name || company.name} report v#{report.version}.",
+      action_url: "#{app_host}/reviewer/companies/#{company.id}/reports/#{report.id}",
+      metadata: { report_id: report.id }
+    )
+  end
+
+  def self.notify_info_reply_received(reviewer:, request:, employee:)
+    notify(
+      type: :info_reply_received,
+      company: request.company,
+      recipients: reviewer,
+      title: "Employee replied to follow-up",
+      body: "#{employee.display_name || employee.phone_e164} replied to your clarification request.",
+      action_url: "#{app_host}/reviewer/companies/#{request.company_id}/employees/#{employee.id}/followup",
+      metadata: { request_id: request.id, employee_id: employee.id }
+    )
+  end
+
+  def self.notify_review_submitted(report:, reviewer:)
+    notify_platform_admins(
+      type: :review_submitted,
+      company: report.company,
+      title: "Reviewer submitted report",
+      body: "#{reviewer.name} submitted their review for report v#{report.version}.",
+      action_url: "#{app_host}/platform/companies/#{report.company_id}/reports",
+      metadata: { report_id: report.id, reviewer_user_id: reviewer.id }
+    )
+  end
+
+  def self.notify_all_reviews_submitted(report:, company:)
+    notify_platform_admins(
+      type: :all_reviews_submitted,
+      company: company,
+      title: "All reviews submitted",
+      body: "All assigned reviewers have submitted for report v#{report.version}. Ready for platform approval.",
+      action_url: "#{app_host}/platform/companies/#{company.id}/reports",
+      metadata: { report_id: report.id }
+    )
+  end
+
+  def self.notify_reviewer_chat_message(recipient:, company:, sender:)
+    notify(
+      type: :reviewer_chat_message,
+      company: company,
+      recipients: recipient,
+      title: "Message from co-reviewer",
+      body: "#{sender.name} sent a message on #{company.display_name || company.name}.",
+      action_url: "#{app_host}/reviewer/companies/#{company.id}/chat",
+      metadata: { company_id: company.id }
+    )
+  end
+
+  def self.notify_platform_admins(type:, company:, title:, body:, action_url: nil, metadata: {})
+    recipients = PlatformUser.all
+    notify(
+      type: type,
+      company: company,
+      recipients: recipients,
+      title: title,
+      body: body,
+      action_url: action_url,
+      metadata: metadata
+    )
+  end
+
   def self.broadcast_notification(recipient, notification)
     unread_count = Notification.where(recipient: recipient).unread.count
     CompanyNotificationsChannel.broadcast_to(

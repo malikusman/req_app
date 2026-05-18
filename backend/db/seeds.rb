@@ -77,6 +77,19 @@ end
 end
 
 company.update!(portal_onboarding_completed_at: Time.current) if company.portal_onboarding_completed_at.blank?
-company.update!(settings: company.settings.merge("allow_early_report" => true, "skip_platform_review" => true))
+company.update!(settings: company.settings.merge("allow_early_report" => true, "skip_platform_review" => false))
+
+reviewer = ReviewerUser.find_or_create_by!(email: "reviewer@reqapp.local") do |u|
+  u.name = "Expert Reviewer"
+  u.password = "password123"
+  u.status = "active"
+  u.jti = SecureRandom.uuid
+end
+puts "Reviewer: #{reviewer.email} / password123"
+
+ReviewerAssignment.find_or_create_by!(company: company, reviewer_user: reviewer, status: "active") do |a|
+  a.assigned_by_platform_user = platform
+  a.assigned_at = Time.current
+end
 
 puts "Done."

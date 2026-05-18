@@ -4,28 +4,31 @@ module Api
   module V1
     module Company
       class ReportsController < BaseController
-        before_action :require_company_admin!, except: %i[index show download]
-
         def index
-          reports = company_scope(Report).order(version: :desc)
+          reports = policy_scope(Report).order(version: :desc)
           render json: { reports: reports.map { |r| report_json(r) } }
         end
 
         def show
-          report = company_scope(Report).find(params[:id])
+          report = policy_scope(Report).find(params[:id])
+          authorize report, :show?
+          return render json: { error: "Report not available" }, status: :forbidden if report.visibility != "shared_with_company"
+
           render json: { report: report_json(report, detailed: true) }
         end
 
         def create
+          authorize Report, :create?
           if current_company.report_readiness_score < 100 && !current_company.merged_settings["allow_early_report"]
             return render json: { error: "Report readiness must reach 100% before generating" }, status: :unprocessable_entity
           end
 
           previous = current_company.reports.ready.order(version: :desc).first
+          initial_visibility = current_company.reviewer_assignments.active.exists? ? "internal_only" : "shared_with_company"
           report = current_company.reports.create!(
             version: (current_company.reports.maximum(:version) || 0) + 1,
             status: "queued",
-            visibility: "shared_with_company",
+            visibility: initial_visibility,
             triggered_by_type: "CompanyUser",
             triggered_by_id: current_company_user.id,
             previous_report: previous
@@ -36,8 +39,10 @@ module Api
         end
 
         def download
-          report = company_scope(Report).find(params[:id])
+          report = policy_scope(Report).find(params[:id])
+          authorize report, :download?
           return render json: { error: "Report not ready" }, status: :not_found unless report.status == "ready"
+          return render json: { error: "Report not available" }, status: :forbidden if report.visibility != "shared_with_company"
 
           data = Storage::MinioClient.new.download(report.storage_key)
           send_data data,
@@ -47,17 +52,14 @@ module Api
         end
 
         def share
-          report = company_scope(Report).find(params[:id])
+          report = policy_scope(Report).find(params[:id])
+          authorize report, :share?
           days = params[:days].to_i
           result = Reports::ShareLinkService.create!(report: report, days: days.positive? ? days : 30)
           render json: result
         end
 
         private
-
-        def require_company_admin!
-          render json: { error: "Forbidden" }, status: :forbidden unless current_company_user.company_admin?
-        end
 
         def report_json(report, detailed: false)
           access_count = report.report_share_accesses.count

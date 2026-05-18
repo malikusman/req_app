@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_05_21_000001) do
+ActiveRecord::Schema[7.1].define(version: 2026_05_22_000005) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -345,6 +345,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_21_000001) do
     t.boolean "is_discovery_question", default: false, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "reviewer_followup", default: false, null: false
+    t.index ["conversation_id", "reviewer_followup", "created_at"], name: "index_messages_on_conversation_followup"
     t.index ["conversation_id"], name: "index_messages_on_conversation_id"
     t.index ["external_id"], name: "index_messages_on_external_id", unique: true, where: "(external_id IS NOT NULL)"
   end
@@ -441,6 +443,44 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_21_000001) do
     t.index ["company_id"], name: "index_recommendations_on_company_id"
   end
 
+  create_table "report_review_comments", force: :cascade do |t|
+    t.bigint "report_review_id", null: false
+    t.bigint "reviewer_user_id", null: false
+    t.string "section_key", null: false
+    t.text "body", null: false
+    t.boolean "resolved", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["report_review_id", "section_key"], name: "index_report_review_comments_on_review_and_section"
+    t.index ["report_review_id"], name: "index_report_review_comments_on_report_review_id"
+    t.index ["reviewer_user_id"], name: "index_report_review_comments_on_reviewer_user_id"
+  end
+
+  create_table "report_review_section_states", force: :cascade do |t|
+    t.bigint "report_review_id", null: false
+    t.string "section_key", null: false
+    t.string "status", default: "pending", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["report_review_id", "section_key"], name: "index_report_review_section_states_unique", unique: true
+    t.index ["report_review_id"], name: "index_report_review_section_states_on_report_review_id"
+  end
+
+  create_table "report_reviews", force: :cascade do |t|
+    t.bigint "report_id", null: false
+    t.bigint "reviewer_user_id", null: false
+    t.bigint "company_id", null: false
+    t.string "status", default: "pending", null: false
+    t.text "overall_note"
+    t.datetime "submitted_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_report_reviews_on_company_id"
+    t.index ["report_id", "reviewer_user_id"], name: "index_report_reviews_on_report_id_and_reviewer_user_id", unique: true
+    t.index ["report_id"], name: "index_report_reviews_on_report_id"
+    t.index ["reviewer_user_id"], name: "index_report_reviews_on_reviewer_user_id"
+  end
+
   create_table "report_share_accesses", force: :cascade do |t|
     t.bigint "report_id", null: false
     t.string "share_token", null: false
@@ -472,11 +512,82 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_21_000001) do
     t.text "error_message"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "review_workflow_status", default: "not_required", null: false
+    t.datetime "reviews_completed_at"
     t.index ["company_id", "version"], name: "index_reports_on_company_id_and_version", unique: true
     t.index ["company_id"], name: "index_reports_on_company_id"
     t.index ["previous_report_id"], name: "index_reports_on_previous_report_id"
     t.index ["reviewed_by_platform_user_id"], name: "index_reports_on_reviewed_by_platform_user_id"
     t.index ["share_token"], name: "index_reports_on_share_token", unique: true, where: "(share_token IS NOT NULL)"
+  end
+
+  create_table "reviewer_assignments", force: :cascade do |t|
+    t.bigint "reviewer_user_id", null: false
+    t.bigint "company_id", null: false
+    t.bigint "assigned_by_platform_user_id", null: false
+    t.string "status", default: "active", null: false
+    t.datetime "assigned_at", null: false
+    t.datetime "removed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["assigned_by_platform_user_id"], name: "index_reviewer_assignments_on_assigned_by_platform_user_id"
+    t.index ["company_id", "reviewer_user_id"], name: "index_reviewer_assignments_active_unique", unique: true, where: "((status)::text = 'active'::text)"
+    t.index ["company_id"], name: "index_reviewer_assignments_on_company_id"
+    t.index ["reviewer_user_id"], name: "index_reviewer_assignments_on_reviewer_user_id"
+  end
+
+  create_table "reviewer_chat_messages", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "sender_reviewer_user_id", null: false
+    t.text "body", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id", "created_at"], name: "index_reviewer_chat_messages_on_company_id_and_created_at"
+    t.index ["company_id"], name: "index_reviewer_chat_messages_on_company_id"
+    t.index ["sender_reviewer_user_id"], name: "index_reviewer_chat_messages_on_sender_reviewer_user_id"
+  end
+
+  create_table "reviewer_info_replies", force: :cascade do |t|
+    t.bigint "reviewer_info_request_id", null: false
+    t.bigint "message_id", null: false
+    t.text "body", null: false
+    t.datetime "received_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["message_id"], name: "index_reviewer_info_replies_on_message_id"
+    t.index ["reviewer_info_request_id"], name: "index_reviewer_info_replies_on_reviewer_info_request_id"
+  end
+
+  create_table "reviewer_info_requests", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "report_id"
+    t.bigint "reviewer_user_id", null: false
+    t.bigint "employee_id", null: false
+    t.bigint "conversation_id", null: false
+    t.text "body", null: false
+    t.string "status", default: "draft", null: false
+    t.string "meta_message_id"
+    t.datetime "sent_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_reviewer_info_requests_on_company_id"
+    t.index ["conversation_id"], name: "index_reviewer_info_requests_on_conversation_id"
+    t.index ["employee_id", "status"], name: "index_reviewer_info_requests_awaiting_reply", where: "((status)::text = 'awaiting_reply'::text)"
+    t.index ["employee_id"], name: "index_reviewer_info_requests_on_employee_id"
+    t.index ["report_id"], name: "index_reviewer_info_requests_on_report_id"
+    t.index ["reviewer_user_id"], name: "index_reviewer_info_requests_on_reviewer_user_id"
+  end
+
+  create_table "reviewer_users", force: :cascade do |t|
+    t.string "email", null: false
+    t.string "password_digest", null: false
+    t.string "name", null: false
+    t.string "status", default: "active", null: false
+    t.string "jti", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["email"], name: "index_reviewer_users_on_email", unique: true
+    t.index ["jti"], name: "index_reviewer_users_on_jti", unique: true
   end
 
   create_table "solution_catalog", force: :cascade do |t|
@@ -577,9 +688,27 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_21_000001) do
   add_foreign_key "recommendation_feedbacks", "recommendations"
   add_foreign_key "recommendations", "companies"
   add_foreign_key "recommendations", "company_users", column: "company_feedback_by_id"
+  add_foreign_key "report_review_comments", "report_reviews"
+  add_foreign_key "report_review_comments", "reviewer_users"
+  add_foreign_key "report_review_section_states", "report_reviews"
+  add_foreign_key "report_reviews", "companies"
+  add_foreign_key "report_reviews", "reports"
+  add_foreign_key "report_reviews", "reviewer_users"
   add_foreign_key "report_share_accesses", "reports"
   add_foreign_key "reports", "companies"
   add_foreign_key "reports", "platform_users", column: "reviewed_by_platform_user_id"
   add_foreign_key "reports", "reports", column: "previous_report_id"
+  add_foreign_key "reviewer_assignments", "companies"
+  add_foreign_key "reviewer_assignments", "platform_users", column: "assigned_by_platform_user_id"
+  add_foreign_key "reviewer_assignments", "reviewer_users"
+  add_foreign_key "reviewer_chat_messages", "companies"
+  add_foreign_key "reviewer_chat_messages", "reviewer_users", column: "sender_reviewer_user_id"
+  add_foreign_key "reviewer_info_replies", "messages"
+  add_foreign_key "reviewer_info_replies", "reviewer_info_requests"
+  add_foreign_key "reviewer_info_requests", "companies"
+  add_foreign_key "reviewer_info_requests", "conversations"
+  add_foreign_key "reviewer_info_requests", "employees"
+  add_foreign_key "reviewer_info_requests", "reports"
+  add_foreign_key "reviewer_info_requests", "reviewer_users"
   add_foreign_key "subscriptions", "companies"
 end

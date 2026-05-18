@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, type Company } from '../../lib/api';
 import { useAuth, usePlatformToken, startImpersonation } from '../../lib/auth';
+import { PlatformCompanyReviewers } from './PlatformCompanyReviewers';
 
 export function PlatformCompanies() {
   const { session, setSession } = useAuth();
@@ -18,6 +19,7 @@ export function PlatformCompanies() {
   });
   const [error, setError] = useState('');
   const [impersonatingId, setImpersonatingId] = useState<number | null>(null);
+  const [reviewerCompany, setReviewerCompany] = useState<{ id: number; name: string } | null>(null);
 
   const load = () => {
     if (!token) return;
@@ -140,10 +142,19 @@ export function PlatformCompanies() {
                   {c.subscription?.status} · {c.subscription?.plan}
                 </td>
                 <td>{c.portal_onboarding_completed_at ? 'Complete' : 'Pending'}</td>
-                <td>
+                <td style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                   <button
                     type="button"
-                    className="btn btn-secondary"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() =>
+                      setReviewerCompany({ id: c.id, name: c.display_name || c.name })
+                    }
+                  >
+                    Reviewers
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
                     disabled={impersonatingId === c.id}
                     onClick={() => handleImpersonate(c.id)}
                   >
@@ -156,6 +167,13 @@ export function PlatformCompanies() {
         </table>
         {companies.length === 0 && <p style={{ color: '#64748b' }}>No companies yet.</p>}
       </div>
+      {reviewerCompany && (
+        <PlatformCompanyReviewers
+          companyId={reviewerCompany.id}
+          companyName={reviewerCompany.name}
+          onClose={() => setReviewerCompany(null)}
+        />
+      )}
     </div>
   );
 }

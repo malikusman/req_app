@@ -5,12 +5,14 @@ module Api
     module Company
       class RecommendationsController < BaseController
         def index
+          authorize Recommendation, :index?
           recs = company_scope(Recommendation).published.order(priority: :desc, created_at: :desc)
           render json: { recommendations: recs.map { |r| recommendation_json(r) } }
         end
 
         def update_feedback
           rec = company_scope(Recommendation).find(params[:id])
+          authorize rec, :update_feedback?
           rec.update!(
             company_feedback: params[:feedback],
             company_feedback_note: params[:note],

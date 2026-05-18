@@ -6,14 +6,27 @@ module Api
       class ReportsController < BaseController
         def index
           company = ::Company.find(params[:company_id])
-          reports = company.reports.order(version: :desc)
-          render json: { reports: reports.map { |r| report_json(r) } }
+          reports = policy_scope(Report).where(company_id: company.id).order(version: :desc)
+          render json: { reports: reports.map { |r| report_json(r, company: company) } }
         end
 
         def approve
           report = Report.joins(:company).find_by!(id: params[:id], company_id: params[:company_id])
+          authorize report, :approve?
+
+          if report.review_workflow_status.in?(%w[awaiting_reviewers in_review])
+            return render json: { error: "Reviewer reviews not yet complete" }, status: :unprocessable_entity
+          end
+
+          if report.company.reviewer_assignments.active.exists? &&
+             report.review_workflow_status != "reviews_complete" &&
+             !report.company.merged_settings["skip_platform_review"]
+            return render json: { error: "All reviewer submissions required before approval" }, status: :unprocessable_entity
+          end
+
           report.update!(
             visibility: "shared_with_company",
+            review_workflow_status: "platform_approved",
             reviewed_by_platform_user: current_platform_user,
             reviewed_at: Time.current
           )
@@ -30,14 +43,27 @@ module Api
 
         private
 
-        def report_json(report)
+        def report_json(report, company: report.company)
+          active_reviewer_ids = company.reviewer_assignments.active.pluck(:reviewer_user_id)
+          reviews = report.report_reviews.where(reviewer_user_id: active_reviewer_ids)
+
           {
             id: report.id,
             version: report.version,
             status: report.status,
             visibility: report.visibility,
+            review_workflow_status: report.review_workflow_status,
+            reviews_completed_at: report.reviews_completed_at,
             generated_at: report.generated_at,
-            company_id: report.company_id
+            company_id: report.company_id,
+            reviewer_progress: reviews.map do |rv|
+              {
+                reviewer_user_id: rv.reviewer_user_id,
+                reviewer_name: rv.reviewer_user.name,
+                status: rv.status,
+                submitted_at: rv.submitted_at
+              }
+            end
           }
         end
       end

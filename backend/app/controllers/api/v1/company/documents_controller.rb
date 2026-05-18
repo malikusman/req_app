@@ -5,11 +5,13 @@ module Api
     module Company
       class DocumentsController < BaseController
         def index
-          documents = current_company.documents.order(created_at: :desc).limit(50)
+          authorize Document, :index?
+          documents = policy_scope(Document).order(created_at: :desc).limit(50)
           render json: { documents: documents.map { |d| document_json(d) } }
         end
 
         def create
+          authorize Document, :create?
           file = params[:file]
           return render json: { error: "file required" }, status: :unprocessable_entity unless file.respond_to?(:read)
 

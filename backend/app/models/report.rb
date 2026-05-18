@@ -5,9 +5,13 @@ class Report < ApplicationRecord
   belongs_to :previous_report, class_name: "Report", optional: true
   belongs_to :reviewed_by_platform_user, class_name: "PlatformUser", optional: true
   has_many :report_share_accesses, dependent: :destroy
+  has_many :report_reviews, dependent: :destroy
 
   STATUSES = %w[queued generating ready failed].freeze
   VISIBILITIES = %w[internal_only shared_with_company].freeze
+  REVIEW_WORKFLOW_STATUSES = %w[
+    not_required awaiting_reviewers in_review reviews_complete platform_approved
+  ].freeze
 
   validates :version, presence: true
   validates :status, inclusion: { in: STATUSES }

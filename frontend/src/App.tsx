@@ -21,6 +21,15 @@ import { CompanyReports } from './portals/company/CompanyReports';
 import { CompanySettings } from './portals/company/CompanySettings';
 import { CompanyBilling } from './portals/company/CompanyBilling';
 import { PlatformMonitoringPage } from './portals/platform/PlatformMonitoring';
+import { ReviewerLogin } from './auth/ReviewerLogin';
+import { ReviewerLayout } from './portals/reviewer/ReviewerLayout';
+import { ReviewerDashboard } from './portals/reviewer/ReviewerDashboard';
+import { ReviewerCompanyOverview } from './portals/reviewer/ReviewerCompanyOverview';
+import { ReviewerReportReview } from './portals/reviewer/ReviewerReportReview';
+import { ReviewerConversations } from './portals/reviewer/ReviewerConversations';
+import { ReviewerConversationDetail } from './portals/reviewer/ReviewerConversationDetail';
+import { ReviewerChat } from './portals/reviewer/ReviewerChat';
+import { PlatformReviewers } from './portals/platform/PlatformReviewers';
 
 function PlatformGuard({ children }: { children: React.ReactNode }) {
   const { session } = useAuth();
@@ -38,9 +47,18 @@ function CompanyGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function ReviewerGuard({ children }: { children: React.ReactNode }) {
+  const { session } = useAuth();
+  if (!session || session.portal !== 'reviewer') {
+    return <Navigate to="/reviewer/login" replace />;
+  }
+  return <>{children}</>;
+}
+
 function HomeRedirect() {
   const { session } = useAuth();
   if (session?.portal === 'platform') return <Navigate to="/platform/dashboard" replace />;
+  if (session?.portal === 'reviewer') return <Navigate to="/reviewer/dashboard" replace />;
   if (session?.portal === 'company') {
     if (session.impersonating) return <Navigate to="/company/dashboard" replace />;
     const done = session.company.portal_onboarding_completed_at;
@@ -54,6 +72,9 @@ function HomeRedirect() {
       <a href="/company/login" className="btn btn-secondary">
         Company login
       </a>
+      <a href="/reviewer/login" className="btn btn-secondary" style={{ background: '#7c3aed', borderColor: '#7c3aed', color: '#fff' }}>
+        Reviewer login
+      </a>
     </div>
   );
 }
@@ -66,6 +87,7 @@ export default function App() {
           <Route path="/" element={<HomeRedirect />} />
           <Route path="/platform/login" element={<PlatformLogin />} />
           <Route path="/company/login" element={<CompanyLogin />} />
+          <Route path="/reviewer/login" element={<ReviewerLogin />} />
           <Route
             path="/platform"
             element={
@@ -82,6 +104,23 @@ export default function App() {
             <Route path="solutions" element={<PlatformSolutions />} />
             <Route path="system" element={<PlatformSystem />} />
             <Route path="monitoring" element={<PlatformMonitoringPage />} />
+            <Route path="reviewers" element={<PlatformReviewers />} />
+          </Route>
+          <Route
+            path="/reviewer"
+            element={
+              <ReviewerGuard>
+                <ReviewerLayout />
+              </ReviewerGuard>
+            }
+          >
+            <Route index element={<Navigate to="dashboard" replace />} />
+            <Route path="dashboard" element={<ReviewerDashboard />} />
+            <Route path="companies/:companyId" element={<ReviewerCompanyOverview />} />
+            <Route path="companies/:companyId/reports/:reportId/review" element={<ReviewerReportReview />} />
+            <Route path="companies/:companyId/conversations" element={<ReviewerConversations />} />
+            <Route path="companies/:companyId/conversations/:conversationId" element={<ReviewerConversationDetail />} />
+            <Route path="companies/:companyId/chat" element={<ReviewerChat />} />
           </Route>
           <Route
             path="/company"
