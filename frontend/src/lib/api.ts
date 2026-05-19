@@ -150,6 +150,22 @@ export const api = {
   intelligenceTimeline: (token: string) =>
     request<{ events: TimelineEvent[] }>('/api/v1/company/intelligence/timeline', {}, token),
 
+  intelligenceSignals: (token: string) =>
+    request<{ signals: CompanySignal[] }>('/api/v1/company/intelligence/signals', {}, token),
+
+  intelligencePatterns: (token: string) =>
+    request<{ patterns: CompanyPattern[] }>('/api/v1/company/intelligence/patterns', {}, token),
+
+  platformCompanyReports: (token: string, companyId: number) =>
+    request<{ reports: PlatformReport[] }>(`/api/v1/platform/companies/${companyId}/reports`, {}, token),
+
+  approvePlatformReport: (token: string, companyId: number, reportId: number) =>
+    request<{ report: PlatformReport }>(
+      `/api/v1/platform/companies/${companyId}/reports/${reportId}/approve`,
+      { method: 'POST' },
+      token
+    ),
+
   discoveryQuestions: (token: string) =>
     request<{ questions: DiscoveryQuestion[] }>('/api/v1/company/discovery_questions', {}, token),
 
@@ -498,6 +514,36 @@ export interface TimelineEvent {
   title: string;
   summary: string | null;
   occurred_at: string;
+}
+
+export interface CompanySignal {
+  id: number;
+  label: string;
+  signal_type: string;
+  strength: number;
+  departments: string[];
+  evidence_count: number;
+  status: string;
+  first_seen_at: string | null;
+  last_updated_at: string | null;
+}
+
+export interface CompanyPattern {
+  id: number;
+  title: string;
+  description: string | null;
+  confidence: number;
+  departments: string[];
+  status: string;
+  linked_signal_ids: number[];
+  first_seen_at: string | null;
+  last_updated_at: string | null;
+}
+
+export interface PlatformReport extends Report {
+  review_workflow_status?: string;
+  reviews_completed_at?: string | null;
+  reviewer_progress?: { reviewer_name: string; status: string }[];
 }
 
 export interface DiscoveryQuestion {

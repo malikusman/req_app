@@ -1,10 +1,16 @@
 import { useEffect, useState } from 'react';
 import { api, type ReviewerAssignment, type ReviewerUser } from '../../lib/api';
 import { usePlatformToken } from '../../lib/auth';
+import { Card, Button, Badge, Select } from '../../components/ui';
 
-type Props = { companyId: number; companyName: string; onClose: () => void };
+type Props = {
+  companyId: number;
+  companyName: string;
+  onClose?: () => void;
+  embedded?: boolean;
+};
 
-export function PlatformCompanyReviewers({ companyId, companyName, onClose }: Props) {
+export function PlatformCompanyReviewers({ companyId, companyName, onClose, embedded }: Props) {
   const token = usePlatformToken();
   const [assignments, setAssignments] = useState<ReviewerAssignment[]>([]);
   const [activeCount, setActiveCount] = useState(0);
@@ -47,48 +53,64 @@ export function PlatformCompanyReviewers({ companyId, companyName, onClose }: Pr
   };
 
   const assignedIds = new Set(assignments.filter((a) => a.status === 'active').map((a) => a.reviewer_user.id));
+  const available = allReviewers.filter((r) => !assignedIds.has(r.id));
 
-  return (
-    <div className="card" style={{ marginTop: '1rem', border: '2px solid #e2e8f0' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3 style={{ margin: 0 }}>Reviewers — {companyName}</h3>
-        <button type="button" className="btn btn-ghost" onClick={onClose}>
-          Close
-        </button>
-      </div>
-      {error && <div className="error">{error}</div>}
-      <p style={{ color: '#64748b' }}>
+  const content = (
+    <>
+      {!embedded && (
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="m-0 font-medium text-text-primary">Reviewers — {companyName}</h3>
+          {onClose && (
+            <Button variant="ghost" size="sm" onClick={onClose}>
+              Close
+            </Button>
+          )}
+        </div>
+      )}
+      {error && <p className="text-sm text-status-error">{error}</p>}
+      <p className="text-sm text-text-secondary">
         Active assignments: {activeCount} / 2 (hidden from company admins)
       </p>
-      <ul>
+      <ul className="mt-4 space-y-2">
         {assignments.map((a) => (
-          <li key={a.id} style={{ marginBottom: '0.5rem' }}>
-            {a.reviewer_user.name} ({a.reviewer_user.email}) — {a.status}
-            {a.status === 'active' && (
-              <button type="button" className="btn btn-ghost btn-sm" style={{ marginLeft: '0.5rem' }} onClick={() => remove(a.id)}>
-                Remove
-              </button>
-            )}
+          <li
+            key={a.id}
+            className="flex flex-wrap items-center justify-between gap-2 rounded-button border border-border px-3 py-2"
+          >
+            <span className="text-sm text-text-primary">
+              {a.reviewer_user.name} ({a.reviewer_user.email})
+            </span>
+            <div className="flex items-center gap-2">
+              <Badge variant={a.status === 'active' ? 'success' : 'neutral'}>{a.status}</Badge>
+              {a.status === 'active' && (
+                <Button variant="ghost" size="sm" onClick={() => remove(a.id)}>
+                  Remove
+                </Button>
+              )}
+            </div>
           </li>
         ))}
       </ul>
       {activeCount < 2 && (
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.5rem' }}>
-          <select value={selectedReviewerId} onChange={(e) => setSelectedReviewerId(e.target.value)}>
-            <option value="">Select reviewer…</option>
-            {allReviewers
-              .filter((r) => !assignedIds.has(r.id))
-              .map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name} ({r.email})
-                </option>
-              ))}
-          </select>
-          <button type="button" className="btn btn-primary" disabled={!selectedReviewerId} onClick={assign}>
+        <div className="mt-4 flex flex-wrap items-end gap-3">
+          <Select
+            label="Add reviewer"
+            value={selectedReviewerId}
+            onChange={(e) => setSelectedReviewerId(e.target.value)}
+            options={[
+              { value: '', label: 'Select reviewer…' },
+              ...available.map((r) => ({ value: String(r.id), label: `${r.name} (${r.email})` })),
+            ]}
+            className="min-w-[240px]"
+          />
+          <Button disabled={!selectedReviewerId} onClick={assign}>
             Assign
-          </button>
+          </Button>
         </div>
       )}
-    </div>
+    </>
   );
+
+  if (embedded) return <div>{content}</div>;
+  return <Card>{content}</Card>;
 }

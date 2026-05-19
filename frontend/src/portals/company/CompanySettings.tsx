@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
+import { PageHeader, Card, Input, Select, Button, StatCard } from '../../components/ui';
 
 export function CompanySettings() {
   const token = useCompanyToken();
@@ -33,45 +34,40 @@ export function CompanySettings() {
   };
 
   return (
-    <div>
-      <h1 style={{ marginTop: 0 }}>Settings</h1>
-      {msg && <div style={{ background: '#d1fae5', color: '#065f46', padding: '0.75rem', borderRadius: 8, marginBottom: '1rem' }}>{msg}</div>}
+    <div className="space-y-6">
+      <PageHeader title="Settings" description="Organization profile and security controls." />
+      {msg && <p className="rounded-button bg-status-successBg px-4 py-2 text-sm text-status-success">{msg}</p>}
 
-      <div className="card" style={{ marginBottom: '1.5rem' }}>
-        <h3 style={{ marginTop: 0 }}>Organization</h3>
-        <form onSubmit={saveOrg}>
-          <div className="form-group">
-            <label>Display name</label>
-            <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
-          </div>
-          <div className="form-group">
-            <label>Locale (reports)</label>
-            <select value={locale} onChange={(e) => setLocale(e.target.value)}>
-              <option value="en">English</option>
-              <option value="es">Spanish</option>
-            </select>
-          </div>
-          <button type="submit" className="btn btn-primary">
-            Save
-          </button>
+      <Card title="Organization">
+        <form onSubmit={saveOrg} className="max-w-md space-y-4">
+          <Input label="Display name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+          <Select
+            label="Locale (reports)"
+            value={locale}
+            onChange={(e) => setLocale(e.target.value)}
+            options={[
+              { value: 'en', label: 'English' },
+              { value: 'es', label: 'Spanish' },
+            ]}
+          />
+          <Button type="submit">Save</Button>
         </form>
-      </div>
+      </Card>
 
-      <div className="card">
-        <h3 style={{ marginTop: 0 }}>Security</h3>
+      <Card title="Security">
         {security && (
-          <>
-            <p>Active access codes: <strong>{security.active_access_codes}</strong></p>
-            <p style={{ color: '#64748b' }}>
+          <div className="space-y-4">
+            <StatCard label="Active access codes" value={security.active_access_codes} />
+            <p className="text-sm text-text-secondary">
               Unrecognized verification attempts (7d):{' '}
               {String(security.security_snapshot?.unrecognized_verification_attempts_7d ?? 0)}
             </p>
-            <button type="button" className="btn btn-secondary" onClick={rotate}>
+            <Button variant="secondary" onClick={rotate}>
               Rotate all access codes
-            </button>
-          </>
+            </Button>
+          </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 }

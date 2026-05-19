@@ -1,0 +1,32 @@
+import {
+  Clock,
+  CreditCard,
+  FileBarChart,
+  FileText,
+  HelpCircle,
+  LayoutDashboard,
+  Lightbulb,
+  MessageSquare,
+  Radio,
+  Settings,
+  Shapes,
+  Users,
+  Wrench,
+} from 'lucide-react';
+import type { SidebarItem } from '../../components/layout/Sidebar';
+
+export const navItems: SidebarItem[] = [
+  { to: '/company/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/company/employees', label: 'Employees', icon: Users },
+  { to: '/company/conversations', label: 'Conversations', icon: MessageSquare },
+  { to: '/company/intelligence/signals', label: 'Signals', icon: Radio },
+  { to: '/company/intelligence/patterns', label: 'Patterns', icon: Shapes },
+  { to: '/company/intelligence/timeline', label: 'Timeline', icon: Clock },
+  { to: '/company/recommendations', label: 'Recommendations', icon: Lightbulb },
+  { to: '/company/reports', label: 'Reports', icon: FileBarChart },
+  { to: '/company/documents', label: 'Documents', icon: FileText },
+  { to: '/company/billing', label: 'Billing', icon: CreditCard },
+  { to: '/company/discovery-questions', label: 'Questions', icon: HelpCircle },
+  { to: '/company/settings', label: 'Settings', icon: Settings },
+  { to: '/company/onboarding', label: 'Setup', icon: Wrench },
+];

@@ -1,7 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { useReviewerToken } from '../../lib/auth';
+import { PageHeader, Card, ChatBubble, Textarea, Button } from '../../components/ui';
 
 export function ReviewerChat() {
   const { companyId } = useParams();
@@ -31,25 +32,35 @@ export function ReviewerChat() {
   };
 
   return (
-    <div>
-      <Link to={`/reviewer/companies/${companyId}`}>← Company</Link>
-      <h1>Co-reviewer chat</h1>
-      <div className="card" style={{ maxHeight: 360, overflow: 'auto', marginBottom: '1rem' }}>
-        {messages.map((m) => (
-          <div key={m.id} style={{ marginBottom: '0.75rem', textAlign: m.mine ? 'right' : 'left' }}>
-            <small style={{ color: '#64748b' }}>
-              {m.sender_name} · {new Date(m.created_at).toLocaleString()}
-            </small>
-            <div>{m.body}</div>
-          </div>
-        ))}
-      </div>
-      <form onSubmit={send} className="card">
-        <textarea rows={2} style={{ width: '100%' }} value={body} onChange={(e) => setBody(e.target.value)} />
-        <button type="submit" className="btn btn-primary" style={{ marginTop: '0.5rem' }}>
-          Send
-        </button>
-      </form>
+    <div className="space-y-6">
+      <PageHeader
+        title="Co-reviewer chat"
+        description="Private channel with co-reviewers on this assignment."
+        breadcrumbs={[
+          { label: 'Company', href: `/reviewer/companies/${companyId}` },
+          { label: 'Chat' },
+        ]}
+      />
+
+      <Card>
+        <div className="max-h-[400px] space-y-4 overflow-y-auto pr-2">
+          {messages.map((m) => (
+            <div key={m.id}>
+              <p className="mb-1 text-xs text-text-secondary">{m.sender_name}</p>
+              <ChatBubble direction={m.mine ? 'outbound' : 'inbound'} body={m.body} timestamp={m.created_at} />
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <Card>
+        <form onSubmit={send} className="space-y-4">
+          <Textarea rows={3} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Message co-reviewers…" />
+          <Button type="submit" disabled={!body.trim()}>
+            Send
+          </Button>
+        </form>
+      </Card>
     </div>
   );
 }

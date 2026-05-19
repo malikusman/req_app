@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, type Report } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
+import { PageHeader, Card, Button, DataTable, Badge, EmptyState } from '../../components/ui';
 
 export function CompanyReports() {
   const token = useCompanyToken();
@@ -8,10 +9,14 @@ export function CompanyReports() {
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
   const [shareMsg, setShareMsg] = useState('');
+  const [loading, setLoading] = useState(true);
 
   const load = () => {
     if (!token) return;
-    api.companyReports(token).then((d) => setReports(d.reports));
+    api
+      .companyReports(token)
+      .then((d) => setReports(d.reports))
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -52,73 +57,81 @@ export function CompanyReports() {
   };
 
   return (
-    <div>
-      <h1 style={{ marginTop: 0 }}>Reports</h1>
-      <p style={{ color: '#64748b' }}>Generate versioned PDF reports with deltas vs previous versions. Share read-only links with leadership.</p>
+    <div className="space-y-6">
+      <PageHeader
+        title="Reports"
+        description="Generate versioned PDF reports with deltas vs previous versions."
+      />
 
-      {error && <div className="error">{error}</div>}
-      {shareMsg && <div style={{ background: '#d1fae5', color: '#065f46', padding: '0.75rem', borderRadius: 8, marginBottom: '1rem' }}>{shareMsg}</div>}
+      {error && <p className="text-sm text-status-error">{error}</p>}
+      {shareMsg && (
+        <p className="rounded-button bg-status-successBg px-4 py-2 text-sm text-status-success">{shareMsg}</p>
+      )}
 
-      <div className="card" style={{ marginBottom: '1.5rem' }}>
-        <button type="button" className="btn btn-primary" onClick={generate} disabled={generating}>
+      <Card>
+        <Button onClick={generate} loading={generating} disabled={generating}>
           {generating ? 'Generating…' : 'Generate new report'}
-        </button>
-        <p style={{ color: '#64748b', margin: '0.75rem 0 0', fontSize: '0.9rem' }}>
+        </Button>
+        <p className="mt-2 text-sm text-text-secondary">
           Requires readiness score of 100% (or allow_early_report in dev).
         </p>
-      </div>
+      </Card>
 
-      <div className="card">
-        <table>
-          <thead>
-            <tr>
-              <th>Version</th>
-              <th>Status</th>
-              <th>Generated</th>
-              <th>Delta</th>
-              <th>Share views</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {reports.map((r) => (
-              <tr key={r.id}>
-                <td>v{r.version}</td>
-                <td>
-                  <span className={`badge badge-${r.status === 'ready' ? 'completed' : r.status}`}>{r.status}</span>
-                </td>
-                <td>{r.generated_at ? new Date(r.generated_at).toLocaleString() : '—'}</td>
-                <td>
-                  <small>{r.delta_summary || '—'}</small>
-                </td>
-                <td>
-                  {r.access_count > 0 ? (
-                    <small>
-                      {r.access_count} views
-                      {r.last_accessed_at && ` · last ${new Date(r.last_accessed_at).toLocaleString()}`}
-                    </small>
-                  ) : (
-                    '—'
-                  )}
-                </td>
-                <td style={{ whiteSpace: 'nowrap' }}>
-                  {r.status === 'ready' && (
-                    <>
-                      <button type="button" className="btn btn-secondary" onClick={() => download(r.id)}>
-                        Download
-                      </button>
-                      <button type="button" className="btn btn-secondary" style={{ marginLeft: 4 }} onClick={() => share(r.id)}>
-                        Share link
-                      </button>
-                    </>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {reports.length === 0 && <p style={{ color: '#94a3b8' }}>No reports yet.</p>}
-      </div>
+      <DataTable
+        loading={loading}
+        columns={[
+          { key: 'version', header: 'Version', render: (r) => `v${r.version}` },
+          {
+            key: 'status',
+            header: 'Status',
+            render: (r) => (
+              <Badge variant={r.status === 'ready' ? 'success' : r.status === 'failed' ? 'error' : 'info'}>
+                {r.status}
+              </Badge>
+            ),
+          },
+          {
+            key: 'generated',
+            header: 'Generated',
+            render: (r) => (r.generated_at ? new Date(r.generated_at).toLocaleString() : '—'),
+          },
+          {
+            key: 'delta',
+            header: 'Delta',
+            render: (r) => <span className="text-xs text-text-secondary">{r.delta_summary || '—'}</span>,
+          },
+          {
+            key: 'views',
+            header: 'Share views',
+            render: (r) =>
+              r.access_count > 0 ? (
+                <span className="text-xs text-text-secondary">
+                  {r.access_count} views
+                  {r.last_accessed_at && ` · last ${new Date(r.last_accessed_at).toLocaleString()}`}
+                </span>
+              ) : (
+                '—'
+              ),
+          },
+          {
+            key: 'actions',
+            header: '',
+            render: (r) =>
+              r.status === 'ready' ? (
+                <div className="flex gap-2">
+                  <Button variant="secondary" size="sm" onClick={() => download(r.id)}>
+                    Download
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={() => share(r.id)}>
+                    Share
+                  </Button>
+                </div>
+              ) : null,
+          },
+        ]}
+        rows={reports as Report[]}
+        emptyState={<EmptyState title="No reports" description="Generate your first discovery report when ready." />}
+      />
     </div>
   );
 }

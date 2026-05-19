@@ -1,122 +1,144 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Users, CheckCircle2, Percent, FileBarChart } from 'lucide-react';
 import { api, type IntelligenceSnapshot } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
+import { PageHeader } from '../../components/ui/PageHeader';
+import { StatCard } from '../../components/ui/StatCard';
+import { Card } from '../../components/ui/Card';
+import { ReadinessGauge } from '../../components/ui/ReadinessGauge';
+import { DepartmentHeatmap } from '../../components/ui/DepartmentHeatmap';
+import { StrengthBar } from '../../components/ui/StrengthBar';
+import { Timeline } from '../../components/ui/Timeline';
+import { Badge } from '../../components/ui/Badge';
+import { Button } from '../../components/ui/Button';
+import { Skeleton } from '../../components/ui/Skeleton';
 
 export function CompanyDashboard() {
   const token = useCompanyToken();
   const [snapshot, setSnapshot] = useState<IntelligenceSnapshot | null>(null);
   const [score, setScore] = useState(0);
   const [breakdown, setBreakdown] = useState<Record<string, number>>({});
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!token) return;
-    api.intelligenceSnapshot(token).then((d) => {
-      setSnapshot(d.snapshot);
-      setScore(Math.round(d.report_readiness_score));
-      setBreakdown(d.report_readiness_breakdown as Record<string, number>);
-    });
+    api
+      .intelligenceSnapshot(token)
+      .then((d) => {
+        setSnapshot(d.snapshot);
+        setScore(Math.round(d.report_readiness_score));
+        setBreakdown(d.report_readiness_breakdown as Record<string, number>);
+      })
+      .finally(() => setLoading(false));
   }, [token]);
 
-  if (!snapshot) return <p>Loading…</p>;
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton variant="text" />
+        <div className="grid gap-4 md:grid-cols-4">{[1, 2, 3, 4].map((i) => <Skeleton key={i} variant="card" />)}</div>
+      </div>
+    );
+  }
 
-  const participation = snapshot.participation;
+  if (!snapshot) return null;
+
+  const p = snapshot.participation;
 
   return (
-    <div>
-      <h1 style={{ marginTop: 0 }}>Discovery intelligence</h1>
-      <p style={{ color: '#64748b' }}>Live operational snapshot — signals, patterns, and recommendations from your discovery program.</p>
+    <div className="space-y-8">
+      <PageHeader
+        title="Discovery intelligence"
+        description="Live operational snapshot — signals, patterns, and recommendations from your program."
+      />
 
-      <div className="grid-2" style={{ marginTop: '1.5rem' }}>
-        <div className="card stat">
-          <div className="stat-value">{score}%</div>
-          <div className="stat-label">Report readiness</div>
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.75rem' }}>
-            <span className="badge" style={{ background: '#e2e8f0', color: '#334155' }}>
-              employees: {breakdown.employees_interviewed || 0}
-            </span>
-            <span className="badge" style={{ background: '#e2e8f0', color: '#334155' }}>
-              patterns: {breakdown.confirmed_patterns || 0}
-            </span>
-            <span className="badge" style={{ background: '#e2e8f0', color: '#334155' }}>
-              multimodal: {breakdown.multimodal_contributions || 0}
-            </span>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="Employees invited" value={p.invited} icon={<Users className="h-5 w-5 text-accent" />} />
+        <StatCard label="Interviews completed" value={p.completed} icon={<CheckCircle2 className="h-5 w-5 text-accent" />} />
+        <StatCard label="Completion rate" value={`${Math.round(p.completion_rate * 100)}%`} icon={<Percent className="h-5 w-5 text-accent" />} />
+        <StatCard label="Report readiness" value={`${score}%`} icon={<FileBarChart className="h-5 w-5 text-accent" />} />
+      </div>
+
+      <Card title="Department coverage">
+        <DepartmentHeatmap cells={snapshot.department_coverage} />
+      </Card>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card title="Top pain points">
+          {snapshot.top_pain_points.length === 0 ? (
+            <p className="text-sm text-text-secondary">Complete more interviews to surface signals.</p>
+          ) : (
+            <div className="space-y-4">
+              {snapshot.top_pain_points.map((s) => (
+                <div key={s.id}>
+                  <div className="mb-1 flex justify-between text-sm">
+                    <span className="font-medium text-text-primary">{s.label}</span>
+                    <span className="text-text-secondary">{Math.round(s.strength * 100)}%</span>
+                  </div>
+                  <StrengthBar strength={s.strength} />
+                  <p className="mt-1 text-xs text-text-secondary">{s.departments.join(', ') || s.signal_type}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+
+        <Card title="Emerging patterns">
+          {snapshot.emerging_patterns.length === 0 ? (
+            <p className="text-sm text-text-secondary">Patterns emerge as signals strengthen across teams.</p>
+          ) : (
+            <div className="space-y-3">
+              {snapshot.emerging_patterns.map((pat) => (
+                <div key={pat.id} className="rounded-button border border-border p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <h4 className="m-0 font-medium text-text-primary">{pat.title}</h4>
+                    <Badge variant="info">{Math.round(pat.confidence * 100)}%</Badge>
+                  </div>
+                  <p className="mt-1 text-xs text-text-secondary">{pat.departments.join(', ')}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      </div>
+
+      <Card title="Report status">
+        <div className="flex flex-col gap-6 md:flex-row md:items-center">
+          <ReadinessGauge score={score} breakdown={breakdown} />
+          <div className="flex-1 space-y-3">
+            <p className="text-sm text-text-secondary">
+              {snapshot.report_ready
+                ? 'Your organization meets the readiness threshold to generate a discovery report.'
+                : 'Continue interviews and document uploads to increase readiness.'}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Link to="/company/reports">
+                <Button>{snapshot.report_ready ? 'Generate report' : 'View reports'}</Button>
+              </Link>
+              <Link to="/company/recommendations">
+                <Button variant="secondary">Recommendations ({snapshot.recommendation_count})</Button>
+              </Link>
+            </div>
           </div>
         </div>
-        <div className="card stat">
-          <div className="stat-value">{participation.completed}</div>
-          <div className="stat-label">Interviews completed</div>
-          <p style={{ margin: '0.5rem 0 0', color: '#64748b', fontSize: '0.85rem' }}>
-            {participation.invited} invited · {Math.round(participation.completion_rate * 100)}% completion
-          </p>
-        </div>
-      </div>
+      </Card>
 
-      <div className="grid-2" style={{ marginTop: '1rem' }}>
-        <div className="card">
-          <h3 style={{ marginTop: 0 }}>Top pain points</h3>
-          {snapshot.top_pain_points.length === 0 ? (
-            <p style={{ color: '#94a3b8' }}>Complete more interviews to surface signals.</p>
-          ) : (
-            snapshot.top_pain_points.map((s) => (
-              <div key={s.id} style={{ marginBottom: '0.75rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
-                  <strong>{s.label}</strong>
-                  <span>{Math.round(s.strength * 100)}%</span>
-                </div>
-                <div style={{ height: 6, background: '#e2e8f0', borderRadius: 4, marginTop: 4 }}>
-                  <div style={{ width: `${s.strength * 100}%`, height: '100%', background: '#3b82f6', borderRadius: 4 }} />
-                </div>
-                <small style={{ color: '#94a3b8' }}>{s.departments.join(', ') || s.signal_type}</small>
-              </div>
-            ))
-          )}
-        </div>
-
-        <div className="card">
-          <h3 style={{ marginTop: 0 }}>Emerging patterns</h3>
-          {snapshot.emerging_patterns.length === 0 ? (
-            <p style={{ color: '#94a3b8' }}>Patterns emerge as signals strengthen across teams.</p>
-          ) : (
-            snapshot.emerging_patterns.map((p) => (
-              <div key={p.id} style={{ marginBottom: '0.75rem', paddingBottom: '0.75rem', borderBottom: '1px solid #e2e8f0' }}>
-                <strong>{p.title}</strong>
-                <br />
-                <small style={{ color: '#64748b' }}>Confidence {Math.round(p.confidence * 100)}% · {p.departments.join(', ')}</small>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-
-      <div className="card" style={{ marginTop: '1rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h3 style={{ margin: 0 }}>Insights over time</h3>
-          <Link to="/company/intelligence/timeline">View full timeline</Link>
-        </div>
-        <ul style={{ margin: '1rem 0 0', paddingLeft: '1.25rem', color: '#475569' }}>
-          {snapshot.recent_timeline.slice(0, 5).map((e, i) => (
-            <li key={i} style={{ marginBottom: '0.5rem' }}>
-              <strong>{e.title}</strong>
-              <br />
-              <small>{new Date(e.occurred_at).toLocaleString()}</small>
-            </li>
-          ))}
-          {snapshot.recent_timeline.length === 0 && <li>No timeline events yet.</li>}
-        </ul>
-      </div>
-
-      <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem', flexWrap: 'wrap' }}>
-        <Link to="/company/recommendations" className="btn btn-primary">
-          Recommendations ({snapshot.recommendation_count})
-        </Link>
-        <Link to="/company/discovery-questions" className="btn btn-secondary">
-          Discovery questions
-        </Link>
-        <Link to="/company/employees" className="btn btn-secondary">
-          Manage employees
-        </Link>
-      </div>
+      {snapshot.recent_timeline.length > 0 && (
+        <Card title="Recent activity">
+          <Timeline
+            events={snapshot.recent_timeline.map((e, i) => ({
+              id: String(i),
+              title: e.title,
+              summary: e.summary,
+              occurredAt: e.occurred_at,
+            }))}
+          />
+          <Link to="/company/intelligence/timeline" className="mt-4 inline-block text-sm font-medium">
+            View full timeline →
+          </Link>
+        </Card>
+      )}
     </div>
   );
 }

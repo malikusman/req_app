@@ -1,248 +1,32 @@
-:root {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  line-height: 1.5;
-  color: #0f172a;
-  background: #f8fafc;
-}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-* {
-  box-sizing: border-box;
-}
+@layer base {
+  * {
+    @apply box-border;
+  }
 
-body {
-  margin: 0;
-}
+  body {
+    @apply m-0 font-sans text-text-primary bg-surface-muted antialiased;
+  }
 
-a {
-  color: #2563eb;
-  text-decoration: none;
-}
+  a {
+    @apply text-accent no-underline;
+  }
 
-button {
-  cursor: pointer;
-  font-family: inherit;
-}
+  a:hover {
+    @apply text-accent-hover;
+  }
 
-input, select, textarea {
-  font-family: inherit;
-  font-size: 1rem;
-}
+  button,
+  input,
+  select,
+  textarea {
+    @apply font-sans;
+  }
 
-.app-shell {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-
-.nav {
-  background: #0f172a;
-  color: #f8fafc;
-  padding: 0.75rem 1.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.nav-brand {
-  font-weight: 700;
-  font-size: 1.1rem;
-}
-
-.nav-links {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-}
-
-.nav-links a {
-  color: #cbd5e1;
-  font-size: 0.9rem;
-}
-
-.nav-links a:hover {
-  color: #fff;
-}
-
-.main {
-  flex: 1;
-  padding: 2rem;
-  max-width: 1200px;
-  margin: 0 auto;
-  width: 100%;
-}
-
-.card {
-  background: #fff;
-  border-radius: 12px;
-  border: 1px solid #e2e8f0;
-  padding: 1.5rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  border: none;
-  font-weight: 600;
-  font-size: 0.9rem;
-}
-
-.btn-primary {
-  background: #2563eb;
-  color: #fff;
-}
-
-.btn-primary:hover {
-  background: #1d4ed8;
-}
-
-.btn-secondary {
-  background: #e2e8f0;
-  color: #0f172a;
-}
-
-.btn-ghost {
-  background: transparent;
-  color: #64748b;
-  border: 1px solid #e2e8f0;
-}
-
-.form-group {
-  margin-bottom: 1rem;
-}
-
-.form-group label {
-  display: block;
-  font-size: 0.875rem;
-  font-weight: 600;
-  margin-bottom: 0.35rem;
-  color: #475569;
-}
-
-.form-group input,
-.form-group select {
-  width: 100%;
-  padding: 0.6rem 0.75rem;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-}
-
-.login-page {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
-}
-
-.login-card {
-  width: 100%;
-  max-width: 400px;
-  background: #fff;
-  border-radius: 16px;
-  padding: 2rem;
-}
-
-.login-card h1 {
-  margin: 0 0 0.25rem;
-  font-size: 1.5rem;
-}
-
-.login-card .subtitle {
-  color: #64748b;
-  margin: 0 0 1.5rem;
-  font-size: 0.9rem;
-}
-
-.error {
-  background: #fef2f2;
-  color: #b91c1c;
-  padding: 0.75rem;
-  border-radius: 8px;
-  margin-bottom: 1rem;
-  font-size: 0.875rem;
-}
-
-.grid-2 {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1rem;
-}
-
-.stat {
-  text-align: center;
-}
-
-.stat-value {
-  font-size: 2rem;
-  font-weight: 700;
-  color: #2563eb;
-}
-
-.stat-label {
-  font-size: 0.875rem;
-  color: #64748b;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-th, td {
-  text-align: left;
-  padding: 0.75rem;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-th {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  color: #64748b;
-}
-
-.badge {
-  display: inline-block;
-  padding: 0.2rem 0.5rem;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.badge-invited { background: #e0e7ff; color: #3730a3; }
-.badge-started { background: #fef3c7; color: #92400e; }
-.badge-completed { background: #d1fae5; color: #065f46; }
-
-.wizard-steps {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 2rem;
-}
-
-.wizard-step {
-  flex: 1;
-  height: 4px;
-  border-radius: 2px;
-  background: #e2e8f0;
-}
-
-.wizard-step.active {
-  background: #2563eb;
-}
-
-.wizard-step.done {
-  background: #22c55e;
-}
-
-.code-box {
-  font-family: monospace;
-  background: #f1f5f9;
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  font-size: 1.25rem;
-  letter-spacing: 0.1em;
-  text-align: center;
+  :focus-visible {
+    @apply outline-none ring-2 ring-accent ring-offset-2;
+  }
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, type CompanyDocument } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
+import { PageHeader, Card, Input, DataTable, Badge, FileDropzone, EmptyState } from '../../components/ui';
 
 export function CompanyDocuments() {
   const token = useCompanyToken();
@@ -8,19 +9,22 @@ export function CompanyDocuments() {
   const [department, setDepartment] = useState('');
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const load = () => {
     if (!token) return;
-    api.companyDocuments(token).then((d) => setDocuments(d.documents));
+    api
+      .companyDocuments(token)
+      .then((d) => setDocuments(d.documents))
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => {
     load();
   }, [token]);
 
-  const onUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !token) return;
+  const onUpload = async (file: File) => {
+    if (!token) return;
     setError('');
     setUploading(true);
     try {
@@ -30,60 +34,58 @@ export function CompanyDocuments() {
       setError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
       setUploading(false);
-      e.target.value = '';
     }
   };
 
   return (
-    <div>
-      <h1 style={{ marginTop: 0 }}>Documents</h1>
-      <p style={{ color: '#64748b' }}>
-        Upload SOPs, org charts, or process PDFs. We parse, chunk, and embed them to enrich discovery insights before interviews complete.
-      </p>
+    <div className="space-y-6">
+      <PageHeader
+        title="Documents"
+        description="Upload SOPs, org charts, or process PDFs to enrich discovery insights."
+      />
 
-      {error && <div className="error">{error}</div>}
+      {error && <p className="text-sm text-status-error">{error}</p>}
 
-      <div className="card" style={{ marginBottom: '1.5rem' }}>
-        <h3 style={{ marginTop: 0 }}>Upload document</h3>
-        <div className="form-group">
-          <label>Department (optional)</label>
-          <input value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="operations" />
+      <Card title="Upload document">
+        <div className="mb-4 max-w-xs">
+          <Input
+            label="Department (optional)"
+            value={department}
+            onChange={(e) => setDepartment(e.target.value)}
+            placeholder="operations"
+          />
         </div>
-        <div className="form-group">
-          <label>PDF or text file</label>
-          <input type="file" accept=".pdf,.txt,.md,.csv" onChange={onUpload} disabled={uploading} />
-        </div>
-        {uploading && <p style={{ color: '#64748b' }}>Uploading…</p>}
-      </div>
+        <FileDropzone accept=".pdf,.txt,.md,.csv" onFile={onUpload} />
+        {uploading && <p className="mt-2 text-sm text-text-secondary">Uploading…</p>}
+      </Card>
 
-      <div className="card">
-        <h3 style={{ marginTop: 0 }}>Library</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>File</th>
-              <th>Department</th>
-              <th>Status</th>
-              <th>Preview</th>
-            </tr>
-          </thead>
-          <tbody>
-            {documents.map((d) => (
-              <tr key={d.id}>
-                <td>{d.filename}</td>
-                <td>{d.department || '—'}</td>
-                <td>
-                  <span className={`badge badge-${d.status === 'ready' ? 'completed' : d.status}`}>{d.status}</span>
-                </td>
-                <td>
-                  <small>{d.insights_preview?.summary || (d.status === 'processing' ? 'Processing…' : '—')}</small>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {documents.length === 0 && <p style={{ color: '#64748b' }}>No documents uploaded yet.</p>}
-      </div>
+      <DataTable
+        loading={loading}
+        columns={[
+          { key: 'filename', header: 'File' },
+          { key: 'department', header: 'Department', render: (d) => d.department || '—' },
+          {
+            key: 'status',
+            header: 'Status',
+            render: (d) => (
+              <Badge variant={d.status === 'ready' ? 'success' : d.status === 'failed' ? 'error' : 'info'}>
+                {d.status}
+              </Badge>
+            ),
+          },
+          {
+            key: 'preview',
+            header: 'Preview',
+            render: (d) => (
+              <span className="text-xs text-text-secondary">
+                {d.insights_preview?.summary || (d.status === 'processing' ? 'Processing…' : '—')}
+              </span>
+            ),
+          },
+        ]}
+        rows={documents as CompanyDocument[]}
+        emptyState={<EmptyState title="No documents" description="Upload your first document to enrich insights." />}
+      />
     </div>
   );
 }

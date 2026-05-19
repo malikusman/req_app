@@ -1,16 +1,21 @@
 import { useEffect, useState } from 'react';
 import { api, type BillingSnapshot } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
+import { PageHeader, Card, Button, StatCard, Skeleton } from '../../components/ui';
 
 export function CompanyBilling() {
   const token = useCompanyToken();
   const [billing, setBilling] = useState<BillingSnapshot | null>(null);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
+  const [initialLoading, setInitialLoading] = useState(true);
 
   const load = () => {
     if (!token) return;
-    api.companyBilling(token).then(setBilling);
+    api
+      .companyBilling(token)
+      .then(setBilling)
+      .finally(() => setInitialLoading(false));
   };
 
   useEffect(() => {
@@ -36,63 +41,76 @@ export function CompanyBilling() {
     }
   };
 
-  if (!billing) return <p>Loading…</p>;
+  if (initialLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton variant="text" />
+        <Skeleton variant="card" />
+      </div>
+    );
+  }
+
+  if (!billing) return null;
 
   const sub = billing.subscription;
   const usage = billing.usage;
 
   return (
-    <div>
-      <h1 style={{ marginTop: 0 }}>Billing</h1>
-      <p style={{ color: '#64748b' }}>Manage your subscription and discovery conversation usage.</p>
+    <div className="space-y-6">
+      <PageHeader title="Billing" description="Manage your subscription and discovery conversation usage." />
+      {msg && <p className="rounded-button bg-status-successBg px-4 py-2 text-sm text-status-success">{msg}</p>}
 
-      {msg && <div style={{ background: '#d1fae5', color: '#065f46', padding: '0.75rem', borderRadius: 8, marginBottom: '1rem' }}>{msg}</div>}
-
-      <div className="card" style={{ marginBottom: '1.5rem' }}>
-        <h3 style={{ marginTop: 0 }}>Current plan</h3>
+      <Card title="Current plan">
         {sub ? (
-          <>
-            <p>
-              <strong>{sub.plan}</strong> · {sub.status}
+          <div className="space-y-2 text-sm text-text-primary">
+            <p className="m-0">
+              <strong className="capitalize">{sub.plan}</strong> · {sub.status}
             </p>
             {sub.trial_ends_at && sub.status === 'trial' && (
-              <p style={{ color: '#64748b' }}>Trial ends {new Date(sub.trial_ends_at).toLocaleDateString()}</p>
+              <p className="m-0 text-text-secondary">Trial ends {new Date(sub.trial_ends_at).toLocaleDateString()}</p>
             )}
             {sub.current_period_ends_at && sub.status === 'active' && (
-              <p style={{ color: '#64748b' }}>Renews {new Date(sub.current_period_ends_at).toLocaleDateString()}</p>
+              <p className="m-0 text-text-secondary">
+                Renews {new Date(sub.current_period_ends_at).toLocaleDateString()}
+              </p>
             )}
-          </>
+          </div>
         ) : (
-          <p>No subscription on file.</p>
+          <p className="text-text-secondary">No subscription on file.</p>
         )}
-        <p style={{ marginTop: '1rem' }}>
-          Discovery conversations: <strong>{usage.conversations_used}</strong>
-          {usage.conversation_limit != null ? ` / ${usage.conversation_limit}` : ' (unlimited)'}
-          {usage.limit_reached && <span style={{ color: '#dc2626', marginLeft: 8 }}>Limit reached</span>}
-        </p>
-      </div>
+        <div className="mt-4">
+          <StatCard
+            label="Discovery conversations"
+            value={
+              usage.conversation_limit != null
+                ? `${usage.conversations_used} / ${usage.conversation_limit}`
+                : `${usage.conversations_used} (unlimited)`
+            }
+          />
+          {usage.limit_reached && (
+            <p className="mt-2 text-sm text-status-error">Conversation limit reached</p>
+          )}
+        </div>
+      </Card>
 
       {(sub?.status === 'trial' || sub?.status === 'suspended') && (
-        <div className="card">
-          <h3 style={{ marginTop: 0 }}>Upgrade</h3>
+        <Card title="Upgrade">
           {!billing.stripe_configured && (
-            <p style={{ color: '#64748b', fontSize: '0.9rem' }}>Stripe not configured — mock checkout will activate plans locally.</p>
+            <p className="text-sm text-text-secondary">Stripe not configured — mock checkout will activate plans locally.</p>
           )}
-          <div className="grid-2">
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
             {billing.plans.map((plan) => (
-              <div key={plan.id} className="card" style={{ margin: 0 }}>
-                <h4 style={{ marginTop: 0, textTransform: 'capitalize' }}>{plan.id}</h4>
-                <p style={{ color: '#64748b' }}>{plan.conversations} conversations</p>
-                <p>
-                  <strong>${(plan.amount_cents / 100).toFixed(0)}/mo</strong>
-                </p>
-                <button type="button" className="btn btn-primary" disabled={loading} onClick={() => checkout(plan.id)}>
-                  {loading ? 'Redirecting…' : 'Subscribe'}
-                </button>
-              </div>
+              <Card key={plan.id}>
+                <h4 className="m-0 capitalize text-text-primary">{plan.id}</h4>
+                <p className="text-sm text-text-secondary">{plan.conversations} conversations</p>
+                <p className="text-lg font-semibold text-text-primary">${(plan.amount_cents / 100).toFixed(0)}/mo</p>
+                <Button className="mt-3" loading={loading} disabled={loading} onClick={() => checkout(plan.id)}>
+                  Subscribe
+                </Button>
+              </Card>
             ))}
           </div>
-        </div>
+        </Card>
       )}
     </div>
   );

@@ -1,7 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { useReviewerToken } from '../../lib/auth';
+import { PageHeader, Card, ChatBubble, Textarea, Button, Skeleton } from '../../components/ui';
 
 export function ReviewerConversationDetail() {
   const { companyId, conversationId } = useParams();
@@ -34,38 +35,48 @@ export function ReviewerConversationDetail() {
     load();
   };
 
-  if (loading) return <p>Loading…</p>;
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton variant="text" />
+        <Skeleton variant="card" />
+      </div>
+    );
+  }
 
   return (
-    <div>
-      <Link to={`/reviewer/companies/${companyId}/conversations`}>← Conversations</Link>
-      <h1>Conversation</h1>
-      <div className="card" style={{ maxHeight: 400, overflow: 'auto', marginBottom: '1rem' }}>
-        {messages.map((m) => (
-          <div
-            key={m.id}
-            style={{
-              marginBottom: '0.75rem',
-              textAlign: m.direction === 'outbound' ? 'right' : 'left',
-              opacity: m.reviewer_followup ? 0.85 : 1,
-            }}
-          >
-            <small style={{ color: '#64748b' }}>
-              {m.direction}
-              {m.reviewer_followup ? ' · reviewer follow-up' : ''} · {new Date(m.created_at).toLocaleString()}
-            </small>
-            <div>{m.body}</div>
-          </div>
-        ))}
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Conversation"
+        breadcrumbs={[
+          { label: 'Company', href: `/reviewer/companies/${companyId}` },
+          { label: 'Conversations', href: `/reviewer/companies/${companyId}/conversations` },
+          { label: 'Transcript' },
+        ]}
+      />
+
+      <Card>
+        <div className="max-h-[480px] space-y-4 overflow-y-auto pr-2">
+          {messages.map((m) => (
+            <ChatBubble
+              key={m.id}
+              direction={m.direction === 'outbound' ? 'outbound' : 'inbound'}
+              body={m.reviewer_followup ? `[Follow-up] ${m.body}` : m.body}
+              timestamp={m.created_at}
+            />
+          ))}
+        </div>
+      </Card>
+
       {employeeId && (
-        <form onSubmit={sendFollowup} className="card">
-          <h3 style={{ marginTop: 0 }}>WhatsApp follow-up</h3>
-          <textarea rows={3} style={{ width: '100%' }} value={followupBody} onChange={(e) => setFollowupBody(e.target.value)} />
-          <button type="submit" className="btn btn-primary" style={{ marginTop: '0.5rem' }}>
-            Send follow-up
-          </button>
-        </form>
+        <Card title="WhatsApp follow-up">
+          <form onSubmit={sendFollowup} className="space-y-4">
+            <Textarea rows={4} value={followupBody} onChange={(e) => setFollowupBody(e.target.value)} />
+            <Button type="submit" disabled={!followupBody.trim()}>
+              Send follow-up
+            </Button>
+          </form>
+        </Card>
       )}
     </div>
   );

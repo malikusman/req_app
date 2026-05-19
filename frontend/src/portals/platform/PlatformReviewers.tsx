@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { api, type ReviewerUser } from '../../lib/api';
 import { usePlatformToken } from '../../lib/auth';
+import { PageHeader, Button, DataTable, Input, Modal, Badge, EmptyState } from '../../components/ui';
 
 export function PlatformReviewers() {
   const token = usePlatformToken();
@@ -8,10 +9,14 @@ export function PlatformReviewers() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ email: '', name: '', password: 'password123' });
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
 
   const load = () => {
     if (!token) return;
-    api.platformReviewers(token).then((d) => setReviewers(d.reviewers));
+    api
+      .platformReviewers(token)
+      .then((d) => setReviewers(d.reviewers))
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -33,55 +38,56 @@ export function PlatformReviewers() {
   };
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-        <h1 style={{ margin: 0 }}>Reviewers</h1>
-        <button type="button" className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
-          {showForm ? 'Cancel' : 'New reviewer'}
-        </button>
-      </div>
-      {showForm && (
-        <div className="card" style={{ marginBottom: '1rem' }}>
-          {error && <div className="error">{error}</div>}
-          <form onSubmit={handleCreate}>
-            <div className="form-group">
-              <label>Email</label>
-              <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
-            </div>
-            <div className="form-group">
-              <label>Name</label>
-              <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-            </div>
-            <div className="form-group">
-              <label>Password</label>
-              <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required />
-            </div>
-            <button type="submit" className="btn btn-primary">
-              Create
-            </button>
-          </form>
-        </div>
-      )}
-      <div className="card">
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {reviewers.map((r) => (
-              <tr key={r.id}>
-                <td>{r.name}</td>
-                <td>{r.email}</td>
-                <td>{r.status}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Reviewers"
+        description="Manage external reviewers assigned to client reports."
+        actions={<Button onClick={() => setShowForm(true)}>New reviewer</Button>}
+      />
+
+      <DataTable
+        loading={loading}
+        columns={[
+          { key: 'name', header: 'Name' },
+          { key: 'email', header: 'Email' },
+          {
+            key: 'status',
+            header: 'Status',
+            render: (r) => (
+              <Badge variant={r.status === 'active' ? 'success' : 'neutral'}>{r.status}</Badge>
+            ),
+          },
+        ]}
+        rows={reviewers as ReviewerUser[]}
+        emptyState={<EmptyState title="No reviewers" description="Create a reviewer account to assign to companies." />}
+      />
+
+      <Modal open={showForm} onClose={() => setShowForm(false)} title="New reviewer">
+        <form onSubmit={handleCreate} className="space-y-4">
+          {error && <p className="text-sm text-status-error">{error}</p>}
+          <Input
+            label="Email"
+            type="email"
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+            required
+          />
+          <Input label="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+          <Input
+            label="Password"
+            type="password"
+            value={form.password}
+            onChange={(e) => setForm({ ...form, password: e.target.value })}
+            required
+          />
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={() => setShowForm(false)}>
+              Cancel
+            </Button>
+            <Button type="submit">Create</Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

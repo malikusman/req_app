@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api, type ReviewerCompanyDetail } from '../../lib/api';
 import { useReviewerToken } from '../../lib/auth';
+import { PageHeader, Card, StatCard, Button, Badge, Skeleton } from '../../components/ui';
+import { FileBarChart, Users, UserPlus } from 'lucide-react';
 
 export function ReviewerCompanyOverview() {
   const { companyId } = useParams();
@@ -17,49 +19,65 @@ export function ReviewerCompanyOverview() {
       .finally(() => setLoading(false));
   }, [token, companyId]);
 
-  if (loading) return <p>Loading…</p>;
-  if (!company) return <p>Company not found</p>;
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton variant="text" />
+        <div className="grid gap-4 md:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} variant="card" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!company) return null;
 
   const reportId = company.latest_report?.id;
 
   return (
-    <div>
-      <h1>{company.name}</h1>
-      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
-        <div className="card" style={{ flex: '1 1 200px' }}>
-          <h3 style={{ marginTop: 0 }}>Readiness</h3>
-          <p style={{ fontSize: '2rem', margin: 0 }}>{company.report_readiness_score}%</p>
-        </div>
-        <div className="card" style={{ flex: '1 1 200px' }}>
-          <h3 style={{ marginTop: 0 }}>Participation</h3>
-          <p style={{ margin: 0 }}>
-            {company.completed_count} / {company.invited_count} completed
-          </p>
-        </div>
-        <div className="card" style={{ flex: '1 1 200px' }}>
-          <h3 style={{ marginTop: 0 }}>Co-reviewers</h3>
-          <p style={{ margin: 0 }}>{company.co_reviewer_count}</p>
-        </div>
+    <div className="space-y-6">
+      <PageHeader title={company.name} description="Company overview and report review." />
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <StatCard
+          label="Readiness"
+          value={`${company.report_readiness_score}%`}
+          icon={<FileBarChart className="h-5 w-5 text-accent" />}
+        />
+        <StatCard
+          label="Participation"
+          value={`${company.completed_count} / ${company.invited_count}`}
+          icon={<Users className="h-5 w-5 text-accent" />}
+        />
+        <StatCard
+          label="Co-reviewers"
+          value={company.co_reviewer_count}
+          icon={<UserPlus className="h-5 w-5 text-accent" />}
+        />
       </div>
 
       {reportId && (
-        <div className="card">
-          <h3 style={{ marginTop: 0 }}>Latest report (v{company.latest_report?.version})</h3>
-          <p>
-            Your review: <strong>{company.my_review_status || 'pending'}</strong>
+        <Card title={`Latest report (v${company.latest_report?.version})`}>
+          <p className="text-sm text-text-secondary">
+            Your review:{' '}
+            <Badge variant={company.my_review_status === 'submitted' ? 'success' : 'warning'}>
+              {company.my_review_status || 'pending'}
+            </Badge>
           </p>
-          <Link to={`/reviewer/companies/${companyId}/reports/${reportId}/review`} className="btn btn-primary">
-            Open report review
+          <Link to={`/reviewer/companies/${companyId}/reports/${reportId}/review`}>
+            <Button className="mt-4">Open report review</Button>
           </Link>
-        </div>
+        </Card>
       )}
 
-      <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem' }}>
-        <Link to={`/reviewer/companies/${companyId}/conversations`} className="btn btn-secondary">
-          Conversations
+      <div className="flex flex-wrap gap-3">
+        <Link to={`/reviewer/companies/${companyId}/conversations`}>
+          <Button variant="secondary">Conversations</Button>
         </Link>
-        <Link to={`/reviewer/companies/${companyId}/chat`} className="btn btn-secondary">
-          Co-reviewer chat
+        <Link to={`/reviewer/companies/${companyId}/chat`}>
+          <Button variant="secondary">Co-reviewer chat</Button>
         </Link>
       </div>
     </div>

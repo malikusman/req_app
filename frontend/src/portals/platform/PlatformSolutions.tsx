@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, type SolutionCatalogEntry } from '../../lib/api';
 import { usePlatformToken } from '../../lib/auth';
+import { PageHeader, Card, DataTable, Input, Select, Button, Badge, EmptyState } from '../../components/ui';
 
 export function PlatformSolutions() {
   const token = usePlatformToken();
@@ -9,10 +10,14 @@ export function PlatformSolutions() {
   const [vendor, setVendor] = useState('');
   const [category, setCategory] = useState('automation');
   const [keywords, setKeywords] = useState('');
+  const [loading, setLoading] = useState(true);
 
   const load = () => {
     if (!token) return;
-    api.platformSolutions(token).then((d) => setSolutions(d.solutions));
+    api
+      .platformSolutions(token)
+      .then((d) => setSolutions(d.solutions))
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -37,67 +42,67 @@ export function PlatformSolutions() {
   };
 
   return (
-    <div>
-      <h1 style={{ marginTop: 0 }}>Solution catalog</h1>
-      <p style={{ color: '#64748b' }}>Curated tools matched to discovery signals in recommendations.</p>
+    <div className="space-y-6">
+      <PageHeader
+        title="Solution catalog"
+        description="Curated tools matched to discovery signals in recommendations."
+      />
 
-      <div className="card" style={{ marginBottom: '1.5rem' }}>
-        <h3 style={{ marginTop: 0 }}>Add solution</h3>
-        <form onSubmit={create}>
-          <div className="form-group">
-            <label>Name</label>
-            <input value={name} onChange={(e) => setName(e.target.value)} required />
+      <Card title="Add solution">
+        <form onSubmit={create} className="grid gap-4 md:grid-cols-2">
+          <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} required />
+          <Input label="Vendor" value={vendor} onChange={(e) => setVendor(e.target.value)} />
+          <Select
+            label="Category"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            options={[
+              { value: 'automation', label: 'automation' },
+              { value: 'ai_agent', label: 'ai_agent' },
+              { value: 'integration', label: 'integration' },
+              { value: 'saas', label: 'saas' },
+            ]}
+          />
+          <Input
+            label="Match keywords (comma-separated)"
+            value={keywords}
+            onChange={(e) => setKeywords(e.target.value)}
+            placeholder="invoice, excel, approval"
+          />
+          <div className="md:col-span-2">
+            <Button type="submit">Add solution</Button>
           </div>
-          <div className="form-group">
-            <label>Vendor</label>
-            <input value={vendor} onChange={(e) => setVendor(e.target.value)} />
-          </div>
-          <div className="form-group">
-            <label>Category</label>
-            <select value={category} onChange={(e) => setCategory(e.target.value)}>
-              <option value="automation">automation</option>
-              <option value="ai_agent">ai_agent</option>
-              <option value="integration">integration</option>
-              <option value="saas">saas</option>
-            </select>
-          </div>
-          <div className="form-group">
-            <label>Match keywords (comma-separated)</label>
-            <input value={keywords} onChange={(e) => setKeywords(e.target.value)} placeholder="invoice, excel, approval" />
-          </div>
-          <button type="submit" className="btn btn-primary">
-            Add
-          </button>
         </form>
-      </div>
+      </Card>
 
-      <div className="card">
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Category</th>
-              <th>Keywords</th>
-              <th>Active</th>
-            </tr>
-          </thead>
-          <tbody>
-            {solutions.map((s) => (
-              <tr key={s.id}>
-                <td>
-                  {s.name}
-                  {s.vendor ? ` · ${s.vendor}` : ''}
-                </td>
-                <td>{s.category}</td>
-                <td>
-                  <small>{s.match_keywords.join(', ')}</small>
-                </td>
-                <td>{s.active ? 'yes' : 'no'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        loading={loading}
+        columns={[
+          {
+            key: 'name',
+            header: 'Name',
+            render: (s) => (
+              <span>
+                {s.name}
+                {s.vendor ? <span className="text-text-secondary"> · {s.vendor}</span> : null}
+              </span>
+            ),
+          },
+          { key: 'category', header: 'Category' },
+          {
+            key: 'keywords',
+            header: 'Keywords',
+            render: (s) => <span className="text-xs text-text-secondary">{s.match_keywords.join(', ')}</span>,
+          },
+          {
+            key: 'active',
+            header: 'Active',
+            render: (s) => <Badge variant={s.active ? 'success' : 'neutral'}>{s.active ? 'yes' : 'no'}</Badge>,
+          },
+        ]}
+        rows={solutions as SolutionCatalogEntry[]}
+        emptyState={<EmptyState title="No solutions" description="Add tools to the catalog for recommendation matching." />}
+      />
     </div>
   );
 }

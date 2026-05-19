@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { usePlatformToken } from '../../lib/auth';
+import { PageHeader, DataTable, Button, Badge, EmptyState } from '../../components/ui';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -37,53 +38,56 @@ export function PlatformTrials() {
     load();
   };
 
-  if (loading) return <p>Loading…</p>;
-
   return (
-    <div>
-      <h1 style={{ marginTop: 0 }}>Trials expiring soon</h1>
-      <p style={{ color: '#64748b' }}>Companies with trials ending within 7 days.</p>
-      <div className="card" style={{ marginTop: '1.5rem' }}>
-        <table>
-          <thead>
-            <tr>
-              <th>Company</th>
-              <th>Readiness</th>
-              <th>Participation</th>
-              <th>Trial ends</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {trials.map((t) => (
-              <tr key={t.company.id}>
-                <td>{t.company.name}</td>
-                <td>{Math.round(t.company.report_readiness_score)}%</td>
-                <td>
-                  {t.company.completed_count} / {t.company.invited_count} completed
-                </td>
-                <td>
-                  {t.subscription.days_remaining} days left
-                </td>
-                <td>
-                  <button type="button" className="btn btn-secondary" onClick={() => extendTrial(t.company.id, 7)}>
-                    +7 days
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    style={{ marginLeft: '0.5rem' }}
-                    onClick={() => extendTrial(t.company.id, 14)}
-                  >
-                    +14 days
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {trials.length === 0 && <p style={{ color: '#64748b' }}>No trials expiring in the next 7 days.</p>}
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Trials expiring soon"
+        description="Companies with trials ending within 7 days."
+      />
+
+      <DataTable
+        loading={loading}
+        columns={[
+          { key: 'name', header: 'Company', render: (r) => r.company.name },
+          {
+            key: 'readiness',
+            header: 'Readiness',
+            render: (r) => `${Math.round(r.company.report_readiness_score)}%`,
+          },
+          {
+            key: 'participation',
+            header: 'Participation',
+            render: (r) => `${r.company.completed_count} / ${r.company.invited_count}`,
+          },
+          {
+            key: 'days',
+            header: 'Trial ends',
+            render: (r) => (
+              <Badge variant={r.subscription.days_remaining <= 3 ? 'warning' : 'neutral'}>
+                {r.subscription.days_remaining} days left
+              </Badge>
+            ),
+          },
+          {
+            key: 'actions',
+            header: 'Actions',
+            render: (r) => (
+              <div className="flex gap-2">
+                <Button variant="secondary" size="sm" onClick={() => extendTrial(r.company.id, 7)}>
+                  +7 days
+                </Button>
+                <Button variant="secondary" size="sm" onClick={() => extendTrial(r.company.id, 14)}>
+                  +14 days
+                </Button>
+              </div>
+            ),
+          },
+        ]}
+        rows={trials as TrialRow[]}
+        emptyState={
+          <EmptyState title="No expiring trials" description="No trials ending in the next 7 days." />
+        }
+      />
     </div>
   );
 }

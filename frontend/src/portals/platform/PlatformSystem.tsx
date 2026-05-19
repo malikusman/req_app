@@ -1,57 +1,68 @@
 import { useEffect, useState } from 'react';
+import { Server } from 'lucide-react';
 import { api, type PlatformSystemHealth } from '../../lib/api';
 import { usePlatformToken } from '../../lib/auth';
+import { PageHeader, Card, StatCard, Badge, Skeleton } from '../../components/ui';
+
+function statusVariant(status: string): 'success' | 'warning' | 'error' {
+  if (status === 'ok') return 'success';
+  if (status === 'degraded') return 'warning';
+  return 'error';
+}
 
 export function PlatformSystem() {
   const token = usePlatformToken();
   const [health, setHealth] = useState<PlatformSystemHealth | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!token) return;
-    api.platformSystem(token).then(setHealth);
+    api
+      .platformSystem(token)
+      .then(setHealth)
+      .finally(() => setLoading(false));
   }, [token]);
 
-  if (!health) return <p>Loading…</p>;
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton variant="text" />
+        <div className="grid gap-4 md:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} variant="card" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!health) return null;
 
   const wa = health.whatsapp_delivery;
 
   return (
-    <div>
-      <h1 style={{ marginTop: 0 }}>System health</h1>
-      <p style={{ color: '#64748b' }}>Service status and WhatsApp delivery metrics (last 24h).</p>
+    <div className="space-y-8">
+      <PageHeader
+        title="System health"
+        description="Service status and WhatsApp delivery metrics (last 24h)."
+      />
 
-      <div className="grid-2" style={{ marginTop: '1.5rem' }}>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {Object.entries(health.services).map(([name, svc]) => (
-          <div className="card" key={name}>
-            <h3 style={{ marginTop: 0, textTransform: 'capitalize' }}>{name}</h3>
-            <span className={`badge badge-${svc.status === 'ok' ? 'completed' : 'invited'}`}>{svc.status}</span>
-          </div>
+          <Card key={name} title={name} className="capitalize">
+            <Badge variant={statusVariant(svc.status)}>{svc.status}</Badge>
+          </Card>
         ))}
       </div>
 
-      <div className="card" style={{ marginTop: '1rem' }}>
-        <h3 style={{ marginTop: 0 }}>WhatsApp delivery health</h3>
-        <table>
-          <tbody>
-            <tr>
-              <td>Templates sent</td>
-              <td>{wa.template_sent}</td>
-            </tr>
-            <tr>
-              <td>Template failures</td>
-              <td>{wa.template_failed}</td>
-            </tr>
-            <tr>
-              <td>API errors</td>
-              <td>{wa.api_errors}</td>
-            </tr>
-            <tr>
-              <td>Failure rate</td>
-              <td>{wa.failure_rate}%</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <Card title="WhatsApp delivery health">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard label="Templates sent" value={wa.template_sent} icon={<Server className="h-5 w-5 text-accent" />} />
+          <StatCard label="Template failures" value={wa.template_failed} />
+          <StatCard label="API errors" value={wa.api_errors} />
+          <StatCard label="Failure rate" value={`${wa.failure_rate}%`} />
+        </div>
+      </Card>
     </div>
   );
 }

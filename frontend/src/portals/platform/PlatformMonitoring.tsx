@@ -1,57 +1,102 @@
 import { useEffect, useState } from 'react';
+import { Building2, MessageSquare, FileBarChart, UserCog } from 'lucide-react';
 import { api, type PlatformMonitoring } from '../../lib/api';
 import { usePlatformToken } from '../../lib/auth';
+import { PageHeader, StatCard, Card, Skeleton } from '../../components/ui';
 
 export function PlatformMonitoringPage() {
   const token = usePlatformToken();
   const [data, setData] = useState<PlatformMonitoring | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!token) return;
-    api.platformMonitoring(token).then(setData);
+    api
+      .platformMonitoring(token)
+      .then(setData)
+      .finally(() => setLoading(false));
   }, [token]);
 
-  if (!data) return <p>Loading…</p>;
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton variant="text" />
+        <div className="grid gap-4 md:grid-cols-3">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <Skeleton key={i} variant="card" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!data) return null;
 
   return (
-    <div>
-      <h1 style={{ marginTop: 0 }}>Monitoring</h1>
-      <p style={{ color: '#64748b' }}>Cross-tenant metrics for operations and billing health.</p>
+    <div className="space-y-8">
+      <PageHeader
+        title="Monitoring"
+        description="Cross-tenant metrics for operations and billing health."
+      />
 
-      <div className="grid-2" style={{ marginTop: '1.5rem' }}>
-        <div className="card">
-          <h3 style={{ marginTop: 0 }}>Companies</h3>
-          <p>Total: <strong>{data.companies.total}</strong></p>
-          <p>Onboarded: <strong>{data.companies.onboarded}</strong></p>
-          <p>Avg readiness: <strong>{data.companies.avg_readiness}%</strong></p>
-        </div>
-        <div className="card">
-          <h3 style={{ marginTop: 0 }}>Subscriptions</h3>
-          {Object.entries(data.subscriptions.by_status).map(([status, count]) => (
-            <p key={status}>
-              {status}: <strong>{count}</strong>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <Card title="Companies">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <StatCard label="Total" value={data.companies.total} icon={<Building2 className="h-5 w-5 text-accent" />} />
+            <StatCard label="Onboarded" value={data.companies.onboarded} />
+            <StatCard label="Avg readiness" value={`${data.companies.avg_readiness}%`} />
+          </div>
+        </Card>
+
+        <Card title="Subscriptions">
+          <div className="space-y-2 text-sm text-text-primary">
+            {Object.entries(data.subscriptions.by_status).map(([status, count]) => (
+              <p key={status} className="m-0 flex justify-between">
+                <span className="capitalize text-text-secondary">{status}</span>
+                <strong>{count}</strong>
+              </p>
+            ))}
+            <p className="m-0 flex justify-between border-t border-border pt-2">
+              <span className="text-text-secondary">Trials expiring (7d)</span>
+              <strong>{data.subscriptions.trials_expiring_7d}</strong>
             </p>
-          ))}
-          <p>Trials expiring (7d): <strong>{data.subscriptions.trials_expiring_7d}</strong></p>
-          <p>At conversation limit: <strong>{data.subscriptions.at_conversation_limit}</strong></p>
-        </div>
-        <div className="card">
-          <h3 style={{ marginTop: 0 }}>Discovery</h3>
-          <p>Active conversations: <strong>{data.discovery.active_conversations}</strong></p>
-          <p>Completed employees: <strong>{data.discovery.completed_employees}</strong></p>
-          <p>New conversations (24h): <strong>{data.discovery.conversations_last_24h}</strong></p>
-        </div>
-        <div className="card">
-          <h3 style={{ marginTop: 0 }}>Reports</h3>
-          <p>Ready: <strong>{data.reports.ready}</strong></p>
-          <p>Generating: <strong>{data.reports.generating}</strong></p>
-          <p>Failed: <strong>{data.reports.failed}</strong></p>
-        </div>
-        <div className="card">
-          <h3 style={{ marginTop: 0 }}>Impersonation</h3>
-          <p>Active sessions: <strong>{data.impersonations.active_sessions}</strong></p>
-          <p>Sessions started (24h): <strong>{data.impersonations.last_24h}</strong></p>
-        </div>
+            <p className="m-0 flex justify-between">
+              <span className="text-text-secondary">At conversation limit</span>
+              <strong>{data.subscriptions.at_conversation_limit}</strong>
+            </p>
+          </div>
+        </Card>
+
+        <Card title="Discovery">
+          <div className="space-y-3">
+            <StatCard
+              label="Active conversations"
+              value={data.discovery.active_conversations}
+              icon={<MessageSquare className="h-5 w-5 text-accent" />}
+            />
+            <StatCard label="Completed employees" value={data.discovery.completed_employees} />
+            <StatCard label="New (24h)" value={data.discovery.conversations_last_24h} />
+          </div>
+        </Card>
+
+        <Card title="Reports">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <StatCard label="Ready" value={data.reports.ready} icon={<FileBarChart className="h-5 w-5 text-accent" />} />
+            <StatCard label="Generating" value={data.reports.generating} />
+            <StatCard label="Failed" value={data.reports.failed} />
+          </div>
+        </Card>
+
+        <Card title="Impersonation">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <StatCard
+              label="Active sessions"
+              value={data.impersonations.active_sessions}
+              icon={<UserCog className="h-5 w-5 text-accent" />}
+            />
+            <StatCard label="Started (24h)" value={data.impersonations.last_24h} />
+          </div>
+        </Card>
       </div>
     </div>
   );

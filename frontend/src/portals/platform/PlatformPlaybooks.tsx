@@ -1,12 +1,25 @@
 import { useEffect, useState } from 'react';
 import { api, type Playbook } from '../../lib/api';
 import { usePlatformToken } from '../../lib/auth';
+import {
+  PageHeader,
+  Tabs,
+  Card,
+  Button,
+  Textarea,
+  Input,
+  Select,
+  DataTable,
+  Badge,
+  EmptyState,
+} from '../../components/ui';
 
 const DEPARTMENTS = ['default', 'finance', 'sales', 'hr', 'operations', 'support', 'executive'];
 
 export function PlatformPlaybooks() {
   const token = usePlatformToken();
   const [playbooks, setPlaybooks] = useState<Playbook[]>([]);
+  const [deptTab, setDeptTab] = useState('operations');
   const [department, setDepartment] = useState('operations');
   const [promptBlock, setPromptBlock] = useState('');
   const [notes, setNotes] = useState('');
@@ -50,94 +63,75 @@ export function PlatformPlaybooks() {
     }
   };
 
-  const byDepartment = DEPARTMENTS.map((dept) => ({
-    dept,
-    items: playbooks.filter((p) => p.department === dept),
-  }));
+  const deptPlaybooks = playbooks.filter((p) => p.department === deptTab);
 
   return (
-    <div>
-      <h1 style={{ marginTop: 0 }}>Discovery playbooks</h1>
-      <p style={{ color: '#64748b' }}>
-        Department playbooks are injected into the LangGraph agent at runtime. Activate a version without redeploying the agent.
-      </p>
+    <div className="space-y-6">
+      <PageHeader
+        title="Discovery playbooks"
+        description="Department playbooks are injected into the LangGraph agent at runtime."
+      />
 
-      {error && <div className="error">{error}</div>}
+      {error && <p className="text-sm text-status-error">{error}</p>}
       {message && (
-        <div style={{ background: '#d1fae5', color: '#065f46', padding: '0.75rem', borderRadius: 8, marginBottom: '1rem' }}>
-          {message}
-        </div>
+        <p className="rounded-button bg-status-successBg px-4 py-2 text-sm text-status-success">{message}</p>
       )}
 
-      <div className="card" style={{ marginBottom: '1.5rem' }}>
-        <h3 style={{ marginTop: 0 }}>New playbook version</h3>
-        <form onSubmit={create}>
-          <div className="form-group">
-            <label>Department</label>
-            <select value={department} onChange={(e) => setDepartment(e.target.value)}>
-              {DEPARTMENTS.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="form-group">
-            <label>Prompt block</label>
-            <textarea
-              value={promptBlock}
-              onChange={(e) => setPromptBlock(e.target.value)}
-              required
-              rows={6}
-              placeholder="System instructions for discovery interviews in this department..."
-              style={{ width: '100%' }}
-            />
-          </div>
-          <div className="form-group">
-            <label>Notes (internal)</label>
-            <input value={notes} onChange={(e) => setNotes(e.target.value)} />
-          </div>
-          <button type="submit" className="btn btn-primary">
-            Create version
-          </button>
+      <Card title="New playbook version">
+        <form onSubmit={create} className="space-y-4">
+          <Select
+            label="Department"
+            value={department}
+            onChange={(e) => setDepartment(e.target.value)}
+            options={DEPARTMENTS.map((d) => ({ value: d, label: d }))}
+          />
+          <Textarea
+            label="Prompt block"
+            value={promptBlock}
+            onChange={(e) => setPromptBlock(e.target.value)}
+            required
+            rows={6}
+            placeholder="System instructions for discovery interviews in this department..."
+          />
+          <Input label="Notes (internal)" value={notes} onChange={(e) => setNotes(e.target.value)} />
+          <Button type="submit">Create version</Button>
         </form>
-      </div>
+      </Card>
 
-      {byDepartment.map(({ dept, items }) => (
-        <div className="card" key={dept} style={{ marginBottom: '1rem' }}>
-          <h3 style={{ marginTop: 0, textTransform: 'capitalize' }}>{dept}</h3>
-          {items.length === 0 ? (
-            <p style={{ color: '#94a3b8' }}>No versions yet.</p>
-          ) : (
-            <table>
-              <thead>
-                <tr>
-                  <th>Version</th>
-                  <th>Active</th>
-                  <th>Updated</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((p) => (
-                  <tr key={p.id}>
-                    <td>v{p.version}</td>
-                    <td>{p.active ? <span className="badge badge-completed">active</span> : '—'}</td>
-                    <td>{new Date(p.updated_at).toLocaleString()}</td>
-                    <td>
-                      {!p.active && (
-                        <button type="button" className="btn btn-secondary" onClick={() => activate(p.id)}>
-                          Activate
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      ))}
+      <Tabs
+        tabs={DEPARTMENTS.map((d) => ({ value: d, label: d.charAt(0).toUpperCase() + d.slice(1) }))}
+        value={deptTab}
+        onChange={setDeptTab}
+      />
+
+      <DataTable
+        columns={[
+          { key: 'version', header: 'Version', render: (p) => `v${p.version}` },
+          {
+            key: 'active',
+            header: 'Active',
+            render: (p) =>
+              p.active ? <Badge variant="success">active</Badge> : <span className="text-text-secondary">—</span>,
+          },
+          {
+            key: 'updated',
+            header: 'Updated',
+            render: (p) => new Date(p.updated_at).toLocaleString(),
+          },
+          {
+            key: 'actions',
+            header: '',
+            render: (p) =>
+              !p.active ? (
+                <Button variant="secondary" size="sm" onClick={() => activate(p.id)}>
+                  Activate
+                </Button>
+              ) : null,
+          },
+        ]}
+        rows={deptPlaybooks as Playbook[]}
+        emptyState={<EmptyState title="No versions" description={`No playbook versions for ${deptTab}.`} />}
+      />
     </div>
   );
 }

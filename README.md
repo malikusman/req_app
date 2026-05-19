@@ -5,7 +5,7 @@ AI-powered workflow discovery via WhatsApp, with dual portals for platform opera
 ## Stack
 
 - **Backend:** Rails 7 API, PostgreSQL + pgvector, Sidekiq, JWT auth
-- **Frontend:** React + TypeScript (Vite), dual portal routing
+- **Frontend:** React 18 + TypeScript (Vite), Tailwind CSS, Lucide icons, Recharts — marketing site + three authenticated portals
 - **Agent:** LangGraph + FastAPI (Python), OpenAI
 - **Infra:** Docker Compose (Postgres, Redis, MinIO, Mailpit, LangGraph, Gotenberg)
 
@@ -33,7 +33,9 @@ docker compose run --rm rails bundle install
 docker compose up
 ```
 
-- **Frontend:** http://localhost:5173
+- **Marketing / home:** http://localhost:5173
+- **Frontend portals:** http://localhost:5173/platform/login · `/company/login` · `/reviewer/login`
+- **UI component preview (dev):** http://localhost:5173/dev/ui
 - **API:** http://localhost:3000
 - **LangGraph:** http://localhost:8000/health
 - **Mailpit:** http://localhost:8025
