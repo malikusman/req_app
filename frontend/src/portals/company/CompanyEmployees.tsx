@@ -29,6 +29,8 @@ export function CompanyEmployees() {
   const [error, setError] = useState('');
   const [nudgeMsg, setNudgeMsg] = useState('');
   const [loading, setLoading] = useState(true);
+  const [inviting, setInviting] = useState(false);
+  const [nudgingId, setNudgingId] = useState<number | null>(null);
 
   const load = () => {
     if (!token) return;
@@ -58,6 +60,7 @@ export function CompanyEmployees() {
     if (!token) return;
     setError('');
     setNewCode(null);
+    setInviting(true);
     try {
       const res = await api.inviteEmployee(token, phone, displayName || undefined, department || undefined);
       setNewCode(res.access_code);
@@ -67,6 +70,8 @@ export function CompanyEmployees() {
       load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Invite failed');
+    } finally {
+      setInviting(false);
     }
   };
 
@@ -74,12 +79,15 @@ export function CompanyEmployees() {
     if (!token) return;
     setNudgeMsg('');
     setError('');
+    setNudgingId(employeeId);
     try {
       await api.nudgeEmployee(token, employeeId);
       setNudgeMsg('Nudge sent via WhatsApp.');
       load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Nudge failed');
+    } finally {
+      setNudgingId(null);
     }
   };
 
@@ -119,7 +127,9 @@ export function CompanyEmployees() {
           <Input label="Name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
           <Input label="Department" value={department} onChange={(e) => setDepartment(e.target.value)} />
           <div className="md:col-span-3">
-            <Button type="submit">Send WhatsApp invite</Button>
+            <Button type="submit" loading={inviting}>
+              Send WhatsApp invite
+            </Button>
           </div>
         </form>
       </Card>
@@ -172,7 +182,12 @@ export function CompanyEmployees() {
             header: '',
             render: (e) =>
               e.can_nudge ? (
-                <Button variant="secondary" size="sm" onClick={() => sendNudge(e.id)}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  loading={nudgingId === e.id}
+                  onClick={() => sendNudge(e.id)}
+                >
                   Nudge
                 </Button>
               ) : e.last_nudged_at && e.participation_status === 'started' ? (

@@ -1,7 +1,7 @@
 import { type ReactNode } from 'react';
-import { motion } from 'motion/react';
 import { cn } from '../../lib/cn';
 import { Skeleton } from './Skeleton';
+import { EmptyState } from './EmptyState';
 
 export type Column<T> = {
   key: string;
@@ -29,24 +29,21 @@ export function DataTable<T extends object>({
 }) {
   if (loading) {
     return (
-      <motion.div className={cn('overflow-hidden rounded-card border border-border bg-surface', className)}>
+      <div className={cn('overflow-hidden rounded-card border border-border bg-surface shadow-card', className)}>
         {Array.from({ length: 5 }).map((_, i) => (
           <Skeleton key={i} variant="table-row" />
         ))}
-      </motion.div>
+      </div>
     );
   }
 
-  if (rows.length === 0 && emptyState) {
-    return <motion.div className={className}>{emptyState}</motion.div>;
-  }
+  const emptyContent =
+    emptyState ?? (
+      <EmptyState title="No data" description="Nothing to show yet." className="py-8" />
+    );
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className={cn('overflow-x-auto rounded-card border border-border bg-surface shadow-card', className)}
-    >
+    <div className={cn('overflow-x-auto rounded-card border border-border bg-surface shadow-card', className)}>
       <table className="w-full min-w-[480px] border-collapse text-sm">
         <thead>
           <tr className="border-b border-border bg-surface-muted">
@@ -64,29 +61,34 @@ export function DataTable<T extends object>({
           </tr>
         </thead>
         <tbody>
-          {rows.map((row, i) => (
-            <motion.tr
-              key={getRowKey(row, i)}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: i * 0.03 }}
-              onClick={onRowClick ? () => onRowClick(row) : undefined}
-              className={cn(
-                'border-b border-border last:border-0',
-                onRowClick && 'cursor-pointer transition-colors hover:bg-surface-muted'
-              )}
-            >
-              {columns.map((col) => (
-                <td key={col.key} className={cn('px-4 py-3 text-text-primary', col.className)}>
-                  {col.render
-                    ? col.render(row)
-                    : String((row as Record<string, unknown>)[col.key] ?? '')}
-                </td>
-              ))}
-            </motion.tr>
-          ))}
+          {rows.length === 0 ? (
+            <tr>
+              <td colSpan={columns.length} className="p-0">
+                {emptyContent}
+              </td>
+            </tr>
+          ) : (
+            rows.map((row, i) => (
+              <tr
+                key={getRowKey(row, i)}
+                onClick={onRowClick ? () => onRowClick(row) : undefined}
+                className={cn(
+                  'border-b border-border last:border-0',
+                  onRowClick && 'cursor-pointer transition-colors hover:bg-surface-muted'
+                )}
+              >
+                {columns.map((col) => (
+                  <td key={col.key} className={cn('px-4 py-3 text-text-primary', col.className)}>
+                    {col.render
+                      ? col.render(row)
+                      : String((row as Record<string, unknown>)[col.key] ?? '')}
+                  </td>
+                ))}
+              </tr>
+            ))
+          )}
         </tbody>
       </table>
-    </motion.div>
+    </div>
   );
 }

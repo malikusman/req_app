@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, type BillingSnapshot } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
-import { PageHeader, Card, Button, StatCard, Skeleton } from '../../components/ui';
+import { PageHeader, Card, Button, StatCard, Skeleton, EmptyState } from '../../components/ui';
 
 export function CompanyBilling() {
   const token = useCompanyToken();
@@ -50,7 +50,14 @@ export function CompanyBilling() {
     );
   }
 
-  if (!billing) return null;
+  if (!billing) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Billing" description="Manage your subscription and discovery conversation usage." />
+        <EmptyState title="Unable to load billing" description="Try refreshing the page." />
+      </div>
+    );
+  }
 
   const sub = billing.subscription;
   const usage = billing.usage;

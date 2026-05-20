@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Building2, MessageSquare, FileBarChart, UserCog } from 'lucide-react';
 import { api, type PlatformMonitoring } from '../../lib/api';
 import { usePlatformToken } from '../../lib/auth';
-import { PageHeader, StatCard, Card, Skeleton } from '../../components/ui';
+import { PageHeader, StatCard, Card, Skeleton, EmptyState } from '../../components/ui';
 
 export function PlatformMonitoringPage() {
   const token = usePlatformToken();
@@ -30,7 +30,14 @@ export function PlatformMonitoringPage() {
     );
   }
 
-  if (!data) return null;
+  if (!data) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Monitoring" description="Cross-tenant metrics for operations and billing health." />
+        <EmptyState title="Unable to load monitoring" description="Try refreshing the page." />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">

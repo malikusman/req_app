@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import type { Portal } from '../../lib/auth';
@@ -37,6 +38,7 @@ export function PortalShell({
 }: PortalShellProps) {
   const { pathname } = useLocation();
   const resolvedLogo = logo ?? defaultLogos[portal];
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-surface-muted">
@@ -45,11 +47,18 @@ export function PortalShell({
         items={navItems}
         activePath={pathname}
         footer={sidebarFooter ?? <UserMenu {...userMenu} />}
+        mobileOpen={sidebarOpen}
+        onMobileClose={() => setSidebarOpen(false)}
       />
-      <div className={cn('flex min-h-screen flex-col', 'pl-sidebar')}>
-        <TopBar title={title} subtitle={subtitle} actions={topBarActions} />
+      <div className={cn('flex min-h-screen flex-col', 'md:pl-sidebar')}>
+        <TopBar
+          title={title}
+          subtitle={subtitle}
+          actions={topBarActions}
+          onMenuClick={() => setSidebarOpen(true)}
+        />
         <main className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-content bg-surface-muted p-8">
+          <div className="mx-auto max-w-content bg-surface-muted p-4 md:p-8">
             {children ?? <Outlet />}
           </div>
         </main>

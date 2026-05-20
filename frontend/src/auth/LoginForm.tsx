@@ -1,9 +1,10 @@
 import { useState, type FormEvent } from 'react';
-import { AuthLayout } from '../components/layout/AuthLayout';
+import { AuthLayout, type AuthPortal } from '../components/layout/AuthLayout';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 
 type Props = {
+  portal: AuthPortal;
   portalName: string;
   tagline: string;
   defaultEmail: string;
@@ -11,7 +12,7 @@ type Props = {
   onSubmit: (email: string, password: string) => Promise<void>;
 };
 
-export function LoginForm({ portalName, tagline, defaultEmail, footer, onSubmit }: Props) {
+export function LoginForm({ portal, portalName, tagline, defaultEmail, footer, onSubmit }: Props) {
   const [email, setEmail] = useState(defaultEmail);
   const [password, setPassword] = useState('password123');
   const [error, setError] = useState('');
@@ -31,15 +32,34 @@ export function LoginForm({ portalName, tagline, defaultEmail, footer, onSubmit 
   };
 
   return (
-    <AuthLayout portalName={portalName} tagline={tagline}>
+    <AuthLayout portal={portal} portalName={portalName} tagline={tagline}>
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
           <div className="rounded-button border border-status-error/30 bg-status-errorBg px-3 py-2 text-sm text-status-error">
             {error}
           </div>
         )}
-        <Input label="Email" id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        <Input label="Password" id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+        <Input
+          label="Email"
+          id="email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+        <div>
+          <Input
+            label="Password"
+            id="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+          <a href="#" className="mt-1.5 inline-block text-sm text-text-secondary hover:text-accent">
+            Forgot password?
+          </a>
+        </div>
         <Button type="submit" className="w-full" loading={loading}>
           Sign in
         </Button>

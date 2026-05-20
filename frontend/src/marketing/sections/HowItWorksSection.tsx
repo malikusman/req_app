@@ -20,14 +20,19 @@ const steps = [
 
 export function HowItWorksSection() {
   return (
-    <section id="how-it-works" className="bg-surface-muted px-6 py-20 md:px-12">
+    <section id="how-it-works" className="bg-surface-muted px-6 py-24 md:px-12 md:py-28">
       <div className="mx-auto max-w-6xl">
         <h2 className="font-display text-page-title text-text-primary">How it works</h2>
-        <p className="mt-2 max-w-2xl text-text-secondary">Three steps from frontline insight to executive-ready recommendations.</p>
-        <div className="mt-12 grid gap-8 md:grid-cols-3">
+        <p className="mt-2 max-w-2xl text-text-secondary">
+          Three steps from frontline insight to executive-ready recommendations.
+        </p>
+        <div className="mt-14 grid gap-8 md:grid-cols-1 lg:grid-cols-3">
           {steps.map((step, i) => (
-            <div key={step.title} className="rounded-card border border-border bg-surface p-6 shadow-card">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent-muted text-sm font-semibold text-accent">
+            <div
+              key={step.title}
+              className="rounded-card border border-border border-l-2 border-l-accent bg-surface p-6 shadow-card transition-all hover:-translate-y-0.5 hover:shadow-md"
+            >
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent-muted text-sm font-bold text-accent">
                 {i + 1}
               </span>
               <step.icon className="mt-4 h-6 w-6 text-accent" />

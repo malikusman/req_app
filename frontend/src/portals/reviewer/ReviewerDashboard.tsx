@@ -8,12 +8,16 @@ export function ReviewerDashboard() {
   const token = useReviewerToken();
   const [companies, setCompanies] = useState<ReviewerCompanySummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (!token) return;
+    setLoading(true);
+    setError('');
     api
       .reviewerCompanies(token)
       .then((d) => setCompanies(d.companies))
+      .catch(() => setError('Could not load assigned companies.'))
       .finally(() => setLoading(false));
   }, [token]);
 
@@ -29,6 +33,18 @@ export function ReviewerDashboard() {
     );
   }
 
+  if (error && companies.length === 0) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          title="Assigned companies"
+          description="Review reports and discovery data for your assigned clients."
+        />
+        <EmptyState title="Unable to load assignments" description={error} />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -36,8 +52,17 @@ export function ReviewerDashboard() {
         description="Review reports and discovery data for your assigned clients."
       />
 
+      {error && (
+        <div className="rounded-card border border-status-warning/30 bg-status-warningBg px-4 py-3 text-sm">
+          {error}
+        </div>
+      )}
+
       {companies.length === 0 ? (
-        <EmptyState title="No assignments" description="Contact the platform team to be assigned to companies." />
+        <EmptyState
+          title="No companies assigned yet"
+          description="No companies assigned yet. Contact your platform administrator."
+        />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {companies.map((c) => (

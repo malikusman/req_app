@@ -26,7 +26,7 @@ export function Input({
       <input
         id={id}
         className={cn(
-          'h-10 w-full rounded-button border border-border bg-white px-3 text-sm text-text-primary placeholder:text-text-secondary transition-colors focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent-muted',
+          'h-10 w-full rounded-button border border-border bg-white px-3 text-sm text-text-primary placeholder:text-text-secondary transition-colors focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30',
           error && 'border-status-error focus:border-status-error focus:ring-status-errorBg',
           className
         )}

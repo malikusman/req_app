@@ -281,6 +281,15 @@ export const api = {
 
   platformMonitoring: (token: string) => request<PlatformMonitoring>('/api/v1/platform/monitoring', {}, token),
 
+  platformTrials: (token: string) =>
+    request<{ trials: PlatformTrialRow[] }>('/api/v1/platform/trials', {}, token),
+
+  extendPlatformTrial: (token: string, companyId: number, days: number) =>
+    request<{ ok: boolean }>(`/api/v1/platform/trials/${companyId}/extend`, {
+      method: 'POST',
+      body: JSON.stringify({ days }),
+    }, token),
+
   platformReviewers: (token: string) => request<{ reviewers: ReviewerUser[] }>('/api/v1/platform/reviewers', {}, token),
 
   createPlatformReviewer: (token: string, payload: { email: string; name: string; password: string }) =>
@@ -469,6 +478,22 @@ export interface PlatformMonitoring {
   discovery: { active_conversations: number; completed_employees: number; conversations_last_24h: number };
   reports: { ready: number; generating: number; failed: number };
   impersonations: { active_sessions: number; last_24h: number };
+}
+
+export interface PlatformTrialRow {
+  company: {
+    id: number;
+    name: string;
+    report_readiness_score: number;
+    completed_count?: number;
+    invited_count?: number;
+  };
+  subscription: {
+    trial_ends_at?: string;
+    days_remaining: number;
+    plan?: string;
+    status?: string;
+  };
 }
 
 export interface Report {

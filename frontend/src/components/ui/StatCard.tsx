@@ -22,9 +22,6 @@ export function StatCard({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2 }}
       className={cn(
         'rounded-card border border-border bg-surface p-5 shadow-card',
         className
@@ -60,14 +57,9 @@ export function StatCard({
           )}
         </div>
         {icon && (
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.1 }}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-button bg-accent-muted text-accent"
-          >
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-button bg-accent-muted text-accent">
             {icon}
-          </motion.div>
+          </div>
         )}
       </div>
     </motion.div>

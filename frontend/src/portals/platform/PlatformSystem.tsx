@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Server } from 'lucide-react';
 import { api, type PlatformSystemHealth } from '../../lib/api';
 import { usePlatformToken } from '../../lib/auth';
-import { PageHeader, Card, StatCard, Badge, Skeleton } from '../../components/ui';
+import { PageHeader, Card, StatCard, Badge, Skeleton, EmptyState } from '../../components/ui';
 
 function statusVariant(status: string): 'success' | 'warning' | 'error' {
   if (status === 'ok') return 'success';
@@ -36,7 +36,14 @@ export function PlatformSystem() {
     );
   }
 
-  if (!health) return null;
+  if (!health) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="System health" description="Service status and WhatsApp delivery metrics (last 24h)." />
+        <EmptyState title="Unable to load system health" description="Try refreshing the page." />
+      </div>
+    );
+  }
 
   const wa = health.whatsapp_delivery;
 

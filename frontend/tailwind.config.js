@@ -48,14 +48,23 @@ export default {
       boxShadow: {
         card: '0 1px 2px 0 rgb(0 0 0 / 0.04)',
         modal: '0 20px 25px -5px rgb(0 0 0 / 0.1)',
+        'hero-mockup':
+          '0 0 0 1px rgba(255,255,255,0.05), 0 25px 50px rgba(0,0,0,0.5)',
+        'button-glow': '0 0 20px rgba(79,70,229,0.4)',
       },
       animation: {
         'grid-drift': 'gridDrift 60s linear infinite',
+        'cta-pulse': 'ctaPulse 3s ease-out infinite',
+        'cta-pulse-delayed': 'ctaPulse 3s ease-out 1.5s infinite',
       },
       keyframes: {
         gridDrift: {
           '0%': { backgroundPosition: '0 0' },
           '100%': { backgroundPosition: '64px 64px' },
+        },
+        ctaPulse: {
+          '0%': { transform: 'scale(1)', opacity: '0.35' },
+          '100%': { transform: 'scale(2.2)', opacity: '0' },
         },
       },
     },

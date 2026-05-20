@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api, type ReviewerCompanyDetail } from '../../lib/api';
 import { useReviewerToken } from '../../lib/auth';
-import { PageHeader, Card, StatCard, Button, Badge, Skeleton } from '../../components/ui';
+import { PageHeader, Card, StatCard, Button, Badge, Skeleton, EmptyState } from '../../components/ui';
 import { FileBarChart, Users, UserPlus } from 'lucide-react';
 
 export function ReviewerCompanyOverview() {
@@ -32,7 +32,14 @@ export function ReviewerCompanyOverview() {
     );
   }
 
-  if (!company) return null;
+  if (!company) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Company" description="Company overview and report review." />
+        <EmptyState title="Company not found" description="This company may no longer be assigned to you." />
+      </div>
+    );
+  }
 
   const reportId = company.latest_report?.id;
 

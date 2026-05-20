@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Users, CheckCircle2, Percent, FileBarChart } from 'lucide-react';
-import { api, type IntelligenceSnapshot } from '../../lib/api';
-import { useCompanyToken } from '../../lib/auth';
+import { api, type IntelligenceSnapshot, type Report } from '../../lib/api';
+import { useAuth, useCompanyToken } from '../../lib/auth';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { StatCard } from '../../components/ui/StatCard';
 import { Card } from '../../components/ui/Card';
@@ -13,22 +13,44 @@ import { Timeline } from '../../components/ui/Timeline';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { EmptyState } from '../../components/ui/EmptyState';
 
 export function CompanyDashboard() {
   const token = useCompanyToken();
+  const { session } = useAuth();
+  const navigate = useNavigate();
   const [snapshot, setSnapshot] = useState<IntelligenceSnapshot | null>(null);
+  const [latestReport, setLatestReport] = useState<Report | null>(null);
   const [score, setScore] = useState(0);
   const [breakdown, setBreakdown] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (session?.portal === 'company' && !session.impersonating && !session.company.portal_onboarding_completed_at) {
+      navigate('/company/onboarding', { replace: true });
+    }
+  }, [session, navigate]);
 
   useEffect(() => {
     if (!token) return;
-    api
-      .intelligenceSnapshot(token)
-      .then((d) => {
-        setSnapshot(d.snapshot);
-        setScore(Math.round(d.report_readiness_score));
-        setBreakdown(d.report_readiness_breakdown as Record<string, number>);
+    setLoading(true);
+    setError('');
+
+    Promise.allSettled([api.intelligenceSnapshot(token), api.companyReports(token)])
+      .then(([snapResult, reportsResult]) => {
+        if (snapResult.status === 'fulfilled') {
+          setSnapshot(snapResult.value.snapshot);
+          setScore(Math.round(snapResult.value.report_readiness_score));
+          setBreakdown(snapResult.value.report_readiness_breakdown as Record<string, number>);
+        } else {
+          setError('Could not load discovery snapshot. Try refreshing the page.');
+        }
+        if (reportsResult.status === 'fulfilled') {
+          const reports = reportsResult.value.reports || [];
+          const sorted = [...reports].sort((a, b) => b.version - a.version);
+          setLatestReport(sorted[0] ?? null);
+        }
       })
       .finally(() => setLoading(false));
   }, [token]);
@@ -37,14 +59,53 @@ export function CompanyDashboard() {
     return (
       <div className="space-y-6">
         <Skeleton variant="text" />
-        <div className="grid gap-4 md:grid-cols-4">{[1, 2, 3, 4].map((i) => <Skeleton key={i} variant="card" />)}</div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} variant="card" />
+          ))}
+        </div>
+        <Skeleton variant="card" />
       </div>
     );
   }
 
-  if (!snapshot) return null;
+  if (error && !snapshot) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Discovery intelligence" description="Live operational snapshot." />
+        <EmptyState title="Unable to load dashboard" description={error} />
+      </div>
+    );
+  }
+
+  if (!snapshot) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Discovery intelligence" description="Live operational snapshot." />
+        <EmptyState
+          title="No data yet"
+          description="Complete onboarding and invite employees to start discovery."
+        />
+      </div>
+    );
+  }
 
   const p = snapshot.participation;
+
+  if (p.invited === 0) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Discovery intelligence" description="Get started with your discovery program." />
+        <div className="rounded-card border border-border bg-surface p-8 shadow-card">
+          <EmptyState
+            title="Invite your first employees"
+            description="Add employees to begin WhatsApp discovery interviews and build your operational snapshot."
+            action={{ label: 'Invite employees', onClick: () => navigate('/company/employees') }}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -53,60 +114,58 @@ export function CompanyDashboard() {
         description="Live operational snapshot — signals, patterns, and recommendations from your program."
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Employees invited" value={p.invited} icon={<Users className="h-5 w-5 text-accent" />} />
-        <StatCard label="Interviews completed" value={p.completed} icon={<CheckCircle2 className="h-5 w-5 text-accent" />} />
-        <StatCard label="Completion rate" value={`${Math.round(p.completion_rate * 100)}%`} icon={<Percent className="h-5 w-5 text-accent" />} />
-        <StatCard label="Report readiness" value={`${score}%`} icon={<FileBarChart className="h-5 w-5 text-accent" />} />
+      {error && (
+        <div className="rounded-card border border-status-warning/30 bg-status-warningBg px-4 py-3 text-sm">
+          {error}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="Invited" value={p.invited} icon={<Users className="h-5 w-5 text-accent" />} />
+        <StatCard label="Completed" value={p.completed} icon={<CheckCircle2 className="h-5 w-5 text-accent" />} />
+        <StatCard
+          label="Completion rate"
+          value={`${Math.round(p.completion_rate * 100)}%`}
+          icon={<Percent className="h-5 w-5 text-accent" />}
+        />
+        <StatCard label="Readiness score" value={`${score}%`} icon={<FileBarChart className="h-5 w-5 text-accent" />} />
       </div>
 
       <Card title="Department coverage">
         <DepartmentHeatmap cells={snapshot.department_coverage} />
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card title="Top pain points">
-          {snapshot.top_pain_points.length === 0 ? (
-            <p className="text-sm text-text-secondary">Complete more interviews to surface signals.</p>
-          ) : (
-            <div className="space-y-4">
-              {snapshot.top_pain_points.map((s) => (
-                <div key={s.id}>
-                  <div className="mb-1 flex justify-between text-sm">
-                    <span className="font-medium text-text-primary">{s.label}</span>
-                    <span className="text-text-secondary">{Math.round(s.strength * 100)}%</span>
-                  </div>
-                  <StrengthBar strength={s.strength} />
-                  <p className="mt-1 text-xs text-text-secondary">{s.departments.join(', ') || s.signal_type}</p>
+      <Card title="Top pain points">
+        {snapshot.top_pain_points.length === 0 ? (
+          <p className="text-sm text-text-secondary">Complete more interviews to surface signals.</p>
+        ) : (
+          <div className="space-y-4">
+            {snapshot.top_pain_points.map((s) => (
+              <div key={s.id}>
+                <div className="mb-1 flex justify-between text-sm">
+                  <span className="font-medium text-text-primary">{s.label}</span>
+                  <span className="text-text-secondary">{Math.round(s.strength * 100)}%</span>
                 </div>
-              ))}
-            </div>
-          )}
-        </Card>
-
-        <Card title="Emerging patterns">
-          {snapshot.emerging_patterns.length === 0 ? (
-            <p className="text-sm text-text-secondary">Patterns emerge as signals strengthen across teams.</p>
-          ) : (
-            <div className="space-y-3">
-              {snapshot.emerging_patterns.map((pat) => (
-                <div key={pat.id} className="rounded-button border border-border p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <h4 className="m-0 font-medium text-text-primary">{pat.title}</h4>
-                    <Badge variant="info">{Math.round(pat.confidence * 100)}%</Badge>
-                  </div>
-                  <p className="mt-1 text-xs text-text-secondary">{pat.departments.join(', ')}</p>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
-      </div>
+                <StrengthBar strength={s.strength} />
+                <p className="mt-1 text-xs text-text-secondary">{s.departments.join(', ') || s.signal_type}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
 
       <Card title="Report status">
         <div className="flex flex-col gap-6 md:flex-row md:items-center">
           <ReadinessGauge score={score} breakdown={breakdown} />
           <div className="flex-1 space-y-3">
+            {latestReport && (
+              <p className="text-sm text-text-primary">
+                Latest report:{' '}
+                <Badge variant={latestReport.status === 'ready' ? 'success' : 'neutral'}>
+                  v{latestReport.version} — {latestReport.status}
+                </Badge>
+              </p>
+            )}
             <p className="text-sm text-text-secondary">
               {snapshot.report_ready
                 ? 'Your organization meets the readiness threshold to generate a discovery report.'

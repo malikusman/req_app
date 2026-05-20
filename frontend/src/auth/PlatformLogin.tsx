@@ -9,6 +9,7 @@ export function PlatformLogin() {
 
   return (
     <LoginForm
+      portal="platform"
       portalName="Platform Admin"
       tagline="Manage companies, trials, and system health across your Req deployment."
       defaultEmail="admin@reqapp.local"

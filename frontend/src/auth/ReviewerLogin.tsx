@@ -9,6 +9,7 @@ export function ReviewerLogin() {
 
   return (
     <LoginForm
+      portal="reviewer"
       portalName="Reviewer Portal"
       tagline="Review AI-generated reports and coordinate expert analysis."
       defaultEmail="reviewer@reqapp.local"

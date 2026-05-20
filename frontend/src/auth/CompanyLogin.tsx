@@ -9,6 +9,7 @@ export function CompanyLogin() {
 
   return (
     <LoginForm
+      portal="company"
       portalName="Company Portal"
       tagline="Run workflow discovery and intelligence for your organization."
       defaultEmail="admin@acme.local"
