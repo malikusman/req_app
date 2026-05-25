@@ -1,4 +1,9 @@
 export { AnimatedCard } from './AnimatedCard';
+export {
+  HeroDiscoveryGraph,
+  type DiscoveryInterview,
+  type HeroDiscoveryGraphProps,
+} from './HeroDiscoveryGraph';
 export { HeroOrb } from './HeroOrb';
 export { ShineBorder } from './ShineBorder';
 export { StreamingChatBubble } from './StreamingChatBubble';

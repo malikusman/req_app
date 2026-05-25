@@ -12,6 +12,8 @@ export type MarketingAnimatedHeroProps = {
   primaryCta: { label: string; onClick: () => void };
   secondaryCta?: { label: string; onClick: () => void };
   rightSlot?: ReactNode;
+  /** Centered copy over full-bleed background (no right column). */
+  variant?: 'default' | 'overlay';
   className?: string;
 };
 
@@ -23,8 +25,10 @@ export function MarketingAnimatedHero({
   primaryCta,
   secondaryCta,
   rightSlot,
+  variant = 'default',
   className,
 }: MarketingAnimatedHeroProps) {
+  const isOverlay = variant === 'overlay' && !rightSlot;
   const reduced = useReducedMotion();
   const [wordIndex, setWordIndex] = useState(0);
   const staticWord = rotatingWords[0] ?? '';
@@ -41,8 +45,20 @@ export function MarketingAnimatedHero({
 
   return (
     <div className={cn('relative w-full', className)}>
-      <div className="mx-auto flex max-w-6xl flex-col items-center gap-12 px-6 py-16 lg:flex-row lg:items-center lg:py-24 lg:px-12">
-        <div className="flex flex-1 flex-col items-center text-center lg:items-start lg:text-left">
+      <div
+        className={cn(
+          'mx-auto flex max-w-6xl flex-col items-center gap-12 px-6 py-16 lg:px-12',
+          isOverlay
+            ? 'max-w-3xl py-20 text-center md:py-28'
+            : 'lg:flex-row lg:items-center lg:py-24'
+        )}
+      >
+        <div
+          className={cn(
+            'flex flex-1 flex-col items-center text-center',
+            !isOverlay && 'lg:items-start lg:text-left'
+          )}
+        >
           {eyebrow && (
             <p className="text-sm font-medium uppercase tracking-widest text-marketing-gold">
               {eyebrow}
@@ -50,7 +66,12 @@ export function MarketingAnimatedHero({
           )}
           <h1 className="mt-4 font-display text-4xl font-bold leading-tight tracking-tight text-marketing-foreground md:text-5xl lg:text-6xl">
             <span className="block">{headlinePrefix}</span>
-            <span className="relative mt-2 flex h-[1.2em] w-full justify-center overflow-hidden lg:justify-start">
+            <span
+              className={cn(
+                'relative mt-2 flex h-[1.2em] w-full justify-center overflow-hidden',
+                !isOverlay && 'lg:justify-start'
+              )}
+            >
               {reduced ? (
                 <span className="text-marketing-accent">{staticWord}</span>
               ) : (
@@ -78,7 +99,12 @@ export function MarketingAnimatedHero({
           <p className="mt-6 max-w-xl text-base leading-relaxed text-marketing-muted md:text-lg">
             {subhead}
           </p>
-          <div className="mt-8 flex flex-wrap justify-center gap-3 lg:justify-start">
+          <div
+            className={cn(
+              'mt-8 flex flex-wrap justify-center gap-3',
+              !isOverlay && 'lg:justify-start'
+            )}
+          >
             <Button size="lg" variant="default" className="gap-2" onClick={primaryCta.onClick}>
               {primaryCta.label}
               <MoveRight className="h-4 w-4" />
