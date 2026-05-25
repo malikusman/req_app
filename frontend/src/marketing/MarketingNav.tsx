@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { Menu, X } from 'lucide-react';
-import { Button } from '../components/ui/Button';
+import { Button } from '@/components/shadcn/button';
 import { fadeUp, transition } from '../lib/motion';
 import { marketingContent } from './content';
 import { RequestAccessModal } from './RequestAccessModal';
@@ -21,13 +21,13 @@ export function MarketingNav() {
 
   return (
     <motion.header
-      className="sticky top-0 z-50 border-b border-gray-800/50 bg-sidebar/95 backdrop-blur"
+      className="sticky top-0 z-50 border-b border-marketing-border bg-marketing-bg/80 backdrop-blur-md"
       initial={reduced ? false : { y: -16, opacity: 0 }}
       animate={reduced ? undefined : { y: 0, opacity: 1 }}
       transition={transition.normal}
     >
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
-        <Link to="/" className="font-display text-lg font-bold text-text-inverse">
+        <Link to="/" className="font-display text-lg font-bold text-marketing-foreground">
           Req
         </Link>
 
@@ -37,12 +37,15 @@ export function MarketingNav() {
               key={link.href}
               type="button"
               onClick={() => scrollTo(link.href)}
-              className="text-sm text-gray-300 hover:text-white"
+              className="text-sm text-marketing-muted transition-colors hover:text-marketing-accent"
             >
               {link.label}
             </button>
           ))}
-          <Link to="/platform/login" className="text-sm text-gray-300 hover:text-white">
+          <Link
+            to="/platform/login"
+            className="text-sm text-marketing-muted transition-colors hover:text-marketing-foreground"
+          >
             {nav.signInLabel}
           </Link>
           <Button size="sm" onClick={() => setOpen(true)}>
@@ -52,7 +55,7 @@ export function MarketingNav() {
 
         <button
           type="button"
-          className="rounded-md p-2 text-gray-300 hover:text-white md:hidden"
+          className="rounded-md p-2 text-marketing-muted hover:text-marketing-foreground md:hidden"
           onClick={() => setMenuOpen((v) => !v)}
           aria-label={menuOpen ? 'Close menu' : 'Open menu'}
         >
@@ -63,7 +66,7 @@ export function MarketingNav() {
       <AnimatePresence>
         {menuOpen && (
           <motion.nav
-            className="border-t border-gray-800/50 px-6 py-4 md:hidden"
+            className="border-t border-marketing-border px-6 py-4 md:hidden"
             initial="hidden"
             animate="visible"
             exit="hidden"
@@ -78,7 +81,7 @@ export function MarketingNav() {
                 <button
                   key={link.href}
                   type="button"
-                  className="text-left text-sm text-gray-300 hover:text-white"
+                  className="text-left text-sm text-marketing-muted hover:text-marketing-accent"
                   onClick={() => scrollTo(link.href)}
                 >
                   {link.label}
@@ -86,7 +89,7 @@ export function MarketingNav() {
               ))}
               <Link
                 to="/platform/login"
-                className="text-sm text-gray-300 hover:text-white"
+                className="text-sm text-marketing-muted"
                 onClick={() => setMenuOpen(false)}
               >
                 {nav.signInLabel}

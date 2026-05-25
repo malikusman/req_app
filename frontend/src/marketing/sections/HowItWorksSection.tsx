@@ -18,20 +18,20 @@ function StepCard({
 
   return (
     <motion.article
-      className="rounded-card border border-border border-l-2 border-l-accent bg-surface p-6 shadow-card"
-      whileHover={reduced ? undefined : { y: -4, boxShadow: '0 8px 24px rgb(0 0 0 / 0.08)' }}
+      className="rounded-card border border-marketing-border border-l-2 border-l-marketing-accent bg-marketing-bg/50 p-6 shadow-marketing-card backdrop-blur-sm"
+      whileHover={reduced ? undefined : { y: -4 }}
       transition={spring.soft}
     >
-      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent-muted text-sm font-bold text-accent">
+      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-marketing-accent-muted text-sm font-bold text-marketing-accent">
         {index + 1}
       </span>
-      <Icon className="mt-4 h-6 w-6 text-accent" aria-hidden />
-      <h3 className="mt-3 font-display text-section-title text-text-primary">{step.title}</h3>
-      <p className="mt-2 text-sm leading-relaxed text-text-secondary">{step.description}</p>
-      <ul className="mt-4 space-y-2 border-t border-border pt-4">
+      <Icon className="mt-4 h-6 w-6 text-marketing-accent" aria-hidden />
+      <h3 className="mt-3 font-display text-section-title text-marketing-foreground">{step.title}</h3>
+      <p className="mt-2 text-sm leading-relaxed text-marketing-muted">{step.description}</p>
+      <ul className="mt-4 space-y-2 border-t border-marketing-border pt-4">
         {step.details.map((detail) => (
-          <li key={detail} className="flex gap-2 text-xs text-text-secondary">
-            <span className="text-accent" aria-hidden>
+          <li key={detail} className="flex gap-2 text-xs text-marketing-muted">
+            <span className="text-marketing-accent" aria-hidden>
               —
             </span>
             {detail}
@@ -46,11 +46,14 @@ export function HowItWorksSection() {
   const { howItWorks } = marketingContent;
 
   return (
-    <section id="how-it-works" className="bg-surface-muted px-6 py-24 md:px-12 md:py-28">
+    <section id="how-it-works" className="bg-marketing-bg px-6 py-24 md:px-12 md:py-28">
       <div className="mx-auto max-w-6xl">
         <ScrollReveal>
-          <h2 className="font-display text-page-title text-text-primary">{howItWorks.title}</h2>
-          <p className="mt-3 max-w-3xl text-lg text-text-secondary">{howItWorks.subtitle}</p>
+          <p className="text-label-caps text-marketing-gold">Process</p>
+          <h2 className="mt-2 font-display text-page-title text-marketing-foreground">
+            {howItWorks.title}
+          </h2>
+          <p className="mt-3 max-w-3xl text-lg text-marketing-muted">{howItWorks.subtitle}</p>
         </ScrollReveal>
         <Stagger className="mt-14 grid gap-8 lg:grid-cols-3" staggerDelay={0.1}>
           {howItWorks.steps.map((step, i) => (

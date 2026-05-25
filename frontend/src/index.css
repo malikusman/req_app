@@ -29,6 +29,18 @@
   :focus-visible {
     @apply outline-none ring-2 ring-accent ring-offset-2;
   }
+
+  .marketing {
+    @apply bg-marketing-bg text-marketing-foreground antialiased;
+  }
+
+  .marketing a:not([class*='button']) {
+    @apply text-marketing-accent no-underline hover:text-marketing-accent-hover;
+  }
+
+  .marketing :focus-visible {
+    @apply ring-marketing-accent ring-offset-marketing-bg;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,4 +1,5 @@
 export { AnimatedCard } from './AnimatedCard';
+export { HeroOrb } from './HeroOrb';
 export { ShineBorder } from './ShineBorder';
 export { StreamingChatBubble } from './StreamingChatBubble';
 export { StreamingText } from './StreamingText';

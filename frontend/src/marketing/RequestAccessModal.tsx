@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Modal } from '../components/ui/Modal';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
-import { Button } from '../components/ui/Button';
+import { Button } from '@/components/shadcn/button';
 import { useToast } from '../components/ui/ToastProvider';
 
 type Props = { open: boolean; onClose: () => void };
@@ -25,8 +25,12 @@ export function RequestAccessModal({ open, onClose }: Props) {
   return (
     <Modal open={open} onClose={onClose} title="Request access" footer={
       <>
-        <Button variant="ghost" onClick={onClose}>Cancel</Button>
-        <Button type="submit" form="request-access-form">Send request</Button>
+        <Button variant="ghost" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button type="submit" form="request-access-form" variant="default">
+          Send request
+        </Button>
       </>
     }>
       <form id="request-access-form" onSubmit={handleSubmit} className="space-y-4">

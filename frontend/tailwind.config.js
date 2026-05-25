@@ -4,6 +4,16 @@ export default {
   theme: {
     extend: {
       colors: {
+        marketing: {
+          bg: '#050508',
+          surface: '#111118',
+          'surface-elevated': '#16161f',
+          foreground: '#f4f4f5',
+          muted: '#a1a1aa',
+          accent: { DEFAULT: '#22d3ee', hover: '#06b6d4', muted: 'rgba(34, 211, 238, 0.12)' },
+          gold: '#d4a853',
+          border: 'rgba(255, 255, 255, 0.08)',
+        },
         sidebar: { DEFAULT: '#0F1117', hover: '#1A1D27', active: '#22263A' },
         surface: { DEFAULT: '#FFFFFF', muted: '#F8F9FC' },
         border: { DEFAULT: '#E5E7EB', strong: '#D1D5DB' },
@@ -51,6 +61,8 @@ export default {
         'hero-mockup':
           '0 0 0 1px rgba(255,255,255,0.05), 0 25px 50px rgba(0,0,0,0.5)',
         'button-glow': '0 0 20px rgba(79,70,229,0.4)',
+        'marketing-glow': '0 0 40px rgba(34, 211, 238, 0.25)',
+        'marketing-card': '0 0 0 1px rgba(255,255,255,0.06), 0 12px 40px rgba(0,0,0,0.4)',
       },
       animation: {
         'grid-drift': 'gridDrift 60s linear infinite',

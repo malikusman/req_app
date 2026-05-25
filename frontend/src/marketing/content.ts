@@ -17,6 +17,8 @@ export const marketingContent = {
 
   hero: {
     eyebrow: 'Enterprise workflow discovery',
+    headlinePrefix: 'From conversations to',
+    rotatingWords: ['workflows', 'bottlenecks', 'patterns', 'roadmaps'],
     headline: 'Understand how your company',
     headlineAccent: 'actually works',
     subhead:
