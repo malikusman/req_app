@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { ChevronRight } from 'lucide-react';
 import { cn } from '../../lib/cn';
+import { fadeUp, transition } from '../../lib/motion';
 
 export type Breadcrumb = { label: string; href?: string };
 
@@ -21,9 +22,10 @@ export function PageHeader({
 }) {
   return (
     <motion.header
-      initial={{ opacity: 0, y: -8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2 }}
+      initial="hidden"
+      animate="visible"
+      variants={fadeUp}
+      transition={transition.fast}
       className={cn('mb-8', className)}
     >
       {breadcrumbs && breadcrumbs.length > 0 && (

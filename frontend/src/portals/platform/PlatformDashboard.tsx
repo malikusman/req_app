@@ -7,6 +7,7 @@ import {
   type PlatformTrialRow,
 } from '../../lib/api';
 import { usePlatformToken } from '../../lib/auth';
+import { StatCardGrid } from '../../components/motion';
 import {
   PageHeader,
   StatCard,
@@ -163,7 +164,7 @@ export function PlatformDashboard() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <StatCardGrid>
         <StatCard
           label="Total companies"
           value={monitoring?.companies.total ?? '—'}
@@ -184,7 +185,7 @@ export function PlatformDashboard() {
           value={systemHealth.label}
           icon={<Activity className="h-5 w-5 text-accent" />}
         />
-      </div>
+      </StatCardGrid>
 
       <Card title="Trials expiring soon">
         <div className="overflow-x-auto">

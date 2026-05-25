@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Users, CheckCircle2, Percent, FileBarChart } from 'lucide-react';
 import { api, type IntelligenceSnapshot, type Report } from '../../lib/api';
 import { useAuth, useCompanyToken } from '../../lib/auth';
+import { StatCardGrid } from '../../components/motion';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { StatCard } from '../../components/ui/StatCard';
 import { Card } from '../../components/ui/Card';
@@ -120,7 +121,7 @@ export function CompanyDashboard() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <StatCardGrid>
         <StatCard label="Invited" value={p.invited} icon={<Users className="h-5 w-5 text-accent" />} />
         <StatCard label="Completed" value={p.completed} icon={<CheckCircle2 className="h-5 w-5 text-accent" />} />
         <StatCard
@@ -129,7 +130,7 @@ export function CompanyDashboard() {
           icon={<Percent className="h-5 w-5 text-accent" />}
         />
         <StatCard label="Readiness score" value={`${score}%`} icon={<FileBarChart className="h-5 w-5 text-accent" />} />
-      </div>
+      </StatCardGrid>
 
       <Card title="Department coverage">
         <DepartmentHeatmap cells={snapshot.department_coverage} />

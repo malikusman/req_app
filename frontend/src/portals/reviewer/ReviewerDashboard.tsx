@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, type ReviewerCompanySummary } from '../../lib/api';
 import { useReviewerToken } from '../../lib/auth';
+import { AnimatedCard, Stagger } from '../../components/motion';
 import { PageHeader, Card, Badge, EmptyState, Skeleton } from '../../components/ui';
 
 export function ReviewerDashboard() {
@@ -64,22 +65,24 @@ export function ReviewerDashboard() {
           description="No companies assigned yet. Contact your platform administrator."
         />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <Stagger className="grid gap-4 md:grid-cols-2 lg:grid-cols-3" staggerDelay={0.08}>
           {companies.map((c) => (
             <Link key={c.id} to={`/reviewer/companies/${c.id}`} className="block no-underline">
-              <Card className="transition-shadow hover:shadow-md">
-                <h3 className="m-0 font-medium text-text-primary">{c.name}</h3>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Badge variant="info">{c.report_readiness_score}% readiness</Badge>
-                  <Badge variant="neutral">
-                    {c.completed_count}/{c.invited_count} completed
-                  </Badge>
-                </div>
-                <p className="mt-3 text-sm font-medium text-accent">Open company →</p>
-              </Card>
+              <AnimatedCard>
+                <Card className="h-full transition-shadow hover:shadow-md">
+                  <h3 className="m-0 font-medium text-text-primary">{c.name}</h3>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Badge variant="info">{c.report_readiness_score}% readiness</Badge>
+                    <Badge variant="neutral">
+                      {c.completed_count}/{c.invited_count} completed
+                    </Badge>
+                  </div>
+                  <p className="mt-3 text-sm font-medium text-accent">Open company →</p>
+                </Card>
+              </AnimatedCard>
             </Link>
           ))}
-        </div>
+        </Stagger>
       )}
     </div>
   );

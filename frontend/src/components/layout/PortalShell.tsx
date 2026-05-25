@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import type { Portal } from '../../lib/auth';
 import { cn } from '../../lib/cn';
+import { PageTransition } from '../motion/PageTransition';
 import { Sidebar, type SidebarItem } from './Sidebar';
 import { TopBar } from './TopBar';
 import { UserMenu, type UserMenuProps } from './UserMenu';
@@ -59,7 +60,7 @@ export function PortalShell({
         />
         <main className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-content bg-surface-muted p-4 md:p-8">
-            {children ?? <Outlet />}
+            <PageTransition>{children ?? <Outlet />}</PageTransition>
           </div>
         </main>
       </div>

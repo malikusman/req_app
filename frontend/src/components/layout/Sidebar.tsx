@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
+import { motion, useReducedMotion } from 'motion/react';
 import { X } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { cn } from '../../lib/cn';
+import { spring } from '../../lib/motion';
 
 export type SidebarItem = {
   to: string;
@@ -26,6 +28,8 @@ function isItemActive(activePath: string, to: string) {
 }
 
 export function Sidebar({ logo, items, activePath, footer, mobileOpen, onMobileClose }: SidebarProps) {
+  const reduced = useReducedMotion();
+
   return (
     <>
       {mobileOpen && (
@@ -65,15 +69,22 @@ export function Sidebar({ logo, items, activePath, footer, mobileOpen, onMobileC
                 to={to}
                 onClick={onMobileClose}
                 className={cn(
-                  'flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors',
-                  'border-l-2 border-transparent',
-                  active
-                    ? 'border-l-accent bg-sidebar-active text-white'
-                    : 'text-white/60 hover:bg-sidebar-hover hover:text-white/90'
+                  'relative flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium',
+                  active ? 'text-white' : 'text-white/60 hover:text-white/90'
                 )}
               >
-                <Icon className="h-[18px] w-[18px] shrink-0" aria-hidden />
-                <span>{label}</span>
+                {active && !reduced && (
+                  <motion.span
+                    layoutId="sidebar-active-pill"
+                    className="absolute inset-0 rounded-md border-l-2 border-l-accent bg-sidebar-active"
+                    transition={spring.soft}
+                  />
+                )}
+                {active && reduced && (
+                  <span className="absolute inset-0 rounded-md border-l-2 border-l-accent bg-sidebar-active" />
+                )}
+                <Icon className="relative z-10 h-[18px] w-[18px] shrink-0" aria-hidden />
+                <span className="relative z-10">{label}</span>
               </Link>
             );
           })}

@@ -1,6 +1,8 @@
 import { type ButtonHTMLAttributes, type ReactNode } from 'react';
 import { Loader2 } from 'lucide-react';
+import { motion, useReducedMotion } from 'motion/react';
 import { cn } from '../../lib/cn';
+import { spring, tapScale } from '../../lib/motion';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 type Size = 'sm' | 'md' | 'lg';
@@ -19,6 +21,8 @@ const sizes: Record<Size, string> = {
   lg: 'h-11 px-5 text-base',
 };
 
+const MotionButton = motion.button;
+
 export function Button({
   variant = 'primary',
   size = 'md',
@@ -34,19 +38,37 @@ export function Button({
   loading?: boolean;
   icon?: ReactNode;
 }) {
+  const reduced = useReducedMotion();
+
+  const classes = cn(
+    'inline-flex items-center justify-center gap-2 rounded-button border font-medium disabled:opacity-50 disabled:pointer-events-none',
+    !reduced && 'transition-none',
+    reduced && 'transition-colors',
+    variants[variant],
+    sizes[size],
+    className
+  );
+
+  if (reduced) {
+    return (
+      <button className={classes} disabled={disabled || loading} {...props}>
+        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : icon}
+        {children}
+      </button>
+    );
+  }
+
   return (
-    <button
-      className={cn(
-        'inline-flex items-center justify-center gap-2 rounded-button border font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none',
-        variants[variant],
-        sizes[size],
-        className
-      )}
+    <MotionButton
+      className={classes}
       disabled={disabled || loading}
+      whileHover={disabled || loading ? undefined : { scale: tapScale.hover }}
+      whileTap={disabled || loading ? undefined : { scale: tapScale.tap }}
+      transition={spring.snappy}
       {...props}
     >
       {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : icon}
       {children}
-    </button>
+    </MotionButton>
   );
 }

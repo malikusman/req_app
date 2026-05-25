@@ -2,19 +2,29 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { useReviewerToken } from '../../lib/auth';
-import { PageHeader, Card, ChatBubble, Textarea, Button } from '../../components/ui';
+import { ChatMessageList, type ChatMessageItem } from '../../components/motion';
+import { PageHeader, Card, Textarea, Button } from '../../components/ui';
 
 export function ReviewerChat() {
   const { companyId } = useParams();
   const token = useReviewerToken();
-  const [messages, setMessages] = useState<
-    { id: number; body: string; sender_name: string; created_at: string; mine: boolean }[]
-  >([]);
+  const [messages, setMessages] = useState<ChatMessageItem[]>([]);
   const [body, setBody] = useState('');
+  const [sending, setSending] = useState(false);
 
   const load = () => {
     if (!token || !companyId) return;
-    api.reviewerChatMessages(token, Number(companyId)).then((d) => setMessages(d.messages));
+    api.reviewerChatMessages(token, Number(companyId)).then((d) =>
+      setMessages(
+        d.messages.map((m) => ({
+          id: m.id,
+          direction: m.mine ? 'outbound' : 'inbound',
+          body: m.body,
+          timestamp: m.created_at,
+          meta: <p className="text-xs text-text-secondary">{m.sender_name}</p>,
+        }))
+      )
+    );
   };
 
   useEffect(() => {
@@ -26,9 +36,14 @@ export function ReviewerChat() {
   const send = async (e: FormEvent) => {
     e.preventDefault();
     if (!token || !companyId || !body.trim()) return;
-    await api.sendReviewerChat(token, Number(companyId), body.trim());
-    setBody('');
-    load();
+    setSending(true);
+    try {
+      await api.sendReviewerChat(token, Number(companyId), body.trim());
+      setBody('');
+      load();
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -43,20 +58,13 @@ export function ReviewerChat() {
       />
 
       <Card>
-        <div className="max-h-[400px] space-y-4 overflow-y-auto pr-2">
-          {messages.map((m) => (
-            <div key={m.id}>
-              <p className="mb-1 text-xs text-text-secondary">{m.sender_name}</p>
-              <ChatBubble direction={m.mine ? 'outbound' : 'inbound'} body={m.body} timestamp={m.created_at} />
-            </div>
-          ))}
-        </div>
+        <ChatMessageList messages={messages} className="max-h-[400px]" showTyping={sending} />
       </Card>
 
       <Card>
         <form onSubmit={send} className="space-y-4">
           <Textarea rows={3} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Message co-reviewers…" />
-          <Button type="submit" disabled={!body.trim()}>
+          <Button type="submit" disabled={!body.trim() || sending} loading={sending}>
             Send
           </Button>
         </form>

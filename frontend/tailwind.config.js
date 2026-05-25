@@ -56,6 +56,11 @@ export default {
         'grid-drift': 'gridDrift 60s linear infinite',
         'cta-pulse': 'ctaPulse 3s ease-out infinite',
         'cta-pulse-delayed': 'ctaPulse 3s ease-out 1.5s infinite',
+        marquee: 'marquee 40s linear infinite',
+        'border-beam-spin': 'borderBeamSpin 12s linear infinite',
+        'border-beam-pulse': 'borderBeamPulse 4s ease-in-out infinite alternate',
+        'text-gradient': 'textGradient 4s ease infinite',
+        shine: 'shine 3s linear infinite',
       },
       keyframes: {
         gridDrift: {
@@ -65,6 +70,26 @@ export default {
         ctaPulse: {
           '0%': { transform: 'scale(1)', opacity: '0.35' },
           '100%': { transform: 'scale(2.2)', opacity: '0' },
+        },
+        marquee: {
+          '0%': { transform: 'translateX(0)' },
+          '100%': { transform: 'translateX(-50%)' },
+        },
+        borderBeamSpin: {
+          '0%': { transform: 'rotate(0deg)' },
+          '100%': { transform: 'rotate(360deg)' },
+        },
+        borderBeamPulse: {
+          '0%': { opacity: '0.4', transform: 'scale(0.95)' },
+          '100%': { opacity: '0.7', transform: 'scale(1.05)' },
+        },
+        textGradient: {
+          '0%, 100%': { backgroundPosition: '0% center' },
+          '50%': { backgroundPosition: '100% center' },
+        },
+        shine: {
+          '0%': { transform: 'rotate(0deg)' },
+          '100%': { transform: 'rotate(360deg)' },
         },
       },
     },

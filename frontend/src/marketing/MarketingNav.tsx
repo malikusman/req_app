@@ -1,26 +1,52 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { Menu, X } from 'lucide-react';
 import { Button } from '../components/ui/Button';
+import { fadeUp, transition } from '../lib/motion';
+import { marketingContent } from './content';
 import { RequestAccessModal } from './RequestAccessModal';
 
 export function MarketingNav() {
   const [open, setOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const reduced = useReducedMotion();
+  const { nav } = marketingContent;
+
+  const scrollTo = (href: string) => {
+    if (!href.startsWith('#')) return;
+    document.querySelector(href)?.scrollIntoView({ behavior: 'smooth' });
+    setMenuOpen(false);
+  };
 
   return (
-    <header className="sticky top-0 z-50 border-b border-gray-800/50 bg-sidebar/95 backdrop-blur">
+    <motion.header
+      className="sticky top-0 z-50 border-b border-gray-800/50 bg-sidebar/95 backdrop-blur"
+      initial={reduced ? false : { y: -16, opacity: 0 }}
+      animate={reduced ? undefined : { y: 0, opacity: 1 }}
+      transition={transition.normal}
+    >
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
         <Link to="/" className="font-display text-lg font-bold text-text-inverse">
           Req
         </Link>
 
-        <nav className="hidden items-center gap-4 md:flex">
+        <nav className="hidden items-center gap-6 md:flex">
+          {nav.links.map((link) => (
+            <button
+              key={link.href}
+              type="button"
+              onClick={() => scrollTo(link.href)}
+              className="text-sm text-gray-300 hover:text-white"
+            >
+              {link.label}
+            </button>
+          ))}
           <Link to="/platform/login" className="text-sm text-gray-300 hover:text-white">
-            Sign in
+            {nav.signInLabel}
           </Link>
           <Button size="sm" onClick={() => setOpen(true)}>
-            Request access
+            {nav.ctaLabel}
           </Button>
         </nav>
 
@@ -34,31 +60,53 @@ export function MarketingNav() {
         </button>
       </div>
 
-      {menuOpen && (
-        <nav className="border-t border-gray-800/50 px-6 py-4 md:hidden">
-          <div className="flex flex-col gap-3">
-            <Link
-              to="/platform/login"
-              className="text-sm text-gray-300 hover:text-white"
-              onClick={() => setMenuOpen(false)}
-            >
-              Sign in
-            </Link>
-            <Button
-              size="sm"
-              className="w-full"
-              onClick={() => {
-                setMenuOpen(false);
-                setOpen(true);
-              }}
-            >
-              Request access
-            </Button>
-          </div>
-        </nav>
-      )}
+      <AnimatePresence>
+        {menuOpen && (
+          <motion.nav
+            className="border-t border-gray-800/50 px-6 py-4 md:hidden"
+            initial="hidden"
+            animate="visible"
+            exit="hidden"
+            variants={{
+              hidden: { height: 0, opacity: 0 },
+              visible: { height: 'auto', opacity: 1 },
+            }}
+            transition={transition.fast}
+          >
+            <motion.div className="flex flex-col gap-3" variants={fadeUp}>
+              {nav.links.map((link) => (
+                <button
+                  key={link.href}
+                  type="button"
+                  className="text-left text-sm text-gray-300 hover:text-white"
+                  onClick={() => scrollTo(link.href)}
+                >
+                  {link.label}
+                </button>
+              ))}
+              <Link
+                to="/platform/login"
+                className="text-sm text-gray-300 hover:text-white"
+                onClick={() => setMenuOpen(false)}
+              >
+                {nav.signInLabel}
+              </Link>
+              <Button
+                size="sm"
+                className="w-full"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setOpen(true);
+                }}
+              >
+                {nav.ctaLabel}
+              </Button>
+            </motion.div>
+          </motion.nav>
+        )}
+      </AnimatePresence>
 
       <RequestAccessModal open={open} onClose={() => setOpen(false)} />
-    </header>
+    </motion.header>
   );
 }

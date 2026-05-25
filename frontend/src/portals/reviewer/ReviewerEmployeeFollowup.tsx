@@ -2,7 +2,8 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { useReviewerToken } from '../../lib/auth';
-import { PageHeader, Card, ChatBubble, Textarea, Button, Skeleton, EmptyState } from '../../components/ui';
+import { ChatMessageList, type ChatMessageItem } from '../../components/motion';
+import { PageHeader, Card, Textarea, Button, Skeleton, EmptyState } from '../../components/ui';
 
 export function ReviewerEmployeeFollowup() {
   const { companyId, employeeId } = useParams();
@@ -12,6 +13,7 @@ export function ReviewerEmployeeFollowup() {
   >([]);
   const [body, setBody] = useState('');
   const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
 
   const load = () => {
     if (!token || !companyId || !employeeId) return;
@@ -27,10 +29,35 @@ export function ReviewerEmployeeFollowup() {
   const send = async (e: FormEvent) => {
     e.preventDefault();
     if (!token || !companyId || !employeeId || !body.trim()) return;
-    await api.sendReviewerFollowup(token, Number(companyId), Number(employeeId), body.trim());
-    setBody('');
-    load();
+    setSending(true);
+    try {
+      await api.sendReviewerFollowup(token, Number(companyId), Number(employeeId), body.trim());
+      setBody('');
+      load();
+    } finally {
+      setSending(false);
+    }
   };
+
+  function threadMessages(t: (typeof threads)[number]): ChatMessageItem[] {
+    const items: ChatMessageItem[] = [
+      {
+        id: `out-${t.id}`,
+        direction: 'outbound',
+        body: t.body,
+        timestamp: new Date().toISOString(),
+      },
+    ];
+    t.replies.forEach((r, i) => {
+      items.push({
+        id: `in-${t.id}-${i}`,
+        direction: 'inbound',
+        body: r.body,
+        timestamp: r.received_at,
+      });
+    });
+    return items;
+  }
 
   if (loading) {
     return (
@@ -57,12 +84,7 @@ export function ReviewerEmployeeFollowup() {
       ) : (
         threads.map((t) => (
           <Card key={t.id} title={`Thread · ${t.status}`}>
-            <div className="max-h-[400px] space-y-4 overflow-y-auto">
-              <ChatBubble direction="outbound" body={t.body} timestamp={new Date().toISOString()} />
-              {t.replies.map((r, i) => (
-                <ChatBubble key={i} direction="inbound" body={r.body} timestamp={r.received_at} />
-              ))}
-            </div>
+            <ChatMessageList messages={threadMessages(t)} className="max-h-[400px]" />
           </Card>
         ))
       )}
@@ -70,7 +92,7 @@ export function ReviewerEmployeeFollowup() {
       <Card title="Send follow-up">
         <form onSubmit={send} className="space-y-4">
           <Textarea rows={4} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Your message…" />
-          <Button type="submit" disabled={!body.trim()}>
+          <Button type="submit" disabled={!body.trim() || sending} loading={sending}>
             Send via WhatsApp
           </Button>
         </form>

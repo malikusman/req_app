@@ -2,22 +2,29 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { useReviewerToken } from '../../lib/auth';
-import { PageHeader, Card, ChatBubble, Textarea, Button, Skeleton } from '../../components/ui';
+import { ChatMessageList, type ChatMessageItem } from '../../components/motion';
+import { PageHeader, Card, Textarea, Button, Skeleton } from '../../components/ui';
 
 export function ReviewerConversationDetail() {
   const { companyId, conversationId } = useParams();
   const token = useReviewerToken();
-  const [messages, setMessages] = useState<
-    { id: number; direction: string; body: string; reviewer_followup: boolean; created_at: string }[]
-  >([]);
+  const [messages, setMessages] = useState<ChatMessageItem[]>([]);
   const [employeeId, setEmployeeId] = useState<number | null>(null);
   const [followupBody, setFollowupBody] = useState('');
   const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
 
   const load = () => {
     if (!token || !companyId || !conversationId) return;
     api.reviewerConversation(token, Number(companyId), Number(conversationId)).then((d) => {
-      setMessages(d.messages);
+      setMessages(
+        d.messages.map((m) => ({
+          id: m.id,
+          direction: m.direction === 'outbound' ? 'outbound' : 'inbound',
+          body: m.reviewer_followup ? `[Follow-up] ${m.body}` : m.body,
+          timestamp: m.created_at,
+        }))
+      );
       setEmployeeId(d.conversation.employee_id ?? null);
     });
   };
@@ -30,9 +37,14 @@ export function ReviewerConversationDetail() {
   const sendFollowup = async (e: FormEvent) => {
     e.preventDefault();
     if (!token || !companyId || !employeeId || !followupBody.trim()) return;
-    await api.sendReviewerFollowup(token, Number(companyId), employeeId, followupBody.trim());
-    setFollowupBody('');
-    load();
+    setSending(true);
+    try {
+      await api.sendReviewerFollowup(token, Number(companyId), employeeId, followupBody.trim());
+      setFollowupBody('');
+      load();
+    } finally {
+      setSending(false);
+    }
   };
 
   if (loading) {
@@ -56,23 +68,14 @@ export function ReviewerConversationDetail() {
       />
 
       <Card>
-        <div className="max-h-[480px] space-y-4 overflow-y-auto pr-2">
-          {messages.map((m) => (
-            <ChatBubble
-              key={m.id}
-              direction={m.direction === 'outbound' ? 'outbound' : 'inbound'}
-              body={m.reviewer_followup ? `[Follow-up] ${m.body}` : m.body}
-              timestamp={m.created_at}
-            />
-          ))}
-        </div>
+        <ChatMessageList messages={messages} className="max-h-[480px]" showTyping={sending} />
       </Card>
 
       {employeeId && (
         <Card title="WhatsApp follow-up">
           <form onSubmit={sendFollowup} className="space-y-4">
             <Textarea rows={4} value={followupBody} onChange={(e) => setFollowupBody(e.target.value)} />
-            <Button type="submit" disabled={!followupBody.trim()}>
+            <Button type="submit" disabled={!followupBody.trim() || sending} loading={sending}>
               Send follow-up
             </Button>
           </form>

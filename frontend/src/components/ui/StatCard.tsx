@@ -1,7 +1,8 @@
 import { type ReactNode } from 'react';
-import { motion } from 'motion/react';
+import { motion, useReducedMotion } from 'motion/react';
 import { TrendingDown, TrendingUp } from 'lucide-react';
 import { cn } from '../../lib/cn';
+import { spring } from '../../lib/motion';
 
 export function StatCard({
   label,
@@ -18,15 +19,11 @@ export function StatCard({
   icon?: ReactNode;
   className?: string;
 }) {
+  const reduced = useReducedMotion();
   const trendUp = trend && trend.value >= 0;
 
-  return (
-    <motion.div
-      className={cn(
-        'rounded-card border border-border bg-surface p-5 shadow-card',
-        className
-      )}
-    >
+  const content = (
+    <>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <p className="text-label-caps uppercase text-text-secondary">{label}</p>
@@ -62,6 +59,32 @@ export function StatCard({
           </div>
         )}
       </div>
+    </>
+  );
+
+  if (reduced) {
+    return (
+      <div
+        className={cn(
+          'rounded-card border border-border bg-surface p-5 shadow-card',
+          className
+        )}
+      >
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <motion.div
+      className={cn(
+        'rounded-card border border-border bg-surface p-5 shadow-card',
+        className
+      )}
+      whileHover={{ y: -2, boxShadow: '0 4px 12px rgb(0 0 0 / 0.06)' }}
+      transition={spring.soft}
+    >
+      {content}
     </motion.div>
   );
 }

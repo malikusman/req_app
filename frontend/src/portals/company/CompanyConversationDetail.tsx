@@ -1,11 +1,12 @@
 import { Link, useParams } from 'react-router-dom';
-import { PageHeader, Card, ChatBubble, Badge, EmptyState } from '../../components/ui';
+import { ChatMessageList, type ChatMessageItem } from '../../components/motion';
+import { PageHeader, Card, Badge, EmptyState } from '../../components/ui';
 import { mockConversations } from '../../lib/mocks/companyConversations';
 
-const mockMessages = [
-  { id: 1, direction: 'inbound' as const, body: 'Hi, I received the invite for the discovery interview.', timestamp: '2026-05-19T09:00:00Z' },
-  { id: 2, direction: 'outbound' as const, body: 'Welcome! Please share your access code to begin.', timestamp: '2026-05-19T09:01:00Z' },
-  { id: 3, direction: 'inbound' as const, body: 'Done — ready to talk about our month-end close process.', timestamp: '2026-05-19T09:02:00Z' },
+const mockMessages: ChatMessageItem[] = [
+  { id: 1, direction: 'inbound', body: 'Hi, I received the invite for the discovery interview.', timestamp: '2026-05-19T09:00:00Z' },
+  { id: 2, direction: 'outbound', body: 'Welcome! Please share your access code to begin.', timestamp: '2026-05-19T09:01:00Z' },
+  { id: 3, direction: 'inbound', body: 'Done — ready to talk about our month-end close process.', timestamp: '2026-05-19T09:02:00Z' },
 ];
 
 export function CompanyConversationDetail() {
@@ -49,11 +50,7 @@ export function CompanyConversationDetail() {
         </Card>
 
         <Card title="Transcript" className="lg:col-span-2">
-          <div className="max-h-[480px] space-y-4 overflow-y-auto pr-2">
-            {mockMessages.map((m) => (
-              <ChatBubble key={m.id} direction={m.direction} body={m.body} timestamp={m.timestamp} />
-            ))}
-          </div>
+          <ChatMessageList messages={mockMessages} className="max-h-[480px]" />
         </Card>
       </div>
     </div>
