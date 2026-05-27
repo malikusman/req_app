@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, type Report } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
 import { PageHeader, Card, Button, DataTable, Badge, EmptyState } from '../../components/ui';
+import { CompanyExpertReviewers } from './CompanyExpertReviewers';
 
 export function CompanyReports() {
   const token = useCompanyToken();
@@ -67,6 +68,8 @@ export function CompanyReports() {
       {shareMsg && (
         <p className="rounded-button bg-status-successBg px-4 py-2 text-sm text-status-success">{shareMsg}</p>
       )}
+
+      <CompanyExpertReviewers />
 
       <Card>
         <Button onClick={generate} loading={generating} disabled={generating}>

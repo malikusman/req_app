@@ -5,12 +5,16 @@ module Api
     module Reviewer
       class MeController < BaseController
         def show
+          reviewer = current_reviewer_user
+          completeness = Reviewers::ProfileCompleteness.call(reviewer)
           render json: {
             user: {
-              id: current_reviewer_user.id,
-              email: current_reviewer_user.email,
-              name: current_reviewer_user.name
+              id: reviewer.id,
+              email: reviewer.email,
+              name: reviewer.name
             },
+            profile: Reviewers::ProfileSerializer.full(reviewer, request: request),
+            profile_completeness_percent: completeness.percent,
             assignments: policy_scope(::ReviewerAssignment).active.includes(:company).map do |a|
               {
                 company_id: a.company_id,

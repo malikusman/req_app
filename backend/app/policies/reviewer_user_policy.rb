@@ -16,4 +16,8 @@ class ReviewerUserPolicy < ApplicationPolicy
   def update?
     platform? || (reviewer? && record.id == context.actor.id)
   end
+
+  def expert_index?
+    company?
+  end
 end

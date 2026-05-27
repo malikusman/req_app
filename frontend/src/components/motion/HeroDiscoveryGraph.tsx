@@ -1,16 +1,40 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { cn } from '../../lib/cn';
-import { spring } from '../../lib/motion';
 
 const VB_W = 1200;
 const VB_H = 800;
+
+const BUBBLE_VISIBLE_MS = 1500;
+const BUBBLE_FADE_MS = 550;
+const EDGE_DRAW_MS = 1800;
+const WA_HOLD_MS = 1000;
+const WA_FADE_MS = 600;
 const HUB_ID = 'hub';
+
+const EDGE_STROKE_PEER = 'rgba(255, 255, 255, 0.22)';
+const EDGE_STROKE_KB = 'rgba(34, 211, 238, 0.32)';
+
+/** Peripheral anchors for random WhatsApp pulses (outside headline safe zone). */
+const WHATSAPP_ANCHORS = [
+  { x: 86, y: 22 },
+  { x: 10, y: 28 },
+  { x: 92, y: 55 },
+  { x: 8, y: 62 },
+  { x: 84, y: 85 },
+  { x: 16, y: 88 },
+  { x: 72, y: 14 },
+  { x: 22, y: 16 },
+] as const;
 
 export type DiscoveryInterview = {
   id: string;
   name: string;
-  insight: string;
+  /** Shown in bubble; defaults to first name from `name`. */
+  displayName?: string;
+  snippet: string;
+  /** Text direction for snippet (e.g. Arabic). */
+  dir?: 'rtl' | 'ltr';
   x: number;
   y: number;
   connectsTo: string[];
@@ -28,10 +52,33 @@ function pctToSvg(x: number, y: number) {
   return { x: (x / 100) * VB_W, y: (y / 100) * VB_H };
 }
 
-function initialsFromName(name: string) {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-  return name.slice(0, 2).toUpperCase();
+function firstNameFrom(fullName: string) {
+  return fullName.trim().split(/\s+/)[0] ?? fullName;
+}
+
+function pickRandomAnchor(exclude?: { x: number; y: number }) {
+  const pool = WHATSAPP_ANCHORS.filter(
+    (a) => !exclude || a.x !== exclude.x || a.y !== exclude.y
+  );
+  return pool[Math.floor(Math.random() * pool.length)] ?? WHATSAPP_ANCHORS[0];
+}
+
+function wavePath(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  edgeId: string
+): string {
+  const mx = (x1 + x2) / 2;
+  const my = (y1 + y2) / 2;
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const len = Math.hypot(dx, dy) || 1;
+  const bend = len * 0.14 * (edgeId.split('').reduce((s, c) => s + c.charCodeAt(0), 0) % 2 === 0 ? 1 : -1);
+  const cx = mx + (-dy / len) * bend;
+  const cy = my + (dx / len) * bend;
+  return `M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`;
 }
 
 function WhatsAppIcon({ className }: { className?: string }) {
@@ -45,7 +92,7 @@ function WhatsAppIcon({ className }: { className?: string }) {
   );
 }
 
-type GraphEdge = { id: string; d: string };
+type GraphEdge = { id: string; d: string; toHub: boolean };
 
 function buildEdgeList(
   interviews: DiscoveryInterview[],
@@ -69,7 +116,11 @@ function buildEdgeList(
       if (!target) continue;
       const from = pctToSvg(interview.x, interview.y);
       const to = pctToSvg(target.x, target.y);
-      out.push({ id: edgeId, d: `M ${from.x} ${from.y} L ${to.x} ${to.y}` });
+      out.push({
+        id: edgeId,
+        d: wavePath(from.x, from.y, to.x, to.y, edgeId),
+        toHub: targetId === HUB_ID,
+      });
     }
   }
   return out;
@@ -87,10 +138,99 @@ function sleep(ms: number) {
   return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 }
 
+function AmbientEdge({
+  edge,
+  index,
+  animateDraw,
+}: {
+  edge: GraphEdge;
+  index: number;
+  animateDraw: boolean;
+}) {
+  const stroke = edge.toHub ? EDGE_STROKE_KB : EDGE_STROKE_PEER;
+  const targetOpacity = edge.toHub ? 0.55 : 0.42;
+
+  return (
+    <motion.path
+      d={edge.d}
+      fill="none"
+      stroke={stroke}
+      strokeWidth={edge.toHub ? 1 : 0.85}
+      strokeLinecap="round"
+      strokeDasharray="4 8"
+      initial={{ pathLength: 0, opacity: 0 }}
+      animate={{
+        pathLength: 1,
+        opacity: animateDraw ? targetOpacity : targetOpacity * 0.85,
+        strokeDashoffset: [0, -24],
+      }}
+      transition={{
+        pathLength: { duration: 1.8, delay: index * 0.06, ease: 'easeInOut' },
+        opacity: { duration: 0.9 },
+        strokeDashoffset: { duration: 22, repeat: Infinity, ease: 'linear' },
+      }}
+    />
+  );
+}
+
+function StaticAmbientEdge({ edge }: { edge: GraphEdge }) {
+  return (
+    <path
+      d={edge.d}
+      fill="none"
+      stroke={edge.toHub ? EDGE_STROKE_KB : EDGE_STROKE_PEER}
+      strokeWidth={0.85}
+      strokeLinecap="round"
+      strokeDasharray="4 8"
+      opacity={edge.toHub ? 0.4 : 0.3}
+    />
+  );
+}
+
+function GraphHub({
+  hub,
+  hubSvg,
+  pulse,
+}: {
+  hub: { x: number; y: number };
+  hubSvg: { x: number; y: number };
+  pulse: boolean;
+}) {
+  return (
+    <>
+      <motion.circle
+        cx={hubSvg.x}
+        cy={hubSvg.y}
+        fill="none"
+        stroke="rgba(34, 211, 238, 0.25)"
+        strokeWidth={1}
+        initial={{ r: 28, opacity: 0.2 }}
+        animate={
+          pulse
+            ? { r: [28, 40, 28], opacity: [0.25, 0.5, 0.25] }
+            : { r: 28, opacity: 0.2 }
+        }
+        transition={{ duration: 1.2, ease: 'easeInOut' }}
+      />
+      <circle cx={hubSvg.x} cy={hubSvg.y} r={5} fill="rgba(34, 211, 238, 0.45)" />
+      <div
+        className="absolute z-20 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center"
+        style={{ left: `${hub.x}%`, top: `${hub.y}%` }}
+      >
+        <div className="h-3 w-3 rounded-full bg-marketing-accent/50 ring-4 ring-marketing-accent/15" />
+      </div>
+    </>
+  );
+}
+
+function bubbleDisplayName(interview: DiscoveryInterview) {
+  return interview.displayName ?? firstNameFrom(interview.name);
+}
+
 export function HeroDiscoveryGraph({
   interviews,
   hub,
-  whatsappAppearances = 2,
+  whatsappAppearances = 1,
   className,
 }: HeroDiscoveryGraphProps) {
   const reduced = useReducedMotion();
@@ -106,9 +246,12 @@ export function HeroDiscoveryGraph({
   const [activeBubble, setActiveBubble] = useState<DiscoveryInterview | null>(null);
   const [bubbleFading, setBubbleFading] = useState(false);
   const [showWhatsapp, setShowWhatsapp] = useState(false);
+  const [waExiting, setWaExiting] = useState(false);
+  const [waPosition, setWaPosition] = useState(WHATSAPP_ANCHORS[0]);
   const [waKey, setWaKey] = useState(0);
-  const [showGlow, setShowGlow] = useState(reduced);
   const [graphOpacity, setGraphOpacity] = useState(1);
+  const [newlyDrawnEdges, setNewlyDrawnEdges] = useState<Set<string>>(new Set());
+  const [hubPulse, setHubPulse] = useState(false);
 
   const hubSvg = useMemo(() => pctToSvg(hub.x, hub.y), [hub.x, hub.y]);
 
@@ -116,12 +259,6 @@ export function HeroDiscoveryGraph({
     () => buildEdgeList(interviews, hub, new Set([...pinnedNodes, HUB_ID]), visibleEdges),
     [interviews, hub, pinnedNodes, visibleEdges]
   );
-
-  const whatsappPosition = useMemo(() => {
-    const last = interviews[interviews.length - 1];
-    if (!last) return { x: hub.x, y: hub.y - 10 };
-    return { x: (last.x + hub.x) / 2, y: (last.y + hub.y) / 2 };
-  }, [interviews, hub.x, hub.y]);
 
   useEffect(() => {
     if (reduced) return;
@@ -133,54 +270,64 @@ export function HeroDiscoveryGraph({
         pinnedRef.current = new Set();
         setPinnedNodes(new Set());
         setVisibleEdges(new Set());
+        setNewlyDrawnEdges(new Set());
         setActiveBubble(null);
         setBubbleFading(false);
         setShowWhatsapp(false);
-        setShowGlow(false);
+        setWaExiting(false);
         setGraphOpacity(1);
+        setHubPulse(false);
 
         for (const interview of interviews) {
           if (cancelledRef.current) return;
 
           setActiveBubble(interview);
           setBubbleFading(false);
-          await sleep(2200);
+          await sleep(BUBBLE_VISIBLE_MS);
 
           setBubbleFading(true);
-          await sleep(650);
+          await sleep(BUBBLE_FADE_MS);
           setActiveBubble(null);
           setBubbleFading(false);
 
           pinnedRef.current.add(interview.id);
           setPinnedNodes(new Set(pinnedRef.current));
-          await sleep(350);
+          await sleep(280);
 
-          setVisibleEdges((prev) => {
-            const next = new Set(prev);
-            for (const targetId of interview.connectsTo) {
-              if (targetId === HUB_ID || pinnedRef.current.has(targetId)) {
-                next.add(`${interview.id}-${targetId}`);
-              }
+          const added = new Set<string>();
+          for (const targetId of interview.connectsTo) {
+            if (targetId === HUB_ID || pinnedRef.current.has(targetId)) {
+              added.add(`${interview.id}-${targetId}`);
             }
-            return next;
-          });
-          await sleep(900);
+          }
+          const flowsToHub = interview.connectsTo.includes(HUB_ID);
+          setVisibleEdges((prev) => new Set([...prev, ...added]));
+          setNewlyDrawnEdges(added);
+          if (flowsToHub) setHubPulse(true);
+          await sleep(EDGE_DRAW_MS);
+          setNewlyDrawnEdges(new Set());
+          if (flowsToHub) {
+            await sleep(400);
+            setHubPulse(false);
+          }
         }
 
         for (let p = 0; p < whatsappAppearances; p++) {
           if (cancelledRef.current) return;
           setWaKey((k) => k + 1);
+          setWaPosition(pickRandomAnchor());
+          setWaExiting(false);
           setShowWhatsapp(true);
-          await sleep(1400);
+          await sleep(WA_HOLD_MS);
+          setWaExiting(true);
+          await sleep(WA_FADE_MS);
           setShowWhatsapp(false);
-          await sleep(500);
+          setWaExiting(false);
+          await sleep(400);
         }
 
-        setShowGlow(true);
-        await sleep(2200);
-        setShowGlow(false);
         setGraphOpacity(0);
-        await sleep(800);
+        await sleep(700);
         setGraphOpacity(1);
       }
     };
@@ -191,9 +338,6 @@ export function HeroDiscoveryGraph({
     };
   }, [reduced, interviews, whatsappAppearances]);
 
-  // Fix edge visibility with functional update tied to interview loop
-  // The double setVisibleEdges above is buggy - let me fix in the loop only
-
   if (reduced) {
     const staticEdges = buildEdgeList(
       interviews,
@@ -201,49 +345,31 @@ export function HeroDiscoveryGraph({
       new Set([...interviews.map((i) => i.id), HUB_ID]),
       allEdgeIds(interviews)
     );
+    const staticWa = WHATSAPP_ANCHORS[2];
     return (
       <div className={cn('pointer-events-none absolute inset-0 h-full w-full', className)} aria-hidden>
         <svg
-          className="absolute inset-0 h-full w-full opacity-50"
+          className="absolute inset-0 h-full w-full"
           viewBox={`0 0 ${VB_W} ${VB_H}`}
           preserveAspectRatio="xMidYMid slice"
         >
-          <defs>
-            <linearGradient id="heroEdgeGradStatic" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#22d3ee" stopOpacity="0.2" />
-              <stop offset="100%" stopColor="#06b6d4" stopOpacity="0.5" />
-            </linearGradient>
-          </defs>
           {staticEdges.map((edge) => (
-            <path
-              key={edge.id}
-              d={edge.d}
-              fill="none"
-              stroke="url(#heroEdgeGradStatic)"
-              strokeWidth={1.2}
-              strokeLinecap="round"
-              opacity={0.55}
-            />
+            <StaticAmbientEdge key={edge.id} edge={edge} />
           ))}
         </svg>
+        <GraphHub hub={hub} hubSvg={hubSvg} pulse={false} />
         {interviews.map((interview) => (
           <div
             key={interview.id}
-            className="absolute z-10 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-marketing-accent/40 bg-marketing-surface-elevated/80 text-[10px] font-semibold text-marketing-foreground"
+            className="absolute z-10 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-marketing-accent/40 ring-2 ring-marketing-accent/15"
             style={{ left: `${interview.x}%`, top: `${interview.y}%` }}
-          >
-            {initialsFromName(interview.name)}
-          </div>
+          />
         ))}
         <div
-          className="absolute z-10 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-marketing-accent/60"
-          style={{ left: `${hub.x}%`, top: `${hub.y}%` }}
-        />
-        <div
-          className="absolute z-20 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg"
-          style={{ left: `${whatsappPosition.x}%`, top: `${whatsappPosition.y}%` }}
+          className="absolute z-10 flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white/[0.08] ring-1 ring-white/15"
+          style={{ left: `${staticWa.x}%`, top: `${staticWa.y}%` }}
         >
-          <WhatsAppIcon className="h-7 w-7" />
+          <WhatsAppIcon className="h-6 w-6 text-white/45" />
         </div>
       </div>
     );
@@ -253,7 +379,7 @@ export function HeroDiscoveryGraph({
     <motion.div
       className={cn('pointer-events-none absolute inset-0 h-full w-full', className)}
       animate={{ opacity: graphOpacity }}
-      transition={{ duration: 0.7 }}
+      transition={{ duration: 0.65 }}
       aria-hidden
     >
       <svg
@@ -261,44 +387,17 @@ export function HeroDiscoveryGraph({
         viewBox={`0 0 ${VB_W} ${VB_H}`}
         preserveAspectRatio="xMidYMid slice"
       >
-        <defs>
-          <linearGradient id="heroEdgeGradAnim" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#22d3ee" stopOpacity="0.15" />
-            <stop offset="50%" stopColor="#22d3ee" stopOpacity="0.7" />
-            <stop offset="100%" stopColor="#06b6d4" stopOpacity="0.25" />
-          </linearGradient>
-        </defs>
-        <circle cx={hubSvg.x} cy={hubSvg.y} r={6} fill="#22d3ee" fillOpacity={0.35} />
-        {showGlow && (
-          <motion.circle
-            cx={hubSvg.x}
-            cy={hubSvg.y}
-            r={80}
-            fill="none"
-            stroke="#22d3ee"
-            strokeWidth={1}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: [0.15, 0.45, 0.15], scale: [0.9, 1.15, 0.9] }}
-            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-          />
-        )}
         {edges.map((edge, i) => (
-          <motion.path
+          <AmbientEdge
             key={edge.id}
-            d={edge.d}
-            fill="none"
-            stroke="url(#heroEdgeGradAnim)"
-            strokeWidth={1.2}
-            strokeLinecap="round"
-            initial={{ pathLength: 0, opacity: 0 }}
-            animate={{ pathLength: 1, opacity: 0.65 }}
-            transition={{
-              pathLength: { duration: 0.5, delay: i * 0.04, ease: 'easeOut' },
-              opacity: { duration: 0.25 },
-            }}
+            edge={edge}
+            index={i}
+            animateDraw={newlyDrawnEdges.has(edge.id)}
           />
         ))}
       </svg>
+
+      <GraphHub hub={hub} hubSvg={hubSvg} pulse={hubPulse} />
 
       <AnimatePresence>
         {interviews
@@ -306,15 +405,13 @@ export function HeroDiscoveryGraph({
           .map((interview) => (
             <motion.div
               key={interview.id}
-              className="absolute z-10 flex -translate-x-1/2 -translate-y-1/2"
+              className="absolute z-10 -translate-x-1/2 -translate-y-1/2"
               style={{ left: `${interview.x}%`, top: `${interview.y}%` }}
-              initial={{ opacity: 0, scale: 0.4 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={spring.soft}
+              initial={{ opacity: 0, scale: 0.5 }}
+              animate={{ opacity: 0.55, scale: 1 }}
+              transition={{ duration: 0.5, ease: 'easeOut' }}
             >
-              <div className="flex h-8 w-8 items-center justify-center rounded-full border border-marketing-accent/50 bg-marketing-surface-elevated/90 text-[10px] font-semibold text-marketing-foreground shadow-md backdrop-blur-sm">
-                {initialsFromName(interview.name)}
-              </div>
+              <div className="h-2 w-2 rounded-full bg-marketing-accent/50 ring-2 ring-marketing-accent/20" />
             </motion.div>
           ))}
       </AnimatePresence>
@@ -323,26 +420,34 @@ export function HeroDiscoveryGraph({
         {activeBubble && (
           <motion.div
             key={activeBubble.id}
-            className="absolute z-30 max-w-[180px] -translate-x-1/2 sm:max-w-[200px] sm:min-w-[140px]"
+            className="absolute z-30 -translate-x-1/2"
             style={{ left: `${activeBubble.x}%`, top: `${activeBubble.y}%` }}
-            initial={{ opacity: 0, scale: 0.85, y: 8 }}
+            initial={{ opacity: 0, scale: 0.96, y: 6 }}
             animate={
               bubbleFading
-                ? { opacity: 0, scale: 0.9, y: -4 }
-                : { opacity: 1, scale: 1, y: -12 }
+                ? { opacity: 0, scale: 0.98, y: -8 }
+                : { opacity: 1, scale: 1, y: -14 }
             }
-            exit={{ opacity: 0, scale: 0.85 }}
-            transition={spring.soft}
+            exit={{ opacity: 0, scale: 0.96 }}
+            transition={{ duration: bubbleFading ? 0.55 : 0.5, ease: 'easeOut' }}
           >
-            <div className="rounded-lg border border-marketing-accent/40 bg-marketing-surface-elevated/95 px-3 py-2.5 shadow-lg backdrop-blur-md">
-              <div className="flex items-center gap-2">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-marketing-accent/20 text-[10px] font-bold text-marketing-accent">
-                  {initialsFromName(activeBubble.name)}
-                </span>
-                <p className="text-xs font-semibold text-marketing-foreground">{activeBubble.name}</p>
-              </div>
-              <p className="mt-1.5 text-[11px] leading-snug text-marketing-muted">
-                {activeBubble.insight}
+            <div
+              className={cn(
+                'min-w-[220px] max-w-[300px] rounded-xl border border-white/15 bg-marketing-surface-elevated/40 px-4 py-3.5 shadow-sm backdrop-blur-md',
+                activeBubble.dir === 'rtl' && 'text-right'
+              )}
+              dir={activeBubble.dir}
+            >
+              <p className="text-sm font-medium text-marketing-foreground/90">
+                {bubbleDisplayName(activeBubble)}
+              </p>
+              <p
+                className={cn(
+                  'mt-1.5 line-clamp-2 text-xs italic leading-relaxed text-marketing-muted/75',
+                  activeBubble.dir === 'rtl' && 'font-normal'
+                )}
+              >
+                {activeBubble.snippet}
               </p>
             </div>
           </motion.div>
@@ -353,14 +458,22 @@ export function HeroDiscoveryGraph({
         {showWhatsapp && (
           <motion.div
             key={`wa-${waKey}`}
-            className="absolute z-40 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-[#25D366] text-white shadow-xl ring-4 ring-[#25D366]/30"
-            style={{ left: `${whatsappPosition.x}%`, top: `${whatsappPosition.y}%` }}
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.5, opacity: 0 }}
-            transition={spring.soft}
+            className="absolute z-40 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white/[0.1] ring-1 ring-white/20"
+            style={{
+              left: `${waPosition.x}%`,
+              top: `${waPosition.y}%`,
+              transformPerspective: 800,
+            }}
+            initial={{ opacity: 0, scale: 0.7, rotateY: 0 }}
+            animate={
+              waExiting
+                ? { opacity: 0, scale: 0.85, rotateY: -18 }
+                : { opacity: 0.65, scale: 1.12, rotateY: 0 }
+            }
+            exit={{ opacity: 0, scale: 0.7, rotateY: -18 }}
+            transition={{ duration: waExiting ? 0.55 : 0.45, ease: 'easeOut' }}
           >
-            <WhatsAppIcon className="h-8 w-8" />
+            <WhatsAppIcon className="h-9 w-9 text-white/55" />
           </motion.div>
         )}
       </AnimatePresence>

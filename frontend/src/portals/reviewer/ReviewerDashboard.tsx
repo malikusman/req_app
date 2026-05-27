@@ -8,6 +8,8 @@ import { PageHeader, Card, Badge, EmptyState, Skeleton } from '../../components/
 export function ReviewerDashboard() {
   const token = useReviewerToken();
   const [companies, setCompanies] = useState<ReviewerCompanySummary[]>([]);
+  const [profilePercent, setProfilePercent] = useState<number | null>(null);
+  const [profilePublished, setProfilePublished] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -15,9 +17,12 @@ export function ReviewerDashboard() {
     if (!token) return;
     setLoading(true);
     setError('');
-    api
-      .reviewerCompanies(token)
-      .then((d) => setCompanies(d.companies))
+    Promise.all([api.reviewerCompanies(token), api.reviewerMe(token)])
+      .then(([companiesRes, meRes]) => {
+        setCompanies(companiesRes.companies);
+        setProfilePercent(meRes.profile_completeness_percent);
+        setProfilePublished(meRes.profile.profile_status === 'published');
+      })
       .catch(() => setError('Could not load assigned companies.'))
       .finally(() => setLoading(false));
   }, [token]);
@@ -52,6 +57,15 @@ export function ReviewerDashboard() {
         title="Assigned companies"
         description="Review reports and discovery data for your assigned clients."
       />
+
+      {!profilePublished && profilePercent != null && (
+        <div className="rounded-card border border-accent/30 bg-surface-muted px-4 py-3 text-sm text-text-primary">
+          Your expert profile is {profilePercent}% complete.{' '}
+          <Link to="/reviewer/profile" className="font-medium text-accent hover:underline">
+            Complete your profile →
+          </Link>
+        </div>
+      )}
 
       {error && (
         <div className="rounded-card border border-status-warning/30 bg-status-warningBg px-4 py-3 text-sm">

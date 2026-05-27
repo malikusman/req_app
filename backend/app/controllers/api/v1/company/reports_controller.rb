@@ -14,7 +14,11 @@ module Api
           authorize report, :show?
           return render json: { error: "Report not available" }, status: :forbidden if report.visibility != "shared_with_company"
 
-          render json: { report: report_json(report, detailed: true) }
+          payload = { report: report_json(report, detailed: true) }
+          if report.status == "ready"
+            payload[:expert_reviewers] = expert_reviewers_for_company
+          end
+          render json: payload
         end
 
         def create
@@ -60,6 +64,14 @@ module Api
         end
 
         private
+
+        def expert_reviewers_for_company
+          current_company.reviewer_assignments.active
+            .includes(:reviewer_user)
+            .map(&:reviewer_user)
+            .select(&:published_profile?)
+            .map { |r| Reviewers::ProfileSerializer.public_card(r, request: request) }
+        end
 
         def report_json(report, detailed: false)
           access_count = report.report_share_accesses.count

@@ -23,13 +23,13 @@ export function HeroSection() {
         hub={discoveryGraph.hub}
         whatsappAppearances={discoveryGraph.whatsappAppearances}
         loopResetMs={discoveryGraph.loopResetMs}
-        className="z-0"
+        className="z-0 opacity-[0.52]"
       />
       <div
-        className="pointer-events-none absolute inset-0 z-[1] bg-[radial-gradient(ellipse_70%_60%_at_50%_45%,rgba(5,5,8,0.92)_0%,rgba(5,5,8,0.55)_45%,transparent_72%)] sm:bg-[radial-gradient(ellipse_65%_55%_at_50%_42%,rgba(5,5,8,0.88)_0%,rgba(5,5,8,0.5)_50%,transparent_75%)]"
+        className="pointer-events-none absolute inset-0 z-[1] bg-[radial-gradient(ellipse_68%_58%_at_50%_44%,rgba(5,5,8,0.9)_0%,rgba(5,5,8,0.45)_48%,transparent_78%)] sm:bg-[radial-gradient(ellipse_62%_52%_at_50%_42%,rgba(5,5,8,0.88)_0%,rgba(5,5,8,0.4)_52%,transparent_80%)]"
         aria-hidden
       />
-      <HeroOrb className="z-[1] opacity-30" />
+      <HeroOrb className="z-[1] opacity-25" />
       <div className="relative z-10">
         <MarketingAnimatedHero
           variant="overlay"

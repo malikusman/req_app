@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+export RAILS_ENV=test
+export DATABASE_URL="${DATABASE_URL:-postgres://req_app:req_app@localhost:5432/req_app_test}"
+bundle exec rails db:test:prepare 2>/dev/null || bundle exec rails db:prepare
+bundle exec rspec "$@"

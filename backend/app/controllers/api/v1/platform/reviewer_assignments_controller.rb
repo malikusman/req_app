@@ -44,17 +44,24 @@ module Api
 
         private
 
+        def reviewer_user_json(reviewer)
+          {
+            id: reviewer.id,
+            name: reviewer.name,
+            email: reviewer.email,
+            profile_status: reviewer.profile_status,
+            profile_completeness_percent: Reviewers::ProfileCompleteness.call(reviewer).percent,
+            public_card: Reviewers::ProfileSerializer.public_card(reviewer, request: request)
+          }
+        end
+
         def assignment_json(a)
           {
             id: a.id,
             status: a.status,
             assigned_at: a.assigned_at,
             removed_at: a.removed_at,
-            reviewer_user: {
-              id: a.reviewer_user_id,
-              name: a.reviewer_user.name,
-              email: a.reviewer_user.email
-            },
+            reviewer_user: reviewer_user_json(a.reviewer_user),
             assigned_by: a.assigned_by_platform_user.name
           }
         end

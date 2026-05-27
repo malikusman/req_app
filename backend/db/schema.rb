@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_05_22_000005) do
+ActiveRecord::Schema[7.1].define(version: 2026_05_23_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -547,6 +547,20 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_22_000005) do
     t.index ["sender_reviewer_user_id"], name: "index_reviewer_chat_messages_on_sender_reviewer_user_id"
   end
 
+  create_table "reviewer_experiences", force: :cascade do |t|
+    t.bigint "reviewer_user_id", null: false
+    t.string "organization", null: false
+    t.string "title", null: false
+    t.integer "start_year", null: false
+    t.integer "end_year"
+    t.string "summary", limit: 200
+    t.integer "sort_order", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["reviewer_user_id", "sort_order"], name: "index_reviewer_experiences_on_reviewer_user_id_and_sort_order"
+    t.index ["reviewer_user_id"], name: "index_reviewer_experiences_on_reviewer_user_id"
+  end
+
   create_table "reviewer_info_replies", force: :cascade do |t|
     t.bigint "reviewer_info_request_id", null: false
     t.bigint "message_id", null: false
@@ -586,8 +600,24 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_22_000005) do
     t.string "jti", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "avatar_storage_key"
+    t.string "headline", limit: 120
+    t.text "bio"
+    t.string "linkedin_url"
+    t.string "website_url"
+    t.string "location"
+    t.string "timezone"
+    t.string "languages", default: [], null: false, array: true
+    t.string "expertise_tags", default: [], null: false, array: true
+    t.string "industries", default: [], null: false, array: true
+    t.integer "years_experience"
+    t.jsonb "credentials", default: [], null: false
+    t.string "profile_status", default: "draft", null: false
+    t.datetime "profile_completed_at"
+    t.datetime "platform_verified_at"
     t.index ["email"], name: "index_reviewer_users_on_email", unique: true
     t.index ["jti"], name: "index_reviewer_users_on_jti", unique: true
+    t.index ["profile_status"], name: "index_reviewer_users_on_profile_status"
   end
 
   create_table "solution_catalog", force: :cascade do |t|
@@ -703,6 +733,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_22_000005) do
   add_foreign_key "reviewer_assignments", "reviewer_users"
   add_foreign_key "reviewer_chat_messages", "companies"
   add_foreign_key "reviewer_chat_messages", "reviewer_users", column: "sender_reviewer_user_id"
+  add_foreign_key "reviewer_experiences", "reviewer_users"
   add_foreign_key "reviewer_info_replies", "messages"
   add_foreign_key "reviewer_info_replies", "reviewer_info_requests"
   add_foreign_key "reviewer_info_requests", "companies"

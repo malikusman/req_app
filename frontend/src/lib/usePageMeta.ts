@@ -24,6 +24,7 @@ const titles: Record<string, string> = {
   '/company/settings': 'Settings',
   '/company/onboarding': 'Setup',
   '/reviewer/dashboard': 'Dashboard',
+  '/reviewer/profile': 'Profile',
   '/reviewer/followups': 'Follow-ups',
 };
 

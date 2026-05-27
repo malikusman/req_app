@@ -40,6 +40,7 @@ import { ReviewerConversations } from './portals/reviewer/ReviewerConversations'
 import { ReviewerConversationDetail } from './portals/reviewer/ReviewerConversationDetail';
 import { ReviewerChat } from './portals/reviewer/ReviewerChat';
 import { ReviewerEmployeeFollowup } from './portals/reviewer/ReviewerEmployeeFollowup';
+import { ReviewerProfile } from './portals/reviewer/ReviewerProfile';
 import { DevUiShowcase } from './dev/DevUiShowcase';
 
 function PlatformGuard({ children }: { children: React.ReactNode }) {
@@ -119,6 +120,7 @@ export default function App() {
             >
               <Route index element={<Navigate to="dashboard" replace />} />
               <Route path="dashboard" element={<ReviewerDashboard />} />
+              <Route path="profile" element={<ReviewerProfile />} />
               <Route path="followups" element={<ReviewerFollowups />} />
               <Route path="companies/:companyId" element={<ReviewerCompanyOverview />} />
               <Route path="companies/:companyId/reports/:reportId/review" element={<ReviewerReportReview />} />

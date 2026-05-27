@@ -312,7 +312,47 @@ export const api = {
   removeReviewerAssignment: (token: string, companyId: number, assignmentId: number) =>
     request<void>(`/api/v1/platform/companies/${companyId}/reviewer_assignments/${assignmentId}`, { method: 'DELETE' }, token),
 
-  reviewerMe: (token: string) => request<{ user: { id: number; email: string; name: string }; assignments: { company_id: number; company_name: string }[] }>('/api/v1/reviewer/me', {}, token),
+  reviewerMe: (token: string) =>
+    request<{
+      user: { id: number; email: string; name: string };
+      profile: ReviewerProfile;
+      profile_completeness_percent: number;
+      assignments: { company_id: number; company_name: string }[];
+    }>('/api/v1/reviewer/me', {}, token),
+
+  reviewerProfile: (token: string) =>
+    request<{ ok: boolean; user: { id: number; email: string; name: string }; profile: ReviewerProfile }>(
+      '/api/v1/reviewer/profile',
+      {},
+      token
+    ),
+
+  updateReviewerProfile: (
+    token: string,
+    payload: Partial<ReviewerProfilePayload> & { name?: string; email?: string; password?: string; publish?: boolean }
+  ) =>
+    request<{ ok: boolean; user: { id: number; email: string; name: string }; profile: ReviewerProfile }>(
+      '/api/v1/reviewer/profile',
+      { method: 'PATCH', body: JSON.stringify(payload) },
+      token
+    ),
+
+  uploadReviewerAvatar: async (token: string, file: File) => {
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const body = new FormData();
+    body.append('file', file);
+    const res = await fetch(`${API_URL}/api/v1/reviewer/profile/avatar`, { method: 'POST', headers, body });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const err = (data as ApiError).error || res.statusText;
+      throw new Error(err);
+    }
+    return data as { ok: boolean; user: { id: number; email: string; name: string }; profile: ReviewerProfile };
+  },
+
+  companyExpertReviewers: (token: string) =>
+    request<{ expert_reviewers: ReviewerPublicCard[] }>('/api/v1/company/expert_reviewers', {}, token),
 
   reviewerCompanies: (token: string) => request<{ companies: ReviewerCompanySummary[] }>('/api/v1/reviewer/companies', {}, token),
 
@@ -387,18 +427,93 @@ export const api = {
     ),
 };
 
+export interface ReviewerProfileCompleteness {
+  percent: number;
+  complete: boolean;
+  missing: string[];
+  checks: Record<string, boolean>;
+}
+
+export interface ReviewerExperience {
+  id?: number;
+  organization: string;
+  title: string;
+  start_year: number;
+  end_year?: number | null;
+  summary?: string | null;
+  sort_order?: number;
+}
+
+export interface ReviewerProfile {
+  headline: string | null;
+  bio: string | null;
+  linkedin_url: string | null;
+  website_url: string | null;
+  location: string | null;
+  timezone: string | null;
+  languages: string[];
+  expertise_tags: string[];
+  industries: string[];
+  years_experience: number | null;
+  credentials: { label: string; issuer?: string; year?: number }[];
+  profile_status: 'draft' | 'published';
+  profile_completed_at: string | null;
+  platform_verified_at: string | null;
+  avatar_url: string | null;
+  experiences: ReviewerExperience[];
+  completeness: ReviewerProfileCompleteness;
+  suggested_expertise_tags: string[];
+}
+
+export interface ReviewerProfilePayload {
+  headline?: string;
+  bio?: string;
+  linkedin_url?: string;
+  website_url?: string;
+  location?: string;
+  timezone?: string;
+  languages?: string[];
+  expertise_tags?: string[];
+  industries?: string[];
+  years_experience?: number | null;
+  credentials?: { label: string; issuer?: string; year?: number }[];
+  experiences?: ReviewerExperience[];
+}
+
+export interface ReviewerPublicCard {
+  id: number;
+  name: string;
+  headline: string | null;
+  avatar_url: string | null;
+  expertise_tags: string[];
+  industries: string[];
+  years_experience: number | null;
+  languages: string[];
+  location: string | null;
+  linkedin_url: string | null;
+  profile_status: string;
+  platform_verified: boolean;
+}
+
 export interface ReviewerUser {
   id: number;
   email: string;
   name: string;
   status: string;
+  profile_status?: string;
+  profile_completeness_percent?: number;
+  headline?: string | null;
+  expertise_tags?: string[];
+  avatar_url?: string | null;
+  profile?: ReviewerProfile;
+  public_card?: ReviewerPublicCard;
 }
 
 export interface ReviewerAssignment {
   id: number;
   status: string;
   assigned_at: string;
-  reviewer_user: { id: number; name: string; email: string };
+  reviewer_user: ReviewerUser;
 }
 
 export interface ReviewerCompanySummary {

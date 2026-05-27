@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class ReviewerUser < ApplicationRecord
+  include ReviewerProfileable
+
   has_secure_password
 
   has_many :reviewer_assignments, dependent: :destroy

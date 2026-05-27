@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, type ReviewerAssignment, type ReviewerUser } from '../../lib/api';
 import { usePlatformToken } from '../../lib/auth';
 import { Card, Button, Badge, Select } from '../../components/ui';
+import { ExpertReviewerCard } from '../../components/ExpertReviewerCard';
 
 type Props = {
   companyId: number;
@@ -54,6 +55,7 @@ export function PlatformCompanyReviewers({ companyId, companyName, onClose, embe
 
   const assignedIds = new Set(assignments.filter((a) => a.status === 'active').map((a) => a.reviewer_user.id));
   const available = allReviewers.filter((r) => !assignedIds.has(r.id));
+  const selectedReviewer = available.find((r) => String(r.id) === selectedReviewerId);
 
   const content = (
     <>
@@ -69,43 +71,76 @@ export function PlatformCompanyReviewers({ companyId, companyName, onClose, embe
       )}
       {error && <p className="text-sm text-status-error">{error}</p>}
       <p className="text-sm text-text-secondary">
-        Active assignments: {activeCount} / 2 (hidden from company admins)
+        Active assignments: {activeCount} / 2. Published profiles appear to company admins on ready reports.
       </p>
-      <ul className="mt-4 space-y-2">
+      <ul className="mt-4 space-y-3">
         {assignments.map((a) => (
-          <li
-            key={a.id}
-            className="flex flex-wrap items-center justify-between gap-2 rounded-button border border-border px-3 py-2"
-          >
-            <span className="text-sm text-text-primary">
-              {a.reviewer_user.name} ({a.reviewer_user.email})
-            </span>
-            <div className="flex items-center gap-2">
-              <Badge variant={a.status === 'active' ? 'success' : 'neutral'}>{a.status}</Badge>
-              {a.status === 'active' && (
-                <Button variant="ghost" size="sm" onClick={() => remove(a.id)}>
-                  Remove
-                </Button>
-              )}
+          <li key={a.id} className="rounded-button border border-border px-3 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-sm font-medium text-text-primary">{a.reviewer_user.name}</span>
+              <div className="flex items-center gap-2">
+                <Badge variant={a.status === 'active' ? 'success' : 'neutral'}>{a.status}</Badge>
+                {a.status === 'active' && (
+                  <Button variant="ghost" size="sm" onClick={() => remove(a.id)}>
+                    Remove
+                  </Button>
+                )}
+              </div>
             </div>
+            {a.reviewer_user.public_card && a.status === 'active' && (
+              <div className="mt-3">
+                <ExpertReviewerCard reviewer={a.reviewer_user.public_card} compact />
+              </div>
+            )}
+            {a.reviewer_user.profile_status !== 'published' && a.status === 'active' && (
+              <p className="mt-2 text-xs text-status-warning">
+                Profile {a.reviewer_user.profile_completeness_percent ?? 0}% — not published yet
+              </p>
+            )}
           </li>
         ))}
       </ul>
       {activeCount < 2 && (
-        <div className="mt-4 flex flex-wrap items-end gap-3">
-          <Select
-            label="Add reviewer"
-            value={selectedReviewerId}
-            onChange={(e) => setSelectedReviewerId(e.target.value)}
-            options={[
-              { value: '', label: 'Select reviewer…' },
-              ...available.map((r) => ({ value: String(r.id), label: `${r.name} (${r.email})` })),
-            ]}
-            className="min-w-[240px]"
-          />
-          <Button disabled={!selectedReviewerId} onClick={assign}>
-            Assign
-          </Button>
+        <div className="mt-4 space-y-4">
+          <div className="flex flex-wrap items-end gap-3">
+            <Select
+              label="Add reviewer"
+              value={selectedReviewerId}
+              onChange={(e) => setSelectedReviewerId(e.target.value)}
+              options={[
+                { value: '', label: 'Select reviewer…' },
+                ...available.map((r) => ({
+                  value: String(r.id),
+                  label: `${r.name} (${r.profile_completeness_percent ?? 0}% · ${r.profile_status || 'draft'})`,
+                })),
+              ]}
+              className="min-w-[280px]"
+            />
+            <Button disabled={!selectedReviewerId} onClick={assign}>
+              Assign
+            </Button>
+          </div>
+          {selectedReviewer && (
+            <ExpertReviewerCard
+              reviewer={
+                selectedReviewer.public_card || {
+                  id: selectedReviewer.id,
+                  name: selectedReviewer.name,
+                  headline: selectedReviewer.headline ?? null,
+                  avatar_url: selectedReviewer.avatar_url ?? null,
+                  expertise_tags: selectedReviewer.expertise_tags ?? [],
+                  industries: [],
+                  years_experience: null,
+                  languages: [],
+                  location: null,
+                  linkedin_url: null,
+                  profile_status: selectedReviewer.profile_status || 'draft',
+                  platform_verified: false,
+                }
+              }
+              compact
+            />
+          )}
         </div>
       )}
     </>

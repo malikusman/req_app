@@ -23,6 +23,12 @@ gem "pundit", "~> 2.3"
 group :development, :test do
   gem "debug", platforms: %i[ mri mswin mswin64 mingw x64_mingw ]
   gem "dotenv-rails"
+  gem "rspec-rails", "~> 6.1"
+  gem "factory_bot_rails"
+end
+
+group :test do
+  gem "webmock"
 end
 
 group :development do

@@ -22,6 +22,8 @@ Rails.application.routes.draw do
         get "playbooks/active", to: "playbooks#active"
       end
 
+      get "reviewer_users/:id/avatar", to: "reviewer_avatars#show"
+
       namespace :platform do
         resources :companies, only: %i[index show create update]
         resources :playbooks, only: %i[index show create update] do
@@ -47,7 +49,9 @@ Rails.application.routes.draw do
 
       namespace :reviewer do
         get "me", to: "me#show"
+        get "profile", to: "profile#show"
         patch "profile", to: "profile#update"
+        post "profile/avatar", to: "profile#avatar"
         resources :notifications, only: %i[index update] do
           collection do
             post :mark_all_read
@@ -76,6 +80,7 @@ Rails.application.routes.draw do
 
       namespace :company do
         get "me", to: "me#show"
+        get "expert_reviewers", to: "expert_reviewers#index"
         get "onboarding", to: "onboarding#show"
         patch "onboarding/profile", to: "onboarding#update_profile"
         post "onboarding/complete", to: "onboarding#complete"

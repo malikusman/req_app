@@ -51,6 +51,31 @@ export function PlatformReviewers() {
           { key: 'name', header: 'Name' },
           { key: 'email', header: 'Email' },
           {
+            key: 'profile',
+            header: 'Profile',
+            render: (r) => (
+              <span className="text-sm text-text-secondary">
+                {r.profile_completeness_percent ?? 0}%
+                {r.profile_status === 'published' ? (
+                  <Badge variant="success" className="ml-2">
+                    published
+                  </Badge>
+                ) : (
+                  <Badge variant="neutral" className="ml-2">
+                    draft
+                  </Badge>
+                )}
+              </span>
+            ),
+          },
+          {
+            key: 'headline',
+            header: 'Headline',
+            render: (r) => (
+              <span className="max-w-[200px] truncate text-xs text-text-secondary">{r.headline || '—'}</span>
+            ),
+          },
+          {
             key: 'status',
             header: 'Status',
             render: (r) => (
