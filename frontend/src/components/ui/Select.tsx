@@ -32,7 +32,7 @@ export function Select({
         <select
           id={id}
           className={cn(
-            'h-10 w-full appearance-none rounded-button border border-border bg-white pl-3 pr-9 text-sm text-text-primary transition-colors focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent-muted',
+            'h-10 w-full appearance-none rounded-button border border-border bg-surface pl-3 pr-9 text-sm text-text-primary transition-colors focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent-muted',
             error && 'border-status-error focus:border-status-error focus:ring-status-errorBg',
             className
           )}

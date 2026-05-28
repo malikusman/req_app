@@ -7,38 +7,48 @@ module Api
         def index
           company = ::Company.find(params[:company_id])
           reports = policy_scope(Report).where(company_id: company.id).order(version: :desc)
-          render json: { reports: reports.map { |r| report_json(r, company: company) } }
+          render json: {
+            reports: reports.map { |r| report_json(r, company: company) },
+            has_active_reviewers: company.reviewer_assignments.active.exists?
+          }
+        end
+
+        def create
+          company = ::Company.find(params[:company_id])
+          authorize Report, :create?
+
+          if company.report_readiness_score < 100 && !company.merged_settings["allow_early_report"]
+            return render json: { error: "Report readiness must reach 100% before generating" }, status: :unprocessable_entity
+          end
+
+          previous = company.reports.ready.order(version: :desc).first
+          report = company.reports.create!(
+            version: (company.reports.maximum(:version) || 0) + 1,
+            status: "queued",
+            visibility: "internal_only",
+            review_workflow_status: company.reviewer_assignments.active.exists? ? "not_required" : "reviews_complete",
+            triggered_by_type: "PlatformUser",
+            triggered_by_id: current_platform_user.id,
+            previous_report: previous
+          )
+
+          GenerateReportJob.perform_later(report.id)
+          render json: { report: report_json(report, company: company) }, status: :accepted
         end
 
         def approve
           report = Report.joins(:company).find_by!(id: params[:id], company_id: params[:company_id])
           authorize report, :approve?
 
-          if report.review_workflow_status.in?(%w[awaiting_reviewers in_review])
-            return render json: { error: "Reviewer reviews not yet complete" }, status: :unprocessable_entity
-          end
-
-          if report.company.reviewer_assignments.active.exists? &&
-             report.review_workflow_status != "reviews_complete" &&
-             !report.company.merged_settings["skip_platform_review"]
-            return render json: { error: "All reviewer submissions required before approval" }, status: :unprocessable_entity
-          end
-
-          report.update!(
-            visibility: "shared_with_company",
-            review_workflow_status: "platform_approved",
-            reviewed_by_platform_user: current_platform_user,
-            reviewed_at: Time.current
-          )
-
-          PlatformAuditService.log!(
+          Reports::ReleaseService.call(
+            report: report,
             platform_user: current_platform_user,
-            action: "report_approved",
-            target: report,
             request: request
           )
 
-          render json: { report: report_json(report) }
+          render json: { report: report_json(report.reload) }
+        rescue ArgumentError => e
+          render json: { error: e.message }, status: :unprocessable_entity
         end
 
         private
@@ -56,14 +66,19 @@ module Api
             reviews_completed_at: report.reviews_completed_at,
             generated_at: report.generated_at,
             company_id: report.company_id,
-            reviewer_progress: reviews.map do |rv|
-              {
-                reviewer_user_id: rv.reviewer_user_id,
-                reviewer_name: rv.reviewer_user.name,
-                status: rv.status,
-                submitted_at: rv.submitted_at
-              }
-            end
+            reviewer_progress: reviews.map { |rv| reviewer_progress_json(rv) }
+          }
+        end
+
+        def reviewer_progress_json(rv)
+          {
+            reviewer_user_id: rv.reviewer_user_id,
+            reviewer_name: rv.reviewer_user.name,
+            status: rv.status,
+            sign_off_status: rv.sign_off_status,
+            ready_at: rv.ready_at,
+            ready_note: rv.ready_note,
+            submitted_at: rv.submitted_at
           }
         end
       end

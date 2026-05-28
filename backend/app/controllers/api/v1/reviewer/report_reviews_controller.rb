@@ -24,6 +24,17 @@ module Api
           render json: review_payload(@review.reload)
         end
 
+        def mark_ready
+          authorize @review, :mark_ready?
+          ReportReviews::MarkReadyService.call(
+            report_review: @review,
+            note: params[:ready_note]
+          )
+          render json: review_payload(@review.reload)
+        rescue ArgumentError => e
+          render json: { error: e.message }, status: :unprocessable_entity
+        end
+
         private
 
         def load_report
@@ -44,7 +55,10 @@ module Api
             review: {
               id: review.id,
               status: review.status,
+              sign_off_status: review.sign_off_status,
               overall_note: review.overall_note,
+              ready_at: review.ready_at,
+              ready_note: review.ready_note,
               submitted_at: review.submitted_at,
               section_states: review.report_review_section_states.map { |s| { section_key: s.section_key, status: s.status } },
               comments: review.report_review_comments.order(:created_at).map { |c| comment_json(c) }
@@ -54,6 +68,8 @@ module Api
                 reviewer_user_id: cr.reviewer_user_id,
                 reviewer_name: cr.reviewer_user.name,
                 status: cr.status,
+                sign_off_status: cr.sign_off_status,
+                ready_at: cr.ready_at,
                 submitted_at: cr.submitted_at,
                 section_states: cr.report_review_section_states.map { |s| { section_key: s.section_key, status: s.status } },
                 comments: cr.report_review_comments.order(:created_at).map { |c| comment_json(c) }

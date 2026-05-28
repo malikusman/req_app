@@ -13,7 +13,13 @@ export function Card({
   padding?: boolean;
 }) {
   return (
-    <div className={cn('rounded-card border border-border bg-surface shadow-card', padding && 'p-6', className)}>
+    <div
+      className={cn(
+        'rounded-card border border-border bg-surface/95 shadow-card backdrop-blur-sm',
+        padding && 'p-6',
+        className
+      )}
+    >
       {title && <h3 className="font-display text-section-title text-text-primary mb-4 mt-0">{title}</h3>}
       {children}
     </div>

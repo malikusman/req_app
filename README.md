@@ -73,7 +73,7 @@ Acme Corp has the seed reviewer assigned (max 2 per company; invisible to compan
 
 - **Reviewer portal** — http://localhost:5173/reviewer/login — assigned companies, discovery read-only, report section review, WhatsApp follow-ups (hidden from company APIs), co-reviewer chat
 - **Platform reviewers** — `/platform/reviewers` — CRUD reviewer users; assign up to 2 active reviewers per company from Companies → Reviewers
-- **Report review workflow** — on report ready, `report_reviews` bootstrapped per assigned reviewer; platform approve gated until `reviews_complete` (unless `skip_platform_review` in company settings)
+- **Report review workflow** — on report ready, `report_reviews` bootstrapped per assigned reviewer; reviewers can **mark ready from their side** (`ready_at`) then **submit**; platform **Release to client** gated until all reviewers submitted when reviewers are assigned (unless `skip_platform_review`); with **no reviewers**, platform generates and releases directly; reports stay `internal_only` until platform release
 - **Pundit** — `AuthorizationContext` for platform / company / reviewer audiences; policies on reports, employees, documents, assignments, etc.
 
 ```bash

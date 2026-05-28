@@ -20,7 +20,28 @@ class ReportReview < ApplicationRecord
     submitted_at.present?
   end
 
+  def ready?
+    ready_at.present?
+  end
+
+  def sign_off_status
+    return "submitted" if submitted?
+    return "ready" if ready?
+
+    "pending"
+  end
+
+  def mark_ready!(note: nil)
+    attrs = { ready_at: Time.current, status: "in_review" }
+    attrs[:ready_note] = note if note.present?
+    update!(attrs)
+  end
+
   def submit!
-    update!(submitted_at: Time.current, status: status == "pending" ? "approved" : status)
+    update!(
+      submitted_at: Time.current,
+      ready_at: ready_at || Time.current,
+      status: status == "pending" ? "approved" : status
+    )
   end
 end

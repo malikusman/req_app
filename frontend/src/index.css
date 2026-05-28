@@ -41,6 +41,14 @@
   .marketing :focus-visible {
     @apply ring-marketing-accent ring-offset-marketing-bg;
   }
+
+  .portal {
+    @apply bg-surface-muted text-text-primary;
+  }
+
+  .portal :focus-visible {
+    @apply ring-accent ring-offset-surface-muted;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

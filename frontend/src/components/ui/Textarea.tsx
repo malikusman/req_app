@@ -26,7 +26,7 @@ export function Textarea({
       <textarea
         id={id}
         className={cn(
-          'min-h-[100px] w-full resize-y rounded-button border border-border bg-white px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary transition-colors focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent-muted',
+          'min-h-[100px] w-full resize-y rounded-button border border-border bg-surface px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary transition-colors focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent-muted',
           error && 'border-status-error focus:border-status-error focus:ring-status-errorBg',
           className
         )}

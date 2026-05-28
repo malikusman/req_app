@@ -54,8 +54,22 @@ export function CompanyReports() {
 
   const download = async (id: number) => {
     if (!token) return;
-    await api.downloadReport(token, id);
+    try {
+      await api.downloadReport(token, id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Download failed');
+    }
   };
+
+  const releaseLabel = (r: Report) => {
+    if (r.visibility === 'shared_with_company') return { text: 'Available', variant: 'success' as const };
+    if (r.review_workflow_status === 'reviews_complete' || r.review_workflow_status === 'platform_approved') {
+      return { text: 'Awaiting Req release', variant: 'warning' as const };
+    }
+    return { text: 'In review', variant: 'neutral' as const };
+  };
+
+  const released = (r: Report) => r.visibility === 'shared_with_company';
 
   return (
     <div className="space-y-6">
@@ -94,6 +108,14 @@ export function CompanyReports() {
             ),
           },
           {
+            key: 'release',
+            header: 'Client access',
+            render: (r) => {
+              const l = releaseLabel(r);
+              return <Badge variant={l.variant}>{l.text}</Badge>;
+            },
+          },
+          {
             key: 'generated',
             header: 'Generated',
             render: (r) => (r.generated_at ? new Date(r.generated_at).toLocaleString() : '—'),
@@ -120,7 +142,7 @@ export function CompanyReports() {
             key: 'actions',
             header: '',
             render: (r) =>
-              r.status === 'ready' ? (
+              r.status === 'ready' && released(r) ? (
                 <div className="flex gap-2">
                   <Button variant="secondary" size="sm" onClick={() => download(r.id)}>
                     Download
@@ -129,6 +151,8 @@ export function CompanyReports() {
                     Share
                   </Button>
                 </div>
+              ) : r.status === 'ready' ? (
+                <span className="text-xs text-text-secondary">Released by Req when review completes</span>
               ) : null,
           },
         ]}

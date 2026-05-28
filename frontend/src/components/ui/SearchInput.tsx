@@ -27,7 +27,7 @@ export function SearchInput({
         value={value}
         onChange={onChange}
         placeholder={placeholder}
-        className="h-10 w-full rounded-button border border-border bg-white pl-9 pr-9 text-sm text-text-primary placeholder:text-text-secondary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent-muted"
+        className="h-10 w-full rounded-button border border-border bg-surface pl-9 pr-9 text-sm text-text-primary placeholder:text-text-secondary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent-muted"
         {...props}
       />
       {showClear && (

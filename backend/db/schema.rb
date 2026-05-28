@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_05_23_000001) do
+ActiveRecord::Schema[7.1].define(version: 2026_05_27_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -475,7 +475,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_23_000001) do
     t.datetime "submitted_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.datetime "ready_at"
+    t.text "ready_note"
     t.index ["company_id"], name: "index_report_reviews_on_company_id"
+    t.index ["ready_at"], name: "index_report_reviews_on_ready_at"
     t.index ["report_id", "reviewer_user_id"], name: "index_report_reviews_on_report_id_and_reviewer_user_id", unique: true
     t.index ["report_id"], name: "index_report_reviews_on_report_id"
     t.index ["reviewer_user_id"], name: "index_report_reviews_on_reviewer_user_id"

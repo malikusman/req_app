@@ -42,12 +42,12 @@ export function Sidebar({ logo, items, activePath, footer, mobileOpen, onMobileC
       )}
       <aside
         className={cn(
-          'fixed left-0 top-0 z-50 flex h-screen w-sidebar flex-col bg-[#0F1117] text-text-inverse transition-transform duration-200 md:translate-x-0',
+          'fixed left-0 top-0 z-50 flex h-screen w-sidebar flex-col bg-sidebar text-text-inverse transition-transform duration-200 md:translate-x-0',
           mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
         )}
       >
         <div className="flex h-topbar shrink-0 items-center justify-between border-b border-white/10 px-5">
-          <span className="font-display text-sm font-semibold tracking-tight">{logo}</span>
+          <span className="font-display text-sm font-semibold tracking-tight text-white">{logo}</span>
           {onMobileClose && (
             <button
               type="button"
@@ -70,18 +70,18 @@ export function Sidebar({ logo, items, activePath, footer, mobileOpen, onMobileC
                 onClick={onMobileClose}
                 className={cn(
                   'relative flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium',
-                  active ? 'text-white' : 'text-white/60 hover:text-white/90'
+                  active ? 'text-white' : 'text-white/65 hover:text-white/95'
                 )}
               >
                 {active && !reduced && (
                   <motion.span
                     layoutId="sidebar-active-pill"
-                    className="absolute inset-0 rounded-md border-l-2 border-l-accent bg-sidebar-active"
+                    className="absolute inset-0 rounded-md border-l-2 border-l-accent bg-sidebar-active/90"
                     transition={spring.soft}
                   />
                 )}
                 {active && reduced && (
-                  <span className="absolute inset-0 rounded-md border-l-2 border-l-accent bg-sidebar-active" />
+                  <span className="absolute inset-0 rounded-md border-l-2 border-l-accent bg-sidebar-active/90" />
                 )}
                 <Icon className="relative z-10 h-[18px] w-[18px] shrink-0" aria-hidden />
                 <span className="relative z-10">{label}</span>

@@ -14,7 +14,7 @@ class ReportPolicy < ApplicationPolicy
   end
 
   def create?
-    company? && company_admin?
+    (company? && company_admin?) || platform?
   end
 
   def download?

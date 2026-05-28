@@ -41,8 +41,8 @@ module Reports
 
       if @company.reviewer_assignments.active.exists?
         ReportReviews::BootstrapService.call(report: @report)
-      elsif @company.merged_settings["skip_platform_review"]
-        @report.update!(visibility: "shared_with_company", review_workflow_status: "platform_approved")
+      else
+        @report.update!(review_workflow_status: "reviews_complete")
       end
 
       NotificationService.notify_report_ready(company: @company, report: @report)

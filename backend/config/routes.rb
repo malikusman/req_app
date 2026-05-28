@@ -37,6 +37,7 @@ Rails.application.routes.draw do
         resources :solutions, only: %i[index create update]
         get "companies/:company_id/question_feedback", to: "question_feedback#index"
         get "companies/:company_id/reports", to: "reports#index"
+        post "companies/:company_id/reports", to: "reports#create"
         post "companies/:company_id/reports/:id/approve", to: "reports#approve"
         post "companies/:company_id/impersonate", to: "impersonations#create"
         get "monitoring", to: "monitoring#show"
@@ -49,6 +50,7 @@ Rails.application.routes.draw do
 
       namespace :reviewer do
         get "me", to: "me#show"
+        get "followups", to: "followups#index"
         get "profile", to: "profile#show"
         patch "profile", to: "profile#update"
         post "profile/avatar", to: "profile#avatar"
@@ -67,6 +69,7 @@ Rails.application.routes.draw do
           resources :reports, only: %i[index show], controller: "reports" do
             resource :review, only: %i[show update], controller: "report_reviews" do
               post :submit, on: :member
+              post :mark_ready, on: :member
               resources :comments, only: %i[index create update destroy], controller: "report_review_comments"
               patch "section_states/:section_key", to: "report_review_section_states#update"
             end

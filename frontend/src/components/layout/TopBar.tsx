@@ -14,7 +14,7 @@ export function TopBar({ title, subtitle, actions, onMenuClick }: TopBarProps) {
     <header
       className={cn(
         'flex h-topbar shrink-0 items-center justify-between gap-4',
-        'border-b border-border bg-white px-4 md:px-8'
+        'border-b border-border bg-surface/95 px-4 backdrop-blur-sm md:px-8'
       )}
     >
       <div className="flex min-w-0 items-center gap-3">

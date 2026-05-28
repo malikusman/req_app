@@ -42,7 +42,11 @@ export function PortalShell({
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-surface-muted">
+    <div className="portal relative min-h-screen overflow-hidden bg-surface-muted">
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.06] bg-[length:64px_64px] bg-[linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)]"
+        aria-hidden
+      />
       <Sidebar
         logo={resolvedLogo}
         items={navItems}
@@ -51,7 +55,7 @@ export function PortalShell({
         mobileOpen={sidebarOpen}
         onMobileClose={() => setSidebarOpen(false)}
       />
-      <div className={cn('flex min-h-screen flex-col', 'md:pl-sidebar')}>
+      <div className={cn('relative z-10 flex min-h-screen flex-col', 'md:pl-sidebar')}>
         <TopBar
           title={title}
           subtitle={subtitle}

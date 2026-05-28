@@ -157,9 +157,20 @@ export const api = {
     request<{ patterns: CompanyPattern[] }>('/api/v1/company/intelligence/patterns', {}, token),
 
   platformCompanyReports: (token: string, companyId: number) =>
-    request<{ reports: PlatformReport[] }>(`/api/v1/platform/companies/${companyId}/reports`, {}, token),
+    request<{ reports: PlatformReport[]; has_active_reviewers: boolean }>(
+      `/api/v1/platform/companies/${companyId}/reports`,
+      {},
+      token
+    ),
 
-  approvePlatformReport: (token: string, companyId: number, reportId: number) =>
+  generatePlatformReport: (token: string, companyId: number) =>
+    request<{ report: PlatformReport }>(
+      `/api/v1/platform/companies/${companyId}/reports`,
+      { method: 'POST' },
+      token
+    ),
+
+  releasePlatformReport: (token: string, companyId: number, reportId: number) =>
     request<{ report: PlatformReport }>(
       `/api/v1/platform/companies/${companyId}/reports/${reportId}/approve`,
       { method: 'POST' },
@@ -370,6 +381,28 @@ export const api = {
   submitReviewerReportReview: (token: string, companyId: number, reportId: number) =>
     request<ReportReviewPayload>(`/api/v1/reviewer/companies/${companyId}/reports/${reportId}/review/submit`, { method: 'POST' }, token),
 
+  markReviewerReportReady: (token: string, companyId: number, reportId: number, readyNote?: string) =>
+    request<ReportReviewPayload>(
+      `/api/v1/reviewer/companies/${companyId}/reports/${reportId}/review/mark_ready`,
+      { method: 'POST', body: JSON.stringify({ ready_note: readyNote }) },
+      token
+    ),
+
+  reviewerFollowups: (token: string) =>
+    request<{
+      followups: {
+        id: number;
+        company_id: number;
+        company_name: string;
+        employee_id: number;
+        employee_name: string;
+        status: string;
+        body: string;
+        updated_at: string;
+        report_id: number | null;
+      }[];
+    }>('/api/v1/reviewer/followups', {}, token),
+
   updateSectionState: (token: string, companyId: number, reportId: number, sectionKey: string, status: string) =>
     request<{ section_state: { section_key: string; status: string } }>(
       `/api/v1/reviewer/companies/${companyId}/reports/${reportId}/review/section_states/${sectionKey}`,
@@ -543,7 +576,10 @@ export interface ReportReviewPayload {
   review: {
     id: number;
     status: string;
+    sign_off_status: 'pending' | 'ready' | 'submitted';
     overall_note: string | null;
+    ready_at: string | null;
+    ready_note: string | null;
     submitted_at: string | null;
     section_states: { section_key: string; status: string }[];
     comments: { id: number; section_key: string; body: string; reviewer_name: string }[];
@@ -551,6 +587,9 @@ export interface ReportReviewPayload {
   co_reviewer_reviews: {
     reviewer_name: string;
     status: string;
+    sign_off_status?: string;
+    ready_at?: string | null;
+    submitted_at?: string | null;
     section_states: { section_key: string; status: string }[];
     comments: { section_key: string; body: string }[];
   }[];
@@ -616,6 +655,7 @@ export interface Report {
   version: number;
   status: string;
   visibility: string;
+  review_workflow_status?: string;
   generated_at: string | null;
   share_active: boolean;
   share_token_expires_at: string | null;
@@ -680,10 +720,20 @@ export interface CompanyPattern {
   last_updated_at: string | null;
 }
 
+export interface ReviewerProgressRow {
+  reviewer_user_id: number;
+  reviewer_name: string;
+  status: string;
+  sign_off_status: 'pending' | 'ready' | 'submitted';
+  ready_at: string | null;
+  ready_note: string | null;
+  submitted_at: string | null;
+}
+
 export interface PlatformReport extends Report {
   review_workflow_status?: string;
   reviews_completed_at?: string | null;
-  reviewer_progress?: { reviewer_name: string; status: string }[];
+  reviewer_progress?: ReviewerProgressRow[];
 }
 
 export interface DiscoveryQuestion {

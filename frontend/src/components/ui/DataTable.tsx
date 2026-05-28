@@ -33,7 +33,7 @@ export function DataTable<T extends object>({
 
   if (loading) {
     return (
-      <div className={cn('overflow-hidden rounded-card border border-border bg-surface shadow-card', className)}>
+      <div className={cn('overflow-hidden rounded-card border border-border bg-surface/95 shadow-card', className)}>
         {Array.from({ length: 5 }).map((_, i) => (
           <Skeleton key={i} variant="table-row" />
         ))}
@@ -47,10 +47,10 @@ export function DataTable<T extends object>({
     );
 
   return (
-    <div className={cn('overflow-x-auto rounded-card border border-border bg-surface shadow-card', className)}>
+    <div className={cn('overflow-x-auto rounded-card border border-border bg-surface/95 shadow-card', className)}>
       <table className="w-full min-w-[480px] border-collapse text-sm">
         <thead>
-          <tr className="border-b border-border bg-surface-muted">
+          <tr className="border-b border-border bg-sidebar-hover/25">
             {columns.map((col) => (
               <th
                 key={col.key}
@@ -86,7 +86,7 @@ export function DataTable<T extends object>({
                 return (
                   <tr
                     {...rowProps}
-                    className={cn(rowProps.className, onRowClick && 'hover:bg-surface-muted')}
+                    className={cn(rowProps.className, onRowClick && 'hover:bg-sidebar-hover/25')}
                   >
                     {columns.map((col) => (
                       <td key={col.key} className={cn('px-4 py-3 text-text-primary', col.className)}>
@@ -106,7 +106,7 @@ export function DataTable<T extends object>({
                   animate="visible"
                   variants={fadeUp}
                   transition={{ ...transition.fast, delay: i * stagger.tight }}
-                  whileHover={onRowClick ? { backgroundColor: 'rgb(248 249 252)' } : undefined}
+                  whileHover={onRowClick ? { backgroundColor: 'rgba(26, 29, 39, 0.35)' } : undefined}
                 >
                   {columns.map((col) => (
                     <td key={col.key} className={cn('px-4 py-3 text-text-primary', col.className)}>

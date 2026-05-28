@@ -40,6 +40,12 @@ module ReviewerAssignments
       )
 
       NotificationService.notify_reviewer_assigned(reviewer: @reviewer_user, company: @company)
+
+      latest_ready = @company.reports.ready.order(version: :desc).first
+      if latest_ready && latest_ready.report_reviews.where(reviewer_user_id: @reviewer_user.id).none?
+        ReportReviews::AddReviewerToReportService.call(report: latest_ready, reviewer_user: @reviewer_user)
+      end
+
       assignment
     end
   end

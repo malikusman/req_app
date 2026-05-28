@@ -27,6 +27,13 @@ const SECTIONS = [
 
 type SectionKey = (typeof SECTIONS)[number];
 
+function sectionStatusLabel(status: string) {
+  if (status === 'approved') return 'Reviewed';
+  if (status === 'needs_info') return 'Needs clarification';
+  if (status === 'pending') return 'In progress';
+  return status.replace(/_/g, ' ');
+}
+
 function SectionContent({ section, snapshot }: { section: SectionKey; snapshot: Record<string, unknown> }) {
   if (section === 'executive_summary') {
     const company = snapshot.company as { name?: string } | undefined;
@@ -183,9 +190,16 @@ export function ReviewerReportReview() {
     load();
   };
 
+  const markReady = async () => {
+    if (!token || !companyId || !reportId) return;
+    if (!window.confirm('Confirm you are satisfied with the information and ready from your side? Platform will see this before final submit.')) return;
+    await api.markReviewerReportReady(token, Number(companyId), Number(reportId), note || undefined);
+    load();
+  };
+
   const submitReview = async () => {
     if (!token || !companyId || !reportId) return;
-    if (!window.confirm('Submit your review? You can still view co-reviewer notes.')) return;
+    if (!window.confirm('Submit your final review sign-off? This completes your part of the workflow.')) return;
     await api.submitReviewerReportReview(token, Number(companyId), Number(reportId));
     load();
   };
@@ -204,7 +218,8 @@ export function ReviewerReportReview() {
   }
 
   const review = payload.review;
-  const submitted = review.status === 'submitted';
+  const submitted = Boolean(review.submitted_at);
+  const ready = review.sign_off_status === 'ready' || review.sign_off_status === 'submitted';
   const snapshot = report.report_snapshot;
   const sectionComments = review.comments.filter((c) => c.section_key === activeSection);
 
@@ -212,17 +227,26 @@ export function ReviewerReportReview() {
     <div className="space-y-6">
       <PageHeader
         title="Report review"
-        description={`Status: ${review.status}${review.submitted_at ? ` · submitted ${new Date(review.submitted_at).toLocaleString()}` : ''}`}
+        description={`Sign-off: ${review.sign_off_status}${review.ready_at ? ` · ready ${new Date(review.ready_at).toLocaleString()}` : ''}${review.submitted_at ? ` · submitted ${new Date(review.submitted_at).toLocaleString()}` : ''}`}
         breadcrumbs={[
           { label: 'Dashboard', href: '/reviewer/dashboard' },
           { label: 'Company', href: `/reviewer/companies/${companyId}` },
           { label: 'Review' },
         ]}
         actions={
-          !submitted ? (
-            <Button onClick={submitReview}>Submit review</Button>
-          ) : (
+          submitted ? (
             <Badge variant="success">Submitted</Badge>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {ready ? (
+                <Badge variant="info">Ready from your side</Badge>
+              ) : (
+                <Button variant="secondary" onClick={markReady}>
+                  Mark ready from my side
+                </Button>
+              )}
+              <Button onClick={submitReview}>Submit final sign-off</Button>
+            </div>
           )
         }
       />
@@ -233,7 +257,7 @@ export function ReviewerReportReview() {
           <Card padding={false} className="p-2">
             <ul className="m-0 list-none p-2">
               {SECTIONS.map((key) => {
-                const state = review.section_states.find((s) => s.section_key === key)?.status || 'not_started';
+                const state = review.section_states.find((s) => s.section_key === key)?.status || 'pending';
                 return (
                   <li key={key}>
                     <button
@@ -247,7 +271,7 @@ export function ReviewerReportReview() {
                       )}
                     >
                       <span className="block capitalize">{key.replace(/_/g, ' ')}</span>
-                      <span className="text-xs opacity-70">{state.replace(/_/g, ' ')}</span>
+                      <span className="text-xs opacity-70">{sectionStatusLabel(state)}</span>
                     </button>
                   </li>
                 );
@@ -271,7 +295,14 @@ export function ReviewerReportReview() {
               <div className="mb-4 max-w-xs">
                 <Select
                   label="Section status"
-                  value={review.section_states.find((s) => s.section_key === activeSection)?.status || 'not_started'}
+                  value={
+                    {
+                      pending: 'not_started',
+                      approved: 'reviewed',
+                      needs_info: 'needs_clarification',
+                    }[review.section_states.find((s) => s.section_key === activeSection)?.status || 'pending'] ||
+                    'not_started'
+                  }
                   onChange={(e) => setSectionStatus(activeSection, e.target.value)}
                   options={[
                     { value: 'not_started', label: 'Not started' },
@@ -290,7 +321,14 @@ export function ReviewerReportReview() {
               {payload.co_reviewer_reviews.map((cr) => (
                 <div key={cr.reviewer_name} className="border-t border-border py-3 first:border-0 first:pt-0">
                   <p className="m-0 text-sm font-medium">
-                    {cr.reviewer_name} — <Badge variant="neutral">{cr.status}</Badge>
+                    {cr.reviewer_name} —{' '}
+                    <Badge variant={cr.sign_off_status === 'submitted' ? 'success' : cr.sign_off_status === 'ready' ? 'info' : 'neutral'}>
+                      {cr.sign_off_status === 'submitted'
+                        ? 'Submitted'
+                        : cr.sign_off_status === 'ready'
+                          ? 'Ready'
+                          : 'Pending'}
+                    </Badge>
                   </p>
                   <ul className="mt-2 text-sm text-text-secondary">
                     {cr.comments.map((c, i) => (

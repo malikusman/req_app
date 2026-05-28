@@ -28,11 +28,12 @@ module Api
           end
 
           previous = current_company.reports.ready.order(version: :desc).first
-          initial_visibility = current_company.reviewer_assignments.active.exists? ? "internal_only" : "shared_with_company"
+          has_reviewers = current_company.reviewer_assignments.active.exists?
           report = current_company.reports.create!(
             version: (current_company.reports.maximum(:version) || 0) + 1,
             status: "queued",
-            visibility: initial_visibility,
+            visibility: "internal_only",
+            review_workflow_status: has_reviewers ? "not_required" : "reviews_complete",
             triggered_by_type: "CompanyUser",
             triggered_by_id: current_company_user.id,
             previous_report: previous
@@ -82,6 +83,7 @@ module Api
             version: report.version,
             status: report.status,
             visibility: report.visibility,
+            review_workflow_status: report.review_workflow_status,
             generated_at: report.generated_at,
             share_token_expires_at: report.share_token_expires_at,
             share_active: report.share_active?,

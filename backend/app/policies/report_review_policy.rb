@@ -13,6 +13,10 @@ class ReportReviewPolicy < ApplicationPolicy
     update?
   end
 
+  def mark_ready?
+    update?
+  end
+
   class Scope < Scope
     def resolve
       if platform?

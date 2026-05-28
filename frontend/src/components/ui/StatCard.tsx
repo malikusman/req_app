@@ -81,7 +81,7 @@ export function StatCard({
         'rounded-card border border-border bg-surface p-5 shadow-card',
         className
       )}
-      whileHover={{ y: -2, boxShadow: '0 4px 12px rgb(0 0 0 / 0.06)' }}
+      whileHover={{ y: -2, boxShadow: '0 0 0 1px rgba(255,255,255,0.09), 0 18px 42px rgba(0,0,0,0.36)' }}
       transition={spring.soft}
     >
       {content}

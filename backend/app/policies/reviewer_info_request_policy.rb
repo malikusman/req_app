@@ -2,7 +2,7 @@
 
 class ReviewerInfoRequestPolicy < ApplicationPolicy
   def index?
-    reviewer? && assigned_company?(record.is_a?(Class) ? nil : record.company_id)
+    reviewer?
   end
 
   def show?
