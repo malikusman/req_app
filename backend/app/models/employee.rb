@@ -12,9 +12,19 @@ class Employee < ApplicationRecord
   has_many :documents, dependent: :nullify
 
   PARTICIPATION_STATUSES = %w[invited started completed declined].freeze
-  ONBOARDING_STEPS = %w[awaiting_name awaiting_company awaiting_access_code awaiting_consent verified].freeze
+  ONBOARDING_STEPS = %w[awaiting_name awaiting_company awaiting_company_join_code awaiting_access_code awaiting_consent verified].freeze
 
-  validates :phone_e164, presence: true, uniqueness: true
+  validates :phone_e164, uniqueness: true, allow_nil: true
+  validates :email, uniqueness: true, allow_nil: true
   validates :participation_status, inclusion: { in: PARTICIPATION_STATUSES }
   validates :onboarding_step, inclusion: { in: ONBOARDING_STEPS }
+  validate :phone_or_email_present
+
+  private
+
+  def phone_or_email_present
+    return if phone_e164.present? || email.present?
+
+    errors.add(:base, "Either phone or email is required")
+  end
 end

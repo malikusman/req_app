@@ -54,8 +54,13 @@ module Openai
       post_json("#{API_BASE}/embeddings", body).dig("data", 0, "embedding")
     end
 
-    def summarize_document(text, language: "en")
+    def summarize_document(text, language: "en", category: nil, admin_description: nil)
       return mock_document_summary(text, language) unless configured?
+
+      context_lines = []
+      context_lines << "Document category: #{category}" if category.present?
+      context_lines << "Admin context (why this document matters): #{admin_description}" if admin_description.present?
+      context_block = context_lines.any? ? "#{context_lines.join("\n")}\n\n" : ""
 
       body = {
         model: ENV.fetch("OPENAI_MODEL", "gpt-4o-mini"),
@@ -63,8 +68,9 @@ module Openai
           role: "user",
           content: <<~PROMPT
             Summarize workflows, tools, and friction points from this document for an enterprise discovery platform.
+            Use the admin context to focus the summary on what reviewers and AI should learn.
             Respond in #{language} as JSON: {"summary":"...","workflows":["..."],"friction_points":["..."]}
-            Document:
+            #{context_block}Document:
             #{text.truncate(12_000)}
           PROMPT
         }],

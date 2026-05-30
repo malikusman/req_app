@@ -2,6 +2,8 @@
 
 module Multimodal
   class ProcessMediaService
+    class MissingMediaSourceError < StandardError; end
+
     ACK_MESSAGES = {
       "en" => "Got your %{type} — processing it now…",
       "es" => "Recibí tu %{type} — lo estoy procesando…",
@@ -47,6 +49,11 @@ module Multimodal
       mark_multimodal_on_conversation!
       ContinueDiscoveryAfterMediaJob.perform_later(@attachment.id)
       extracted
+    rescue MissingMediaSourceError => e
+      @attachment.update!(status: "failed", processing_error: e.message)
+      @message.update!(processing_status: "failed")
+      Rails.logger.warn("[Multimodal] skipped attachment=#{@attachment.id}: #{e.message}")
+      nil
     rescue StandardError => e
       @attachment.update!(status: "failed", processing_error: e.message)
       @message.update!(processing_status: "failed")
@@ -72,7 +79,7 @@ module Multimodal
         file.rewind
         file
       else
-        raise "no media source"
+        raise MissingMediaSourceError, "no media source"
       end
     end
 

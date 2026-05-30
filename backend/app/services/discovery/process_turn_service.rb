@@ -22,6 +22,7 @@ module Discovery
       @inbound_message = inbound_message
       @defer_on_failure = defer_on_failure
       @client = Langgraph::Client.new
+      @use_v2 = Companies::AgentFeatures.enabled?(@company, :multi_agent_discovery)
     end
 
     def call
@@ -38,11 +39,11 @@ module Discovery
         user_message: @user_message,
         playbook: playbook,
         context: build_context(playbook),
-        history: build_history
+        history: build_history,
+        use_v2: @use_v2
       )
 
       persist_turn!(result, playbook)
-      result
     rescue Langgraph::UnavailableError
       handle_unavailable!(playbook: playbook)
     end
@@ -61,10 +62,13 @@ module Discovery
       {
         preferred_language: @employee.preferred_language.presence || @company.locale,
         company_name: @company.display_name || @company.name,
+        company_id: @company.id,
+        employee_id: @employee.id,
         employee_name: @employee.display_name.to_s,
         department: @employee.department.presence || "default",
         question_count: @conversation.question_count,
-        question_target: target
+        question_target: target,
+        employee_profile: @employee.agent_profile || {}
       }
     end
 
@@ -80,9 +84,10 @@ module Discovery
     def persist_turn!(result, playbook)
       turn_number = @conversation.question_count + 1
       insight_data = result["insight"] || {}
+      insight_record = nil
 
       if insight_data["summary"].present?
-        ConversationInsight.create!(
+        insight_record = ConversationInsight.create!(
           conversation: @conversation,
           employee: @employee,
           company: @company,
@@ -92,12 +97,17 @@ module Discovery
           summary: insight_data["summary"],
           structured_data: { "topics" => insight_data["topics"] || [] }
         )
+        Knowledge::IndexInsightJob.perform_later(insight_record.id)
       end
+
+      profile = result["employee_profile"].presence
+      @employee.update!(agent_profile: profile) if profile.present?
 
       snapshot = @conversation.state_snapshot.merge(
         "playbook_version" => playbook.version,
         "playbook_department" => playbook.department,
-        "last_insight" => insight_data
+        "last_insight" => insight_data,
+        "last_confidence" => result["confidence"]
       )
 
       updates = {
@@ -112,7 +122,30 @@ module Discovery
         @conversation.update!(updates)
       end
 
+      if @use_v2 && result["requires_hitl"]
+        create_interrupt!(result)
+        result["interrupted"] = true
+        result["assistant_message"] = ""
+      end
+
       result
+    end
+
+    def create_interrupt!(result)
+      AgentInterrupt.create!(
+        thread_id: @conversation.langgraph_thread_id,
+        company: @company,
+        employee: @employee,
+        conversation: @conversation,
+        kind: "discovery_reply",
+        status: "pending",
+        payload: {
+          "assistant_message" => result["assistant_message"],
+          "confidence" => result["confidence"],
+          "hitl_reason" => result["hitl_reason"],
+          "user_message" => @user_message
+        }
+      )
     end
 
     def handle_unavailable!(playbook: nil)

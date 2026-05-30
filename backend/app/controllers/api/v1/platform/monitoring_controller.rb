@@ -10,6 +10,7 @@ module Api
             subscriptions: subscription_metrics,
             discovery: discovery_metrics,
             reports: report_metrics,
+            agents: agent_metrics,
             impersonations: impersonation_metrics
           }
         end
@@ -18,17 +19,17 @@ module Api
 
         def company_metrics
           {
-            total: Company.count,
-            onboarded: Company.where.not(portal_onboarding_completed_at: nil).count,
-            avg_readiness: Company.average(:report_readiness_score).to_f.round(1)
+            total: ::Company.count,
+            onboarded: ::Company.where.not(portal_onboarding_completed_at: nil).count,
+            avg_readiness: ::Company.average(:report_readiness_score).to_f.round(1)
           }
         end
 
         def subscription_metrics
-          grouped = Subscription.group(:status).count
+          grouped = ::Subscription.group(:status).count
           {
             by_status: grouped,
-            trials_expiring_7d: Subscription.where(status: "trial")
+            trials_expiring_7d: ::Subscription.where(status: "trial")
               .where("trial_ends_at <= ?", 7.days.from_now).count,
             at_conversation_limit: companies_at_limit
           }
@@ -36,7 +37,7 @@ module Api
 
         def companies_at_limit
           count = 0
-          Subscription.includes(:company).find_each do |sub|
+          ::Subscription.includes(:company).find_each do |sub|
             enforcer = Subscriptions::ConversationLimitEnforcer.new(company: sub.company)
             count += 1 if enforcer.limit_reached?
           end
@@ -45,24 +46,33 @@ module Api
 
         def discovery_metrics
           {
-            active_conversations: Conversation.where(status: %w[onboarding discovery]).count,
-            completed_employees: Employee.where(participation_status: "completed").count,
-            conversations_last_24h: Conversation.where("created_at >= ?", 24.hours.ago).count
+            active_conversations: ::Conversation.where(status: %w[onboarding discovery]).count,
+            completed_employees: ::Employee.where(participation_status: "completed").count,
+            conversations_last_24h: ::Conversation.where("created_at >= ?", 24.hours.ago).count
           }
         end
 
         def report_metrics
           {
-            ready: Report.where(status: "ready").count,
-            generating: Report.where(status: %w[queued generating]).count,
-            failed: Report.where(status: "failed").count
+            ready: ::Report.where(status: "ready").count,
+            generating: ::Report.where(status: %w[queued generating]).count,
+            failed: ::Report.where(status: "failed").count
+          }
+        end
+
+        def agent_metrics
+          {
+            pending_interrupts: ::AgentInterrupt.pending.count,
+            copilot_messages_24h: ::AgentCopilotMessage.where("created_at >= ?", 24.hours.ago).count,
+            knowledge_chunks: ::KnowledgeChunk.count,
+            companies_multi_agent: ::Company.where("settings->'agent_features'->>'multi_agent_discovery' = 'true'").count
           }
         end
 
         def impersonation_metrics
           {
-            active_sessions: ImpersonationSession.active.count,
-            last_24h: ImpersonationSession.where("created_at >= ?", 24.hours.ago).count
+            active_sessions: ::ImpersonationSession.active.count,
+            last_24h: ::ImpersonationSession.where("created_at >= ?", 24.hours.ago).count
           }
         end
       end

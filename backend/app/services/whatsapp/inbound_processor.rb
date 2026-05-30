@@ -100,22 +100,8 @@ module Whatsapp
     def handle_unknown_phone(phone, msg, wamid)
       WebhookEvent.where(external_id: wamid).update_all(status: "processed", processed_at: Time.current) if wamid
 
-      company_id = guess_company_from_recent_invite(phone)
-      if company_id
-        AccessCodeVerificationAttempt.create!(
-          company_id: company_id,
-          phone_e164: phone,
-          success: false,
-          failure_reason: "unknown_phone"
-        )
-      end
-
-      return unless @client.configured?
-
-      @client.send_text(
-        to: phone,
-        body: "Hi! You're not registered yet. Ask your company admin for a discovery invitation."
-      )
+      text = extract_text(msg)
+      Whatsapp::SelfServeOnboardingHandler.new(phone: phone, client: @client).handle_inbound_text(text) if text.present?
     end
 
     def media_message?(msg)

@@ -4,6 +4,13 @@ require "rails_helper"
 
 RSpec.describe "Api::V1::Reviewer::Profile", type: :request do
   before do
+    ReportReviewComment.delete_all
+    ReportReviewSectionState.delete_all
+    ReportReview.delete_all
+    ReviewerInfoReply.delete_all
+    ReviewerInfoRequest.delete_all
+    ReviewerChatMessage.delete_all
+    ReviewerAssignment.delete_all
     ReviewerExperience.delete_all
     ReviewerUser.delete_all
   end
@@ -57,12 +64,26 @@ RSpec.describe "Api::V1::Reviewer::Profile", type: :request do
             as: :json
 
       expect(response).to have_http_status(:ok)
-      expect(reviewer.reload.profile_status).to eq("published")
+      expect(reviewer.reload.profile_status).to eq("pending_review")
     end
 
     it "rejects publish when incomplete" do
       patch "/api/v1/reviewer/profile", params: { publish: true }, headers: headers, as: :json
       expect(response).to have_http_status(:unprocessable_entity)
+    end
+
+    it "does not allow changing email from profile update" do
+      original_email = reviewer.email
+
+      patch "/api/v1/reviewer/profile",
+            params: { email: "changed-#{SecureRandom.hex(2)}@example.com", name: "Updated Name" },
+            headers: headers,
+            as: :json
+
+      expect(response).to have_http_status(:ok)
+      reviewer.reload
+      expect(reviewer.email).to eq(original_email)
+      expect(reviewer.name).to eq("Updated Name")
     end
   end
 end

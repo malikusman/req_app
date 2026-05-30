@@ -14,10 +14,15 @@ module Api
 
         def update_organization
           authorize :settings, :update_organization?
+          locale = params[:locale].presence || current_company.locale
+          unless ::Company::LOCALES.include?(locale)
+            return render json: { error: "Invalid locale" }, status: :unprocessable_entity
+          end
+
           settings = current_company.settings.merge(organization_params)
           current_company.update!(
             display_name: params[:display_name] || current_company.display_name,
-            locale: params[:locale] || current_company.locale,
+            locale: locale,
             settings: settings
           )
           render json: { ok: true, settings: current_company.merged_settings }
@@ -25,19 +30,18 @@ module Api
 
         def security
           authorize :settings, :security?
-          active_codes = EmployeeAccessCode.where(company: current_company, status: "active").count
+          current_company.ensure_join_code!
           render json: {
             security_snapshot: current_company.security_snapshot,
             pin_rotated_at: current_company.pin_rotated_at,
-            active_access_codes: active_codes
+            company_join_code: current_company.join_code
           }
         end
 
         def rotate_access_codes
           authorize :settings, :rotate_access_codes?
-          count = AccessCodes::RotateAllService.call(company: current_company, rotated_by: current_company_user)
-          current_company.update!(pin_rotated_at: Time.current)
-          render json: { ok: true, codes_rotated: count }
+          new_code = AccessCodes::RotateAllService.call(company: current_company, rotated_by: current_company_user)
+          render json: { ok: true, company_join_code: new_code }
         end
 
         private

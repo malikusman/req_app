@@ -1,0 +1,14 @@
+Hello <%= @employee.display_name.presence || "there" %>,
+
+You are invited to complete a short workflow discovery interview for <%= @company.display_name || @company.name %>.
+
+What to do:
+1. Save your company join code: <%= @join_code %>
+2. Open WhatsApp and send a message to <%= @whatsapp_number %>
+3. Send "hello" to start, then enter your company code when asked
+4. Follow the prompts to share how work gets done in your role (text, voice notes, and documents are welcome)
+
+Colleagues who were not emailed can also join using the same company code on WhatsApp.
+
+Thanks,
+Req Team

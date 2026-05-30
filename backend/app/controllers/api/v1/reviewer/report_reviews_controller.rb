@@ -35,6 +35,16 @@ module Api
           render json: { error: e.message }, status: :unprocessable_entity
         end
 
+        def request_regeneration
+          authorize @review, :submit?
+          report = Reports::RegenerateFromReviewService.call(
+            source_report: @report,
+            requested_by: current_reviewer_user,
+            note: params[:note].presence || @review.overall_note
+          )
+          render json: { ok: true, report_id: report.id, report_version: report.version }, status: :accepted
+        end
+
         private
 
         def load_report

@@ -7,7 +7,7 @@ RSpec.describe InviteEmployeeService do
     let(:company) { create(:company) }
     let(:invited_by) { create(:company_user, company: company) }
 
-    it "creates employee, access code, and invitation" do
+    it "creates employee, company join code, and invitation without personal access codes" do
       expect {
         result = described_class.call(
           company: company,
@@ -21,8 +21,9 @@ RSpec.describe InviteEmployeeService do
         expect(result[:employee]).to be_persisted
         expect(result[:employee].phone_e164).to eq("+15551234567")
         expect(result[:employee].participation_status).to eq("invited")
-        expect(result[:access_code]).to be_present
+        expect(result[:company_join_code]).to match(/\A[A-Z0-9]{5}\z/)
         expect(result[:invitation]).to be_persisted
+        expect(result[:employee].employee_access_codes.count).to eq(0)
       }.to change(Employee, :count).by(1)
         .and change(EmployeeInvitation, :count).by(1)
     end
@@ -36,6 +37,18 @@ RSpec.describe InviteEmployeeService do
           send_whatsapp: true
         )
       }.to have_enqueued_job(SendEmployeeInvitationJob)
+    end
+
+    it "enqueues email job when email is present" do
+      expect {
+        described_class.call(
+          company: company,
+          email: "alex@example.com",
+          invited_by: invited_by,
+          send_whatsapp: false,
+          send_email: true
+        )
+      }.to have_enqueued_job(SendEmployeeEmailInvitationJob)
     end
 
     it "increments company invited_count" do

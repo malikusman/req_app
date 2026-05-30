@@ -38,6 +38,11 @@ module Whatsapp
     end
 
     def deliver_assistant_reply(result)
+      if result["interrupted"]
+        Rails.logger.info("[Discovery] HITL interrupt queued for conversation #{@conversation.id}")
+        return
+      end
+
       if result["delayed"]
         body = result["assistant_message"].to_s
         send_text(body, is_discovery_question: false) if body.present?

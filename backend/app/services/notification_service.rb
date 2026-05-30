@@ -167,6 +167,43 @@ class NotificationService
     )
   end
 
+  def self.notify_company_info_request_created(company:, request:)
+    admins = company.company_users.where(role: "company_admin", status: "active")
+    section = request.profile_section.present? ? " (#{request.profile_section})" : ""
+    notify(
+      type: :company_info_request_created,
+      company: company,
+      recipients: admins,
+      title: "Information requested",
+      body: "#{request.requested_by_role_label} asked: #{request.subject}#{section}",
+      action_url: "#{app_host}/company/profile?tab=requests&request=#{request.id}",
+      metadata: { company_info_request_id: request.id }
+    )
+  end
+
+  def self.notify_company_info_request_replied(request:, reply:)
+    requester = request.requested_by
+    return unless requester
+
+    notify(
+      type: :company_info_request_replied,
+      company: request.company,
+      recipients: requester,
+      title: "Company responded to your request",
+      body: request.subject,
+      action_url: reply_action_url(request),
+      metadata: { company_info_request_id: request.id, reply_id: reply.id }
+    )
+  end
+
+  def self.reply_action_url(request)
+    if request.requested_by_type == "ReviewerUser"
+      "#{app_host}/reviewer/companies/#{request.company_id}"
+    else
+      "#{app_host}/platform/companies/#{request.company_id}"
+    end
+  end
+
   def self.notify_reviewer_chat_message(recipient:, company:, sender:)
     notify(
       type: :reviewer_chat_message,

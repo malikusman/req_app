@@ -117,6 +117,7 @@ GEM
       bigdecimal
       rexml
     crass (1.0.6)
+    csv (3.3.5)
     date (3.5.1)
     debug (1.11.1)
       irb (~> 1.10)
@@ -264,6 +265,12 @@ GEM
     reline (0.6.3)
       io-console (~> 0.5)
     rexml (3.4.4)
+    roo (3.0.0)
+      base64 (~> 0.2)
+      csv (~> 3)
+      logger (~> 1)
+      nokogiri (~> 1)
+      rubyzip (>= 3.0.0, < 4.0.0)
     rspec-core (3.13.6)
       rspec-support (~> 3.13.0)
     rspec-expectations (3.13.5)
@@ -282,6 +289,7 @@ GEM
       rspec-support (~> 3.13)
     rspec-support (3.13.7)
     ruby-rc4 (0.1.5)
+    rubyzip (3.3.0)
     securerandom (0.4.1)
     sidekiq (7.3.10)
       base64
@@ -331,7 +339,9 @@ DEPENDENCIES
   rack-cors
   rails (~> 7.1.6)
   redis (>= 4.0.1)
+  roo
   rspec-rails (~> 6.1)
+  rubyzip
   sidekiq (~> 7.2)
   stripe (~> 12.0)
   tzinfo-data

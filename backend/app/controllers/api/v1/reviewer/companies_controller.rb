@@ -4,6 +4,8 @@ module Api
   module V1
     module Reviewer
       class CompaniesController < BaseController
+        include CompanyPortalDocumentJson
+
         def index
           companies = policy_scope(::Company).includes(:subscription)
           render json: {
@@ -22,7 +24,10 @@ module Api
               participation: Intelligence::SnapshotBuilder.call(company: company)["participation"],
               latest_report: latest_report ? { id: latest_report.id, version: latest_report.version, status: latest_report.status } : nil,
               my_review_status: my_review&.status,
-              co_reviewer_count: company.reviewer_assignments.active.count
+              co_reviewer_count: company.reviewer_assignments.active.count,
+              profile_summary: Companies::ProfileSummary.for_display(company: company),
+              profile_completeness_percent: Companies::ProfileCompleteness.call(company: company)[:completeness_percent],
+              document_context: portal_documents_for(company)
             )
           }
         end
@@ -37,6 +42,12 @@ module Api
             completed_count: company.completed_count,
             invited_count: company.invited_count
           }
+        end
+
+        def portal_documents_for(company)
+          company.documents.where(source: "company_portal_upload").order(created_at: :desc).limit(100).map do |doc|
+            company_portal_document_json(doc)
+          end
         end
       end
     end

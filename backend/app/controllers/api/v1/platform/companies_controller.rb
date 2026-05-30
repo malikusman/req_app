@@ -89,6 +89,8 @@ module Api
         def company_detail_json(company)
           company_json(company).merge(
             settings: company.merged_settings,
+            profile_summary: Companies::ProfileSummary.for_display(company: company),
+            profile_completeness_percent: Companies::ProfileCompleteness.call(company: company)[:completeness_percent],
             company_users: company.company_users.map do |u|
               { id: u.id, email: u.email, name: u.name, role: u.role, status: u.status }
             end

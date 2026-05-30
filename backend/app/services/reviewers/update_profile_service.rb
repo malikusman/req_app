@@ -24,7 +24,11 @@ module Reviewers
           result = Reviewers::ProfileCompleteness.call(@reviewer)
           raise ArgumentError, "Profile incomplete: #{result.missing.join(', ')}" unless result.complete
 
-          @reviewer.update!(profile_status: "published", profile_completed_at: Time.current)
+          @reviewer.update!(
+            profile_status: "pending_review",
+            profile_completed_at: Time.current,
+            platform_verified_at: nil
+          )
         elsif @publish == false
           @reviewer.update!(profile_status: "draft")
         end

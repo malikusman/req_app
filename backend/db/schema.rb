@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_05_27_000001) do
+ActiveRecord::Schema[7.1].define(version: 2026_05_30_100000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -28,6 +28,59 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_27_000001) do
     t.index ["company_id", "created_at"], name: "idx_on_company_id_created_at_a49b557fa4"
     t.index ["company_id"], name: "index_access_code_verification_attempts_on_company_id"
     t.index ["employee_id"], name: "index_access_code_verification_attempts_on_employee_id"
+  end
+
+  create_table "agent_copilot_messages", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "reviewer_user_id", null: false
+    t.string "thread_id", null: false
+    t.string "role", null: false
+    t.text "body", null: false
+    t.jsonb "citations", default: [], null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_agent_copilot_messages_on_company_id"
+    t.index ["reviewer_user_id", "company_id", "thread_id"], name: "index_copilot_messages_on_reviewer_company_thread"
+    t.index ["reviewer_user_id"], name: "index_agent_copilot_messages_on_reviewer_user_id"
+  end
+
+  create_table "agent_interrupts", force: :cascade do |t|
+    t.string "thread_id", null: false
+    t.bigint "company_id", null: false
+    t.bigint "employee_id"
+    t.bigint "conversation_id"
+    t.string "kind", null: false
+    t.string "status", default: "pending", null: false
+    t.jsonb "payload", default: {}, null: false
+    t.jsonb "resolution", default: {}, null: false
+    t.string "resolved_by_type"
+    t.bigint "resolved_by_id"
+    t.datetime "resolved_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id", "status"], name: "index_agent_interrupts_on_company_id_and_status"
+    t.index ["company_id"], name: "index_agent_interrupts_on_company_id"
+    t.index ["conversation_id"], name: "index_agent_interrupts_on_conversation_id"
+    t.index ["employee_id"], name: "index_agent_interrupts_on_employee_id"
+    t.index ["thread_id"], name: "index_agent_interrupts_on_thread_id"
+  end
+
+  create_table "billing_events", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.string "event_type", null: false
+    t.string "status"
+    t.integer "amount_cents"
+    t.string "currency", default: "usd", null: false
+    t.string "stripe_event_id"
+    t.string "stripe_customer_id"
+    t.string "stripe_subscription_id"
+    t.datetime "occurred_at", null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id", "occurred_at"], name: "index_billing_events_on_company_id_and_occurred_at"
+    t.index ["company_id"], name: "index_billing_events_on_company_id"
+    t.index ["stripe_event_id"], name: "index_billing_events_on_stripe_event_id", unique: true
   end
 
   create_table "companies", force: :cascade do |t|
@@ -49,7 +102,41 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_27_000001) do
     t.integer "completed_count", default: 0, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.jsonb "profile_context", default: {}, null: false
+    t.integer "profile_context_version", default: 1, null: false
+    t.string "join_code", limit: 5, null: false
+    t.index ["join_code"], name: "index_companies_on_join_code", unique: true
     t.index ["slug"], name: "index_companies_on_slug", unique: true
+  end
+
+  create_table "company_info_request_replies", force: :cascade do |t|
+    t.bigint "company_info_request_id", null: false
+    t.string "sender_type", null: false
+    t.bigint "sender_id", null: false
+    t.text "body", null: false
+    t.bigint "document_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_info_request_id"], name: "index_company_info_request_replies_on_company_info_request_id"
+    t.index ["document_id"], name: "index_company_info_request_replies_on_document_id"
+    t.index ["sender_type", "sender_id"], name: "index_company_info_replies_on_sender"
+  end
+
+  create_table "company_info_requests", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.string "requested_by_type", null: false
+    t.bigint "requested_by_id", null: false
+    t.string "profile_section"
+    t.string "subject", null: false
+    t.text "body", null: false
+    t.string "status", default: "open", null: false
+    t.datetime "due_at"
+    t.datetime "closed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id", "status"], name: "index_company_info_requests_on_company_id_and_status"
+    t.index ["company_id"], name: "index_company_info_requests_on_company_id"
+    t.index ["requested_by_type", "requested_by_id"], name: "index_company_info_requests_on_requested_by"
   end
 
   create_table "company_signals", force: :cascade do |t|
@@ -85,10 +172,13 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_27_000001) do
     t.jsonb "notification_preferences", default: {}, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "password_reset_token_digest"
+    t.datetime "password_reset_sent_at"
     t.index ["company_id", "email"], name: "index_company_users_on_company_id_and_email", unique: true
     t.index ["company_id"], name: "index_company_users_on_company_id"
     t.index ["invited_by_id"], name: "index_company_users_on_invited_by_id"
     t.index ["jti"], name: "index_company_users_on_jti", unique: true
+    t.index ["password_reset_token_digest"], name: "index_company_users_on_password_reset_token_digest", unique: true
   end
 
   create_table "consent_text_versions", force: :cascade do |t|
@@ -176,6 +266,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_27_000001) do
     t.datetime "updated_at", null: false
     t.index ["document_id", "chunk_index"], name: "index_document_chunks_on_document_id_and_chunk_index", unique: true
     t.index ["document_id"], name: "index_document_chunks_on_document_id"
+    t.index ["embedding"], name: "index_document_chunks_on_embedding_hnsw", opclass: :vector_cosine_ops, using: :hnsw
   end
 
   create_table "documents", force: :cascade do |t|
@@ -225,7 +316,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_27_000001) do
     t.bigint "company_id", null: false
     t.bigint "employee_id", null: false
     t.bigint "company_user_id"
-    t.string "phone_e164", null: false
+    t.string "phone_e164"
     t.uuid "batch_id"
     t.string "whatsapp_template_name"
     t.string "delivery_status", default: "queued", null: false
@@ -234,6 +325,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_27_000001) do
     t.text "error_message"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "email"
+    t.string "invite_channel", default: "whatsapp", null: false
     t.index ["company_id"], name: "index_employee_invitations_on_company_id"
     t.index ["company_user_id"], name: "index_employee_invitations_on_company_user_id"
     t.index ["employee_id"], name: "index_employee_invitations_on_employee_id"
@@ -255,7 +348,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_27_000001) do
 
   create_table "employees", force: :cascade do |t|
     t.bigint "company_id", null: false
-    t.string "phone_e164", null: false
+    t.string "phone_e164"
     t.string "display_name"
     t.string "department"
     t.string "role_title"
@@ -275,7 +368,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_27_000001) do
     t.jsonb "metadata", default: {}, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "email"
+    t.jsonb "agent_profile", default: {}, null: false
     t.index ["company_id"], name: "index_employees_on_company_id"
+    t.index ["email"], name: "index_employees_on_email", unique: true, where: "(email IS NOT NULL)"
     t.index ["invited_by_company_user_id"], name: "index_employees_on_invited_by_company_user_id"
     t.index ["phone_e164"], name: "index_employees_on_phone_e164", unique: true
   end
@@ -309,6 +405,22 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_27_000001) do
     t.datetime "updated_at", null: false
     t.index ["company_id", "occurred_at"], name: "index_insight_timeline_events_on_company_id_and_occurred_at"
     t.index ["company_id"], name: "index_insight_timeline_events_on_company_id"
+  end
+
+  create_table "knowledge_chunks", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.string "source_type", null: false
+    t.bigint "source_id", null: false
+    t.text "content", null: false
+    t.vector "embedding", limit: 1536
+    t.jsonb "metadata", default: {}, null: false
+    t.string "embedding_model"
+    t.datetime "embedded_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id", "source_type", "source_id"], name: "index_knowledge_chunks_on_company_source", unique: true
+    t.index ["company_id"], name: "index_knowledge_chunks_on_company_id"
+    t.index ["embedding"], name: "index_knowledge_chunks_on_embedding_hnsw", opclass: :vector_cosine_ops, using: :hnsw
   end
 
   create_table "media_attachments", force: :cascade do |t|
@@ -517,9 +629,12 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_27_000001) do
     t.datetime "updated_at", null: false
     t.string "review_workflow_status", default: "not_required", null: false
     t.datetime "reviews_completed_at"
+    t.bigint "regeneration_source_report_id"
+    t.text "regeneration_note"
     t.index ["company_id", "version"], name: "index_reports_on_company_id_and_version", unique: true
     t.index ["company_id"], name: "index_reports_on_company_id"
     t.index ["previous_report_id"], name: "index_reports_on_previous_report_id"
+    t.index ["regeneration_source_report_id"], name: "index_reports_on_regeneration_source_report_id"
     t.index ["reviewed_by_platform_user_id"], name: "index_reports_on_reviewed_by_platform_user_id"
     t.index ["share_token"], name: "index_reports_on_share_token", unique: true, where: "(share_token IS NOT NULL)"
   end
@@ -541,12 +656,19 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_27_000001) do
 
   create_table "reviewer_chat_messages", force: :cascade do |t|
     t.bigint "company_id", null: false
-    t.bigint "sender_reviewer_user_id", null: false
+    t.bigint "sender_reviewer_user_id"
     t.text "body", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "sender_platform_user_id"
+    t.string "sender_role", default: "reviewer", null: false
+    t.string "attachment_filename"
+    t.string "attachment_content_type"
+    t.bigint "attachment_byte_size"
+    t.string "attachment_storage_key"
     t.index ["company_id", "created_at"], name: "index_reviewer_chat_messages_on_company_id_and_created_at"
     t.index ["company_id"], name: "index_reviewer_chat_messages_on_company_id"
+    t.index ["sender_platform_user_id"], name: "index_reviewer_chat_messages_on_sender_platform_user_id"
     t.index ["sender_reviewer_user_id"], name: "index_reviewer_chat_messages_on_sender_reviewer_user_id"
   end
 
@@ -618,8 +740,15 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_27_000001) do
     t.string "profile_status", default: "draft", null: false
     t.datetime "profile_completed_at"
     t.datetime "platform_verified_at"
+    t.string "password_reset_token_digest"
+    t.datetime "password_reset_sent_at"
+    t.string "cv_storage_key"
+    t.string "cv_filename"
+    t.string "cv_content_type"
+    t.bigint "cv_byte_size"
     t.index ["email"], name: "index_reviewer_users_on_email", unique: true
     t.index ["jti"], name: "index_reviewer_users_on_jti", unique: true
+    t.index ["password_reset_token_digest"], name: "index_reviewer_users_on_password_reset_token_digest", unique: true
     t.index ["profile_status"], name: "index_reviewer_users_on_profile_status"
   end
 
@@ -676,6 +805,15 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_27_000001) do
 
   add_foreign_key "access_code_verification_attempts", "companies"
   add_foreign_key "access_code_verification_attempts", "employees"
+  add_foreign_key "agent_copilot_messages", "companies"
+  add_foreign_key "agent_copilot_messages", "reviewer_users"
+  add_foreign_key "agent_interrupts", "companies"
+  add_foreign_key "agent_interrupts", "conversations"
+  add_foreign_key "agent_interrupts", "employees"
+  add_foreign_key "billing_events", "companies"
+  add_foreign_key "company_info_request_replies", "company_info_requests"
+  add_foreign_key "company_info_request_replies", "documents"
+  add_foreign_key "company_info_requests", "companies"
   add_foreign_key "company_signals", "companies"
   add_foreign_key "company_users", "companies"
   add_foreign_key "company_users", "company_users", column: "invited_by_id"
@@ -709,6 +847,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_27_000001) do
   add_foreign_key "impersonation_sessions", "company_users"
   add_foreign_key "impersonation_sessions", "platform_users"
   add_foreign_key "insight_timeline_events", "companies"
+  add_foreign_key "knowledge_chunks", "companies"
   add_foreign_key "media_attachments", "companies"
   add_foreign_key "media_attachments", "conversations"
   add_foreign_key "media_attachments", "employees"
@@ -731,10 +870,12 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_27_000001) do
   add_foreign_key "reports", "companies"
   add_foreign_key "reports", "platform_users", column: "reviewed_by_platform_user_id"
   add_foreign_key "reports", "reports", column: "previous_report_id"
+  add_foreign_key "reports", "reports", column: "regeneration_source_report_id"
   add_foreign_key "reviewer_assignments", "companies"
   add_foreign_key "reviewer_assignments", "platform_users", column: "assigned_by_platform_user_id"
   add_foreign_key "reviewer_assignments", "reviewer_users"
   add_foreign_key "reviewer_chat_messages", "companies"
+  add_foreign_key "reviewer_chat_messages", "platform_users", column: "sender_platform_user_id"
   add_foreign_key "reviewer_chat_messages", "reviewer_users", column: "sender_reviewer_user_id"
   add_foreign_key "reviewer_experiences", "reviewer_users"
   add_foreign_key "reviewer_info_replies", "messages"

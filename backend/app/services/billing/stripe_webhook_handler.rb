@@ -42,6 +42,15 @@ module Billing
         current_period_ends_at: 1.month.from_now
       )
       Subscriptions::PlanLimits.apply_defaults!(sub)
+      record_event!(
+        company: company,
+        event_type: "checkout_completed",
+        status: "active",
+        stripe_event_id: @event["id"],
+        stripe_customer_id: session["customer"],
+        stripe_subscription_id: session["subscription"],
+        metadata: { plan: plan }
+      )
     end
 
     def handle_subscription_updated(stripe_sub)
@@ -53,6 +62,15 @@ module Billing
         status: status,
         current_period_ends_at: Time.at(stripe_sub["current_period_end"])
       )
+      record_event!(
+        company: sub.company,
+        event_type: "subscription_updated",
+        status: status,
+        stripe_event_id: @event["id"],
+        stripe_customer_id: stripe_sub["customer"],
+        stripe_subscription_id: stripe_sub["id"],
+        metadata: { stripe_status: stripe_sub["status"] }
+      )
     end
 
     def handle_subscription_deleted(stripe_sub)
@@ -60,6 +78,14 @@ module Billing
       return unless sub
 
       sub.update!(status: "churned", stripe_subscription_id: nil)
+      record_event!(
+        company: sub.company,
+        event_type: "subscription_deleted",
+        status: "churned",
+        stripe_event_id: @event["id"],
+        stripe_customer_id: stripe_sub["customer"],
+        stripe_subscription_id: stripe_sub["id"]
+      )
     end
 
     def map_stripe_status(stripe_status)
@@ -68,6 +94,21 @@ module Billing
       when "past_due", "unpaid" then "suspended"
       else "churned"
       end
+    end
+
+    def record_event!(company:, event_type:, status:, stripe_event_id:, stripe_customer_id:, stripe_subscription_id:, metadata: {})
+      BillingEvent.create!(
+        company: company,
+        event_type: event_type,
+        status: status,
+        stripe_event_id: stripe_event_id,
+        stripe_customer_id: stripe_customer_id,
+        stripe_subscription_id: stripe_subscription_id,
+        occurred_at: Time.current,
+        metadata: metadata
+      )
+    rescue ActiveRecord::RecordNotUnique
+      nil
     end
   end
 end

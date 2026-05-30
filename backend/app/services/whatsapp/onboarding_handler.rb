@@ -17,13 +17,17 @@ module Whatsapp
       detect_and_set_language(text)
       @conversation.touch_activity!
 
+      maybe_send_invite_instructions
+
       case @employee.onboarding_step
       when "awaiting_name"
         handle_name(text)
       when "awaiting_company"
         handle_company(text)
+      when "awaiting_company_join_code"
+        handle_company_join_code(text)
       when "awaiting_access_code"
-        handle_access_code(text)
+        migrate_legacy_access_code_step
       when "awaiting_consent"
         handle_consent(text)
       when "verified"
@@ -33,7 +37,34 @@ module Whatsapp
       end
     end
 
+    def send_welcome_after_self_serve(name:)
+      send_text("Thanks, #{name}! Before we begin, I need your consent.")
+      @employee.update!(onboarding_step: "awaiting_consent", display_name: name) if @employee.display_name.blank?
+      @employee.update!(onboarding_step: "awaiting_consent") if @employee.display_name.present?
+      send_consent_message
+    end
+
     private
+
+    def maybe_send_invite_instructions
+      return unless @employee.invited_at.present?
+      return if @employee.metadata&.dig("invite_instructions_sent_at").present?
+
+      @employee.update!(
+        metadata: (@employee.metadata || {}).merge("invite_instructions_sent_at" => Time.current.iso8601)
+      )
+      @company.ensure_join_code!
+      send_text(invite_instructions_body)
+    end
+
+    def invite_instructions_body
+      <<~MSG.squish
+        You're invited to a short WhatsApp discovery interview for #{@company.display_name || @company.name}.
+        Share how work really gets done in your role — text, voice notes, and documents are welcome.
+        Company code (for colleagues joining on their own): #{@company.join_code}.
+        Reply with your name when you're ready to continue.
+      MSG
+    end
 
     def handle_opt_out
       @employee.update!(participation_status: "declined")
@@ -52,13 +83,17 @@ module Whatsapp
     end
 
     def handle_name(text)
-      @employee.update!(display_name: text, onboarding_step: "awaiting_company")
       persist_message(direction: "inbound", body: text)
+      @employee.update!(display_name: text)
+
       if @employee.invited_at.present?
-        @employee.update!(onboarding_step: "awaiting_access_code")
-        send_text("Thanks, #{text}! Please enter your personal access code from your company admin.")
+        @employee.update!(onboarding_step: "awaiting_consent")
+        send_text("Thanks, #{text}! Before we begin, I need your consent.")
+        send_consent_message
       else
-        send_text("Thanks! Which company do you work for?")
+        @employee.update!(onboarding_step: "awaiting_consent")
+        send_text("Thanks, #{text}! Before we begin, I need your consent.")
+        send_consent_message
       end
     end
 
@@ -69,31 +104,33 @@ module Whatsapp
       company_match ||= @company if text.downcase.include?(@company.name.downcase)
 
       unless company_match && company_match.id == @company.id
-        send_text("I couldn't find that company. Please try again with your company name.")
+        send_text("I couldn't find that company. Reply with your 5-character company code instead.")
+        @employee.update!(onboarding_step: "awaiting_company_join_code")
         return
       end
 
-      @employee.update!(onboarding_step: "awaiting_access_code")
-      send_text("Great. Please enter your personal access code from your company admin.")
+      @employee.update!(onboarding_step: "awaiting_consent")
+      send_text("Great. Before we begin, I need your consent.")
+      send_consent_message
     end
 
-    def handle_access_code(text)
-      persist_message(direction: "inbound", body: "[access code redacted]")
-
-      code_record = @employee.employee_access_codes.active.first
-      plain = text.gsub(/\s+/, "").upcase
-
-      if code_record&.verify(plain)
-        code_record.update!(status: "used", used_at: Time.current)
-        @employee.update!(onboarding_step: "awaiting_consent", verified_at: Time.current)
+    def handle_company_join_code(text)
+      persist_message(direction: "inbound", body: "[company code redacted]")
+      if @company.verify_join_code?(text)
         log_verification(success: true)
+        @employee.update!(onboarding_step: "awaiting_consent")
         send_consent_message
       else
-        reason = code_record.nil? ? "invalid_code" : (code_record.expires_at.past? ? "expired" : "invalid_code")
-        log_verification(success: false, reason: reason)
+        log_verification(success: false, reason: "invalid_company_code")
         increment_security_snapshot
-        send_text("That code isn't valid. Check with your admin and try again.")
+        send_text("That company code isn't valid. Check with your admin and try again.")
       end
+    end
+
+    def migrate_legacy_access_code_step
+      @employee.update!(onboarding_step: "awaiting_consent")
+      send_text("Please continue — reply YES to accept the consent message below, or STOP to opt out.")
+      send_consent_message
     end
 
     def handle_consent(text)
@@ -135,7 +172,7 @@ module Whatsapp
 
     def send_consent_message
       consent = active_consent
-      send_text(consent.body)
+      send_text(consent&.body || "Reply YES to participate in this discovery interview, or STOP to opt out.")
     end
 
     def active_consent
@@ -146,6 +183,10 @@ module Whatsapp
 
     def consent_confirmed?(text, consent)
       normalized = text.upcase.strip.gsub(/[ÍÌÎÏ]/, "I")
+      return true if %w[YES SI OUI JA].include?(normalized)
+
+      return false unless consent
+
       keywords = consent.confirmation_keywords.map { |k| k.upcase.gsub(/[ÍÌÎÏ]/, "I") }
       return true if keywords.include?(normalized)
 
@@ -177,7 +218,7 @@ module Whatsapp
     end
 
     def opt_out_message
-      "You've been unsubscribed. Reply anytime if your admin sends a new invitation."
+      "You've been unsubscribed. Reply anytime with your company code if you'd like to join again."
     end
 
     def locale

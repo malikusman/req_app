@@ -51,6 +51,19 @@ module Api
           render json: { error: e.message }, status: :unprocessable_entity
         end
 
+        def regenerate
+          source_report = Report.joins(:company).find_by!(id: params[:id], company_id: params[:company_id])
+          authorize source_report, :approve?
+
+          report = Reports::RegenerateFromReviewService.call(
+            source_report: source_report,
+            requested_by: current_platform_user,
+            note: params[:note]
+          )
+
+          render json: { report: report_json(report.reload) }, status: :accepted
+        end
+
         private
 
         def report_json(report, company: report.company)
@@ -63,6 +76,7 @@ module Api
             status: report.status,
             visibility: report.visibility,
             review_workflow_status: report.review_workflow_status,
+            regeneration_source_report_id: report.regeneration_source_report_id,
             reviews_completed_at: report.reviews_completed_at,
             generated_at: report.generated_at,
             company_id: report.company_id,

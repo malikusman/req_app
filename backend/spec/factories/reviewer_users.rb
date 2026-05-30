@@ -15,6 +15,7 @@ FactoryBot.define do
       expertise_tags { %w[Finance Controls Change\ management] }
       profile_status { "published" }
       profile_completed_at { Time.current }
+      platform_verified_at { Time.current }
 
       after(:create) do |reviewer|
         create(:reviewer_experience, reviewer_user: reviewer)

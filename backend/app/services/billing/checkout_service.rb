@@ -21,11 +21,13 @@ module Billing
         raise ArgumentError, "Invalid plan: #{@plan}"
       end
 
-      if stripe_configured?
+      result = if stripe_configured?
         stripe_checkout_url
       else
         mock_checkout_url
       end
+      record_checkout_started!
+      result
     end
 
     private
@@ -82,6 +84,16 @@ module Billing
 
     def app_host
       ENV.fetch("APP_HOST", "http://localhost:5173")
+    end
+
+    def record_checkout_started!
+      @company.billing_events.create!(
+        event_type: "checkout_started",
+        status: "pending",
+        amount_cents: PLANS[@plan][:amount_cents],
+        occurred_at: Time.current,
+        metadata: { plan: @plan }
+      )
     end
   end
 end

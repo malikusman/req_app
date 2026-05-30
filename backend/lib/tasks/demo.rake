@@ -63,6 +63,19 @@ namespace :demo do
       end
     end
 
+    # Email-invite example employee for non-WhatsApp invite flow.
+    email_employee = company.employees.find_or_initialize_by(email: "ops.analyst@acme.local")
+    email_employee.assign_attributes(
+      phone_e164: nil,
+      display_name: "Nadia Email",
+      department: "operations",
+      participation_status: "invited",
+      onboarding_step: "awaiting_name",
+      invited_at: Time.current,
+      invited_by_company_user: company_admin
+    )
+    email_employee.save!
+
     # Refresh counters/readiness from underlying data
     CompanyReadinessRefresher.call(company)
 
@@ -179,6 +192,28 @@ namespace :demo do
       ReviewerInfoReply.find_or_create_by!(reviewer_info_request: info_request, message: inbound) do |reply|
         reply.body = template[:reply]
         reply.received_at = Time.current - (idx + 1).hours
+      end
+    end
+
+    # Seed one failed audio attachment to demo reprocess flow in reviewer conversation details.
+    failed_attachment_conversation = company.conversations.order(updated_at: :desc).first
+    if failed_attachment_conversation
+      failed_media_message = Message.find_or_create_by!(external_id: "demo-failed-media-#{failed_attachment_conversation.id}") do |m|
+        m.conversation = failed_attachment_conversation
+        m.direction = "inbound"
+        m.message_type = "audio"
+        m.body = nil
+        m.processing_status = "failed"
+        m.reviewer_followup = false
+      end
+
+      MediaAttachment.find_or_create_by!(message: failed_media_message) do |a|
+        a.company = company
+        a.employee = failed_attachment_conversation.employee
+        a.conversation = failed_attachment_conversation
+        a.attachment_type = "audio"
+        a.status = "failed"
+        a.processing_error = "transcription timeout"
       end
     end
 

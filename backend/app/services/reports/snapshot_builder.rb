@@ -16,7 +16,8 @@ module Reports
         "generated_at" => Time.current.iso8601,
         "company" => {
           "name" => @company.display_name || @company.name,
-          "locale" => @company.locale
+          "locale" => @company.locale,
+          "company_profile" => Companies::ProfileSummary.for_ai(company: @company)
         },
         "readiness" => {
           "score" => @company.report_readiness_score,

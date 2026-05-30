@@ -29,6 +29,7 @@ class SendEmployeeInvitationJob < ApplicationJob
       delivery_status: "sent",
       meta_message_id: meta_id,
       sent_at: Time.current,
+      invite_channel: "whatsapp",
       whatsapp_template_name: ENV.fetch("META_TEMPLATE_EMPLOYEE_INVITE", "employee_discovery_invite")
     )
     WhatsappDeliveryMetric.record!("template_sent", metadata: { invitation_id: invitation.id })

@@ -40,12 +40,15 @@ module Api
             )
           end
 
-          if params[:platform_verified].present?
+          if params.key?(:platform_verified)
             verified = ActiveModel::Type::Boolean.new.cast(params[:platform_verified])
-            reviewer.update!(platform_verified_at: verified ? Time.current : nil)
+            reviewer.update!(
+              platform_verified_at: verified ? Time.current : nil,
+              profile_status: verified ? "published" : (reviewer.profile_status == "published" ? "pending_review" : reviewer.profile_status)
+            )
           end
 
-          render json: { reviewer: reviewer_json(reviewer.reload) }
+          render json: { reviewer: reviewer_json(reviewer.reload, detailed: true) }
         rescue ArgumentError => e
           render json: { error: e.message }, status: :unprocessable_entity
         end

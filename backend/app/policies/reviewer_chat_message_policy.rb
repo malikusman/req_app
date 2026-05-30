@@ -6,7 +6,7 @@ class ReviewerChatMessagePolicy < ApplicationPolicy
   end
 
   def create?
-    reviewer? && assigned_company?(record.company_id) && co_reviewers_present?
+    ((reviewer? && assigned_company?(record.company_id)) || platform?) && co_reviewers_present?
   end
 
   private

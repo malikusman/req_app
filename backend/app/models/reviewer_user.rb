@@ -15,8 +15,10 @@ class ReviewerUser < ApplicationRecord
   validates :email, presence: true, uniqueness: true
   validates :name, presence: true
   validates :status, inclusion: { in: STATUSES }
+  validates :password, length: { minimum: 8 }, if: -> { password.present? }
 
   before_create :ensure_jti
+  before_validation :normalize_email
 
   scope :active, -> { where(status: "active") }
 
@@ -28,9 +30,33 @@ class ReviewerUser < ApplicationRecord
     update!(jti: SecureRandom.uuid)
   end
 
+  def issue_password_reset_token!
+    token = SecureRandom.urlsafe_base64(32)
+    update!(
+      password_reset_token_digest: Digest::SHA256.hexdigest(token),
+      password_reset_sent_at: Time.current
+    )
+    token
+  end
+
+  def password_reset_token_valid?(token)
+    return false if password_reset_token_digest.blank? || password_reset_sent_at.blank?
+    return false if password_reset_sent_at < 30.minutes.ago
+
+    ActiveSupport::SecurityUtils.secure_compare(password_reset_token_digest, Digest::SHA256.hexdigest(token.to_s))
+  end
+
+  def clear_password_reset_token!
+    update!(password_reset_token_digest: nil, password_reset_sent_at: nil)
+  end
+
   private
 
   def ensure_jti
     self.jti ||= SecureRandom.uuid
+  end
+
+  def normalize_email
+    self.email = email.to_s.downcase.strip
   end
 end

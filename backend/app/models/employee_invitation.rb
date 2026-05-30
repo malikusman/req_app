@@ -6,6 +6,8 @@ class EmployeeInvitation < ApplicationRecord
   belongs_to :company_user, optional: true
 
   DELIVERY_STATUSES = %w[queued sent delivered failed].freeze
+  INVITE_CHANNELS = %w[whatsapp email].freeze
 
   validates :delivery_status, inclusion: { in: DELIVERY_STATUSES }
+  validates :invite_channel, inclusion: { in: INVITE_CHANNELS }
 end

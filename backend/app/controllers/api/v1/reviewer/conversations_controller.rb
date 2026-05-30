@@ -26,7 +26,7 @@ module Api
         def show
           conversation = policy_scope(::Conversation).find(params[:id])
           authorize conversation, :show?
-          messages = conversation.messages.order(:created_at)
+          messages = conversation.messages.includes(:media_attachment).order(:created_at)
           render json: {
             conversation: {
               id: conversation.id,
@@ -37,16 +37,39 @@ module Api
           }
         end
 
+        def reprocess_message
+          conversation = policy_scope(::Conversation).find(params[:id])
+          authorize conversation, :show?
+          message = conversation.messages.includes(:media_attachment).find(params[:message_id])
+          attachment = message.media_attachment
+          return render json: { error: "No media attachment found" }, status: :unprocessable_entity unless attachment
+
+          attachment.update!(status: "pending", processing_error: nil)
+          message.update!(processing_status: "pending")
+          ProcessMediaAttachmentJob.perform_later(attachment.id)
+
+          render json: { ok: true, message_id: message.id, attachment_status: attachment.status }
+        end
+
         private
 
         def message_json(message)
+          attachment = message.media_attachment
           {
             id: message.id,
             direction: message.direction,
             message_type: message.message_type,
             body: message.body,
+            processing_status: message.processing_status,
             reviewer_followup: message.reviewer_followup,
             is_discovery_question: message.is_discovery_question,
+            attachment: attachment && {
+              id: attachment.id,
+              attachment_type: attachment.attachment_type,
+              status: attachment.status,
+              processing_error: attachment.processing_error,
+              metadata: attachment.metadata
+            },
             created_at: message.created_at
           }
         end

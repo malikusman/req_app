@@ -3,6 +3,7 @@
 class Report < ApplicationRecord
   belongs_to :company
   belongs_to :previous_report, class_name: "Report", optional: true
+  belongs_to :regeneration_source_report, class_name: "Report", optional: true
   belongs_to :reviewed_by_platform_user, class_name: "PlatformUser", optional: true
   has_many :report_share_accesses, dependent: :destroy
   has_many :report_reviews, dependent: :destroy

@@ -39,6 +39,8 @@ module Reviewers
         profile_completed_at: reviewer.profile_completed_at,
         platform_verified_at: reviewer.platform_verified_at,
         avatar_url: avatar_path(reviewer, request),
+        cv_url: cv_path(reviewer, request),
+        cv_filename: reviewer.cv_filename,
         experiences: reviewer.reviewer_experiences.order(:sort_order, :start_year).map { |e| experience_json(e) },
         completeness: {
           percent: completeness.percent,
@@ -75,6 +77,12 @@ module Reviewers
       return nil if reviewer.avatar_storage_key.blank? || request.nil?
 
       "#{request.base_url}/api/v1/reviewer_users/#{reviewer.id}/avatar"
+    end
+
+    def cv_path(reviewer, request)
+      return nil if reviewer.cv_storage_key.blank? || request.nil?
+
+      "#{request.base_url}/api/v1/reviewer_users/#{reviewer.id}/cv"
     end
   end
 end

@@ -4,20 +4,24 @@ module Api
   module V1
     module Company
       class EmployeesController < BaseController
+        skip_before_action :require_active_subscription!
+
         def index
+          current_company.ensure_join_code!
           employees = policy_scope(Employee).order(created_at: :desc)
-          render json: { employees: employees.map { |e| employee_json(e, include_nudge: true) } }
+          render json: {
+            company_join_code: current_company.join_code,
+            employees: employees.map { |e| employee_json(e, include_nudge: true) }
+          }
         end
 
         def show
           employee = policy_scope(Employee).find(params[:id])
           authorize employee, :show?
-          active_code = employee.employee_access_codes.active.first
           latest_invitation = employee.employee_invitations.order(created_at: :desc).first
 
           render json: {
             employee: employee_json(employee, include_nudge: true).merge(
-              active_access_code_hint: active_code&.code_hint_last_two,
               invitation_status: latest_invitation&.delivery_status
             )
           }
@@ -28,6 +32,7 @@ module Api
           result = InviteEmployeeService.call(
             company: current_company,
             phone_e164: params[:phone_e164],
+            email: params[:email],
             display_name: params[:display_name],
             department: params[:department],
             invited_by: current_company_user,
@@ -36,7 +41,7 @@ module Api
 
           render json: {
             employee: employee_json(result[:employee]),
-            access_code: result[:access_code],
+            company_join_code: result[:company_join_code],
             invitation_id: result[:invitation].id
           }, status: :created
         end
@@ -45,23 +50,35 @@ module Api
           authorize Employee, :create?
           created = []
           batch_id = SecureRandom.uuid
+          rows = if params[:file].respond_to?(:read)
+                   Employees::BulkInviteParser.call(file: params[:file])
+                 else
+                   Array(params[:employees])
+                 end
 
-          Array(params[:employees]).each do |row|
+          rows.each do |row|
             result = InviteEmployeeService.call(
               company: current_company,
               phone_e164: row[:phone_e164] || row["phone_e164"],
+              email: row[:email] || row["email"],
               display_name: row[:display_name] || row["display_name"],
               department: row[:department] || row["department"],
               invited_by: current_company_user
             )
             result[:invitation].update!(batch_id: batch_id)
             created << employee_json(result[:employee]).merge(
-              access_code: result[:access_code],
+              company_join_code: result[:company_join_code],
               invitation_id: result[:invitation].id
             )
           end
 
-          render json: { employees: created, batch_id: batch_id }, status: :created
+          render json: {
+            employees: created,
+            batch_id: batch_id,
+            company_join_code: current_company.join_code
+          }, status: :created
+        rescue ArgumentError => e
+          render json: { error: e.message }, status: :unprocessable_entity
         end
 
         def update_phone
@@ -75,7 +92,7 @@ module Api
 
           render json: {
             employee: employee_json(result[:employee]),
-            access_code: result[:access_code]
+            company_join_code: result[:company_join_code]
           }
         rescue ArgumentError => e
           render json: { error: e.message }, status: :unprocessable_entity
@@ -108,6 +125,7 @@ module Api
           json = {
             id: employee.id,
             phone_e164: employee.phone_e164,
+            email: employee.email,
             display_name: employee.display_name,
             department: employee.department,
             participation_status: employee.participation_status,

@@ -3,14 +3,9 @@
 require "rails_helper"
 
 RSpec.describe "Reviewer report ready and platform release", type: :request do
-  before do
-    ReviewerExperience.delete_all
-    ReviewerUser.delete_all
-  end
-
   let!(:platform_user) { create(:platform_user) }
   let!(:company) { create(:company, :onboarded) }
-  let!(:reviewer) { create(:reviewer_user) }
+  let!(:reviewer) { create(:reviewer_user, email: "ready-#{SecureRandom.hex(4)}@example.com") }
   let!(:assignment) { create(:reviewer_assignment, company: company, reviewer_user: reviewer) }
   let!(:report) do
     create(:report,

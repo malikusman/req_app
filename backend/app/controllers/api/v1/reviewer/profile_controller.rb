@@ -38,6 +38,16 @@ module Api
           render json: { error: e.message }, status: :unprocessable_entity
         end
 
+        def cv
+          file = params[:file]
+          return render json: { error: "file required" }, status: :unprocessable_entity unless file.respond_to?(:read)
+
+          Reviewers::CvUploadService.call(reviewer: current_reviewer_user, file: file)
+          render json: profile_response(current_reviewer_user.reload)
+        rescue ArgumentError => e
+          render json: { error: e.message }, status: :unprocessable_entity
+        end
+
         private
 
         def profile_response(reviewer)
@@ -53,7 +63,7 @@ module Api
         end
 
         def account_params
-          params.permit(:name, :email).to_h.compact_blank.presence
+          params.permit(:name).to_h.compact_blank.presence
         end
 
         def profile_scalar_params

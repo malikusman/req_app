@@ -14,7 +14,7 @@ module Langgraph
       response.fetch("thread_id")
     end
 
-    def run_turn!(thread_id:, user_message:, playbook:, context:, history:)
+    def run_turn!(thread_id:, user_message:, playbook:, context:, history:, use_v2: false)
       body = {
         user_message: user_message,
         playbook: {
@@ -23,14 +23,42 @@ module Langgraph
           department: playbook.department
         },
         context: context,
-        history: history
+        history: history,
+        use_v2: use_v2
       }
 
-      post("/v1/threads/#{thread_id}/turn", body)
+      path = use_v2 ? "/v1/threads/#{thread_id}/discovery/turn" : "/v1/threads/#{thread_id}/turn"
+      post(path, body)
     rescue UnavailableError
       raise
     rescue StandardError => e
       raise UnavailableError, e.message
+    end
+
+    def reviewer_chat!(thread_id:, company_id:, user_message:, history:)
+      post("/v1/threads/#{thread_id}/reviewer/chat", {
+        company_id: company_id,
+        user_message: user_message,
+        history: history
+      })
+    end
+
+    def generate_report!(thread_id:, company_id:, snapshot:)
+      post("/v1/threads/#{thread_id}/report/generate", {
+        company_id: company_id,
+        snapshot: snapshot
+      })
+    end
+
+    def scout_opportunities!(thread_id:, company_id:, solution_catalog:)
+      post("/v1/threads/#{thread_id}/opportunity/scout", {
+        company_id: company_id,
+        solution_catalog: solution_catalog
+      })
+    end
+
+    def resume!(thread_id:, resolution:)
+      post("/v1/threads/#{thread_id}/resume", { resolution: resolution })
     end
 
     private

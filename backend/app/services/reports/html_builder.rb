@@ -42,8 +42,10 @@ module Reports
           #{delta_section(delta)}
 
           <h2>Executive summary</h2>
-          <p>This report synthesizes WhatsApp discovery interviews and uploaded documents into operational pain points, cross-team patterns, and actionable recommendations.</p>
-          <p>Participation: #{@snapshot.dig('participation', 'completed')} of #{@snapshot.dig('participation', 'invited')} employees completed interviews.</p>
+          #{executive_summary_section}
+
+          <h2>Key findings</h2>
+          #{key_findings_section}
 
           <h2>Top pain points</h2>
           #{signals_table}
@@ -61,6 +63,26 @@ module Reports
     end
 
     private
+
+    def executive_summary_section
+      ai = @snapshot.dig("ai_narratives", "executive_summary")
+      if ai.present?
+        paragraphs = ai.split(/\n\n+/).map { |p| "<p>#{ERB::Util.html_escape(p)}</p>" }.join
+        return paragraphs
+      end
+
+      <<~HTML
+        <p>This report synthesizes WhatsApp discovery interviews and uploaded documents into operational pain points, cross-team patterns, and actionable recommendations.</p>
+        <p>Participation: #{@snapshot.dig('participation', 'completed')} of #{@snapshot.dig('participation', 'invited')} employees completed interviews.</p>
+      HTML
+    end
+
+    def key_findings_section
+      findings = @snapshot.dig("ai_narratives", "key_findings") || []
+      return "<p><em>See pain points and patterns below.</em></p>" if findings.empty?
+
+      "<ul>#{findings.map { |f| "<li>#{ERB::Util.html_escape(f)}</li>" }.join}</ul>"
+    end
 
     def delta_section(delta)
       return "" if delta["summary"].blank? || delta["summary"] == "Initial discovery report"

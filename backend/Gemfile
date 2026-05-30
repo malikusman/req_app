@@ -17,6 +17,8 @@ gem "neighbor"
 gem "pagy"
 gem "aws-sdk-s3", require: false
 gem "pdf-reader"
+gem "rubyzip"
+gem "roo"
 gem "stripe", "~> 12.0"
 gem "pundit", "~> 2.3"
 

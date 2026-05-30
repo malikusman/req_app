@@ -3,7 +3,7 @@
 module ReviewerProfileable
   extend ActiveSupport::Concern
 
-  PROFILE_STATUSES = %w[draft published].freeze
+  PROFILE_STATUSES = %w[draft pending_review published].freeze
 
   included do
     has_many :reviewer_experiences, dependent: :destroy
@@ -18,7 +18,7 @@ module ReviewerProfileable
   end
 
   def published_profile?
-    profile_status == "published"
+    profile_status == "published" && platform_verified_at.present?
   end
 
   private

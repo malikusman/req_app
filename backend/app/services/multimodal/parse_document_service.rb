@@ -19,15 +19,25 @@ module Multimodal
       file.write(raw)
       file.rewind
 
-      text = DocumentTextExtractor.extract(file_path: file.path, content_type: @document.content_type)
+      extraction = DocumentTextExtractor.extract_with_metadata(file_path: file.path, content_type: @document.content_type)
+      text = extraction.text
       chunk_count = ChunkEmbedder.call(document: @document, text: text)
 
       lang = @document.company.locale
-      preview = @openai.summarize_document(text, language: lang)
+      meta = @document.metadata || {}
+      preview = @openai.summarize_document(
+        text,
+        language: lang,
+        category: meta["category"],
+        admin_description: meta["admin_description"]
+      )
 
       @document.update!(
         status: "ready",
-        insights_preview: preview.merge("chunk_count" => chunk_count)
+        insights_preview: preview.merge("chunk_count" => chunk_count),
+        metadata: @document.metadata.merge(extraction.metadata).merge(
+          "extracted_char_count" => text.to_s.length
+        )
       )
 
       AggregateIntelligenceJob.perform_later(@document.company_id, @document.department)

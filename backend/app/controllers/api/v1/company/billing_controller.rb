@@ -13,15 +13,16 @@ module Api
           render json: {
             subscription: subscription_json(sub),
             usage: enforcer.usage_summary,
-            plans: Billing::CheckoutService::PLANS.keys.map { |p| plan_json(p) },
-            stripe_configured: ENV["STRIPE_SECRET_KEY"].present?
+            plans: ::Billing::CheckoutService::PLANS.keys.map { |p| plan_json(p) },
+            stripe_configured: ENV["STRIPE_SECRET_KEY"].present?,
+            events: billing_events_json
           }
         end
 
         def checkout
           authorize :billing, :checkout?
           plan = params.require(:plan)
-          result = Billing::CheckoutService.create_session(company: current_company, plan: plan)
+          result = ::Billing::CheckoutService.create_session(company: current_company, plan: plan)
           render json: result
         rescue ArgumentError => e
           render json: { error: e.message }, status: :unprocessable_entity
@@ -42,12 +43,25 @@ module Api
         end
 
         def plan_json(plan)
-          config = Billing::CheckoutService::PLANS[plan]
+          config = ::Billing::CheckoutService::PLANS[plan]
           {
             id: plan,
             conversations: config[:conversations],
             amount_cents: config[:amount_cents]
           }
+        end
+
+        def billing_events_json
+          current_company.billing_events.order(occurred_at: :desc).limit(25).map do |event|
+            {
+              id: event.id,
+              event_type: event.event_type,
+              status: event.status,
+              amount_cents: event.amount_cents,
+              currency: event.currency,
+              occurred_at: event.occurred_at
+            }
+          end
         end
       end
     end
