@@ -85,21 +85,30 @@ module Api
           employee = policy_scope(Employee).find(params[:id])
           authorize employee, :nudge?
 
-          if employee.participation_status == "completed"
-            return render json: { error: "Employee already completed" }, status: :unprocessable_entity
+          response = nil
+          employee.with_lock do
+            employee.reload
+
+            if employee.participation_status == "completed"
+              response = { status: :unprocessable_entity, json: { error: "Employee already completed" } }
+              next
+            end
+
+            if nudge_cooldown_active?(employee)
+              hours_left = nudge_cooldown_hours_remaining(employee)
+              response = {
+                status: :too_many_requests,
+                json: { error: "Nudge cooldown active", retry_after_hours: hours_left.ceil }
+              }
+              next
+            end
+
+            employee.update!(last_nudged_at: Time.current)
+            SendEmployeeNudgeJob.perform_later(employee.id, current_company_user.id)
+            response = { status: :ok, json: { ok: true, message: "Nudge queued" } }
           end
 
-          if employee.last_nudged_at.present? && employee.last_nudged_at > 24.hours.ago
-            hours_left = ((employee.last_nudged_at + 24.hours) - Time.current) / 1.hour
-            return render json: {
-              error: "Nudge cooldown active",
-              retry_after_hours: hours_left.ceil
-            }, status: :too_many_requests
-          end
-
-          SendEmployeeNudgeJob.perform_later(employee.id, current_company_user.id)
-
-          render json: { ok: true, message: "Nudge queued" }
+          render json: response[:json], status: response[:status]
         end
 
         private
@@ -130,8 +139,16 @@ module Api
         end
 
         def can_nudge?(employee)
-          employee.participation_status == "started" &&
-            (employee.last_nudged_at.blank? || employee.last_nudged_at <= 24.hours.ago)
+          employee.participation_status == "started" && !nudge_cooldown_active?(employee)
+        end
+
+        def nudge_cooldown_active?(employee)
+          employee.last_nudged_at.present? &&
+            employee.last_nudged_at > SendEmployeeNudgeJob::NUDGE_COOLDOWN.ago
+        end
+
+        def nudge_cooldown_hours_remaining(employee)
+          ((employee.last_nudged_at + SendEmployeeNudgeJob::NUDGE_COOLDOWN) - Time.current) / 1.hour
         end
 
         def stalled?(employee)
