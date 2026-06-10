@@ -13,6 +13,7 @@ gem "rack-cors"
 gem "jwt"
 gem "redis", ">= 4.0.1"
 gem "sidekiq", "~> 7.2"
+gem "sidekiq-cron", "~> 1.12"
 gem "neighbor"
 gem "pagy"
 gem "aws-sdk-s3", require: false

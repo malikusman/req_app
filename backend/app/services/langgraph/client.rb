@@ -14,7 +14,7 @@ module Langgraph
       response.fetch("thread_id")
     end
 
-    def run_turn!(thread_id:, user_message:, playbook:, context:, history:)
+    def run_turn!(thread_id:, user_message:, playbook:, context:, history:, multi_agent: nil)
       body = {
         user_message: user_message,
         playbook: {
@@ -26,7 +26,29 @@ module Langgraph
         history: history
       }
 
+      if multi_agent
+        body[:multi_agent] = true
+        body[:profile] = multi_agent[:profile]
+        body[:blackboard] = multi_agent[:blackboard]
+        body[:limits] = multi_agent[:limits]
+        body[:memory_facts] = multi_agent[:memory_facts] || []
+        body[:document_snippets] = multi_agent[:document_snippets] || []
+      end
+
       post("/v1/threads/#{thread_id}/turn", body)
+    rescue UnavailableError
+      raise
+    rescue StandardError => e
+      raise UnavailableError, e.message
+    end
+
+    def route!(thread_id:, profile:, limits:, context: {})
+      body = {
+        profile: profile,
+        limits: limits,
+        question_target: context.fetch(:question_target, 12)
+      }
+      post("/v1/threads/#{thread_id}/route", body)
     rescue UnavailableError
       raise
     rescue StandardError => e

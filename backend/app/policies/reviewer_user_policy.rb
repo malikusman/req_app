@@ -20,4 +20,16 @@ class ReviewerUserPolicy < ApplicationPolicy
   def expert_index?
     company?
   end
+
+  class Scope < Scope
+    def resolve
+      if platform?
+        scope.all
+      elsif reviewer?
+        scope.where(id: context.actor.id)
+      else
+        scope.none
+      end
+    end
+  end
 end

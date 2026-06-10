@@ -82,6 +82,7 @@ module Api
             version: report.version,
             status: report.status,
             visibility: report.visibility,
+            review_workflow_status: report.review_workflow_status,
             generated_at: report.generated_at,
             share_token_expires_at: report.share_token_expires_at,
             share_active: report.share_active?,

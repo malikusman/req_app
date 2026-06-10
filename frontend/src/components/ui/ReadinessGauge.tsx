@@ -2,6 +2,18 @@ import { motion } from 'motion/react';
 import { RadialBarChart, RadialBar, ResponsiveContainer, PolarAngleAxis } from 'recharts';
 import { cn } from '../../lib/cn';
 
+const BREAKDOWN_LABELS: Record<string, string> = {
+  employees_interviewed: 'Employees interviewed',
+  departments_represented: 'Departments covered',
+  confirmed_patterns: 'Confirmed patterns',
+  multimodal_contributions: 'Multimodal sources',
+  insights_count: 'Insights captured',
+};
+
+function breakdownLabel(key: string): string {
+  return BREAKDOWN_LABELS[key] ?? key.replace(/_/g, ' ');
+}
+
 export function ReadinessGauge({
   score,
   breakdown,
@@ -55,8 +67,8 @@ export function ReadinessGauge({
             transition={{ delay: i * 0.05 }}
             className="flex items-center justify-between text-sm"
           >
-            <span className="text-text-secondary">{key}</span>
-            <span className="font-medium text-text-primary">{val}%</span>
+            <span className="text-text-secondary">{breakdownLabel(key)}</span>
+            <span className="font-medium tabular-nums text-text-primary">{val}</span>
           </motion.li>
         ))}
       </ul>

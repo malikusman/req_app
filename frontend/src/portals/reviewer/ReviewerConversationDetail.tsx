@@ -13,10 +13,11 @@ export function ReviewerConversationDetail() {
   const [followupBody, setFollowupBody] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
 
   const load = () => {
-    if (!token || !companyId || !conversationId) return;
-    api.reviewerConversation(token, Number(companyId), Number(conversationId)).then((d) => {
+    if (!token || !companyId || !conversationId) return Promise.resolve();
+    return api.reviewerConversation(token, Number(companyId), Number(conversationId)).then((d) => {
       setMessages(
         d.messages.map((m) => ({
           id: m.id,
@@ -30,8 +31,12 @@ export function ReviewerConversationDetail() {
   };
 
   useEffect(() => {
-    load();
-    setLoading(false);
+    if (!token || !companyId || !conversationId) return;
+    setLoading(true);
+    setError('');
+    load()
+      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load conversation'))
+      .finally(() => setLoading(false));
   }, [token, companyId, conversationId]);
 
   const sendFollowup = async (e: FormEvent) => {
@@ -41,7 +46,7 @@ export function ReviewerConversationDetail() {
     try {
       await api.sendReviewerFollowup(token, Number(companyId), employeeId, followupBody.trim());
       setFollowupBody('');
-      load();
+      await load();
     } finally {
       setSending(false);
     }
@@ -66,6 +71,8 @@ export function ReviewerConversationDetail() {
           { label: 'Transcript' },
         ]}
       />
+
+      {error && <p className="text-sm text-status-error">{error}</p>}
 
       <Card>
         <ChatMessageList messages={messages} className="max-h-[480px]" showTyping={sending} />

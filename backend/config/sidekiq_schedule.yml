@@ -1,0 +1,4 @@
+mark_abandoned_conversations:
+  cron: "0 * * * *"
+  class: MarkAbandonedConversationsJob
+  queue: default

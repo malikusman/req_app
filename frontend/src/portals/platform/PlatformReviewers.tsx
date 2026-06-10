@@ -13,9 +13,11 @@ export function PlatformReviewers() {
 
   const load = () => {
     if (!token) return;
+    setLoading(true);
     api
       .platformReviewers(token)
       .then((d) => setReviewers(d.reviewers))
+      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load reviewers'))
       .finally(() => setLoading(false));
   };
 
@@ -44,6 +46,8 @@ export function PlatformReviewers() {
         description="Manage external reviewers assigned to client reports."
         actions={<Button onClick={() => setShowForm(true)}>New reviewer</Button>}
       />
+
+      {error && <p className="text-sm text-status-error">{error}</p>}
 
       <DataTable
         loading={loading}

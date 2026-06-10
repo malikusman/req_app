@@ -123,12 +123,26 @@ module Whatsapp
     end
 
     def handle_media_message(employee:, conversation:, msg:)
+      if conversation.profiling?
+        send_profiling_media_notice(employee)
+        return
+      end
+
       unless conversation.discovery? || employee.onboarding_step == "verified"
         send_onboarding_media_notice(employee)
         return
       end
 
       MultimodalInboundHandler.new(employee: employee, conversation: conversation, msg: msg, client: @client).handle
+    end
+
+    def send_profiling_media_notice(employee)
+      return unless @client.configured?
+
+      @client.send_text(
+        to: employee.phone_e164,
+        body: "Please answer with a short text message for now. Once we start the interview you can send voice notes and images."
+      )
     end
 
     def send_onboarding_media_notice(employee)
@@ -152,7 +166,10 @@ module Whatsapp
         return if handled
       end
 
-      if conversation.discovery? || employee.onboarding_step == "verified"
+      if conversation.profiling?
+        Whatsapp::ProfilingHandler.new(employee: employee, conversation: conversation, client: @client)
+                                   .handle_inbound_text(text, external_id: external_id)
+      elsif conversation.discovery? || employee.onboarding_step == "verified"
         Whatsapp::DiscoveryHandler.new(employee: employee, conversation: conversation, client: @client)
                                    .handle_inbound_text(text, external_id: external_id)
       else

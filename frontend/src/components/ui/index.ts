@@ -19,6 +19,7 @@ export { ChatBubble } from './ChatBubble';
 export { FileDropzone } from './FileDropzone';
 export { SearchInput } from './SearchInput';
 export { ReadinessGauge } from './ReadinessGauge';
+export { ParticipationSummary, type ParticipationStats } from './ParticipationSummary';
 export { DepartmentHeatmap, type HeatmapCell } from './DepartmentHeatmap';
 export { FunnelChart, type FunnelStage } from './FunnelChart';
 export { Toast, type ToastItem, type ToastVariant } from './Toast';

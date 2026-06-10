@@ -7,9 +7,12 @@ default: &default
 development:
   <<: *default
 
+# Force the test database name even when DATABASE_URL points elsewhere
+# (e.g. docker-compose sets it to req_app_development) so local spec runs
+# can never touch the development database.
 test:
   <<: *default
-  url: <%= ENV.fetch("DATABASE_URL", "postgres://req_app:req_app@localhost:5432/req_app_test") %>
+  url: <%= (ENV["TEST_DATABASE_URL"] || ENV.fetch("DATABASE_URL", "postgres://req_app:req_app@localhost:5432/req_app_test")).sub(%r{/[^/?]+(\?.*)?\z}, '/req_app_test\1') %>
 
 production:
   <<: *default

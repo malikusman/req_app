@@ -11,6 +11,9 @@ export function PlatformSolutions() {
   const [category, setCategory] = useState('automation');
   const [keywords, setKeywords] = useState('');
   const [loading, setLoading] = useState(true);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editActive, setEditActive] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   const load = () => {
     if (!token) return;
@@ -39,6 +42,23 @@ export function PlatformSolutions() {
     setVendor('');
     setKeywords('');
     load();
+  };
+
+  const startEdit = (solution: SolutionCatalogEntry) => {
+    setEditingId(solution.id);
+    setEditActive(solution.active);
+  };
+
+  const saveEdit = async (solution: SolutionCatalogEntry) => {
+    if (!token) return;
+    setSaving(true);
+    try {
+      await api.updateSolution(token, solution.id, { active: editActive });
+      setEditingId(null);
+      load();
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -97,10 +117,41 @@ export function PlatformSolutions() {
           {
             key: 'active',
             header: 'Active',
-            render: (s) => <Badge variant={s.active ? 'success' : 'neutral'}>{s.active ? 'yes' : 'no'}</Badge>,
+            render: (s) =>
+              editingId === s.id ? (
+                <Select
+                  value={editActive ? 'yes' : 'no'}
+                  onChange={(e) => setEditActive(e.target.value === 'yes')}
+                  options={[
+                    { value: 'yes', label: 'yes' },
+                    { value: 'no', label: 'no' },
+                  ]}
+                />
+              ) : (
+                <Badge variant={s.active ? 'success' : 'neutral'}>{s.active ? 'yes' : 'no'}</Badge>
+              ),
+          },
+          {
+            key: 'actions',
+            header: '',
+            render: (s) =>
+              editingId === s.id ? (
+                <div className="flex gap-2">
+                  <Button size="sm" loading={saving} onClick={() => saveEdit(s)}>
+                    Save
+                  </Button>
+                  <Button size="sm" variant="secondary" onClick={() => setEditingId(null)}>
+                    Cancel
+                  </Button>
+                </div>
+              ) : (
+                <Button size="sm" variant="secondary" onClick={() => startEdit(s)}>
+                  Edit
+                </Button>
+              ),
           },
         ]}
-        rows={solutions as SolutionCatalogEntry[]}
+        rows={solutions}
         emptyState={<EmptyState title="No solutions" description="Add tools to the catalog for recommendation matching." />}
       />
     </div>

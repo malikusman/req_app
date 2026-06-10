@@ -33,6 +33,7 @@ module Discovery
       @company.increment!(:conversation_count)
       Intelligence::TimelineRecorder.interview_completed!(company: @company, employee: @employee)
       AggregateIntelligenceJob.perform_later(@company.id, @employee.department)
+      MemoryPromotionJob.perform_later(@conversation.id)
 
       NotificationService.notify_interview_completed(company: @company, employee: @employee)
     end

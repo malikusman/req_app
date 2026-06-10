@@ -113,12 +113,22 @@ module Whatsapp
         )
         lang = LanguageDetector.detect(text)
         @employee.update!(preferred_language: lang) if @employee.preferred_language.blank?
-        @conversation.update!(status: "discovery", started_at: Time.current)
-        Subscriptions::ConversationLimitEnforcer.record_discovery_started!(
-          company: @company,
-          conversation: @conversation
-        )
-        send_text(welcome_after_consent(lang))
+
+        if Whatsapp::ProfilingHandler.enabled?(@company) && !@employee.profile_complete?
+          @conversation.update!(status: "profiling", started_at: Time.current)
+          Subscriptions::ConversationLimitEnforcer.record_discovery_started!(
+            company: @company,
+            conversation: @conversation
+          )
+          Whatsapp::ProfilingHandler.new(employee: @employee, conversation: @conversation, client: @client).start!
+        else
+          @conversation.update!(status: "discovery", started_at: Time.current)
+          Subscriptions::ConversationLimitEnforcer.record_discovery_started!(
+            company: @company,
+            conversation: @conversation
+          )
+          send_text(welcome_after_consent(lang))
+        end
       else
         send_text("Please reply YES to continue or STOP to opt out.")
       end
@@ -127,6 +137,13 @@ module Whatsapp
     def handle_post_verification(text)
       lang = @employee.preferred_language.presence || LanguageDetector.detect(text)
       @employee.update!(preferred_language: lang) if @employee.preferred_language.blank?
+
+      if Whatsapp::ProfilingHandler.enabled?(@company) && !@employee.profile_complete? && !@conversation.discovery?
+        handler = Whatsapp::ProfilingHandler.new(employee: @employee, conversation: @conversation, client: @client)
+        @conversation.profiling? ? handler.handle_inbound_text(text) : handler.start!
+        return
+      end
+
       @conversation.update!(status: "discovery") unless @conversation.discovery?
 
       Whatsapp::DiscoveryHandler.new(employee: @employee, conversation: @conversation, client: @client)

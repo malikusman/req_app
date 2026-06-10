@@ -38,7 +38,8 @@ module Discovery
         user_message: @user_message,
         playbook: playbook,
         context: build_context(playbook),
-        history: build_history
+        history: build_history,
+        multi_agent: multi_agent_payload
       )
 
       persist_turn!(result, playbook)
@@ -69,12 +70,36 @@ module Discovery
     end
 
     def build_history
-      @conversation.messages.order(:created_at).last(24).filter_map do |msg|
+      # Multi-agent turns rely on the rolling summary in the blackboard,
+      # so only recent raw messages are needed; legacy turns keep the old window.
+      window = multi_agent_enabled? ? 6 : 24
+      @conversation.messages.order(:created_at).last(window).filter_map do |msg|
         next if msg.body.blank?
 
         role = msg.direction == "outbound" ? "assistant" : "user"
         { role: role, content: msg.body }
       end
+    end
+
+    def multi_agent_enabled?
+      @company.merged_settings["discovery_multi_agent_enabled"] == true
+    end
+
+    def multi_agent_payload
+      return nil unless multi_agent_enabled?
+
+      context = Discovery::ContextBuilder.call(
+        conversation: @conversation,
+        employee: @employee,
+        user_message: @user_message
+      )
+      {
+        profile: context[:profile],
+        blackboard: context[:blackboard],
+        limits: context[:limits],
+        memory_facts: context[:memory_facts],
+        document_snippets: context[:document_snippets]
+      }
     end
 
     def persist_turn!(result, playbook)
@@ -100,16 +125,19 @@ module Discovery
         "last_insight" => insight_data
       )
 
-      updates = {
+      if result["blackboard"].present?
+        snapshot = snapshot.merge("blackboard" => result["blackboard"])
+        snapshot = snapshot.merge("last_routing_decision" => result["routing_decision"]) if result["routing_decision"].present?
+      end
+
+      @conversation.update!(
         question_count: result["question_count"],
         state_snapshot: snapshot,
         last_activity_at: Time.current
-      }
+      )
 
       if result["completed"]
         Discovery::FinalizeConversationService.call(conversation: @conversation, employee: @employee)
-      else
-        @conversation.update!(updates)
       end
 
       result

@@ -37,9 +37,17 @@ Rails.application.routes.draw do
         resources :solutions, only: %i[index create update]
         get "companies/:company_id/question_feedback", to: "question_feedback#index"
         get "companies/:company_id/reports", to: "reports#index"
+        get "companies/:company_id/conversations", to: "conversations#index"
+        get "companies/:company_id/conversations/:id", to: "conversations#show"
+        get "companies/:company_id/intelligence/snapshot", to: "intelligence#snapshot"
+        get "companies/:company_id/intelligence/signals", to: "intelligence#signals"
+        get "companies/:company_id/intelligence/patterns", to: "intelligence#patterns"
+        get "companies/:company_id/intelligence/recommendations", to: "intelligence#recommendations"
+        get "companies/:company_id/intelligence/timeline", to: "intelligence#timeline"
         post "companies/:company_id/reports/:id/approve", to: "reports#approve"
         post "companies/:company_id/impersonate", to: "impersonations#create"
         get "monitoring", to: "monitoring#show"
+        get "audit_logs", to: "audit_logs#index"
         resources :reviewers, only: %i[index show create update]
         get "companies/:company_id/reviewer_assignments", to: "reviewer_assignments#index"
         post "companies/:company_id/reviewer_assignments", to: "reviewer_assignments#create"
@@ -49,6 +57,7 @@ Rails.application.routes.draw do
 
       namespace :reviewer do
         get "me", to: "me#show"
+        get "followups", to: "followups#index"
         get "profile", to: "profile#show"
         patch "profile", to: "profile#update"
         post "profile/avatar", to: "profile#avatar"
@@ -122,6 +131,7 @@ Rails.application.routes.draw do
             post :bulk_create
           end
         end
+        resources :conversations, only: %i[index show]
       end
 
       namespace :public do

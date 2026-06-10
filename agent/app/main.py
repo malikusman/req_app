@@ -8,6 +8,8 @@ from pydantic import BaseModel, Field
 from app.circuit_breaker import is_open
 from app.config import settings
 from app.graph import execute_turn
+from app.multi_agent_graph import execute_multi_agent_turn
+from app.router import build_agent_queue
 
 app = FastAPI(title="Req Discovery Agent", version="1.0.0")
 
@@ -38,6 +40,13 @@ class TurnRequest(BaseModel):
     playbook: PlaybookPayload
     context: TurnContext = Field(default_factory=TurnContext)
     history: list[HistoryMessage] = Field(default_factory=list)
+    # Multi-agent extensions (optional — legacy requests omit them)
+    multi_agent: bool = False
+    profile: dict[str, Any] | None = None
+    blackboard: dict[str, Any] | None = None
+    limits: dict[str, int] | None = None
+    memory_facts: list[dict[str, Any]] = Field(default_factory=list)
+    document_snippets: list[str] = Field(default_factory=list)
 
 
 class TurnResponse(BaseModel):
@@ -47,6 +56,22 @@ class TurnResponse(BaseModel):
     completed: bool
     question_count: int
     playbook_version: int
+    # Multi-agent extensions (None on legacy turns)
+    blackboard: dict[str, Any] | None = None
+    active_agent_id: str | None = None
+    routing_decision: dict[str, Any] | None = None
+
+
+class RouteRequest(BaseModel):
+    profile: dict[str, Any]
+    limits: dict[str, int] | None = None
+    question_target: int = 12
+
+
+class RouteResponse(BaseModel):
+    agents: list[dict[str, Any]]
+    skipped: list[dict[str, Any]]
+    total_budget: int
 
 
 @app.get("/health")
@@ -75,7 +100,20 @@ def run_turn(thread_id: str, body: TurnRequest):
         "history": [m.model_dump() for m in body.history],
     }
 
-    result = execute_turn(state)
+    if body.multi_agent:
+        state.update(
+            {
+                "profile": body.profile or {},
+                "blackboard": body.blackboard,
+                "limits": body.limits or {},
+                "memory_facts": body.memory_facts,
+                "document_snippets": body.document_snippets,
+            }
+        )
+        result = execute_multi_agent_turn(state)
+    else:
+        result = execute_turn(state)
+
     if result.get("error") == "openai_unavailable":
         raise HTTPException(
             status_code=503,
@@ -89,7 +127,16 @@ def run_turn(thread_id: str, body: TurnRequest):
         completed=bool(result.get("completed")),
         question_count=int(result.get("question_count", body.context.question_count)),
         playbook_version=body.playbook.version,
+        blackboard=result.get("blackboard") if body.multi_agent else None,
+        active_agent_id=result.get("active_agent_id") if body.multi_agent else None,
+        routing_decision=result.get("routing_decision") if body.multi_agent else None,
     )
+
+
+@app.post("/v1/threads/{thread_id}/route", response_model=RouteResponse)
+def route_agents(thread_id: str, body: RouteRequest):
+    result = build_agent_queue(body.profile, body.limits, body.question_target)
+    return RouteResponse(**result)
 
 
 @app.post("/v1/threads", response_model=dict)

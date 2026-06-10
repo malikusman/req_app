@@ -52,12 +52,13 @@ module Intelligence
     def gather_texts
       insight_texts = ConversationInsight.where(company_id: @company.id).pluck(:summary)
       doc_texts = @company.documents.where(status: "ready").map { |d| d.insights_preview["summary"].to_s }
+      fact_texts = @company.company_memory_facts.limit(200).pluck(:content)
       message_texts = Message.joins(:conversation)
                              .where(conversations: { company_id: @company.id, status: "completed" })
                              .where(direction: "inbound")
                              .limit(200)
                              .pluck(:body)
-      (insight_texts + doc_texts + message_texts).compact
+      (insight_texts + doc_texts + fact_texts + message_texts).compact
     end
 
     def infer_from_topic(topic)

@@ -31,9 +31,11 @@ export function PlatformCompanies() {
   const load = () => {
     if (!token) return;
     setLoading(true);
+    setError('');
     api
       .platformCompanies(token)
       .then((d) => setCompanies(d.companies))
+      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load companies'))
       .finally(() => setLoading(false));
   };
 
@@ -95,7 +97,14 @@ export function PlatformCompanies() {
         }
       />
 
-      {error && <p className="text-sm text-status-error">{error}</p>}
+      {error && (
+        <p className="text-sm text-status-error">
+          {error}
+          {error.toLowerCase().includes('unauthorized') && (
+            <> — try logging out and signing in again at <a href="/platform/login" className="underline">/platform/login</a>.</>
+          )}
+        </p>
+      )}
 
       <DataTable
         loading={loading}

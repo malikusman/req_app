@@ -18,6 +18,7 @@ class Company < ApplicationRecord
   has_many :reviewer_assignments, dependent: :destroy
   has_many :reviewer_users, through: :reviewer_assignments
   has_many :reviewer_chat_messages, dependent: :destroy
+  has_many :company_memory_facts, dependent: :destroy
 
   def bot_phone_display
     ENV.fetch("META_WHATSAPP_DISPLAY_NUMBER", "+1 000 000 0000")
@@ -31,6 +32,12 @@ class Company < ApplicationRecord
   DEFAULT_SETTINGS = {
     "discovery_question_target" => 10,
     "discovery_session_timeout_hours" => 72,
+    "discovery_profiling_enabled" => false,
+    "discovery_multi_agent_enabled" => false,
+    "discovery_memory_retrieval_enabled" => false,
+    "discovery_max_followup_depth" => 2,
+    "discovery_max_questions_per_agent" => 5,
+    "discovery_max_active_agents" => 4,
     "report_thresholds" => {
       "min_employees_interviewed" => 3,
       "min_departments" => 2,

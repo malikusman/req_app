@@ -6,7 +6,7 @@ class CompanyPolicy < ApplicationPolicy
   end
 
   def show?
-    platform? || same_company?(record) || assigned_company?(record.id)
+    platform? || own_company?(record) || same_company?(record) || assigned_company?(record.id)
   end
 
   def create?
@@ -15,6 +15,12 @@ class CompanyPolicy < ApplicationPolicy
 
   def update?
     platform?
+  end
+
+  private
+
+  def own_company?(record)
+    company? && record.is_a?(::Company) && record.id == company_id
   end
 
   class Scope < Scope

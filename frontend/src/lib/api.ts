@@ -52,6 +52,9 @@ export const api = {
   platformCompanies: (token: string) =>
     request<{ companies: Company[] }>('/api/v1/platform/companies', {}, token),
 
+  platformCompany: (token: string, companyId: number) =>
+    request<{ company: CompanyDetail }>(`/api/v1/platform/companies/${companyId}`, {}, token),
+
   createPlatformCompany: (
     token: string,
     payload: { name: string; display_name?: string; company_admin: { email: string; name: string; password: string } }
@@ -63,7 +66,12 @@ export const api = {
     ),
 
   companyMe: (token: string) =>
-    request<{ user: CompanyUser; company: CompanyDetail }>('/api/v1/company/me', {}, token),
+    request<{
+      user: CompanyUser;
+      company: CompanyDetail;
+      impersonating?: boolean;
+      usage: { conversations_used: number; conversation_limit: number | null; remaining: number | null; limit_reached: boolean };
+    }>('/api/v1/company/me', {}, token),
 
   companyOnboarding: (token: string) =>
     request<{ step: number; company: { display_name: string; locale: string }; invited_count: number }>(
@@ -103,6 +111,16 @@ export const api = {
     request<{ ok: boolean; message: string }>(
       `/api/v1/company/employees/${employeeId}/nudge`,
       { method: 'POST' },
+      token
+    ),
+
+  companyConversations: (token: string) =>
+    request<{ conversations: CompanyConversation[] }>('/api/v1/company/conversations', {}, token),
+
+  companyConversation: (token: string, conversationId: number) =>
+    request<{ conversation: CompanyConversation; messages: CompanyConversationMessage[] }>(
+      `/api/v1/company/conversations/${conversationId}`,
+      {},
       token
     ),
 
@@ -158,6 +176,39 @@ export const api = {
 
   platformCompanyReports: (token: string, companyId: number) =>
     request<{ reports: PlatformReport[] }>(`/api/v1/platform/companies/${companyId}/reports`, {}, token),
+
+  platformCompanyConversations: (token: string, companyId: number) =>
+    request<{ conversations: CompanyConversation[] }>(
+      `/api/v1/platform/companies/${companyId}/conversations`,
+      {},
+      token
+    ),
+
+  platformCompanyConversation: (token: string, companyId: number, conversationId: number) =>
+    request<{ conversation: CompanyConversation; messages: CompanyConversationMessage[] }>(
+      `/api/v1/platform/companies/${companyId}/conversations/${conversationId}`,
+      {},
+      token
+    ),
+
+  platformCompanyIntelligenceSnapshot: (token: string, companyId: number) =>
+    request<{ snapshot: IntelligenceSnapshot; report_readiness_score: number; report_readiness_breakdown: Record<string, number> }>(
+      `/api/v1/platform/companies/${companyId}/intelligence/snapshot`,
+      {},
+      token
+    ),
+
+  platformCompanyIntelligenceSignals: (token: string, companyId: number) =>
+    request<{ signals: CompanySignal[] }>(`/api/v1/platform/companies/${companyId}/intelligence/signals`, {}, token),
+
+  platformCompanyIntelligencePatterns: (token: string, companyId: number) =>
+    request<{ patterns: CompanyPattern[] }>(`/api/v1/platform/companies/${companyId}/intelligence/patterns`, {}, token),
+
+  platformCompanyIntelligenceRecommendations: (token: string, companyId: number) =>
+    request<{ recommendations: Recommendation[] }>(`/api/v1/platform/companies/${companyId}/intelligence/recommendations`, {}, token),
+
+  platformCompanyIntelligenceTimeline: (token: string, companyId: number) =>
+    request<{ events: TimelineEvent[] }>(`/api/v1/platform/companies/${companyId}/intelligence/timeline`, {}, token),
 
   approvePlatformReport: (token: string, companyId: number, reportId: number) =>
     request<{ report: PlatformReport }>(
@@ -290,6 +341,19 @@ export const api = {
       body: JSON.stringify({ days }),
     }, token),
 
+  platformAuditLogs: (token: string, params?: { company_id?: number; action?: string; page?: number }) => {
+    const search = new URLSearchParams();
+    if (params?.company_id) search.set('company_id', String(params.company_id));
+    if (params?.action) search.set('action', params.action);
+    if (params?.page) search.set('page', String(params.page));
+    const qs = search.toString();
+    return request<{ audit_logs: PlatformAuditLogEntry[]; pagination: { page: number; per_page: number; total: number } }>(
+      `/api/v1/platform/audit_logs${qs ? `?${qs}` : ''}`,
+      {},
+      token
+    );
+  },
+
   platformReviewers: (token: string) => request<{ reviewers: ReviewerUser[] }>('/api/v1/platform/reviewers', {}, token),
 
   createPlatformReviewer: (token: string, payload: { email: string; name: string; password: string }) =>
@@ -391,6 +455,27 @@ export const api = {
       token
     ),
 
+  reviewerFollowups: (token: string) =>
+    request<{ followups: ReviewerFollowupRow[] }>('/api/v1/reviewer/followups', {}, token),
+
+  reviewerNotifications: (token: string, params?: { page?: number; per_page?: number }) => {
+    const search = new URLSearchParams();
+    if (params?.page) search.set('page', String(params.page));
+    if (params?.per_page) search.set('per_page', String(params.per_page));
+    const qs = search.toString();
+    return request<{ notifications: AppNotification[]; unread_count: number; page: number; per_page: number }>(
+      `/api/v1/reviewer/notifications${qs ? `?${qs}` : ''}`,
+      {},
+      token
+    );
+  },
+
+  markReviewerNotificationRead: (token: string, id: number) =>
+    request<{ notification: AppNotification }>(`/api/v1/reviewer/notifications/${id}`, { method: 'PATCH' }, token),
+
+  markAllReviewerNotificationsRead: (token: string) =>
+    request<{ ok: boolean; unread_count: number }>('/api/v1/reviewer/notifications/mark_all_read', { method: 'POST' }, token),
+
   reviewerConversation: (token: string, companyId: number, conversationId: number) =>
     request<{ conversation: { id: number; employee_id: number; status: string }; messages: { id: number; direction: string; body: string; reviewer_followup: boolean; created_at: string }[] }>(
       `/api/v1/reviewer/companies/${companyId}/conversations/${conversationId}`,
@@ -399,11 +484,10 @@ export const api = {
     ),
 
   reviewerFollowupThread: (token: string, companyId: number, employeeId: number) =>
-    request<{ threads: { id: number; body: string; status: string; replies: { body: string; received_at: string }[] }[] }>(
-      `/api/v1/reviewer/companies/${companyId}/employees/${employeeId}/followup`,
-      {},
-      token
-    ),
+    request<{
+      employee: { id: number; display_name: string | null };
+      threads: { id: number; body: string; status: string; replies: { body: string; received_at: string }[] }[];
+    }>(`/api/v1/reviewer/companies/${companyId}/employees/${employeeId}/followup`, {}, token),
 
   sendReviewerFollowup: (token: string, companyId: number, employeeId: number, body: string, reportId?: number) =>
     request<{ info_request: { id: number } }>(
@@ -616,6 +700,7 @@ export interface Report {
   version: number;
   status: string;
   visibility: string;
+  review_workflow_status?: string;
   generated_at: string | null;
   share_active: boolean;
   share_token_expires_at: string | null;
@@ -792,4 +877,71 @@ export interface Employee {
   can_nudge?: boolean;
   stalled?: boolean;
   invitation_status?: string;
+}
+
+export interface CompanyConversation {
+  id: number;
+  employee_id: number;
+  employee_name: string | null;
+  department: string | null;
+  status: string;
+  question_count?: number;
+  last_activity_at: string | null;
+  discovery_state?: DiscoveryState;
+}
+
+export interface DiscoveryAgentQueueEntry {
+  id: string;
+  priority: number;
+  question_budget: number;
+  reason: string;
+}
+
+export interface DiscoveryAgentState {
+  questions_asked: number;
+  question_budget: number;
+  status: string;
+  open_threads?: { topic: string; depth: number; needs_followup: boolean }[];
+}
+
+export interface DiscoveryState {
+  profile: Record<string, unknown>;
+  agent_queue: DiscoveryAgentQueueEntry[];
+  skipped_agents: { id: string; reason: string }[];
+  agent_states: Record<string, DiscoveryAgentState>;
+  active_agent_id: string | null;
+  coverage: { topics_required?: string[]; topics_covered?: string[] };
+  shared_findings: { agent: string; finding: string; confidence: number; turn: number }[];
+  conversation_summary: string | null;
+  last_routing_decision: { action: string; agent: string | null; reason: string } | null;
+}
+
+export interface CompanyConversationMessage {
+  id: number;
+  direction: string;
+  message_type?: string;
+  body: string;
+  is_discovery_question?: boolean;
+  created_at: string;
+}
+
+export interface PlatformAuditLogEntry {
+  id: number;
+  actor: string;
+  action: string;
+  target: string;
+  created_at: string;
+  ip: string | null;
+}
+
+export interface ReviewerFollowupRow {
+  id: number;
+  company_id: number;
+  company_name: string;
+  employee_id: number;
+  employee_name: string | null;
+  status: string;
+  last_message: string;
+  updated_at: string;
+  sent_at: string | null;
 }

@@ -13,6 +13,16 @@ Dir[Rails.root.join("spec/support/**/*.rb")].sort.each { |f| require f }
 
 WebMock.disable_net_connect!(allow_localhost: true)
 
+class ActiveRecord::Base
+  class << self
+    attr_accessor :shared_connection
+  end
+
+  def self.connection
+    shared_connection || super
+  end
+end
+
 RSpec.configure do |config|
   config.fixture_paths = [Rails.root.join("spec/fixtures")]
   config.use_transactional_fixtures = true
@@ -25,6 +35,15 @@ RSpec.configure do |config|
 
   config.before do
     ActiveJob::Base.queue_adapter = :test
+    ActiveRecord::Base.shared_connection = ActiveRecord::Base.connection
+  end
+
+  config.after do
+    ActiveRecord::Base.shared_connection = nil
+  end
+
+  config.before(:each, type: :request) do
+    ActiveRecord::Base.connection_pool.lock_thread = true
   end
 
   config.before(:each, type: :request) do

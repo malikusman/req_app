@@ -1,26 +1,21 @@
 import { useEffect, useState } from 'react';
+import { api, type PlatformTrialRow } from '../../lib/api';
 import { usePlatformToken } from '../../lib/auth';
 import { PageHeader, DataTable, Button, Badge, EmptyState } from '../../components/ui';
 
-const API_URL = import.meta.env.VITE_API_URL || '';
-
-type TrialRow = {
-  company: { id: number; name: string; report_readiness_score: number; completed_count: number; invited_count: number };
-  subscription: { trial_ends_at: string; days_remaining: number };
-};
-
 export function PlatformTrials() {
   const token = usePlatformToken();
-  const [trials, setTrials] = useState<TrialRow[]>([]);
+  const [trials, setTrials] = useState<PlatformTrialRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   const load = () => {
     if (!token) return;
-    fetch(`${API_URL}/api/v1/platform/trials`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.json())
-      .then((d) => setTrials(d.trials || []))
+    setLoading(true);
+    api
+      .platformTrials(token)
+      .then((d) => setTrials(d.trials))
+      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load trials'))
       .finally(() => setLoading(false));
   };
 
@@ -30,12 +25,12 @@ export function PlatformTrials() {
 
   const extendTrial = async (companyId: number, days: number) => {
     if (!token) return;
-    await fetch(`${API_URL}/api/v1/platform/trials/${companyId}/extend`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ days }),
-    });
-    load();
+    try {
+      await api.extendPlatformTrial(token, companyId, days);
+      load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to extend trial');
+    }
   };
 
   return (
@@ -44,6 +39,8 @@ export function PlatformTrials() {
         title="Trials expiring soon"
         description="Companies with trials ending within 7 days."
       />
+
+      {error && <p className="text-sm text-status-error">{error}</p>}
 
       <DataTable
         loading={loading}
@@ -57,7 +54,7 @@ export function PlatformTrials() {
           {
             key: 'participation',
             header: 'Participation',
-            render: (r) => `${r.company.completed_count} / ${r.company.invited_count}`,
+            render: (r) => `${r.company.completed_count ?? 0} / ${r.company.invited_count ?? 0}`,
           },
           {
             key: 'days',
@@ -83,7 +80,7 @@ export function PlatformTrials() {
             ),
           },
         ]}
-        rows={trials as TrialRow[]}
+        rows={trials}
         emptyState={
           <EmptyState title="No expiring trials" description="No trials ending in the next 7 days." />
         }

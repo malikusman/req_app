@@ -57,6 +57,18 @@ export function CompanyReports() {
     await api.downloadReport(token, id);
   };
 
+  const canDownloadOrShare = (report: Report) =>
+    report.status === 'ready' && report.visibility === 'shared_with_company';
+
+  const reviewStatusLabel = (report: Report) => {
+    if (report.visibility === 'shared_with_company') return null;
+    if (report.review_workflow_status === 'awaiting_reviewers') return 'Awaiting expert review';
+    if (report.review_workflow_status === 'in_review') return 'In expert review';
+    if (report.review_workflow_status === 'reviews_complete') return 'Awaiting platform approval';
+    if (report.visibility === 'internal_only') return 'Not yet shared';
+    return null;
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -117,10 +129,20 @@ export function CompanyReports() {
               ),
           },
           {
+            key: 'review',
+            header: 'Availability',
+            render: (r) => {
+              const label = reviewStatusLabel(r);
+              if (label) return <Badge variant="warning">{label}</Badge>;
+              if (r.visibility === 'shared_with_company') return <Badge variant="success">Shared</Badge>;
+              return '—';
+            },
+          },
+          {
             key: 'actions',
             header: '',
             render: (r) =>
-              r.status === 'ready' ? (
+              r.status === 'ready' && canDownloadOrShare(r) ? (
                 <div className="flex gap-2">
                   <Button variant="secondary" size="sm" onClick={() => download(r.id)}>
                     Download
@@ -129,6 +151,8 @@ export function CompanyReports() {
                     Share
                   </Button>
                 </div>
+              ) : r.status === 'ready' ? (
+                <span className="text-xs text-text-secondary">Available after approval</span>
               ) : null,
           },
         ]}

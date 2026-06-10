@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_05_23_000001) do
+ActiveRecord::Schema[7.1].define(version: 2026_06_10_000002) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -50,6 +50,27 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_23_000001) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["slug"], name: "index_companies_on_slug", unique: true
+  end
+
+  create_table "company_memory_facts", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "employee_id"
+    t.bigint "conversation_id"
+    t.string "fact_type", default: "finding", null: false
+    t.string "department"
+    t.text "content", null: false
+    t.float "confidence"
+    t.string "source_agent"
+    t.vector "embedding", limit: 1536
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index "conversation_id, md5(content)", name: "index_memory_facts_on_conversation_and_content", unique: true
+    t.index ["company_id", "department"], name: "index_company_memory_facts_on_company_id_and_department"
+    t.index ["company_id", "fact_type"], name: "index_company_memory_facts_on_company_id_and_fact_type"
+    t.index ["company_id"], name: "index_company_memory_facts_on_company_id"
+    t.index ["conversation_id"], name: "index_company_memory_facts_on_conversation_id"
+    t.index ["employee_id"], name: "index_company_memory_facts_on_employee_id"
   end
 
   create_table "company_signals", force: :cascade do |t|
@@ -673,6 +694,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_23_000001) do
 
   add_foreign_key "access_code_verification_attempts", "companies"
   add_foreign_key "access_code_verification_attempts", "employees"
+  add_foreign_key "company_memory_facts", "companies"
+  add_foreign_key "company_memory_facts", "conversations"
+  add_foreign_key "company_memory_facts", "employees"
   add_foreign_key "company_signals", "companies"
   add_foreign_key "company_users", "companies"
   add_foreign_key "company_users", "company_users", column: "invited_by_id"

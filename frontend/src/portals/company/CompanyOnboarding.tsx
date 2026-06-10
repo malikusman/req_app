@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, type Employee } from '../../lib/api';
 import { useCompanyToken, useAuth } from '../../lib/auth';
-import { PageHeader, Card, Input, Select, Button, ProgressBar } from '../../components/ui';
+import { PageHeader, Card, Input, Select, Button, ProgressBar, Textarea } from '../../components/ui';
 
 export function CompanyOnboarding() {
   const token = useCompanyToken();
@@ -16,6 +16,8 @@ export function CompanyOnboarding() {
   const [department, setDepartment] = useState('');
   const [invited, setInvited] = useState<(Employee & { access_code?: string })[]>([]);
   const [lastCode, setLastCode] = useState('');
+  const [bulkPhones, setBulkPhones] = useState('');
+  const [bulkInviting, setBulkInviting] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -51,6 +53,34 @@ export function CompanyOnboarding() {
       setStep(3);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to invite');
+    }
+  };
+
+  const bulkInvite = async () => {
+    if (!token) return;
+    const phones = bulkPhones
+      .split(/[\n,]+/)
+      .map((p) => p.trim())
+      .filter(Boolean);
+    if (phones.length === 0) return;
+
+    setError('');
+    setBulkInviting(true);
+    try {
+      const res = await api.bulkInviteEmployees(
+        token,
+        phones.map((phone_e164) => ({ phone_e164, department: department || undefined }))
+      );
+      setInvited((prev) => [
+        ...prev,
+        ...res.employees.map((e) => ({ ...e, access_code: e.access_code })),
+      ]);
+      setBulkPhones('');
+      setStep(3);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Bulk invite failed');
+    } finally {
+      setBulkInviting(false);
     }
   };
 
@@ -124,6 +154,26 @@ export function CompanyOnboarding() {
             <Button onClick={inviteEmployee} disabled={!phone}>
               Invite & generate access code
             </Button>
+
+            <div className="border-t border-border pt-4">
+              <Textarea
+                label="Bulk invite (one phone per line)"
+                value={bulkPhones}
+                onChange={(e) => setBulkPhones(e.target.value)}
+                placeholder={"+14155551001\n+14155551002\n+14155551003"}
+                rows={4}
+              />
+              <Button
+                variant="secondary"
+                className="mt-2"
+                loading={bulkInviting}
+                disabled={!bulkPhones.trim()}
+                onClick={bulkInvite}
+              >
+                Bulk invite
+              </Button>
+            </div>
+
             {lastCode && (
               <div className="rounded-button border border-border bg-surface-muted p-4">
                 <p className="m-0 text-sm text-text-secondary">Latest access code (share privately):</p>

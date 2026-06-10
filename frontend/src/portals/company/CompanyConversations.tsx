@@ -1,29 +1,47 @@
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { api, type CompanyConversation } from '../../lib/api';
+import { useCompanyToken } from '../../lib/auth';
 import { PageHeader, DataTable, Badge, EmptyState } from '../../components/ui';
-import { mockConversations } from '../../lib/mocks/companyConversations';
 
 export function CompanyConversations() {
+  const token = useCompanyToken();
   const navigate = useNavigate();
+  const [conversations, setConversations] = useState<CompanyConversation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!token) return;
+    api
+      .companyConversations(token)
+      .then((d) => setConversations(d.conversations))
+      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load conversations'))
+      .finally(() => setLoading(false));
+  }, [token]);
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Conversations"
-        description="Discovery interview sessions with your employees (preview data)."
+        description="Discovery interview sessions with your employees."
       />
 
+      {error && <p className="text-sm text-status-error">{error}</p>}
+
       <DataTable
+        loading={loading}
         columns={[
           {
             key: 'employee',
             header: 'Employee',
             render: (c) => (
               <Link to={`/company/conversations/${c.id}`} className="font-medium text-accent hover:underline">
-                {c.employee_name}
+                {c.employee_name || `Employee #${c.employee_id}`}
               </Link>
             ),
           },
-          { key: 'department', header: 'Department' },
+          { key: 'department', header: 'Department', render: (c) => c.department || '—' },
           {
             key: 'status',
             header: 'Status',
@@ -34,10 +52,10 @@ export function CompanyConversations() {
           {
             key: 'last_activity',
             header: 'Last activity',
-            render: (c) => new Date(c.last_activity_at).toLocaleString(),
+            render: (c) => (c.last_activity_at ? new Date(c.last_activity_at).toLocaleString() : '—'),
           },
         ]}
-        rows={mockConversations}
+        rows={conversations}
         onRowClick={(c) => navigate(`/company/conversations/${c.id}`)}
         emptyState={<EmptyState title="No conversations" description="Conversations appear when employees start interviews." />}
       />

@@ -31,6 +31,9 @@ export function CompanyEmployees() {
   const [loading, setLoading] = useState(true);
   const [inviting, setInviting] = useState(false);
   const [nudgingId, setNudgingId] = useState<number | null>(null);
+  const [editingPhoneId, setEditingPhoneId] = useState<number | null>(null);
+  const [editPhone, setEditPhone] = useState('');
+  const [savingPhone, setSavingPhone] = useState(false);
 
   const load = () => {
     if (!token) return;
@@ -95,6 +98,27 @@ export function CompanyEmployees() {
     navigator.clipboard.writeText(code);
   };
 
+  const startPhoneEdit = (employee: Employee) => {
+    setEditingPhoneId(employee.id);
+    setEditPhone(employee.phone_e164);
+    setError('');
+  };
+
+  const savePhone = async (employeeId: number) => {
+    if (!token || !editPhone.trim()) return;
+    setSavingPhone(true);
+    setError('');
+    try {
+      await api.updateEmployeePhone(token, employeeId, editPhone.trim());
+      setEditingPhoneId(null);
+      load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update phone');
+    } finally {
+      setSavingPhone(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
       <PageHeader
@@ -152,7 +176,33 @@ export function CompanyEmployees() {
                     stalled
                   </Badge>
                 )}
-                <p className="m-0 text-xs text-text-secondary">{e.phone_e164}</p>
+                {editingPhoneId === e.id ? (
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <Input
+                      value={editPhone}
+                      onChange={(ev) => setEditPhone(ev.target.value)}
+                      placeholder="+14155551234"
+                      className="max-w-[180px]"
+                    />
+                    <Button size="sm" loading={savingPhone} onClick={() => savePhone(e.id)}>
+                      Save
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => setEditingPhoneId(null)}>
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="m-0 text-xs text-text-secondary">
+                    {e.phone_e164}
+                    <button
+                      type="button"
+                      className="ml-2 text-accent hover:underline"
+                      onClick={() => startPhoneEdit(e)}
+                    >
+                      Edit
+                    </button>
+                  </p>
+                )}
               </div>
             ),
           },

@@ -8,22 +8,30 @@ import { PageHeader, Card, Textarea, Button, Skeleton, EmptyState } from '../../
 export function ReviewerEmployeeFollowup() {
   const { companyId, employeeId } = useParams();
   const token = useReviewerToken();
+  const [employeeName, setEmployeeName] = useState<string | null>(null);
   const [threads, setThreads] = useState<
     { id: number; body: string; status: string; replies: { body: string; received_at: string }[] }[]
   >([]);
   const [body, setBody] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
 
   const load = () => {
-    if (!token || !companyId || !employeeId) return;
-    api.reviewerFollowupThread(token, Number(companyId), Number(employeeId)).then((d) => setThreads(d.threads));
+    if (!token || !companyId || !employeeId) return Promise.resolve();
+    return api.reviewerFollowupThread(token, Number(companyId), Number(employeeId)).then((d) => {
+      setEmployeeName(d.employee.display_name);
+      setThreads(d.threads);
+    });
   };
 
   useEffect(() => {
     if (!token || !companyId || !employeeId) return;
-    load();
-    setLoading(false);
+    setLoading(true);
+    setError('');
+    load()
+      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load thread'))
+      .finally(() => setLoading(false));
   }, [token, companyId, employeeId]);
 
   const send = async (e: FormEvent) => {
@@ -33,7 +41,7 @@ export function ReviewerEmployeeFollowup() {
     try {
       await api.sendReviewerFollowup(token, Number(companyId), Number(employeeId), body.trim());
       setBody('');
-      load();
+      await load();
     } finally {
       setSending(false);
     }
@@ -59,6 +67,8 @@ export function ReviewerEmployeeFollowup() {
     return items;
   }
 
+  const displayName = employeeName || `Employee #${employeeId}`;
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -71,13 +81,15 @@ export function ReviewerEmployeeFollowup() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Employee follow-up"
+        title={displayName}
         description="WhatsApp follow-up thread"
         breadcrumbs={[
           { label: 'Follow-ups', href: '/reviewer/followups' },
-          { label: `Employee #${employeeId}` },
+          { label: displayName },
         ]}
       />
+
+      {error && <p className="text-sm text-status-error">{error}</p>}
 
       {threads.length === 0 ? (
         <EmptyState title="No thread yet" description="Send a follow-up message to start the conversation." />

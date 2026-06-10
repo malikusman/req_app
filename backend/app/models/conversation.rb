@@ -9,7 +9,7 @@ class Conversation < ApplicationRecord
   has_many :documents, dependent: :nullify
   has_many :employee_nudges, dependent: :nullify
 
-  STATUSES = %w[onboarding discovery completed abandoned].freeze
+  STATUSES = %w[onboarding profiling discovery completed abandoned].freeze
 
   validates :status, inclusion: { in: STATUSES }
 
@@ -19,5 +19,17 @@ class Conversation < ApplicationRecord
 
   def discovery?
     status == "discovery"
+  end
+
+  def profiling?
+    status == "profiling"
+  end
+
+  def blackboard
+    state_snapshot["blackboard"] || {}
+  end
+
+  def update_blackboard!(updates)
+    update!(state_snapshot: state_snapshot.merge("blackboard" => blackboard.merge(updates)))
   end
 end

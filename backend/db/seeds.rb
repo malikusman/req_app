@@ -77,7 +77,14 @@ end
 end
 
 company.update!(portal_onboarding_completed_at: Time.current) if company.portal_onboarding_completed_at.blank?
-company.update!(settings: company.settings.merge("allow_early_report" => true, "skip_platform_review" => false))
+company.update!(settings: company.settings.merge(
+  "allow_early_report" => true,
+  "skip_platform_review" => false,
+  "discovery_profiling_enabled" => true,
+  "discovery_multi_agent_enabled" => true,
+  "discovery_memory_retrieval_enabled" => true,
+  "discovery_question_target" => 12
+))
 
 reviewer = ReviewerUser.find_or_create_by!(email: "reviewer@reqapp.local") do |u|
   u.name = "Expert Reviewer"
@@ -87,9 +94,59 @@ reviewer = ReviewerUser.find_or_create_by!(email: "reviewer@reqapp.local") do |u
 end
 puts "Reviewer: #{reviewer.email} / password123"
 
+ReviewerUser.find_or_create_by!(email: "reviewer2@reqapp.local") do |u|
+  u.name = "Finance Specialist"
+  u.password = "password123"
+  u.status = "active"
+  u.jti = SecureRandom.uuid
+end
+puts "Reviewer: reviewer2@reqapp.local / password123"
+
 ReviewerAssignment.find_or_create_by!(company: company, reviewer_user: reviewer, status: "active") do |a|
   a.assigned_by_platform_user = platform
   a.assigned_at = Time.current
 end
+
+beta = Company.find_or_create_by!(slug: "beta-industries") do |c|
+  c.name = "Beta Industries"
+  c.display_name = "Beta Industries"
+  c.locale = "en"
+  c.portal_onboarding_completed_at = Time.current
+end
+
+Subscription.find_or_create_by!(company: beta) do |s|
+  s.plan = "trial"
+  s.status = "trial"
+  s.trial_ends_at = 4.days.from_now
+  s.conversation_limit = Subscriptions::PlanLimits.conversation_limit_for("trial")
+end
+
+CompanyUser.find_or_create_by!(company: beta, email: "admin@beta.local") do |u|
+  u.name = "Beta Admin"
+  u.password = "password123"
+  u.role = "company_admin"
+  u.status = "active"
+  u.jti = SecureRandom.uuid
+end
+
+beta.update!(settings: beta.settings.merge(
+  "allow_early_report" => true,
+  "skip_platform_review" => false,
+  "discovery_profiling_enabled" => true,
+  "discovery_multi_agent_enabled" => true,
+  "discovery_memory_retrieval_enabled" => true,
+  "discovery_question_target" => 12
+))
+
+ReviewerAssignment.find_or_create_by!(company: beta, reviewer_user: reviewer, status: "active") do |a|
+  a.assigned_by_platform_user = platform
+  a.assigned_at = Time.current
+end
+
+load Rails.root.join("lib/demo_seeder.rb") unless defined?(DemoSeeder)
+DemoSeeder.call(slug: company.slug)
+BetaDemoSeeder.call(slug: beta.slug)
+
+DemoScript.print_walkthrough
 
 puts "Done."
