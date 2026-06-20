@@ -24,6 +24,11 @@ module Whatsapp
     end
 
     def handle
+      unless multimodal_enabled?
+        send_text("Please continue with text messages for now.")
+        return
+      end
+
       attachment_type, meta_media_id, mime_type = extract_media_info
       return send_unsupported_notice unless attachment_type && meta_media_id
 
@@ -92,21 +97,43 @@ module Whatsapp
 
     def simulate_processing!(attachment, message)
       lang = @employee.preferred_language.presence || @company.locale
-      openai = Openai::Client.new
-      extracted = case attachment.attachment_type
-                  when "audio"
-                    openai.transcribe_audio(file_path: "/dev/null", language: lang)
-                  when "image"
-                    openai.describe_image(file_path: "/dev/null", language: lang)
-                  else
-                    openai.summarize_document("Workflow SOP document", language: lang)["summary"]
-                  end
+      file = nil
+      file = Tempfile.new(["dev-media", ".bin"])
+      file.write("simulated")
+      file.rewind
 
-      attachment.update!(status: "ready", extracted_text: extracted, storage_key: "dev/simulated/#{attachment.id}")
-      message.update!(body: extracted, processing_status: "ready")
-      @conversation.update!(state_snapshot: @conversation.state_snapshot.merge("had_multimodal" => true))
+      result = Multimodal::UnderstandingService.call(attachment: attachment, file_path: file.path)
+      body = [attachment.caption, result.plain_text].map(&:presence).compact.join("\n\n")
+
+      attachment.update!(
+        status: "ready",
+        extracted_text: body,
+        structured_insights: result.structured_insights,
+        confidence: result.confidence,
+        storage_key: "dev/simulated/#{attachment.id}",
+        language: lang
+      )
+      message.update!(body: body, processing_status: "ready")
+      mark_multimodal_on_conversation!(attachment)
+      Multimodal::MediaObservability.record!(event: "dev_simulated_ready", attachment: attachment)
       Multimodal::IndexMediaService.call(media_attachment: attachment.reload)
       ContinueDiscoveryAfterMediaJob.perform_now(attachment.id)
+    ensure
+      file&.close
+      file&.unlink
+    end
+
+    def mark_multimodal_on_conversation!(attachment)
+      snapshot = @conversation.state_snapshot.merge("had_multimodal" => true)
+      counts = snapshot.fetch("multimodal_counts", { "audio" => 0, "image" => 0, "document" => 0 })
+      type = attachment.attachment_type
+      counts[type] = counts.fetch(type, 0) + 1 if counts.key?(type)
+      snapshot["multimodal_counts"] = counts
+      @conversation.update!(state_snapshot: snapshot)
+    end
+
+    def multimodal_enabled?
+      @company.merged_settings["discovery_multimodal_enabled"] == true
     end
 
     def send_ack(type)

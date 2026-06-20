@@ -36,6 +36,7 @@ class FullCycleSimulator
     ensure_reviewer_assignment!
 
     run_discovery!
+    run_multimodal!
     run_nudge!
     run_intelligence!
     run_report!
@@ -69,6 +70,68 @@ class FullCycleSimulator
     end
     @employee = @discovery.employee
     @conversation = @discovery.conversation
+  end
+
+  def run_multimodal!
+    stage "Multimodal (image + document pipeline)"
+    settings = @company.merged_settings
+    check "Multimodal feature enabled", settings["discovery_multimodal_enabled"] == true
+    check "Media indexing enabled", settings["discovery_media_indexing_enabled"] == true
+
+    previous_status = @conversation.status
+    @conversation.update!(status: "discovery") unless @conversation.discovery?
+
+    simulate_multimodal_inbound("image", caption: "SAP invoice entry screen")
+    simulate_multimodal_inbound("document", caption: "Month-end close SOP", filename: "close-checklist.pdf")
+
+    @conversation.update!(status: previous_status) unless previous_status == "discovery"
+    @conversation.reload
+
+    attachments = @conversation.media_attachments.order(:created_at)
+    check "Media attachments created (#{attachments.size})", attachments.size >= 2
+    check "Image attachment ready", attachments.where(attachment_type: "image", status: "ready").exists?
+    check "Document attachment ready", attachments.where(attachment_type: "document", status: "ready").exists?
+
+    image = attachments.find_by(attachment_type: "image")
+    check "Structured insights stored", image&.structured_insights&.dig("summary").present?
+    check "Conversation flagged had_multimodal", @conversation.state_snapshot["had_multimodal"] == true
+
+    indexed = @company.documents.where(source: "whatsapp_upload", conversation_id: @conversation.id, status: "ready")
+    check "WhatsApp media indexed as documents (#{indexed.count})", indexed.count.positive?
+
+    signals = Intelligence::SignalExtractor.call(company: @company)
+    with_evidence = signals.count { |s| Array(s[:multimodal_evidence]).any? }
+    check "Signals include multimodal evidence (#{with_evidence})", with_evidence.positive?
+  end
+
+  def simulate_multimodal_inbound(type, caption: nil, filename: nil)
+    phone = @employee.phone_e164.delete("+")
+    msg = {
+      "from" => phone,
+      "id" => "wamid.sim.media.#{SecureRandom.hex(8)}",
+      "type" => type
+    }
+    case type
+    when "image"
+      msg["image"] = { "id" => "meta.sim.#{SecureRandom.hex(6)}", "mime_type" => "image/jpeg", "caption" => caption }
+    when "document"
+      msg["document"] = {
+        "id" => "meta.sim.#{SecureRandom.hex(6)}",
+        "mime_type" => "application/pdf",
+        "caption" => caption,
+        "filename" => filename || "document.pdf"
+      }
+    when "audio"
+      msg["audio"] = { "id" => "meta.sim.#{SecureRandom.hex(6)}", "mime_type" => "audio/ogg" }
+    end
+
+    payload = {
+      "entry" => [{ "changes" => [{ "value" => {
+        "messages" => [msg],
+        "contacts" => [{ "wa_id" => phone, "profile" => { "name" => @employee.display_name } }]
+      } }] }]
+    }
+    Whatsapp::InboundProcessor.new(payload).process
   end
 
   def run_nudge!
@@ -119,6 +182,8 @@ class FullCycleSimulator
     check "Report status ready", @created_report.status == "ready"
     check "Report stored in MinIO", @created_report.storage_key.present?
     check "Report snapshot populated", @created_report.report_snapshot.present?
+    supporting = Array(@created_report.report_snapshot["supporting_media"])
+    check "Report includes supporting media (#{supporting.size})", supporting.any?
 
     if @company.reviewer_assignments.active.exists?
       review_count = @created_report.report_reviews.count

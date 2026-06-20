@@ -9,6 +9,7 @@ module Api
             companies: company_metrics,
             subscriptions: subscription_metrics,
             discovery: discovery_metrics,
+            multimodal: multimodal_metrics,
             reports: report_metrics,
             impersonations: impersonation_metrics
           }
@@ -18,9 +19,9 @@ module Api
 
         def company_metrics
           {
-            total: Company.count,
-            onboarded: Company.where.not(portal_onboarding_completed_at: nil).count,
-            avg_readiness: Company.average(:report_readiness_score).to_f.round(1)
+            total: ::Company.count,
+            onboarded: ::Company.where.not(portal_onboarding_completed_at: nil).count,
+            avg_readiness: ::Company.average(:report_readiness_score).to_f.round(1)
           }
         end
 
@@ -48,6 +49,17 @@ module Api
             active_conversations: Conversation.where(status: %w[onboarding discovery]).count,
             completed_employees: Employee.where(participation_status: "completed").count,
             conversations_last_24h: Conversation.where("created_at >= ?", 24.hours.ago).count
+          }
+        end
+
+        def multimodal_metrics
+          {
+            ready_attachments: MediaAttachment.where(status: "ready").count,
+            processing_attachments: MediaAttachment.where(status: "processing").count,
+            failed_attachments: MediaAttachment.where(status: "failed").count,
+            attachments_last_24h: MediaAttachment.where("created_at >= ?", 24.hours.ago).count,
+            companies_with_multimodal_enabled: ::Company.where("settings ->> 'discovery_multimodal_enabled' = 'true'").count,
+            companies_with_media_indexing_enabled: ::Company.where("settings ->> 'discovery_media_indexing_enabled' = 'true'").count
           }
         end
 

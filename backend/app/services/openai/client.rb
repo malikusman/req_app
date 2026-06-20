@@ -145,6 +145,29 @@ module Openai
       normalize_document_insights("summary" => content.to_s.truncate(500))
     end
 
+    def ocr_scanned_pdf(file_path:, language: "en")
+      return mock_scanned_pdf_text(language) unless configured?
+
+      data = Base64.strict_encode64(File.binread(file_path))
+      body = {
+        model: ENV.fetch("OPENAI_VISION_MODEL", "gpt-4o-mini"),
+        messages: [{
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: "This PDF appears scanned or image-based. Extract all readable workflow-related text. Respond in #{language} with plain text only."
+            },
+            { type: "image_url", image_url: { url: "data:application/pdf;base64,#{data}" } }
+          ]
+        }],
+        max_tokens: 1200
+      }
+      post_json("#{API_BASE}/chat/completions", body).dig("choices", 0, "message", "content").to_s.strip
+    rescue StandardError
+      mock_scanned_pdf_text(language)
+    end
+
     private
 
     def api_key
@@ -258,6 +281,13 @@ module Openai
 
     def mock_document_structured(text, language)
       mock_document_summary(text, language)
+    end
+
+    def mock_scanned_pdf_text(language)
+      {
+        "en" => "Scanned SOP checklist: manual invoice approval steps, Excel handoffs, and SAP re-entry every morning.",
+        "es" => "Lista SOP escaneada: pasos manuales de aprobación de facturas, transferencias en Excel y reingreso en SAP."
+      }.fetch(language, "Scanned document describing manual invoice approval and spreadsheet handoffs.")
     end
 
     def normalize_image_insights(payload)

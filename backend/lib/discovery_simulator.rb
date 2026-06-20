@@ -129,7 +129,10 @@ class DiscoverySimulator
     end
     ReviewerInfoRequest.where(employee_id: employee.id).delete_all
     EmployeeNudge.where(employee_id: employee.id).delete_all
-    employee.conversations.each { |c| c.messages.delete_all }
+    employee.conversations.each do |conversation|
+      MediaAttachment.where(conversation_id: conversation.id).delete_all
+      conversation.messages.delete_all
+    end
     if employee.display_name.present?
       Notification.where(company_id: company.id).where("body ILIKE ?", "%#{employee.display_name}%").delete_all
     end

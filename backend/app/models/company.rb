@@ -36,6 +36,7 @@ class Company < ApplicationRecord
     "discovery_multi_agent_enabled" => false,
     "discovery_memory_retrieval_enabled" => false,
     "discovery_media_indexing_enabled" => false,
+    "discovery_multimodal_enabled" => false,
     "discovery_max_followup_depth" => 2,
     "discovery_max_questions_per_agent" => 5,
     "discovery_max_active_agents" => 4,

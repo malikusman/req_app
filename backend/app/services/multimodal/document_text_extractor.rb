@@ -4,6 +4,8 @@ require "pdf/reader"
 
 module Multimodal
   class DocumentTextExtractor
+    MIN_PDF_TEXT_CHARS = 40
+
     def self.extract(file_path:, content_type: nil)
       new(file_path: file_path, content_type: content_type).extract
     end
@@ -40,10 +42,15 @@ module Multimodal
 
     def extract_pdf
       reader = PDF::Reader.new(@file_path)
-      reader.pages.map(&:text).join("\n\n")
+      text = reader.pages.map(&:text).join("\n\n").strip
+      return text if text.length >= MIN_PDF_TEXT_CHARS
+
+      ocr_text = OcrFallback.extract(file_path: @file_path, content_type: @content_type)
+      combined = [text, ocr_text].map(&:presence).compact.join("\n\n")
+      combined.presence || text
     rescue StandardError => e
       Rails.logger.warn("[PDF] extract failed: #{e.message}")
-      ""
+      OcrFallback.extract(file_path: @file_path, content_type: @content_type)
     end
   end
 end

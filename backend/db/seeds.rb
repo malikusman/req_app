@@ -107,6 +107,7 @@ company.update!(settings: company.settings.merge(
   "discovery_multi_agent_enabled" => true,
   "discovery_memory_retrieval_enabled" => true,
   "discovery_media_indexing_enabled" => true,
+  "discovery_multimodal_enabled" => true,
   "discovery_question_target" => 12
 ))
 
@@ -160,6 +161,7 @@ beta.update!(settings: beta.settings.merge(
   "discovery_multi_agent_enabled" => true,
   "discovery_memory_retrieval_enabled" => true,
   "discovery_media_indexing_enabled" => true,
+  "discovery_multimodal_enabled" => true,
   "discovery_question_target" => 12
 ))
 

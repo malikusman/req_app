@@ -52,12 +52,19 @@ module Multimodal
 
       mark_multimodal_on_conversation!
       IndexMediaService.call(media_attachment: @attachment.reload)
+      Multimodal::MediaObservability.record!(
+        event: "processed",
+        attachment: @attachment,
+        duration_ms: duration_ms,
+        confidence: @attachment.confidence
+      )
       ContinueDiscoveryAfterMediaJob.perform_later(@attachment.id)
       body
     rescue StandardError => e
       @attachment.update!(status: "failed", processing_error: e.message)
       @message.update!(processing_status: "failed")
       Rails.logger.error("[Multimodal] failed attachment=#{@attachment.id}: #{e.message}")
+      Multimodal::MediaObservability.record!(event: "failed", attachment: @attachment, error: e.message)
       FailureNotifier.call(attachment: @attachment.reload)
       nil
     end
