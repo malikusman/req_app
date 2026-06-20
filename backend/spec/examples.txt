@@ -32,6 +32,7 @@ example_id                                                         | status | ru
 ./spec/requests/api/v1/platform/conversations_spec.rb[1:1:2]       | passed | 0.85337 seconds |
 ./spec/requests/api/v1/platform/conversations_spec.rb[1:2:1]       | passed | 0.098 seconds   |
 ./spec/requests/api/v1/platform/conversations_spec.rb[1:2:2]       | passed | 0.09941 seconds |
+./spec/requests/api/v1/platform/impersonations_spec.rb[1:1:1]      | passed | 0.81658 seconds |
 ./spec/requests/api/v1/platform/intelligence_spec.rb[1:1:1]        | passed | 0.09485 seconds |
 ./spec/requests/api/v1/platform/intelligence_spec.rb[1:2:1]        | passed | 0.06963 seconds |
 ./spec/requests/api/v1/platform/intelligence_spec.rb[1:3:1]        | passed | 0.06468 seconds |

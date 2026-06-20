@@ -2,11 +2,17 @@
 
 require_relative "../demo_seeder"
 require_relative "../discovery_simulator"
+require_relative "../full_cycle_simulator"
 
 namespace :demo do
   desc "Dry-run the full discovery journey (onboarding → profiling → multi-agent interview → memory). PERSONA=finance_ic|hr_manager SLUG=acme-corp CLEANUP=1"
   task simulate: :environment do
     DiscoverySimulator.call
+  end
+
+  desc "Full product cycle: discovery + nudge + intelligence + report/PDF + reviewer follow-up. PERSONA=finance_ic|hr_manager SLUG=acme-corp CLEANUP=1"
+  task full_cycle: :environment do
+    FullCycleSimulator.call
   end
 
   desc "Seed full Acme Corp demo (employees, conversations, intelligence, report). SLUG=acme-corp"

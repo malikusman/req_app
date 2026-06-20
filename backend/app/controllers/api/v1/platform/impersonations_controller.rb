@@ -6,7 +6,7 @@ module Api
       class ImpersonationsController < BaseController
         def create
           company = ::Company.find(params[:company_id])
-          result = Platform::ImpersonationService.start!(
+          result = ::Platform::ImpersonationService.start!(
             platform_user: current_platform_user,
             company: company,
             request: request

@@ -86,6 +86,8 @@ class DiscoverySimulator
     new(slug: slug, persona: persona, cleanup: cleanup).call
   end
 
+  attr_reader :checks, :employee, :company
+
   def initialize(slug:, persona:, cleanup:)
     @company = Company.find_by!(slug: slug)
     @persona_key = persona
@@ -97,19 +99,44 @@ class DiscoverySimulator
 
   def call
     banner "Discovery dry run — #{@persona[:name]} (#{@persona_key}) @ #{@company.name}"
-    verify_preconditions!
+    execute_stages!
+    print_report
+  ensure
+    cleanup! if @cleanup
+  end
 
+  def execute_stages!
+    verify_preconditions!
     reset_simulated_employee!
     create_employee!
-
     run_onboarding!
     run_profiling!
     run_discovery!
     run_memory_promotion!
+    self
+  end
 
-    print_report
-  ensure
-    cleanup! if @cleanup
+  def conversation
+    @conversation ||= @employee.conversations.order(:created_at).last
+  end
+
+  def self.purge_employee!(employee, company: nil)
+    company ||= employee.company
+    CompanyMemoryFact.where(employee_id: employee.id).delete_all
+    ConversationInsight.where(employee_id: employee.id).delete_all
+    ReviewerInfoRequest.where(employee_id: employee.id).find_each do |request|
+      request.reviewer_info_replies.delete_all
+    end
+    ReviewerInfoRequest.where(employee_id: employee.id).delete_all
+    EmployeeNudge.where(employee_id: employee.id).delete_all
+    employee.conversations.each { |c| c.messages.delete_all }
+    if employee.display_name.present?
+      Notification.where(company_id: company.id).where("body ILIKE ?", "%#{employee.display_name}%").delete_all
+    end
+    employee.conversations.delete_all
+    EmployeeAccessCode.where(employee_id: employee.id).delete_all
+    AccessCodeVerificationAttempt.where(employee_id: employee.id).delete_all
+    employee.delete
   end
 
   private
@@ -258,10 +285,6 @@ class DiscoverySimulator
     simulate(answer)
   end
 
-  def conversation
-    @conversation ||= @employee.conversations.order(:created_at).last
-  end
-
   def blackboard
     conversation.reload.blackboard
   end
@@ -304,15 +327,7 @@ class DiscoverySimulator
   end
 
   def purge_employee!(employee)
-    CompanyMemoryFact.where(employee_id: employee.id).delete_all
-    ConversationInsight.where(employee_id: employee.id).delete_all
-    employee.conversations.each { |c| c.messages.delete_all }
-    Notification.where(company_id: @company.id).where("body ILIKE ?", "%#{employee.display_name}%").delete_all if employee.display_name.present?
-    employee.conversations.delete_all
-    EmployeeAccessCode.where(employee_id: employee.id).delete_all
-    AccessCodeVerificationAttempt.where(employee_id: employee.id).delete_all
-    EmployeeNudge.where(employee_id: employee.id).delete_all if defined?(EmployeeNudge)
-    employee.delete
+    self.class.purge_employee!(employee, company: @company)
   end
 
   # ---------------------------------------------------------------- output

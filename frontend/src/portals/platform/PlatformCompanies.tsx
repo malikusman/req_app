@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import { api, type Company } from '../../lib/api';
 import { useAuth, usePlatformToken, startImpersonation } from '../../lib/auth';
@@ -70,14 +71,17 @@ export function PlatformCompanies() {
     setError('');
     try {
       const res = await api.impersonateCompany(token, companyId);
-      startImpersonation(setSession, session, {
-        token: res.token,
-        user: { ...res.user, onboarding_completed_at: null },
-        company: {
-          id: res.company.id,
-          name: res.company.display_name || res.company.name,
-          portal_onboarding_completed_at: res.company.portal_onboarding_completed_at,
-        },
+      // flushSync so CompanyGuard sees the company session before navigate runs
+      flushSync(() => {
+        startImpersonation(setSession, session, {
+          token: res.token,
+          user: { ...res.user, onboarding_completed_at: null },
+          company: {
+            id: res.company.id,
+            name: res.company.display_name || res.company.name,
+            portal_onboarding_completed_at: res.company.portal_onboarding_completed_at,
+          },
+        });
       });
       navigate('/company/dashboard');
     } catch (err) {
