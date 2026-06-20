@@ -20,9 +20,11 @@ module Multimodal
       when text?
         File.read(@file_path)
       else
-        File.read(@file_path, encoding: "UTF-8")
-      rescue StandardError
-        ""
+        begin
+          File.read(@file_path, encoding: "UTF-8")
+        rescue StandardError
+          ""
+        end
       end
     end
 
