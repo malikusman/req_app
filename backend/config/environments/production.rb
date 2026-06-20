@@ -46,6 +46,8 @@ Rails.application.configure do
     host = app_host.to_s.sub(%r{\Ahttps?://}, "").split("/").first
     config.hosts << host if host.present?
   end
+  config.hosts << "localhost" << "rails"
+  config.host_authorization = { exclude: ->(request) { request.path == "/up" } }
 
   # Log to STDOUT by default
   config.logger = ActiveSupport::Logger.new(STDOUT)
