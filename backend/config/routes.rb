@@ -39,6 +39,7 @@ Rails.application.routes.draw do
         get "companies/:company_id/reports", to: "reports#index"
         get "companies/:company_id/conversations", to: "conversations#index"
         get "companies/:company_id/conversations/:id", to: "conversations#show"
+        get "companies/:company_id/media_attachments/:id/download", to: "media_attachments#download"
         get "companies/:company_id/intelligence/snapshot", to: "intelligence#snapshot"
         get "companies/:company_id/intelligence/signals", to: "intelligence#signals"
         get "companies/:company_id/intelligence/patterns", to: "intelligence#patterns"
@@ -84,6 +85,7 @@ Rails.application.routes.draw do
           post "employees/:employee_id/followup", to: "info_requests#create"
           get "employees/:employee_id/followup", to: "info_requests#thread"
           resources :chat_messages, only: %i[index create], controller: "chat_messages"
+          get "media_attachments/:id/download", to: "media_attachments#download"
         end
       end
 
@@ -132,6 +134,8 @@ Rails.application.routes.draw do
           end
         end
         resources :conversations, only: %i[index show]
+        get "media_attachments", to: "media_attachments#index"
+        get "media_attachments/:id/download", to: "media_attachments#download"
       end
 
       namespace :public do

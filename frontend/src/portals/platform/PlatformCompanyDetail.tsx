@@ -6,6 +6,7 @@ import {
   type Company,
   type CompanyConversation,
   type CompanyConversationMessage,
+  type MediaAttachment,
   type CompanyPattern,
   type CompanySignal,
   type IntelligenceSnapshot,
@@ -31,6 +32,7 @@ import {
 } from '../../components/ui';
 import { PlatformCompanyReviewers } from './PlatformCompanyReviewers';
 import { DiscoveryAgentPanel } from './DiscoveryAgentPanel';
+import { ConversationMediaCard, ConversationMediaList } from '../../components/ConversationMediaCard';
 
 export function PlatformCompanyDetail() {
   const { id } = useParams();
@@ -41,6 +43,7 @@ export function PlatformCompanyDetail() {
   const [conversations, setConversations] = useState<CompanyConversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<CompanyConversation | null>(null);
   const [conversationMessages, setConversationMessages] = useState<CompanyConversationMessage[]>([]);
+  const [conversationMedia, setConversationMedia] = useState<MediaAttachment[]>([]);
   const [conversationsLoading, setConversationsLoading] = useState(false);
   const [conversationDetailLoading, setConversationDetailLoading] = useState(false);
   const [conversationsError, setConversationsError] = useState('');
@@ -102,6 +105,7 @@ export function PlatformCompanyDetail() {
     setConversationsError('');
     setSelectedConversation(null);
     setConversationMessages([]);
+    setConversationMedia([]);
     api
       .platformCompanyConversations(token, companyId)
       .then((d) => setConversations(d.conversations))
@@ -148,11 +152,13 @@ export function PlatformCompanyDetail() {
     setSelectedConversation(conversation);
     setConversationDetailLoading(true);
     setConversationMessages([]);
+    setConversationMedia([]);
     api
       .platformCompanyConversation(token, companyId, conversation.id)
       .then((d) => {
         setSelectedConversation(d.conversation);
         setConversationMessages(d.messages);
+        setConversationMedia(d.media_attachments || []);
       })
       .catch((err) => {
         setConversationsError(err instanceof Error ? err.message : 'Failed to load transcript');
@@ -165,6 +171,10 @@ export function PlatformCompanyDetail() {
     direction: m.direction as 'inbound' | 'outbound',
     body: m.body,
     timestamp: m.created_at,
+    meta:
+      token && m.media_attachment ? (
+        <ConversationMediaCard attachment={m.media_attachment} token={token} compact />
+      ) : undefined,
   }));
 
   const approveReport = async (reportId: number) => {
@@ -305,6 +315,17 @@ export function PlatformCompanyDetail() {
                 )}
               </Card>
 
+              <div className="space-y-4">
+                {token && conversationMedia.length > 0 && (
+                  <Card title="Shared media">
+                    {conversationDetailLoading ? (
+                      <Skeleton variant="card" />
+                    ) : (
+                      <ConversationMediaList attachments={conversationMedia} token={token} />
+                    )}
+                  </Card>
+                )}
+
               <Card title="Discovery agents">
                 {conversationDetailLoading ? (
                   <Skeleton variant="card" />
@@ -318,6 +339,7 @@ export function PlatformCompanyDetail() {
                   <DiscoveryAgentPanel state={selectedConversation.discovery_state} />
                 )}
               </Card>
+              </div>
             </div>
           )}
         </div>

@@ -24,6 +24,17 @@ RSpec.describe "Api::V1::Company::Conversations", type: :request do
 
   describe "GET /api/v1/company/conversations/:id" do
     it "returns conversation messages excluding reviewer followups" do
+      media_message = create(:message, conversation: conversation, direction: "inbound", message_type: "image", body: "Photo")
+      create(:media_attachment,
+             message: media_message,
+             company: company,
+             employee: employee,
+             conversation: conversation,
+             attachment_type: "image",
+             status: "ready",
+             storage_key: "media/test.jpg",
+             caption: "Screen")
+
       get "/api/v1/company/conversations/#{conversation.id}", headers: headers
 
       expect(response).to have_http_status(:ok)
@@ -31,6 +42,9 @@ RSpec.describe "Api::V1::Company::Conversations", type: :request do
       bodies = body["messages"].map { |m| m["body"] }
       expect(bodies).to include("Discovery reply")
       expect(bodies).not_to include("Hidden followup")
+      expect(body["media_attachments"].length).to eq(1)
+      media_msg = body["messages"].find { |m| m["message_type"] == "image" }
+      expect(media_msg["media_attachment"]["caption"]).to eq("Screen")
     end
   end
 end

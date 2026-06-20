@@ -118,11 +118,24 @@ export const api = {
     request<{ conversations: CompanyConversation[] }>('/api/v1/company/conversations', {}, token),
 
   companyConversation: (token: string, conversationId: number) =>
-    request<{ conversation: CompanyConversation; messages: CompanyConversationMessage[] }>(
+    request<{ conversation: CompanyConversation; messages: CompanyConversationMessage[]; media_attachments: MediaAttachment[] }>(
       `/api/v1/company/conversations/${conversationId}`,
       {},
       token
     ),
+
+  companyMediaAttachments: (token: string) =>
+    request<{ media_attachments: MediaAttachment[] }>('/api/v1/company/media_attachments', {}, token),
+
+  fetchMediaBlob: async (token: string, downloadUrl: string) => {
+    const url = downloadUrl.startsWith('http') ? downloadUrl : `${API_URL}${downloadUrl}`;
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error('Media download failed');
+    const blob = await res.blob();
+    return URL.createObjectURL(blob);
+  },
 
   platformPlaybooks: (token: string) =>
     request<{ playbooks: Playbook[] }>('/api/v1/platform/playbooks', {}, token),
@@ -185,7 +198,7 @@ export const api = {
     ),
 
   platformCompanyConversation: (token: string, companyId: number, conversationId: number) =>
-    request<{ conversation: CompanyConversation; messages: CompanyConversationMessage[] }>(
+    request<{ conversation: CompanyConversation; messages: CompanyConversationMessage[]; media_attachments: MediaAttachment[] }>(
       `/api/v1/platform/companies/${companyId}/conversations/${conversationId}`,
       {},
       token
@@ -477,7 +490,11 @@ export const api = {
     request<{ ok: boolean; unread_count: number }>('/api/v1/reviewer/notifications/mark_all_read', { method: 'POST' }, token),
 
   reviewerConversation: (token: string, companyId: number, conversationId: number) =>
-    request<{ conversation: { id: number; employee_id: number; status: string }; messages: { id: number; direction: string; body: string; reviewer_followup: boolean; created_at: string }[] }>(
+    request<{
+      conversation: { id: number; employee_id: number; status: string };
+      messages: CompanyConversationMessage[];
+      media_attachments: MediaAttachment[];
+    }>(
       `/api/v1/reviewer/companies/${companyId}/conversations/${conversationId}`,
       {},
       token
@@ -922,7 +939,30 @@ export interface CompanyConversationMessage {
   message_type?: string;
   body: string;
   is_discovery_question?: boolean;
+  reviewer_followup?: boolean;
+  media_attachment?: MediaAttachment;
   created_at: string;
+}
+
+export interface MediaAttachment {
+  id: number;
+  message_id: number;
+  attachment_type: 'audio' | 'image' | 'document';
+  mime_type: string | null;
+  status: string;
+  caption: string | null;
+  confidence: number | null;
+  duration_ms: number | null;
+  language: string | null;
+  structured_insights: Record<string, unknown>;
+  processing_error: string | null;
+  document_id: number | null;
+  filename: string;
+  download_url: string | null;
+  created_at: string;
+  updated_at: string;
+  employee_name?: string | null;
+  conversation_id?: number;
 }
 
 export interface PlatformAuditLogEntry {

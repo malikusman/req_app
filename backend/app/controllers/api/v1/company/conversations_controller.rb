@@ -4,6 +4,8 @@ module Api
   module V1
     module Company
       class ConversationsController < BaseController
+        include Api::V1::MediaAttachmentJson
+
         def index
           conversations = policy_scope(::Conversation).includes(:employee).order(updated_at: :desc)
           render json: {
@@ -14,11 +16,12 @@ module Api
         def show
           conversation = policy_scope(::Conversation).find(params[:id])
           authorize conversation, :show?
-          messages = conversation.messages.discovery_only.order(:created_at)
+          messages = conversation.messages.discovery_only.includes(:media_attachment).order(:created_at)
 
           render json: {
             conversation: conversation_detail(conversation),
-            messages: messages.map { |m| message_json(m) }
+            messages: messages.map { |m| message_json(m) },
+            media_attachments: media_attachments_json(conversation, namespace: :company)
           }
         end
 
@@ -45,7 +48,7 @@ module Api
         end
 
         def message_json(message)
-          {
+          json = {
             id: message.id,
             direction: message.direction,
             message_type: message.message_type,
@@ -53,6 +56,10 @@ module Api
             is_discovery_question: message.is_discovery_question,
             created_at: message.created_at
           }
+          if message.media_attachment
+            json[:media_attachment] = media_attachment_json(message.media_attachment, namespace: :company)
+          end
+          json
         end
       end
     end

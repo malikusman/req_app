@@ -1,14 +1,16 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useParams } from 'react-router-dom';
-import { api } from '../../lib/api';
+import { api, type MediaAttachment } from '../../lib/api';
 import { useReviewerToken } from '../../lib/auth';
 import { ChatMessageList, type ChatMessageItem } from '../../components/motion';
+import { ConversationMediaCard, ConversationMediaList } from '../../components/ConversationMediaCard';
 import { PageHeader, Card, Textarea, Button, Skeleton } from '../../components/ui';
 
 export function ReviewerConversationDetail() {
   const { companyId, conversationId } = useParams();
   const token = useReviewerToken();
   const [messages, setMessages] = useState<ChatMessageItem[]>([]);
+  const [mediaAttachments, setMediaAttachments] = useState<MediaAttachment[]>([]);
   const [employeeId, setEmployeeId] = useState<number | null>(null);
   const [followupBody, setFollowupBody] = useState('');
   const [loading, setLoading] = useState(true);
@@ -24,8 +26,13 @@ export function ReviewerConversationDetail() {
           direction: m.direction === 'outbound' ? 'outbound' : 'inbound',
           body: m.reviewer_followup ? `[Follow-up] ${m.body}` : m.body,
           timestamp: m.created_at,
+          meta:
+            m.media_attachment && token ? (
+              <ConversationMediaCard attachment={m.media_attachment} token={token} compact />
+            ) : undefined,
         }))
       );
+      setMediaAttachments(d.media_attachments || []);
       setEmployeeId(d.conversation.employee_id ?? null);
     });
   };
@@ -73,6 +80,12 @@ export function ReviewerConversationDetail() {
       />
 
       {error && <p className="text-sm text-status-error">{error}</p>}
+
+      {token && mediaAttachments.length > 0 && (
+        <Card title="Shared media">
+          <ConversationMediaList attachments={mediaAttachments} token={token} />
+        </Card>
+      )}
 
       <Card>
         <ChatMessageList messages={messages} className="max-h-[480px]" showTyping={sending} />

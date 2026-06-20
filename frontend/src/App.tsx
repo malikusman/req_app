@@ -25,6 +25,7 @@ import { CompanyConversationDetail } from './portals/company/CompanyConversation
 import { CompanySignals } from './portals/company/CompanySignals';
 import { CompanyPatterns } from './portals/company/CompanyPatterns';
 import { CompanyDocuments } from './portals/company/CompanyDocuments';
+import { CompanyMediaLibrary } from './portals/company/CompanyMediaLibrary';
 import { CompanyTimeline } from './portals/company/CompanyTimeline';
 import { CompanyDiscoveryQuestions } from './portals/company/CompanyDiscoveryQuestions';
 import { CompanyRecommendations } from './portals/company/CompanyRecommendations';
@@ -146,6 +147,7 @@ export default function App() {
               <Route path="intelligence/signals" element={<CompanySignals />} />
               <Route path="intelligence/patterns" element={<CompanyPatterns />} />
               <Route path="documents" element={<CompanyDocuments />} />
+              <Route path="media" element={<CompanyMediaLibrary />} />
               <Route path="intelligence/timeline" element={<CompanyTimeline />} />
               <Route path="discovery-questions" element={<CompanyDiscoveryQuestions />} />
               <Route path="recommendations" element={<CompanyRecommendations />} />

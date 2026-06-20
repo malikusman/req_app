@@ -4,6 +4,8 @@ module Api
   module V1
     module Platform
       class ConversationsController < BaseController
+        include Api::V1::MediaAttachmentJson
+
         def index
           company = ::Company.find(params[:company_id])
           conversations = policy_scope(::Conversation)
@@ -24,11 +26,14 @@ module Api
             return render json: { error: "Not found" }, status: :not_found
           end
 
-          messages = conversation.messages.discovery_only.order(:created_at)
+          messages = conversation.messages.discovery_only.includes(:media_attachment).order(:created_at)
 
           render json: {
             conversation: conversation_detail(conversation),
-            messages: messages.map { |m| message_json(m) }
+            messages: messages.map { |m| message_json(m) },
+            media_attachments: media_attachments_json(
+              conversation, namespace: :platform, company_id: conversation.company_id
+            )
           }
         end
 
@@ -71,7 +76,7 @@ module Api
         end
 
         def message_json(message)
-          {
+          json = {
             id: message.id,
             direction: message.direction,
             message_type: message.message_type,
@@ -79,6 +84,14 @@ module Api
             is_discovery_question: message.is_discovery_question,
             created_at: message.created_at
           }
+          if message.media_attachment
+            json[:media_attachment] = media_attachment_json(
+              message.media_attachment,
+              namespace: :platform,
+              company_id: params[:company_id]
+            )
+          end
+          json
         end
       end
     end

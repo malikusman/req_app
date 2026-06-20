@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ChatMessageList, type ChatMessageItem } from '../../components/motion';
-import { api, type CompanyConversation, type CompanyConversationMessage } from '../../lib/api';
+import { ConversationMediaCard, ConversationMediaList } from '../../components/ConversationMediaCard';
+import { api, type CompanyConversation, type CompanyConversationMessage, type MediaAttachment } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
 import { PageHeader, Card, Badge, EmptyState, Skeleton } from '../../components/ui';
 
@@ -10,6 +11,7 @@ export function CompanyConversationDetail() {
   const token = useCompanyToken();
   const [conversation, setConversation] = useState<CompanyConversation | null>(null);
   const [messages, setMessages] = useState<CompanyConversationMessage[]>([]);
+  const [mediaAttachments, setMediaAttachments] = useState<MediaAttachment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -21,6 +23,7 @@ export function CompanyConversationDetail() {
       .then((d) => {
         setConversation(d.conversation);
         setMessages(d.messages);
+        setMediaAttachments(d.media_attachments || []);
       })
       .catch((err) => {
         setConversation(null);
@@ -52,6 +55,10 @@ export function CompanyConversationDetail() {
     direction: m.direction as 'inbound' | 'outbound',
     body: m.body,
     timestamp: m.created_at,
+    meta:
+      token && m.media_attachment ? (
+        <ConversationMediaCard attachment={m.media_attachment} token={token} compact />
+      ) : undefined,
   }));
 
   const employeeName = conversation.employee_name || `Employee #${conversation.employee_id}`;
@@ -73,30 +80,40 @@ export function CompanyConversationDetail() {
       />
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <Card title="Details" className="lg:col-span-1">
-          <dl className="space-y-3 text-sm">
-            <div>
-              <dt className="text-text-secondary">Status</dt>
-              <dd>
-                <Badge variant={conversation.status === 'completed' ? 'success' : 'info'}>
-                  {conversation.status}
-                </Badge>
-              </dd>
-            </div>
-            <div>
-              <dt className="text-text-secondary">Questions</dt>
-              <dd className="text-text-primary">{conversation.question_count ?? 0}</dd>
-            </div>
-            <div>
-              <dt className="text-text-secondary">Last activity</dt>
-              <dd className="text-text-primary">
-                {conversation.last_activity_at
-                  ? new Date(conversation.last_activity_at).toLocaleString()
-                  : '—'}
-              </dd>
-            </div>
-          </dl>
-        </Card>
+        <div className="space-y-6 lg:col-span-1">
+          <Card title="Details">
+            <dl className="space-y-3 text-sm">
+              <div>
+                <dt className="text-text-secondary">Status</dt>
+                <dd>
+                  <Badge variant={conversation.status === 'completed' ? 'success' : 'info'}>
+                    {conversation.status}
+                  </Badge>
+                </dd>
+              </div>
+              <div>
+                <dt className="text-text-secondary">Questions</dt>
+                <dd className="text-text-primary">{conversation.question_count ?? 0}</dd>
+              </div>
+              <div>
+                <dt className="text-text-secondary">Last activity</dt>
+                <dd className="text-text-primary">
+                  {conversation.last_activity_at
+                    ? new Date(conversation.last_activity_at).toLocaleString()
+                    : '—'}
+                </dd>
+              </div>
+            </dl>
+          </Card>
+
+          <Card title="Shared media">
+            {token ? (
+              <ConversationMediaList attachments={mediaAttachments} token={token} />
+            ) : (
+              <EmptyState title="Sign in required" description="Media previews require an active session." />
+            )}
+          </Card>
+        </div>
 
         <Card title="Transcript" className="lg:col-span-2">
           {chatMessages.length === 0 ? (
