@@ -37,12 +37,15 @@ Rails.application.configure do
   # config.action_cable.url = "wss://example.com/cable"
   # config.action_cable.allowed_request_origins = [ "http://example.com", /http:\/\/example.*/ ]
 
-  # Assume all access to the app is happening through a SSL-terminating reverse proxy.
-  # Can be used together with config.force_ssl for Strict-Transport-Security and secure cookies.
-  # config.assume_ssl = true
+  # Cloudflare (or Caddy) terminates TLS; origin receives HTTP with X-Forwarded-Proto.
+  config.assume_ssl = true
+  config.force_ssl = ENV.fetch("FORCE_SSL", "true") == "true"
+  config.ssl_options = { redirect: { exclude: ->(request) { request.path == "/up" } } }
 
-  # Force all access to the app over SSL, use Strict-Transport-Security, and use secure cookies.
-  config.force_ssl = true
+  if (app_host = ENV["APP_HOST"].presence)
+    host = app_host.to_s.sub(%r{\Ahttps?://}, "").split("/").first
+    config.hosts << host if host.present?
+  end
 
   # Log to STDOUT by default
   config.logger = ActiveSupport::Logger.new(STDOUT)
@@ -65,6 +68,23 @@ Rails.application.configure do
   # config.active_job.queue_name_prefix = "backend_production"
 
   config.action_mailer.perform_caching = false
+
+  if ENV["SMTP_ADDRESS"].present?
+    config.action_mailer.delivery_method = :smtp
+    config.action_mailer.smtp_settings = {
+      address: ENV["SMTP_ADDRESS"],
+      port: ENV.fetch("SMTP_PORT", 587).to_i,
+      user_name: ENV["SMTP_USERNAME"].presence,
+      password: ENV["SMTP_PASSWORD"].presence,
+      authentication: :plain,
+      enable_starttls_auto: true
+    }.compact
+  end
+
+  if (app_host = ENV["APP_HOST"].presence)
+    uri = URI.parse(app_host)
+    config.action_mailer.default_url_options = { host: uri.host, protocol: uri.scheme }
+  end
 
   # Ignore bad email addresses and do not raise email delivery errors.
   # Set this to true and configure the email server for immediate delivery to raise delivery errors.

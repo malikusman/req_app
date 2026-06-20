@@ -1,0 +1,176 @@
+# Production stack — single host, Cloudflare terminates public HTTPS.
+# Caddy listens on :80; set Cloudflare SSL mode to "Full" or "Flexible".
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-req_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}
+      POSTGRES_DB: ${POSTGRES_DB:-req_app_production}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-req_app} -d ${POSTGRES_DB:-req_app_production}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    command: >
+      postgres
+      -c shared_buffers=256MB
+      -c max_connections=100
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+
+  minio:
+    image: minio/minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?MINIO_SECRET_KEY required}
+    volumes:
+      - minio_data:/data
+
+  minio-init:
+    image: minio/mc
+    depends_on:
+      minio:
+        condition: service_started
+    entrypoint: >
+      /bin/sh -c "
+      sleep 3;
+      mc alias set local http://minio:9000 ${MINIO_ACCESS_KEY:-minioadmin} ${MINIO_SECRET_KEY};
+      mc mb local/${MINIO_BUCKET:-req-app} --ignore-existing;
+      exit 0;
+      "
+
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    restart: unless-stopped
+
+  langgraph:
+    build:
+      context: ./agent
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      RAILS_INTERNAL_URL: http://rails:3000
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:?INTERNAL_API_TOKEN required}
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_started
+
+  rails:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: ["./bin/rails", "server", "-b", "0.0.0.0"]
+    environment: &app_env
+      RAILS_ENV: production
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE:?SECRET_KEY_BASE required}
+      DATABASE_URL: postgres://${POSTGRES_USER:-req_app}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-req_app_production}
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET required}
+      APP_HOST: ${APP_HOST:?APP_HOST required}
+      API_PUBLIC_HOST: ${API_PUBLIC_HOST:?API_PUBLIC_HOST required}
+      LANGGRAPH_URL: http://langgraph:8000
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET: ${MINIO_BUCKET:-req-app}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GOTENBERG_URL: http://gotenberg:3000
+      META_WHATSAPP_TOKEN: ${META_WHATSAPP_TOKEN:-}
+      META_PHONE_NUMBER_ID: ${META_PHONE_NUMBER_ID:-}
+      META_APP_SECRET: ${META_APP_SECRET:-}
+      META_VERIFY_TOKEN: ${META_VERIFY_TOKEN:-}
+      META_API_VERSION: ${META_API_VERSION:-v21.0}
+      META_WHATSAPP_DISPLAY_NUMBER: ${META_WHATSAPP_DISPLAY_NUMBER:-}
+      META_TEMPLATE_EMPLOYEE_INVITE: ${META_TEMPLATE_EMPLOYEE_INVITE:-employee_discovery_invite}
+      META_TEMPLATE_EMPLOYEE_NUDGE: ${META_TEMPLATE_EMPLOYEE_NUDGE:-employee_discovery_nudge}
+      META_TEMPLATE_REVIEWER_FOLLOWUP: ${META_TEMPLATE_REVIEWER_FOLLOWUP:-reviewer_followup_reopen}
+      SMTP_ADDRESS: ${SMTP_ADDRESS:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      FROM_EMAIL: ${FROM_EMAIL:-notifications@reqapp.local}
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-1}
+      RAILS_LOG_LEVEL: ${RAILS_LOG_LEVEL:-info}
+      FORCE_SSL: ${FORCE_SSL:-true}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      minio:
+        condition: service_started
+      gotenberg:
+        condition: service_started
+      langgraph:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/up || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  sidekiq:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: ["bundle", "exec", "sidekiq", "-C", "config/sidekiq.yml"]
+    environment:
+      <<: *app_env
+    depends_on:
+      rails:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      minio:
+        condition: service_started
+      gotenberg:
+        condition: service_started
+      langgraph:
+        condition: service_started
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ""
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      rails:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+
+volumes:
+  pg_data:
+  redis_data:
+  minio_data:

@@ -5,6 +5,7 @@ vendor/bundle/
 # Env
 .env
 .env.local
+.env.production
 backend/.env
 
 # Rails

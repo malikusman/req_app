@@ -1,0 +1,13 @@
+# Cloudflare terminates HTTPS for visitors. Origin listens on HTTP :80.
+# Set Cloudflare SSL/TLS mode to "Full" (recommended) or "Flexible".
+
+:80 {
+	@api path /api/*
+	handle @api {
+		reverse_proxy rails:3000
+	}
+
+	handle {
+		reverse_proxy frontend:80
+	}
+}
