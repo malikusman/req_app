@@ -11,6 +11,8 @@ module Intelligence
       { type: "communication", pattern: /email|meeting|handoff|coordinate/i, label: "Coordination overhead" }
     ].freeze
 
+    MAX_EVIDENCE = 10
+
     def self.call(company:)
       new(company: company).call
     end
@@ -21,26 +23,31 @@ module Intelligence
 
     def call
       texts = gather_texts
-      return [] if texts.blank?
+      multimodal = gather_multimodal_sources
+      return [] if texts.blank? && multimodal.blank?
 
       detected = []
       RULES.each do |rule|
-        hits = texts.count { |t| t.match?(rule[:pattern]) }
-        next if hits.zero?
+        text_hits = texts.count { |t| t.match?(rule[:pattern]) }
+        evidence = multimodal_evidence_for(rule, multimodal)
+        total_hits = text_hits + evidence.size
+        next if total_hits.zero?
 
-        strength = [[hits / [texts.size.to_f, 1].max, 0.35].max, 1.0].min.round(2)
+        strength = [[total_hits / [texts.size.to_f + multimodal.size, 1].max, 0.35].max, 1.0].min.round(2)
         detected << {
           label: rule[:label],
           signal_type: rule[:type],
           strength: strength,
-          evidence_count: hits
+          evidence_count: total_hits,
+          multimodal_evidence: evidence
         }
       end
 
       insight_topics = ConversationInsight.where(company_id: @company.id).pluck(:structured_data)
       insight_topics.each do |data|
         (data["topics"] || []).each do |topic|
-          detected << infer_from_topic(topic) if topic.present?
+          inferred = infer_from_topic(topic)
+          detected << inferred if inferred.present?
         end
       end
 
@@ -61,9 +68,56 @@ module Intelligence
       (insight_texts + doc_texts + fact_texts + message_texts).compact
     end
 
+    def gather_multimodal_sources
+      MediaAttachment.where(company_id: @company.id, status: "ready").includes(:employee).filter_map do |attachment|
+        excerpts = multimodal_excerpts(attachment)
+        matching_types = RULES.filter_map do |rule|
+          rule[:type] if excerpts.any? { |text| text.match?(rule[:pattern]) }
+        end
+        next if matching_types.empty?
+
+        {
+          attachment: attachment,
+          excerpts: excerpts,
+          matching_types: matching_types
+        }
+      end
+    end
+
+    def multimodal_excerpts(attachment)
+      insights = attachment.structured_insights.presence || {}
+      [
+        attachment.caption,
+        attachment.extracted_text,
+        insights["summary"],
+        *Array(insights["pain_points"]),
+        *Array(insights["friction_points"]),
+        *Array(insights["tools_visible"]),
+        *Array(insights["process_steps"]),
+        *Array(insights["workflows"])
+      ].compact.map(&:to_s).reject(&:blank?)
+    end
+
+    def multimodal_evidence_for(rule, multimodal)
+      multimodal.filter_map do |source|
+        next unless source[:matching_types].include?(rule[:type])
+
+        attachment = source[:attachment]
+        excerpt = source[:excerpts].find { |text| text.match?(rule[:pattern]) } || source[:excerpts].first
+        {
+          source: "media_attachment",
+          id: attachment.id,
+          attachment_type: attachment.attachment_type,
+          conversation_id: attachment.conversation_id,
+          excerpt: excerpt.to_s.truncate(200),
+          confidence: attachment.confidence
+        }
+      end
+    end
+
     def infer_from_topic(topic)
       RULES.find { |r| topic.match?(r[:pattern]) }&.then do |rule|
-        { label: rule[:label], signal_type: rule[:type], strength: 0.45, evidence_count: 1 }
+        { label: rule[:label], signal_type: rule[:type], strength: 0.45, evidence_count: 1, multimodal_evidence: [] }
       end
     end
   end

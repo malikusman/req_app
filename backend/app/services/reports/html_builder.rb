@@ -42,7 +42,7 @@ module Reports
           #{delta_section(delta)}
 
           <h2>Executive summary</h2>
-          <p>This report synthesizes WhatsApp discovery interviews and uploaded documents into operational pain points, cross-team patterns, and actionable recommendations.</p>
+          <p>This report synthesizes WhatsApp discovery interviews, optional voice notes, screenshots, documents, and uploaded files into operational pain points, cross-team patterns, and actionable recommendations.</p>
           <p>Participation: #{@snapshot.dig('participation', 'completed')} of #{@snapshot.dig('participation', 'invited')} employees completed interviews.</p>
 
           <h2>Top pain points</h2>
@@ -54,7 +54,10 @@ module Reports
           <h2>Recommendations</h2>
           #{recommendations_section}
 
-          <p class="meta" style="margin-top: 3rem;">Confidential — prepared for authorized stakeholders. Employee responses are summarized; raw chat logs are not included.</p>
+          <h2>Supporting media</h2>
+          #{supporting_media_section}
+
+          <p class="meta" style="margin-top: 3rem;">Confidential — prepared for authorized stakeholders. Employee responses and media are summarized; raw chat logs and original attachments are not included.</p>
         </body>
         </html>
       HTML
@@ -79,11 +82,31 @@ module Reports
 
       rows = signals.map do |s|
         pct = (s["strength"].to_f * 100).round
-        "<tr><td>#{ERB::Util.html_escape(s['label'])}</td><td>#{pct}%</td><td>#{ERB::Util.html_escape((s['departments'] || []).join(', '))}</td></tr>"
+        evidence = evidence_summary(s)
+        "<tr><td>#{ERB::Util.html_escape(s['label'])}</td><td>#{pct}%</td><td>#{ERB::Util.html_escape((s['departments'] || []).join(', '))}</td><td>#{ERB::Util.html_escape(evidence)}</td></tr>"
       end.join
 
-      "<table><thead><tr><th>Signal</th><th>Strength</th><th>Departments</th></tr></thead><tbody>#{rows}</tbody></table>"
+      "<table><thead><tr><th>Signal</th><th>Strength</th><th>Departments</th><th>Evidence</th></tr></thead><tbody>#{rows}</tbody></table>"
     end
+
+    def evidence_summary(signal)
+      count = signal["evidence_count"].to_i
+      media = Array(signal["multimodal_evidence"])
+      parts = ["#{count} mentions"]
+      parts << "#{media.size} media item#{'s' unless media.size == 1}" if media.any?
+      parts.join("; ")
+    end
+
+    def supporting_media_section
+      media = @snapshot["supporting_media"] || []
+      return "<p><em>No supporting media captured yet.</em></p>" if media.empty?
+
+      rows = media.map do |item|
+        summary = item["summary"].presence || item["caption"].presence || "Shared #{item['attachment_type']}"
+        "<tr><td>#{ERB::Util.html_escape(item['attachment_type'].to_s)}</td><td>#{ERB::Util.html_escape(summary.to_s)}</td><td>#{ERB::Util.html_escape(item['employee_department'].to_s)}</td></tr>"
+      end.join
+
+      "<table><thead><tr><th>Type</th><th>Summary</th><th>Department</th></tr></thead><tbody>#{rows}</tbody></table>"
 
     def patterns_section
       patterns = @snapshot["patterns"] || []

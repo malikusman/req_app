@@ -44,6 +44,7 @@ module Api
             strength: signal.strength,
             departments: signal.departments,
             evidence_count: signal.evidence_count,
+            multimodal_evidence: signal.metadata.fetch("multimodal_evidence", []),
             status: signal.status,
             first_seen_at: signal.first_seen_at,
             last_updated_at: signal.last_updated_at

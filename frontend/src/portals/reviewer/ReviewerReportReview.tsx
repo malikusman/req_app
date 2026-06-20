@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { api, type ReportReviewPayload, type ReviewerReportDetail } from '../../lib/api';
+import { api, type MediaAttachment, type ReportReviewPayload, type ReviewerReportDetail } from '../../lib/api';
 import { useReviewerToken } from '../../lib/auth';
+import { ConversationMediaList } from '../../components/ConversationMediaCard';
 import {
   PageHeader,
   Card,
@@ -75,7 +76,14 @@ function SectionContent({ section, snapshot }: { section: SectionKey; snapshot: 
     return <pre className="overflow-auto rounded-button bg-surface-muted p-3 text-xs">{JSON.stringify(d, null, 2)}</pre>;
   }
   if (section === 'signals') {
-    const signals = (snapshot.signals as { label: string; strength: number; departments: string[] }[]) || [];
+    const signals =
+      (snapshot.signals as {
+        label: string;
+        strength: number;
+        departments: string[];
+        evidence_count?: number;
+        multimodal_evidence?: { attachment_type: string; excerpt?: string }[];
+      }[]) || [];
     return (
       <ul className="space-y-3">
         {signals.map((s, i) => (
@@ -86,6 +94,18 @@ function SectionContent({ section, snapshot }: { section: SectionKey; snapshot: 
             </div>
             <StrengthBar strength={s.strength} className="mt-2" />
             <p className="mt-1 text-xs text-text-secondary">{s.departments?.join(', ')}</p>
+            {s.evidence_count != null && (
+              <p className="mt-1 text-xs text-text-secondary">{s.evidence_count} evidence mentions</p>
+            )}
+            {s.multimodal_evidence && s.multimodal_evidence.length > 0 && (
+              <ul className="mt-2 space-y-1 text-xs text-text-secondary">
+                {s.multimodal_evidence.map((item, idx) => (
+                  <li key={idx}>
+                    {item.attachment_type}: {item.excerpt || 'Supporting media'}
+                  </li>
+                ))}
+              </ul>
+            )}
           </li>
         ))}
       </ul>
@@ -138,17 +158,20 @@ export function ReviewerReportReview() {
   const [commentBody, setCommentBody] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [companyMedia, setCompanyMedia] = useState<MediaAttachment[]>([]);
 
   const load = useCallback(() => {
     if (!token || !companyId || !reportId) return;
     Promise.all([
       api.reviewerReportReview(token, Number(companyId), Number(reportId)),
       api.reviewerReport(token, Number(companyId), Number(reportId)),
+      api.reviewerMediaAttachments(token, Number(companyId)).catch(() => ({ media_attachments: [] as MediaAttachment[] })),
     ])
-      .then(([reviewData, reportData]) => {
+      .then(([reviewData, reportData, mediaData]) => {
         setPayload(reviewData);
         setReport(reportData.report);
         setNote(reviewData.review.overall_note || '');
+        setCompanyMedia(mediaData.media_attachments);
       })
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load'))
       .finally(() => setLoading(false));
@@ -207,6 +230,17 @@ export function ReviewerReportReview() {
   const submitted = review.status === 'submitted';
   const snapshot = report.report_snapshot;
   const sectionComments = review.comments.filter((c) => c.section_key === activeSection);
+  const showSupportingMedia = activeSection === 'signals' || activeSection === 'patterns';
+
+  const sidebarMedia = useMemo(() => {
+    if (!showSupportingMedia) return [];
+    const snapshotMedia = (snapshot.supporting_media as { id: number }[] | undefined) || [];
+    const snapshotIds = new Set(snapshotMedia.map((item) => item.id));
+    if (snapshotIds.size > 0) {
+      return companyMedia.filter((attachment) => snapshotIds.has(attachment.id));
+    }
+    return companyMedia;
+  }, [companyMedia, showSupportingMedia, snapshot.supporting_media]);
 
   return (
     <div className="space-y-6">
@@ -333,6 +367,16 @@ export function ReviewerReportReview() {
               </form>
             )}
           </Card>
+
+          {showSupportingMedia && token && (
+            <Card title="Supporting media" className="mt-4">
+              {sidebarMedia.length === 0 ? (
+                <p className="text-sm text-text-secondary">No media shared for this company yet.</p>
+              ) : (
+                <ConversationMediaList attachments={sidebarMedia} token={token} />
+              )}
+            </Card>
+          )}
         </aside>
       </div>
 

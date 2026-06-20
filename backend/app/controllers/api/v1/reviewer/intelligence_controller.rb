@@ -28,7 +28,15 @@ module Api
         end
 
         def signal_json(s)
-          { id: s.id, label: s.label, strength: s.strength, signal_type: s.signal_type, departments: s.departments }
+          {
+            id: s.id,
+            label: s.label,
+            strength: s.strength,
+            signal_type: s.signal_type,
+            departments: s.departments,
+            evidence_count: s.evidence_count,
+            multimodal_evidence: s.metadata.fetch("multimodal_evidence", [])
+          }
         end
 
         def pattern_json(p)

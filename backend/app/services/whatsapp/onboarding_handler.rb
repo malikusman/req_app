@@ -182,10 +182,10 @@ module Whatsapp
 
     def welcome_after_consent(lang)
       {
-        "en" => "Thank you! Your discovery conversation will begin shortly. Reply with a short description of your role to get started.",
-        "es" => "¡Gracias! Tu conversación de descubrimiento comenzará en breve. Responde con una breve descripción de tu rol para empezar.",
-        "fr" => "Merci ! Votre conversation de découverte va commencer. Décrivez brièvement votre rôle pour commencer.",
-        "de" => "Danke! Ihr Erkennungsgespräch beginnt in Kürze. Beschreiben Sie kurz Ihre Rolle."
+        "en" => "Thank you! Your discovery conversation will begin shortly. Reply with a short description of your role—or send a voice note, photo, or PDF if that's easier.",
+        "es" => "¡Gracias! Tu conversación de descubrimiento comenzará en breve. Responde con una breve descripción de tu rol, o envía una nota de voz, foto o PDF si prefieres.",
+        "fr" => "Merci ! Votre conversation de découverte va commencer. Décrivez brièvement votre rôle, ou envoyez une note vocale, une photo ou un PDF.",
+        "de" => "Danke! Ihr Erkennungsgespräch beginnt in Kürze. Beschreiben Sie kurz Ihre Rolle — oder senden Sie eine Sprachnachricht, ein Foto oder ein PDF."
       }.fetch(lang, "Thank you! Your discovery conversation will begin shortly.")
     end
 

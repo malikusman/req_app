@@ -85,6 +85,7 @@ Rails.application.routes.draw do
           post "employees/:employee_id/followup", to: "info_requests#create"
           get "employees/:employee_id/followup", to: "info_requests#thread"
           resources :chat_messages, only: %i[index create], controller: "chat_messages"
+          get "media_attachments", to: "media_attachments#index"
           get "media_attachments/:id/download", to: "media_attachments#download"
         end
       end

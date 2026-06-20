@@ -24,7 +24,15 @@ module Reports
         },
         "participation" => Intelligence::SnapshotBuilder.call(company: @company)["participation"],
         "signals" => @company.company_signals.order(strength: :desc).map do |s|
-          { "id" => s.id, "label" => s.label, "strength" => s.strength, "departments" => s.departments, "signal_type" => s.signal_type }
+          {
+            "id" => s.id,
+            "label" => s.label,
+            "strength" => s.strength,
+            "departments" => s.departments,
+            "signal_type" => s.signal_type,
+            "evidence_count" => s.evidence_count,
+            "multimodal_evidence" => s.metadata.fetch("multimodal_evidence", [])
+          }
         end,
         "patterns" => @company.patterns.order(confidence: :desc).map do |p|
           { "id" => p.id, "title" => p.title, "description" => p.description, "confidence" => p.confidence }
@@ -40,8 +48,30 @@ module Reports
           }
         end,
         "delta_from_previous" => @delta,
-        "sections" => ReportSections::DEFINITIONS
+        "sections" => ReportSections::DEFINITIONS,
+        "supporting_media" => supporting_media_json
       }
+    end
+
+    private
+
+    def supporting_media_json
+      MediaAttachment.where(company_id: @company.id, status: "ready")
+                     .includes(:employee)
+                     .order(created_at: :desc)
+                     .limit(20)
+                     .map do |attachment|
+        insights = attachment.structured_insights.presence || {}
+        {
+          "id" => attachment.id,
+          "attachment_type" => attachment.attachment_type,
+          "caption" => attachment.caption,
+          "summary" => insights["summary"].presence || attachment.extracted_text.to_s.truncate(200),
+          "conversation_id" => attachment.conversation_id,
+          "employee_department" => attachment.employee.department,
+          "confidence" => attachment.confidence
+        }
+      end
     end
   end
 end

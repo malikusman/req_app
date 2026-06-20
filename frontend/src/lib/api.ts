@@ -127,6 +127,13 @@ export const api = {
   companyMediaAttachments: (token: string) =>
     request<{ media_attachments: MediaAttachment[] }>('/api/v1/company/media_attachments', {}, token),
 
+  reviewerMediaAttachments: (token: string, companyId: number) =>
+    request<{ media_attachments: MediaAttachment[] }>(
+      `/api/v1/reviewer/companies/${companyId}/media_attachments`,
+      {},
+      token
+    ),
+
   fetchMediaBlob: async (token: string, downloadUrl: string) => {
     const url = downloadUrl.startsWith('http') ? downloadUrl : `${API_URL}${downloadUrl}`;
     const res = await fetch(url, {
@@ -765,9 +772,19 @@ export interface CompanySignal {
   strength: number;
   departments: string[];
   evidence_count: number;
+  multimodal_evidence?: MultimodalEvidence[];
   status: string;
   first_seen_at: string | null;
   last_updated_at: string | null;
+}
+
+export interface MultimodalEvidence {
+  source: string;
+  id: number;
+  attachment_type: string;
+  conversation_id?: number;
+  excerpt?: string;
+  confidence?: number | null;
 }
 
 export interface CompanyPattern {
