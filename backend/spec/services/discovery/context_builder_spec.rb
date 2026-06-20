@@ -46,5 +46,36 @@ RSpec.describe Discovery::ContextBuilder do
       expect(context[:memory_facts]).to eq([])
       expect(context[:document_snippets]).to eq([])
     end
+
+    it "retrieves whatsapp-upload document chunks when retrieval is enabled" do
+      company.update!(settings: company.settings.merge("discovery_memory_retrieval_enabled" => true))
+      allow(ENV).to receive(:[]).and_call_original
+      allow(ENV).to receive(:[]).with("OPENAI_API_KEY").and_return("test-key")
+
+      openai = instance_double(Openai::Client, embedding: Array.new(1536, 0.1))
+      allow(Openai::Client).to receive(:new).and_return(openai)
+
+      doc = company.documents.create!(
+        employee: employee,
+        conversation: conversation,
+        source: "whatsapp_upload",
+        filename: "whatsapp-doc.pdf",
+        content_type: "application/pdf",
+        byte_size: 100,
+        storage_key: "media/test/doc.pdf",
+        status: "ready"
+      )
+      DocumentChunk.create!(
+        document: doc,
+        chunk_index: 0,
+        content: "Manual SAP re-entry every morning",
+        embedding: Array.new(1536, 0.1)
+      )
+
+      allow(DocumentChunk).to receive(:joins).and_call_original
+      context = described_class.call(conversation: conversation, employee: employee, user_message: "SAP workflow")
+
+      expect(context[:document_snippets]).to include("Manual SAP re-entry every morning")
+    end
   end
 end

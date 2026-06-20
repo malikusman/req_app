@@ -29,6 +29,8 @@ module Multimodal
     end
 
     def call
+      return @attachment.extracted_text if @attachment.status == "ready"
+
       @attachment.update!(status: "processing")
       @message.update!(processing_status: "processing")
 
@@ -37,21 +39,26 @@ module Multimodal
       file.close
       file.unlink
 
-      @attachment.update!(status: "ready", extracted_text: extracted)
+      body = combine_with_caption(extracted)
+      raise "empty extraction" if body.blank?
+
+      @attachment.update!(status: "ready", extracted_text: body)
       @message.update!(
-        body: extracted,
+        body: body,
         processing_status: "ready",
-        raw_payload: @message.raw_payload.merge("extracted_text" => extracted)
+        raw_payload: @message.raw_payload.merge("extracted_text" => body)
       )
 
       mark_multimodal_on_conversation!
+      IndexMediaService.call(media_attachment: @attachment.reload)
       ContinueDiscoveryAfterMediaJob.perform_later(@attachment.id)
-      extracted
+      body
     rescue StandardError => e
       @attachment.update!(status: "failed", processing_error: e.message)
       @message.update!(processing_status: "failed")
       Rails.logger.error("[Multimodal] failed attachment=#{@attachment.id}: #{e.message}")
-      raise
+      FailureNotifier.call(attachment: @attachment.reload)
+      nil
     end
 
     private
@@ -78,6 +85,8 @@ module Multimodal
 
     def extract_content(file)
       lang = @employee.preferred_language.presence || @employee.company.locale
+      @attachment.update!(language: lang) if @attachment.language.blank?
+
       case @attachment.attachment_type
       when "audio"
         @openai.transcribe_audio(file_path: file.path, language: lang)
@@ -91,6 +100,11 @@ module Multimodal
       end
     end
 
+    def combine_with_caption(extracted)
+      parts = [@attachment.caption, extracted.to_s.strip].map(&:presence).compact
+      parts.join("\n\n")
+    end
+
     def extension_for_type
       {
         "audio" => ".ogg",
@@ -100,9 +114,12 @@ module Multimodal
     end
 
     def mark_multimodal_on_conversation!
-      @conversation.update!(
-        state_snapshot: @conversation.state_snapshot.merge("had_multimodal" => true)
-      )
+      snapshot = @conversation.state_snapshot.merge("had_multimodal" => true)
+      counts = snapshot.fetch("multimodal_counts", { "audio" => 0, "image" => 0, "document" => 0 })
+      type = @attachment.attachment_type
+      counts[type] = counts.fetch(type, 0) + 1 if counts.key?(type)
+      snapshot["multimodal_counts"] = counts
+      @conversation.update!(state_snapshot: snapshot)
     end
   end
 end

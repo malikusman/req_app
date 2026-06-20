@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_06_10_000002) do
+ActiveRecord::Schema[7.1].define(version: 2026_06_20_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -347,8 +347,15 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_10_000002) do
     t.jsonb "metadata", default: {}, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.text "caption"
+    t.jsonb "structured_insights", default: {}, null: false
+    t.float "confidence"
+    t.integer "duration_ms"
+    t.string "language"
+    t.bigint "document_id"
     t.index ["company_id"], name: "index_media_attachments_on_company_id"
     t.index ["conversation_id"], name: "index_media_attachments_on_conversation_id"
+    t.index ["document_id"], name: "index_media_attachments_on_document_id"
     t.index ["employee_id"], name: "index_media_attachments_on_employee_id"
     t.index ["message_id"], name: "index_media_attachments_on_message_id"
     t.index ["meta_media_id"], name: "index_media_attachments_on_meta_media_id", unique: true, where: "(meta_media_id IS NOT NULL)"
@@ -732,6 +739,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_10_000002) do
   add_foreign_key "insight_timeline_events", "companies"
   add_foreign_key "media_attachments", "companies"
   add_foreign_key "media_attachments", "conversations"
+  add_foreign_key "media_attachments", "documents"
   add_foreign_key "media_attachments", "employees"
   add_foreign_key "media_attachments", "messages"
   add_foreign_key "messages", "conversations"

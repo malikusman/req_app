@@ -81,14 +81,34 @@ module Discovery
       return [] unless retrieval_enabled?
       return [] if query_embedding.blank?
 
-      DocumentChunk.joins(:document)
-                   .where(documents: { company_id: @company.id, status: "ready" })
-                   .nearest_neighbors(:embedding, query_embedding, distance: "cosine")
-                   .first(CHUNK_LIMIT)
-                   .map(&:content)
+      snippets = conversation_document_snippets
+      remaining = CHUNK_LIMIT - snippets.size
+      snippets += company_document_snippets(limit: remaining) if remaining.positive?
+      snippets.uniq
     rescue StandardError => e
       Rails.logger.warn("[ContextBuilder] chunk retrieval failed: #{e.message}")
       []
+    end
+
+    def conversation_document_snippets
+      scope = document_chunk_scope.where(documents: { conversation_id: @conversation.id })
+      nearest_chunks(scope, 1).map(&:content)
+    end
+
+    def company_document_snippets(limit:)
+      scope = document_chunk_scope
+      scope = scope.where.not(documents: { conversation_id: @conversation.id }) if @conversation.id
+      nearest_chunks(scope, limit).map(&:content)
+    end
+
+    def document_chunk_scope
+      DocumentChunk.joins(:document).where(documents: { company_id: @company.id, status: "ready" })
+    end
+
+    def nearest_chunks(scope, limit)
+      return [] if limit <= 0
+
+      scope.nearest_neighbors(:embedding, query_embedding, distance: "cosine").first(limit)
     end
   end
 end

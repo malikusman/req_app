@@ -27,6 +27,9 @@ module Whatsapp
       attachment_type, meta_media_id, mime_type = extract_media_info
       return send_unsupported_notice unless attachment_type && meta_media_id
 
+      caption = extract_caption
+      metadata = extract_metadata
+
       message = Message.create!(
         conversation: @conversation,
         direction: "inbound",
@@ -45,6 +48,8 @@ module Whatsapp
         attachment_type: attachment_type,
         mime_type: mime_type,
         meta_media_id: meta_media_id,
+        caption: caption,
+        metadata: metadata,
         status: "pending"
       )
 
@@ -71,6 +76,16 @@ module Whatsapp
       end
     end
 
+    def extract_caption
+      @msg.dig("image", "caption").presence || @msg.dig("document", "caption").presence
+    end
+
+    def extract_metadata
+      meta = {}
+      meta["filename"] = @msg.dig("document", "filename") if @msg.dig("document", "filename").present?
+      meta
+    end
+
     def dev_simulate_processing?
       !@client.configured? || ENV["MULTIMODAL_SYNC_DEV"] == "true"
     end
@@ -90,6 +105,7 @@ module Whatsapp
       attachment.update!(status: "ready", extracted_text: extracted, storage_key: "dev/simulated/#{attachment.id}")
       message.update!(body: extracted, processing_status: "ready")
       @conversation.update!(state_snapshot: @conversation.state_snapshot.merge("had_multimodal" => true))
+      Multimodal::IndexMediaService.call(media_attachment: attachment.reload)
       ContinueDiscoveryAfterMediaJob.perform_now(attachment.id)
     end
 
