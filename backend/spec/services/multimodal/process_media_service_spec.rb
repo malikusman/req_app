@@ -24,16 +24,29 @@ RSpec.describe Multimodal::ProcessMediaService do
 
   before do
     allow(Storage::MinioClient).to receive(:new).and_return(instance_double(Storage::MinioClient, download: "fake-image-bytes"))
-    allow(Openai::Client).to receive(:new).and_return(instance_double(Openai::Client, describe_image: "SAP invoice entry screen"))
+    allow(Multimodal::UnderstandingService).to receive(:call).and_return(
+      Multimodal::UnderstandingService::Result.new(
+        plain_text: "SAP invoice entry screen",
+        structured_insights: {
+          "summary" => "SAP invoice entry screen",
+          "tools_visible" => ["SAP"],
+          "media_type" => "image",
+          "confidence" => 0.8
+        },
+        confidence: 0.8
+      )
+    )
     allow(Multimodal::IndexMediaService).to receive(:call)
     allow(ContinueDiscoveryAfterMediaJob).to receive(:perform_later)
   end
 
-  it "extracts content, merges caption, indexes media, and enqueues discovery" do
+  it "extracts content, merges caption, stores structured insights, indexes media, and enqueues discovery" do
     result = described_class.call(attachment.id)
 
     expect(result).to eq("Our SAP screen\n\nSAP invoice entry screen")
     expect(attachment.reload.status).to eq("ready")
+    expect(attachment.structured_insights["summary"]).to eq("SAP invoice entry screen")
+    expect(attachment.confidence).to eq(0.8)
     expect(message.reload.body).to eq(result)
     expect(Multimodal::IndexMediaService).to have_received(:call).with(media_attachment: attachment)
     expect(ContinueDiscoveryAfterMediaJob).to have_received(:perform_later).with(attachment.id)
@@ -41,7 +54,9 @@ RSpec.describe Multimodal::ProcessMediaService do
 
   it "notifies the employee and marks failed when extraction is empty" do
     attachment.update!(caption: nil)
-    allow(Openai::Client).to receive(:new).and_return(instance_double(Openai::Client, describe_image: ""))
+    allow(Multimodal::UnderstandingService).to receive(:call).and_return(
+      Multimodal::UnderstandingService::Result.new(plain_text: "", structured_insights: {}, confidence: nil)
+    )
     expect(Multimodal::FailureNotifier).to receive(:call).with(attachment: kind_of(MediaAttachment))
 
     expect(described_class.call(attachment.id)).to be_nil

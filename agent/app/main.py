@@ -47,6 +47,8 @@ class TurnRequest(BaseModel):
     limits: dict[str, int] | None = None
     memory_facts: list[dict[str, Any]] = Field(default_factory=list)
     document_snippets: list[str] = Field(default_factory=list)
+    media_context: dict[str, Any] | None = None
+    media_snippets: list[str] = Field(default_factory=list)
 
 
 class TurnResponse(BaseModel):
@@ -108,6 +110,8 @@ def run_turn(thread_id: str, body: TurnRequest):
                 "limits": body.limits or {},
                 "memory_facts": body.memory_facts,
                 "document_snippets": body.document_snippets,
+                "media_context": body.media_context,
+                "media_snippets": body.media_snippets,
             }
         )
         result = execute_multi_agent_turn(state)

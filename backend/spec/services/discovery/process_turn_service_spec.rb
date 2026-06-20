@@ -49,8 +49,9 @@ RSpec.describe Discovery::ProcessTurnService do
     end
 
     it "passes the multi-agent payload and persists the returned blackboard" do
+      inbound = create(:message, conversation: conversation, direction: "inbound", message_type: "text")
       expect(client).to receive(:run_turn!) do |args|
-        expect(args[:multi_agent]).to include(:profile, :blackboard, :limits)
+        expect(args[:multi_agent]).to include(:profile, :blackboard, :limits, :media_context, :media_snippets)
         expect(args[:multi_agent][:limits][:max_followup_depth]).to eq(2)
         {
           "assistant_message" => "Walk me through month-end close.",
@@ -63,7 +64,12 @@ RSpec.describe Discovery::ProcessTurnService do
         }
       end
 
-      described_class.call(conversation: conversation, employee: employee, user_message: "It's mostly SAP")
+      described_class.call(
+        conversation: conversation,
+        employee: employee,
+        user_message: "It's mostly SAP",
+        inbound_message: inbound
+      )
 
       conversation.reload
       expect(conversation.blackboard["active_agent_id"]).to eq("domain_finance")

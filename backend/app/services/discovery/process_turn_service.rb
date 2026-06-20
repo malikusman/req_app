@@ -91,14 +91,17 @@ module Discovery
       context = Discovery::ContextBuilder.call(
         conversation: @conversation,
         employee: @employee,
-        user_message: @user_message
+        user_message: @user_message,
+        inbound_message: @inbound_message
       )
       {
         profile: context[:profile],
         blackboard: context[:blackboard],
         limits: context[:limits],
         memory_facts: context[:memory_facts],
-        document_snippets: context[:document_snippets]
+        document_snippets: context[:document_snippets],
+        media_context: context[:media_context],
+        media_snippets: context[:media_snippets]
       }
     end
 

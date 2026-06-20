@@ -17,15 +17,17 @@ module Discovery
       }
     end
 
-    def self.call(conversation:, employee:, user_message:)
-      new(conversation: conversation, employee: employee, user_message: user_message).call
+    def self.call(conversation:, employee:, user_message:, inbound_message: nil)
+      new(conversation: conversation, employee: employee, user_message: user_message,
+          inbound_message: inbound_message).call
     end
 
-    def initialize(conversation:, employee:, user_message:)
+    def initialize(conversation:, employee:, user_message:, inbound_message: nil)
       @conversation = conversation
       @employee = employee
       @company = employee.company
       @user_message = user_message
+      @inbound_message = inbound_message
     end
 
     def call
@@ -34,7 +36,9 @@ module Discovery
         blackboard: blackboard,
         limits: self.class.limits_for(@company),
         memory_facts: memory_facts,
-        document_snippets: document_snippets
+        document_snippets: document_snippets,
+        media_context: media_context,
+        media_snippets: media_snippets
       }
     end
 
@@ -109,6 +113,37 @@ module Discovery
       return [] if limit <= 0
 
       scope.nearest_neighbors(:embedding, query_embedding, distance: "cosine").first(limit)
+    end
+
+    def media_context
+      return nil unless @inbound_message
+
+      attachment = @inbound_message.media_attachment
+      return nil unless attachment&.status == "ready"
+
+      insights = attachment.structured_insights.presence || {}
+      safe_insights = insights.except("raw_excerpt")
+
+      {
+        type: attachment.attachment_type,
+        caption: attachment.caption,
+        summary: attachment.extracted_text.to_s.truncate(500),
+        confidence: attachment.confidence,
+        insights: safe_insights.presence
+      }.compact
+    end
+
+    def media_snippets
+      return [] unless retrieval_enabled?
+      return [] if query_embedding.blank?
+
+      scope = document_chunk_scope.where(
+        documents: { conversation_id: @conversation.id, source: "whatsapp_upload" }
+      )
+      nearest_chunks(scope, CHUNK_LIMIT).map(&:content)
+    rescue StandardError => e
+      Rails.logger.warn("[ContextBuilder] media snippet retrieval failed: #{e.message}")
+      []
     end
   end
 end

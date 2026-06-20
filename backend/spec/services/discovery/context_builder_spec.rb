@@ -77,5 +77,59 @@ RSpec.describe Discovery::ContextBuilder do
 
       expect(context[:document_snippets]).to include("Manual SAP re-entry every morning")
     end
+
+    it "builds media_context from the inbound attachment and media_snippets from whatsapp uploads" do
+      company.update!(settings: company.settings.merge("discovery_memory_retrieval_enabled" => true))
+      allow(ENV).to receive(:[]).and_call_original
+      allow(ENV).to receive(:[]).with("OPENAI_API_KEY").and_return("test-key")
+
+      openai = instance_double(Openai::Client, embedding: Array.new(1536, 0.1))
+      allow(Openai::Client).to receive(:new).and_return(openai)
+
+      inbound = create(:message, conversation: conversation, direction: "inbound", message_type: "image")
+      create(:media_attachment,
+             message: inbound,
+             company: company,
+             employee: employee,
+             conversation: conversation,
+             attachment_type: "image",
+             status: "ready",
+             extracted_text: "SAP invoice screen",
+             structured_insights: { "summary" => "SAP invoice screen", "tools_visible" => ["SAP"] },
+             confidence: 0.85,
+             caption: "Our screen")
+
+      doc = company.documents.create!(
+        employee: employee,
+        conversation: conversation,
+        source: "whatsapp_upload",
+        filename: "whatsapp-doc.pdf",
+        content_type: "application/pdf",
+        byte_size: 100,
+        storage_key: "media/test/doc.pdf",
+        status: "ready"
+      )
+      DocumentChunk.create!(
+        document: doc,
+        chunk_index: 0,
+        content: "Earlier voice note about invoice delays",
+        embedding: Array.new(1536, 0.1)
+      )
+
+      context = described_class.call(
+        conversation: conversation,
+        employee: employee,
+        user_message: "Here is the screen",
+        inbound_message: inbound
+      )
+
+      expect(context[:media_context]).to include(
+        type: "image",
+        caption: "Our screen",
+        summary: "SAP invoice screen",
+        confidence: 0.85
+      )
+      expect(context[:media_snippets]).to include("Earlier voice note about invoice delays")
+    end
   end
 end

@@ -63,7 +63,7 @@ module Openai
           role: "user",
           content: <<~PROMPT
             Summarize workflows, tools, and friction points from this document for an enterprise discovery platform.
-            Respond in #{language} as JSON: {"summary":"...","workflows":["..."],"friction_points":["..."]}
+            Respond in #{language} as JSON: {"summary":"...","workflows":["..."],"friction_points":["..."],"tools_mentioned":["..."],"confidence":0.0}
             Document:
             #{text.truncate(12_000)}
           PROMPT
@@ -71,9 +71,78 @@ module Openai
         response_format: { type: "json_object" }
       }
       content = post_json("#{API_BASE}/chat/completions", body).dig("choices", 0, "message", "content")
-      JSON.parse(content)
+      normalize_document_insights(JSON.parse(content))
     rescue JSON::ParserError
-      { "summary" => content.to_s.truncate(500), "workflows" => [], "friction_points" => [] }
+      normalize_document_insights("summary" => content.to_s.truncate(500))
+    end
+
+    def understand_image_structured(file_path:, language: "en", caption: nil, department: nil)
+      return mock_image_structured(language, caption) unless configured?
+
+      data = Base64.strict_encode64(File.binread(file_path))
+      mime = mime_for_path(file_path)
+      caption_line = caption.present? ? "Employee caption: #{caption}" : "Employee caption: (none)"
+      body = {
+        model: ENV.fetch("OPENAI_VISION_MODEL", "gpt-4o-mini"),
+        messages: [{
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: <<~PROMPT
+                Analyze this work-related image for a workflow discovery interview.
+                Department context: #{department.presence || "general"}.
+                #{caption_line}
+                Respond in #{language} as JSON only:
+                {
+                  "summary": "2-3 sentences describing what the image shows",
+                  "tools_visible": ["tool or system names visible"],
+                  "process_steps": ["observable process steps"],
+                  "pain_points": ["workflow friction visible or implied"],
+                  "confidence": 0.0
+                }
+                Set confidence between 0 and 1 based on image clarity and relevance.
+              PROMPT
+            },
+            { type: "image_url", image_url: { url: "data:#{mime};base64,#{data}" } }
+          ]
+        }],
+        response_format: { type: "json_object" },
+        max_tokens: 700
+      }
+      content = post_json("#{API_BASE}/chat/completions", body).dig("choices", 0, "message", "content")
+      normalize_image_insights(JSON.parse(content))
+    rescue JSON::ParserError
+      normalize_image_insights("summary" => content.to_s.truncate(500))
+    end
+
+    def understand_document_structured(text:, language: "en")
+      return mock_document_structured(text, language) unless configured?
+
+      body = {
+        model: ENV.fetch("OPENAI_MODEL", "gpt-4o-mini"),
+        messages: [{
+          role: "user",
+          content: <<~PROMPT
+            Extract workflow discovery insights from this document text.
+            Respond in #{language} as JSON only:
+            {
+              "summary": "2-4 sentence overview",
+              "workflows": ["concrete workflows described"],
+              "friction_points": ["pain points or manual steps"],
+              "tools_mentioned": ["systems or tools referenced"],
+              "confidence": 0.0
+            }
+            Document:
+            #{text.truncate(12_000)}
+          PROMPT
+        }],
+        response_format: { type: "json_object" }
+      }
+      content = post_json("#{API_BASE}/chat/completions", body).dig("choices", 0, "message", "content")
+      normalize_document_insights(JSON.parse(content))
+    rescue JSON::ParserError
+      normalize_document_insights("summary" => content.to_s.truncate(500))
     end
 
     private
@@ -166,10 +235,48 @@ module Openai
 
     def mock_document_summary(text, language)
       snippet = text.to_s.gsub(/\s+/, " ").strip.truncate(200)
-      {
+      normalize_document_insights(
         "summary" => "Document describes operational workflows#{snippet.present? ? ": #{snippet}" : "."}",
         "workflows" => ["Documented process steps"],
-        "friction_points" => ["Manual handoffs", "Spreadsheet dependency"]
+        "friction_points" => ["Manual handoffs", "Spreadsheet dependency"],
+        "tools_mentioned" => ["Excel"],
+        "confidence" => 0.7
+      )
+    end
+
+    def mock_image_structured(language, caption)
+      summary = mock_image_description(language)
+      normalize_image_insights(
+        "summary" => summary,
+        "tools_visible" => ["Excel"],
+        "process_steps" => ["Manual invoice tracking"],
+        "pain_points" => ["Manual data entry"],
+        "confidence" => 0.75,
+        "caption" => caption
+      )
+    end
+
+    def mock_document_structured(text, language)
+      mock_document_summary(text, language)
+    end
+
+    def normalize_image_insights(payload)
+      {
+        "summary" => payload["summary"].to_s,
+        "tools_visible" => Array(payload["tools_visible"]).map(&:to_s).reject(&:blank?),
+        "process_steps" => Array(payload["process_steps"]).map(&:to_s).reject(&:blank?),
+        "pain_points" => Array(payload["pain_points"]).map(&:to_s).reject(&:blank?),
+        "confidence" => payload["confidence"].to_f.clamp(0.0, 1.0)
+      }
+    end
+
+    def normalize_document_insights(payload)
+      {
+        "summary" => payload["summary"].to_s,
+        "workflows" => Array(payload["workflows"]).map(&:to_s).reject(&:blank?),
+        "friction_points" => Array(payload["friction_points"]).map(&:to_s).reject(&:blank?),
+        "tools_mentioned" => Array(payload["tools_mentioned"]).map(&:to_s).reject(&:blank?),
+        "confidence" => payload.fetch("confidence", 0.7).to_f.clamp(0.0, 1.0)
       }
     end
   end

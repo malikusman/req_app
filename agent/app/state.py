@@ -67,6 +67,8 @@ class MultiTurnState(TypedDict, total=False):
     limits: dict[str, int]
     memory_facts: list[dict[str, Any]]
     document_snippets: list[str]
+    media_context: dict[str, Any] | None
+    media_snippets: list[str]
 
     # Orchestration decisions (prepare node)
     active_agent_id: str

@@ -96,12 +96,16 @@ module Multimodal
     end
 
     def build_insights_preview(text, chunk_count)
+      structured = @attachment.structured_insights.presence || {}
       {
-        "summary" => text.truncate(500),
+        "summary" => structured["summary"].presence || text.truncate(500),
         "chunk_count" => chunk_count,
         "source" => "whatsapp_upload",
-        "media_type" => @attachment.attachment_type
-      }
+        "media_type" => @attachment.attachment_type,
+        "confidence" => @attachment.confidence,
+        "tools" => structured["tools_visible"] || structured["tools_mentioned"],
+        "pain_points" => structured["pain_points"] || structured["friction_points"]
+      }.compact
     end
   end
 end

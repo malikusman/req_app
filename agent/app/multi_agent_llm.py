@@ -111,6 +111,32 @@ def _build_system_prompt(state: dict[str, Any]) -> str:
         lines = "\n".join(f"- {s[:300]}" for s in snippets[:2])
         snippets_block = f"\nRelevant company document excerpts:\n{lines}\n"
 
+    media_ctx = state.get("media_context")
+    media_block = ""
+    if media_ctx:
+        ctx_json = json.dumps(media_ctx, ensure_ascii=False)[:1500]
+        confidence = media_ctx.get("confidence")
+        conf_note = ""
+        if confidence is not None and float(confidence) < 0.6:
+            conf_note = (
+                " Confidence is low — ask ONE clarifying question about what you see "
+                "before assuming details.\n"
+            )
+        media_block = (
+            f"\n--- UNTRUSTED MEDIA CONTEXT (employee-sent {media_ctx.get('type', 'media')}) ---\n"
+            f"{ctx_json}\n"
+            f"--- END UNTRUSTED MEDIA CONTEXT ---\n"
+            "Reference screenshot or document content naturally (e.g. 'I can see in the image you sent...'). "
+            "Do NOT quote raw JSON or mention internal field names.\n"
+            f"{conf_note}"
+        )
+
+    media_snippets = state.get("media_snippets") or []
+    media_snippets_block = ""
+    if media_snippets:
+        lines = "\n".join(f"- {s[:300]}" for s in media_snippets[:2])
+        media_snippets_block = f"\nPrior media from this conversation (indexed excerpts):\n{lines}\n"
+
     if state.get("followup_allowed") and state.get("followup_topic"):
         followup_instruction = (
             f"The open topic '{state['followup_topic']}' may still need ONE clarifying follow-up. "
@@ -147,7 +173,7 @@ Conversation so far (summary): {summary}
 
 Findings shared by all interviewers so far:
 {findings_block}
-{facts_block}{snippets_block}
+{facts_block}{snippets_block}{media_block}{media_snippets_block}
 Interview state:
 - Total questions asked: {state.get('question_count', 0)} of {state.get('question_target', 12)} max.
 - Your remaining question budget: {remaining}.

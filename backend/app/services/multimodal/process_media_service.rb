@@ -24,7 +24,6 @@ module Multimodal
       @message = @attachment.message
       @employee = @attachment.employee
       @conversation = @attachment.conversation
-      @openai = Openai::Client.new
       @fetcher = MetaMediaFetcher.new
     end
 
@@ -35,14 +34,16 @@ module Multimodal
       @message.update!(processing_status: "processing")
 
       file = download_media_file
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       extracted = extract_content(file)
+      duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000).round
       file.close
       file.unlink
 
       body = combine_with_caption(extracted)
       raise "empty extraction" if body.blank?
 
-      @attachment.update!(status: "ready", extracted_text: body)
+      @attachment.update!(status: "ready", extracted_text: body, duration_ms: duration_ms)
       @message.update!(
         body: body,
         processing_status: "ready",
@@ -87,17 +88,12 @@ module Multimodal
       lang = @employee.preferred_language.presence || @employee.company.locale
       @attachment.update!(language: lang) if @attachment.language.blank?
 
-      case @attachment.attachment_type
-      when "audio"
-        @openai.transcribe_audio(file_path: file.path, language: lang)
-      when "image"
-        @openai.describe_image(file_path: file.path, language: lang)
-      when "document"
-        text = DocumentTextExtractor.extract(file_path: file.path, content_type: @attachment.mime_type)
-        text.presence || @openai.describe_image(file_path: file.path, language: lang)
-      else
-        ""
-      end
+      result = UnderstandingService.call(attachment: @attachment, file_path: file.path)
+      @attachment.update!(
+        structured_insights: result.structured_insights,
+        confidence: result.confidence
+      )
+      result.plain_text
     end
 
     def combine_with_caption(extracted)

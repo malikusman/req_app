@@ -33,6 +33,8 @@ module Langgraph
         body[:limits] = multi_agent[:limits]
         body[:memory_facts] = multi_agent[:memory_facts] || []
         body[:document_snippets] = multi_agent[:document_snippets] || []
+        body[:media_context] = multi_agent[:media_context]
+        body[:media_snippets] = multi_agent[:media_snippets] || []
       end
 
       post("/v1/threads/#{thread_id}/turn", body)
