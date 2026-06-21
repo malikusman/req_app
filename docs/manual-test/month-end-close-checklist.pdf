@@ -1,0 +1,44 @@
+%PDF-1.4
+1 0 obj<< /Type /Catalog /Pages 2 0 R >>endobj
+2 0 obj<< /Type /Pages /Kids [3 0 R] /Count 1 >>endobj
+3 0 obj<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>endobj
+4 0 obj<< /Length 552 >>stream
+BT
+/F1 11 Tf
+50 750 Td
+14 TL
+(Month-End Close Checklist ? Finance Ops) Tj
+T*
+() Tj
+T*
+(1. Export open invoice list from SAP to Excel) Tj
+T*
+(2. Reconcile vendor balances manually in spreadsheet) Tj
+T*
+(3. Chase department manager approvals via email \(2?3 day delay typical\)) Tj
+T*
+(4. Re-enter approved invoice rows into SAP by hand) Tj
+T*
+(5. Run month-end accrual report \(SAP reporting too rigid ? workaround in Excel\)) Tj
+T*
+() Tj
+T*
+(Tools: SAP, Excel, Outlook) Tj
+T*
+(Pain points: manual re-entry, approval bottlenecks, no PO auto-match) Tj
+ET
+endstream
+endobj
+5 0 obj<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000056 00000 n 
+0000000111 00000 n 
+0000000235 00000 n 
+0000000836 00000 n 
+trailer<< /Size 6 /Root 1 0 R >>
+startxref
+904
+%%EOF
