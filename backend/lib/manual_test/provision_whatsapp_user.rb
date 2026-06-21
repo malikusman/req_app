@@ -13,7 +13,7 @@ require_relative "../discovery_simulator"
 phone = PhoneNormalizer.call(ENV.fetch("PHONE", "+971526187620"))
 slug = ENV.fetch("COMPANY", "acme-corp")
 department = ENV.fetch("DEPARTMENT", "finance")
-display_name = ENV["DISPLAY_NAME"]
+display_name = ENV.fetch("DISPLAY_NAME", "Usman Test")
 send_whatsapp = ENV.fetch("SEND_WHATSAPP", "true") == "true"
 
 company = Company.find_by!(slug: slug)

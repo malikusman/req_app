@@ -19,6 +19,12 @@ module Whatsapp
 
       case @employee.onboarding_step
       when "awaiting_name"
+        if name_prompt_pending?
+          persist_message(direction: "inbound", body: text)
+          mark_name_prompt_sent!
+          send_text(greeting_for_unknown_step)
+          return
+        end
         handle_name(text)
       when "awaiting_company"
         handle_company(text)
@@ -191,6 +197,16 @@ module Whatsapp
 
     def greeting_for_unknown_step
       "Hi! I'm the workflow discovery assistant for #{@company.display_name || @company.name}. What's your name?"
+    end
+
+    def name_prompt_pending?
+      !@conversation.state_snapshot["onboarding_name_prompt_sent"]
+    end
+
+    def mark_name_prompt_sent!
+      @conversation.update!(
+        state_snapshot: @conversation.state_snapshot.merge("onboarding_name_prompt_sent" => true)
+      )
     end
 
     def opt_out_message

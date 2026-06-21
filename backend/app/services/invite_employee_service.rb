@@ -7,7 +7,7 @@ class InviteEmployeeService
       display_name: display_name,
       department: department,
       participation_status: "invited",
-      onboarding_step: "awaiting_name",
+      onboarding_step: display_name.present? ? "awaiting_access_code" : "awaiting_name",
       invited_at: Time.current,
       invited_by_company_user: invited_by
     )

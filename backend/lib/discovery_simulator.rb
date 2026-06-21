@@ -171,7 +171,6 @@ class DiscoverySimulator
 
   def run_onboarding!
     stage "Onboarding"
-    simulate @persona[:name]
     simulate @plain_code
     simulate "YES"
 
@@ -265,8 +264,9 @@ class DiscoverySimulator
   def create_employee!
     @employee = @company.employees.create!(
       phone_e164: @persona[:phone],
+      display_name: @persona[:name],
       participation_status: "invited",
-      onboarding_step: "awaiting_name",
+      onboarding_step: "awaiting_access_code",
       invited_at: Time.current
     )
     _code, @plain_code = EmployeeAccessCode.issue_for!(employee: @employee, issued_by_type: "system")

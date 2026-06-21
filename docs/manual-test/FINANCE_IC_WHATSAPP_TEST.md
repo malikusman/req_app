@@ -13,12 +13,16 @@ Save these files to your phone before discovery:
 
 ## Phase 1 — Onboarding
 
+Message **+971 55 290 9236** (Req discovery bot).
+
+Your name is already on file from the invite — **start with your access code**, not your name.
+
 | Step | You send | Expected reply |
 |------|----------|----------------|
-| 1 | Reply to invite template (or any text) | Asks for your name |
-| 2 | `Usman Test` | Thanks + asks for access code |
-| 3 | `{ACCESS_CODE}` | Consent text — reply `YES` |
-| 4 | `YES` | Profiling intro + job title question |
+| 1 | `{ACCESS_CODE}` | Consent text — reply `YES` |
+| 2 | `YES` | Profiling intro + job title question |
+
+If you ever onboard without a preset name, the bot will ask **"What's your name?"** before accepting your reply.
 
 ---
 
@@ -26,11 +30,11 @@ Save these files to your phone before discovery:
 
 | Step | You send | Expected next question |
 |------|----------|------------------------|
-| 5 | `Accounts Payable Specialist` | Department? |
-| 6 | `Finance` | Seniority level? |
-| 7 | `I'm an individual contributor` | Daily responsibilities? |
-| 8 | `I reconcile vendor invoices in Excel and chase approval emails before entering everything into SAP` | Tools used daily? |
-| 9 | `SAP, Excel and Outlook` | Bridging message, then first discovery question |
+| 3 | `Accounts Payable Specialist` | Department? |
+| 4 | `Finance` | Seniority level? |
+| 5 | `I'm an individual contributor` | Daily responsibilities? |
+| 6 | `I reconcile vendor invoices in Excel and chase approval emails before entering everything into SAP` | Tools used daily? |
+| 7 | `SAP, Excel and Outlook` | Bridging message, then first discovery question |
 
 ---
 
