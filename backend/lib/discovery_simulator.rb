@@ -148,6 +148,7 @@ class DiscoverySimulator
       Notification.where(company_id: company.id).where("body ILIKE ?", "%#{employee.display_name}%").delete_all
     end
     employee.conversations.delete_all
+    EmployeeInvitation.where(employee_id: employee.id).delete_all
     EmployeeAccessCode.where(employee_id: employee.id).delete_all
     AccessCodeVerificationAttempt.where(employee_id: employee.id).delete_all
     employee.delete
