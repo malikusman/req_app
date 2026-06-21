@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class AddMultimodalConsentTextVersion < ActiveRecord::Migration[7.2]
+class AddMultimodalConsentTextVersion < ActiveRecord::Migration[7.1]
   def up
     ConsentTextVersion.where(active: true).update_all(active: false)
 

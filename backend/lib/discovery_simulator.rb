@@ -130,8 +130,19 @@ class DiscoverySimulator
     ReviewerInfoRequest.where(employee_id: employee.id).delete_all
     EmployeeNudge.where(employee_id: employee.id).delete_all
     employee.conversations.each do |conversation|
+      doc_ids = Document.where(conversation_id: conversation.id).pluck(:id)
+      if doc_ids.any?
+        MediaAttachment.where(conversation_id: conversation.id).update_all(document_id: nil)
+        DocumentChunk.where(document_id: doc_ids).delete_all
+        Document.where(id: doc_ids).delete_all
+      end
       MediaAttachment.where(conversation_id: conversation.id).delete_all
       conversation.messages.delete_all
+    end
+    orphan_doc_ids = Document.where(employee_id: employee.id).pluck(:id)
+    if orphan_doc_ids.any?
+      DocumentChunk.where(document_id: orphan_doc_ids).delete_all
+      Document.where(id: orphan_doc_ids).delete_all
     end
     if employee.display_name.present?
       Notification.where(company_id: company.id).where("body ILIKE ?", "%#{employee.display_name}%").delete_all

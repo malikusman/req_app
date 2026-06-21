@@ -35,47 +35,58 @@ puts "Company admin: #{company_admin.email} / password123 (company: #{company.na
 
 ConsentTextVersion.where(active: true).update_all(active: false)
 
-ConsentTextVersion.find_or_create_by!(version: "2026-06-20", locale: "en") do |c|
-  c.body = <<~TEXT.squish
-    Before we begin: we'll ask about 10 questions about your daily workflows via WhatsApp.
-    You can reply with text, voice notes, screenshots, or PDFs if that's easier.
-    Optional media may be transcribed or analyzed by AI to understand your work; only summarized
-    insights are shared with authorized leads—not raw chat logs or original files.
-    Reply YES to continue or STOP to opt out.
-  TEXT
-  c.confirmation_keywords = %w[YES I\ AGREE]
-  c.active = true
-end
-
-ConsentTextVersion.find_or_create_by!(version: "2026-06-20", locale: "es") do |c|
-  c.body = <<~TEXT.squish
-    Antes de comenzar: te haremos unas 10 preguntas sobre tus flujos de trabajo por WhatsApp.
-    Puedes responder con texto, notas de voz, capturas o PDFs si te resulta más fácil.
-    Los medios opcionales pueden transcribirse o analizarse con IA; los responsables autorizados
-    ven resúmenes, no el chat completo ni los archivos originales. Responde SI para continuar o STOP para cancelar.
-  TEXT
-  c.confirmation_keywords = %w[SI YES]
-  c.active = true
-end
-
-ConsentTextVersion.find_or_create_by!(version: "2026-05-01", locale: "en") do |c|
-  c.body = <<~TEXT.squish
-    Before we begin: we'll ask about 10 questions about your daily workflows via WhatsApp.
-    Your answers help your company find improvement opportunities. Summarized insights are
-    shared with authorized leads—not raw chat logs. Reply YES to continue or STOP to opt out.
-  TEXT
-  c.confirmation_keywords = %w[YES I\ AGREE]
-  c.active = false
-end
-
-ConsentTextVersion.find_or_create_by!(version: "2026-05-01", locale: "es") do |c|
-  c.body = <<~TEXT.squish
-    Antes de comenzar: te haremos unas 10 preguntas sobre tus flujos de trabajo por WhatsApp.
-    Tus respuestas ayudan a tu empresa a encontrar oportunidades de mejora. Los responsables
-    autorizados ven resúmenes, no el chat completo. Responde SI para continuar o STOP para cancelar.
-  TEXT
-  c.confirmation_keywords = %w[SI YES]
-  c.active = false
+[
+  {
+    version: "2026-06-20",
+    locale: "en",
+    active: true,
+    confirmation_keywords: %w[YES I\ AGREE],
+    body: <<~TEXT.squish
+      Before we begin: we'll ask about 10 questions about your daily workflows via WhatsApp.
+      You can reply with text, voice notes, screenshots, or PDFs if that's easier.
+      Optional media may be transcribed or analyzed by AI to understand your work; only summarized
+      insights are shared with authorized leads—not raw chat logs or original files.
+      Reply YES to continue or STOP to opt out.
+    TEXT
+  },
+  {
+    version: "2026-06-20",
+    locale: "es",
+    active: true,
+    confirmation_keywords: %w[SI YES],
+    body: <<~TEXT.squish
+      Antes de comenzar: te haremos unas 10 preguntas sobre tus flujos de trabajo por WhatsApp.
+      Puedes responder con texto, notas de voz, capturas o PDFs si te resulta más fácil.
+      Los medios opcionales pueden transcribirse o analizarse con IA; los responsables autorizados
+      ven resúmenes, no el chat completo ni los archivos originales. Responde SI para continuar o STOP para cancelar.
+    TEXT
+  },
+  {
+    version: "2026-05-01",
+    locale: "en",
+    active: false,
+    confirmation_keywords: %w[YES I\ AGREE],
+    body: <<~TEXT.squish
+      Before we begin: we'll ask about 10 questions about your daily workflows via WhatsApp.
+      Your answers help your company find improvement opportunities. Summarized insights are
+      shared with authorized leads—not raw chat logs. Reply YES to continue or STOP to opt out.
+    TEXT
+  },
+  {
+    version: "2026-05-01",
+    locale: "es",
+    active: false,
+    confirmation_keywords: %w[SI YES],
+    body: <<~TEXT.squish
+      Antes de comenzar: te haremos unas 10 preguntas sobre tus flujos de trabajo por WhatsApp.
+      Tus respuestas ayudan a tu empresa a encontrar oportunidades de mejora. Los responsables
+      autorizados ven resúmenes, no el chat completo. Responde SI para continuar o STOP para cancelar.
+    TEXT
+  }
+].each do |attrs|
+  record = ConsentTextVersion.find_or_initialize_by(version: attrs[:version], locale: attrs[:locale])
+  record.assign_attributes(attrs.except(:version, :locale))
+  record.save!
 end
 
 %w[finance sales hr operations support executive default].each do |dept|

@@ -107,6 +107,7 @@ module Reports
       end.join
 
       "<table><thead><tr><th>Type</th><th>Summary</th><th>Department</th></tr></thead><tbody>#{rows}</tbody></table>"
+    end
 
     def patterns_section
       patterns = @snapshot["patterns"] || []

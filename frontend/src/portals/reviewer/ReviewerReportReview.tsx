@@ -183,6 +183,18 @@ export function ReviewerReportReview() {
     return () => clearInterval(t);
   }, [load]);
 
+  const sidebarMedia = useMemo(() => {
+    if (loading || !report) return [];
+    if (activeSection !== 'signals' && activeSection !== 'patterns') return [];
+    const snapshotMedia =
+      (report.report_snapshot.supporting_media as { id: number }[] | undefined) || [];
+    const snapshotIds = new Set(snapshotMedia.map((item) => item.id));
+    if (snapshotIds.size > 0) {
+      return companyMedia.filter((attachment) => snapshotIds.has(attachment.id));
+    }
+    return companyMedia;
+  }, [loading, report, activeSection, companyMedia]);
+
   const setSectionStatus = async (sectionKey: string, status: string) => {
     if (!token || !companyId || !reportId) return;
     await api.updateSectionState(token, Number(companyId), Number(reportId), sectionKey, status);
@@ -231,16 +243,6 @@ export function ReviewerReportReview() {
   const snapshot = report.report_snapshot;
   const sectionComments = review.comments.filter((c) => c.section_key === activeSection);
   const showSupportingMedia = activeSection === 'signals' || activeSection === 'patterns';
-
-  const sidebarMedia = useMemo(() => {
-    if (!showSupportingMedia) return [];
-    const snapshotMedia = (snapshot.supporting_media as { id: number }[] | undefined) || [];
-    const snapshotIds = new Set(snapshotMedia.map((item) => item.id));
-    if (snapshotIds.size > 0) {
-      return companyMedia.filter((attachment) => snapshotIds.has(attachment.id));
-    }
-    return companyMedia;
-  }, [companyMedia, showSupportingMedia, snapshot.supporting_media]);
 
   return (
     <div className="space-y-6">

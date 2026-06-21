@@ -97,12 +97,7 @@ module Whatsapp
 
     def simulate_processing!(attachment, message)
       lang = @employee.preferred_language.presence || @company.locale
-      file = nil
-      file = Tempfile.new(["dev-media", ".bin"])
-      file.write("simulated")
-      file.rewind
-
-      result = Multimodal::UnderstandingService.call(attachment: attachment, file_path: file.path)
+      result = Multimodal::DevUnderstanding.call(attachment: attachment, language: lang)
       body = [attachment.caption, result.plain_text].map(&:presence).compact.join("\n\n")
 
       attachment.update!(
@@ -118,9 +113,6 @@ module Whatsapp
       Multimodal::MediaObservability.record!(event: "dev_simulated_ready", attachment: attachment)
       Multimodal::IndexMediaService.call(media_attachment: attachment.reload)
       ContinueDiscoveryAfterMediaJob.perform_now(attachment.id)
-    ensure
-      file&.close
-      file&.unlink
     end
 
     def mark_multimodal_on_conversation!(attachment)

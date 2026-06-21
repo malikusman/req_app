@@ -17,7 +17,7 @@ module Multimodal
 
     def call
       chunks = split_text(@text)
-      document.document_chunks.delete_all
+      @document.document_chunks.delete_all
 
       chunks.each_with_index do |content, index|
         embedding = @openai.embedding(content)
