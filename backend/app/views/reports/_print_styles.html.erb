@@ -1,0 +1,145 @@
+<style>
+  :root {
+    --ink: #0f172a;
+    --muted: #64748b;
+    --accent: #2563eb;
+    --border: #e2e8f0;
+    --surface: #f8fafc;
+    --success-bg: #f0fdf4;
+    --success-border: #86efac;
+  }
+
+  @page {
+    margin: 18mm 14mm 22mm;
+  }
+
+  body {
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    color: var(--ink);
+    margin: 0;
+    line-height: 1.55;
+    font-size: 11pt;
+  }
+
+  .cover {
+    min-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    page-break-after: always;
+  }
+
+  .cover h1 {
+    font-size: 28pt;
+    margin: 0 0 0.5rem;
+    border-bottom: 4px solid var(--accent);
+    padding-bottom: 0.5rem;
+  }
+
+  .cover .subtitle {
+    color: var(--muted);
+    font-size: 12pt;
+    margin: 0;
+  }
+
+  .cover .score {
+    margin-top: 2rem;
+    font-size: 14pt;
+  }
+
+  h2 {
+    color: #1e40af;
+    margin: 2rem 0 0.75rem;
+    page-break-after: avoid;
+  }
+
+  h3 {
+    margin: 1rem 0 0.35rem;
+    page-break-after: avoid;
+  }
+
+  .meta {
+    color: var(--muted);
+    font-size: 9pt;
+  }
+
+  .badge {
+    display: inline-block;
+    background: #dbeafe;
+    color: #1e40af;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 8.5pt;
+    text-transform: capitalize;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0.75rem 0 1.25rem;
+    page-break-inside: avoid;
+  }
+
+  th, td {
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+
+  th {
+    background: var(--surface);
+    font-size: 9pt;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .delta-box {
+    background: var(--success-bg);
+    border: 1px solid var(--success-border);
+    padding: 1rem;
+    border-radius: 8px;
+    margin: 1rem 0;
+  }
+
+  .bar {
+    height: 8px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .bar-fill {
+    height: 100%;
+    background: #3b82f6;
+    border-radius: 4px;
+  }
+
+  .breakdown-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: 0.35rem 0 0.15rem;
+    font-size: 10pt;
+  }
+
+  .section-block {
+    page-break-inside: avoid;
+  }
+
+  .page-break {
+    page-break-before: always;
+  }
+
+  .appendix-note {
+    border-left: 3px solid var(--accent);
+    padding: 0.5rem 0 0.5rem 0.85rem;
+    margin: 0.75rem 0;
+  }
+
+  .footer {
+    margin-top: 3rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+  }
+</style>

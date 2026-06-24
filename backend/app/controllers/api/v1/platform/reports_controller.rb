@@ -4,10 +4,19 @@ module Api
   module V1
     module Platform
       class ReportsController < BaseController
+        include Api::V1::ReportDownload
+
         def index
           company = ::Company.find(params[:company_id])
           reports = policy_scope(Report).where(company_id: company.id).order(version: :desc)
           render json: { reports: reports.map { |r| report_json(r, company: company) } }
+        end
+
+        def download
+          report = Report.joins(:company).find_by!(id: params[:id], company_id: params[:company_id])
+          authorize report, :download?
+          disposition = params[:inline].present? ? "inline" : "attachment"
+          send_report_download(report, disposition: disposition)
         end
 
         def approve
@@ -23,6 +32,8 @@ module Api
              !report.company.merged_settings["skip_platform_review"]
             return render json: { error: "All reviewer submissions required before approval" }, status: :unprocessable_entity
           end
+
+          Reports::RegenerateWithReviewService.call(report: report) if report.report_reviews.exists?
 
           report.update!(
             visibility: "shared_with_company",
@@ -46,6 +57,7 @@ module Api
         def report_json(report, company: report.company)
           active_reviewer_ids = company.reviewer_assignments.active.pluck(:reviewer_user_id)
           reviews = report.report_reviews.where(reviewer_user_id: active_reviewer_ids)
+            .includes(:reviewer_user, :report_review_comments)
 
           {
             id: report.id,
@@ -63,8 +75,27 @@ module Api
                 status: rv.status,
                 submitted_at: rv.submitted_at
               }
-            end
+            end,
+            reviewer_feedback: reviewer_feedback_json(reviews)
           }
+        end
+
+        def reviewer_feedback_json(reviews)
+          reviews.map do |review|
+            {
+              reviewer_name: review.reviewer_user.name,
+              status: review.status,
+              submitted_at: review.submitted_at,
+              overall_note: review.overall_note,
+              comments: review.report_review_comments.order(:created_at).map do |comment|
+                {
+                  id: comment.id,
+                  section_key: comment.section_key,
+                  body: comment.body
+                }
+              end
+            }
+          end
         end
       end
     end

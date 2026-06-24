@@ -23,6 +23,14 @@ async function request<T>(
   return data as T;
 }
 
+async function fetchPreviewBlob(token: string, path: string) {
+  const res = await fetch(`${API_URL}${path}${path.includes('?') ? '&' : '?'}inline=1`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error('Preview failed');
+  return URL.createObjectURL(await res.blob());
+}
+
 export const api = {
   platformLogin: (email: string, password: string) =>
     request<{ token: string; user: { id: number; email: string; name: string; role: string } }>(
@@ -285,6 +293,12 @@ export const api = {
       { method: 'POST' },
       token
     ),
+
+  previewPlatformReport: (token: string, companyId: number, reportId: number) =>
+    fetchPreviewBlob(token, `/api/v1/platform/companies/${companyId}/reports/${reportId}/download`),
+
+  previewReviewerReport: (token: string, companyId: number, reportId: number) =>
+    fetchPreviewBlob(token, `/api/v1/reviewer/companies/${companyId}/reports/${reportId}/download`),
 
   discoveryQuestions: (token: string) =>
     request<{ questions: DiscoveryQuestion[] }>('/api/v1/company/discovery_questions', {}, token),
@@ -699,6 +713,7 @@ export interface ReviewerReportDetail {
   status: string;
   report_snapshot: Record<string, unknown>;
   generated_at: string | null;
+  storage_key?: boolean;
 }
 
 export interface ReportReviewPayload {
@@ -931,7 +946,14 @@ export interface CompanyPattern {
 export interface PlatformReport extends Report {
   review_workflow_status?: string;
   reviews_completed_at?: string | null;
-  reviewer_progress?: { reviewer_name: string; status: string }[];
+  reviewer_progress?: { reviewer_name: string; status: string; submitted_at?: string | null }[];
+  reviewer_feedback?: {
+    reviewer_name: string;
+    status: string;
+    submitted_at?: string | null;
+    overall_note?: string | null;
+    comments: { id: number; section_key: string; body: string }[];
+  }[];
 }
 
 export interface DiscoveryQuestion {

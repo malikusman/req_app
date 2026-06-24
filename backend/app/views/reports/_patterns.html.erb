@@ -1,0 +1,11 @@
+<% if patterns.empty? %>
+  <p class="meta"><em>No patterns detected yet.</em></p>
+<% else %>
+  <% patterns.each do |pattern| %>
+    <div class="section-block">
+      <h3><%= h pattern['title'] %></h3>
+      <p><%= h pattern['description'].to_s %></p>
+      <p class="meta">Confidence: <%= (pattern['confidence'].to_f * 100).round %>%</p>
+    </div>
+  <% end %>
+<% end %>

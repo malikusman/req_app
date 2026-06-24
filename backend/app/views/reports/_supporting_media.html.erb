@@ -1,0 +1,19 @@
+<% if supporting_media.empty? %>
+  <p class="meta"><em>No supporting media captured yet.</em></p>
+<% else %>
+  <table>
+    <thead>
+      <tr><th>Type</th><th>Summary</th><th>Department</th></tr>
+    </thead>
+    <tbody>
+      <% supporting_media.each do |item| %>
+        <% summary = item['summary'].presence || item['caption'].presence || "Shared #{item['attachment_type']}" %>
+        <tr>
+          <td><%= h item['attachment_type'].to_s %></td>
+          <td><%= h summary.to_s %></td>
+          <td><%= h item['employee_department'].to_s %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+<% end %>

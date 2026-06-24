@@ -4,6 +4,8 @@ module Api
   module V1
     module Company
       class ReportsController < BaseController
+        include Api::V1::ReportDownload
+
         def index
           reports = policy_scope(Report).order(version: :desc)
           render json: { reports: reports.map { |r| report_json(r) } }

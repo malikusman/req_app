@@ -1,0 +1,17 @@
+<% score = readiness['score'].to_i %>
+<p class="section-block">Overall readiness: <strong><%= score %>%</strong></p>
+<% breakdown = readiness['breakdown'] || {} %>
+<% if breakdown.any? %>
+  <% breakdown.each do |key, value| %>
+    <% pct = value.to_i.clamp(0, 100) %>
+    <div class="section-block">
+      <div class="breakdown-row">
+        <span><%= h key.to_s.tr('_', ' ').capitalize %></span>
+        <span><%= pct %>%</span>
+      </div>
+      <div class="bar"><div class="bar-fill" style="width: <%= pct %>%"></div></div>
+    </div>
+  <% end %>
+<% else %>
+  <p class="meta"><em>No readiness breakdown available.</em></p>
+<% end %>

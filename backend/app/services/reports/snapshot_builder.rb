@@ -48,12 +48,28 @@ module Reports
           }
         end,
         "delta_from_previous" => @delta,
+        "executive_summary" => executive_summary,
         "sections" => ReportSections::DEFINITIONS,
         "supporting_media" => supporting_media_json
       }
     end
 
     private
+
+    def executive_summary
+      participation = Intelligence::SnapshotBuilder.call(company: @company)["participation"] || {}
+      invited = participation["invited"].to_i
+      completed = participation["completed"].to_i
+      parts = ["#{completed} of #{invited} employees completed discovery interviews."]
+
+      top_signals = @company.company_signals.order(strength: :desc).limit(3).pluck(:label)
+      parts << "Top friction areas include #{top_signals.join(', ')}." if top_signals.any?
+
+      pattern_count = @company.patterns.count
+      parts << "#{pattern_count} cross-team #{'pattern'.pluralize(pattern_count)} inform the recommendations below." if pattern_count.positive?
+
+      parts.join(" ")
+    end
 
     def supporting_media_json
       MediaAttachment.where(company_id: @company.id, status: "ready")

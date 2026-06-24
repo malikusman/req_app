@@ -66,6 +66,8 @@ export function PlatformCompanyDetail() {
   const [tab, setTab] = useState('overview');
   const [loading, setLoading] = useState(true);
   const [approvingId, setApprovingId] = useState<number | null>(null);
+  const [selectedReportId, setSelectedReportId] = useState<number | null>(null);
+  const [reportPreviewUrl, setReportPreviewUrl] = useState<string | null>(null);
   const [actionError, setActionError] = useState('');
 
   const loadReports = () => {
@@ -202,6 +204,28 @@ export function PlatformCompanyDetail() {
     report.review_workflow_status !== 'platform_approved' &&
     report.review_workflow_status !== 'awaiting_reviewers' &&
     report.review_workflow_status !== 'in_review';
+
+  const selectedReport = reports.find((r) => r.id === selectedReportId) ?? null;
+
+  useEffect(() => {
+    if (!token || !selectedReport || selectedReport.status !== 'ready') {
+      setReportPreviewUrl(null);
+      return;
+    }
+
+    let objectUrl: string | null = null;
+    api
+      .previewPlatformReport(token, companyId, selectedReport.id)
+      .then((url) => {
+        objectUrl = url;
+        setReportPreviewUrl(url);
+      })
+      .catch(() => setReportPreviewUrl(null));
+
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [token, companyId, selectedReport?.id, selectedReport?.status]);
 
   const auditTotalPages = Math.max(1, Math.ceil(auditTotal / 50));
 
@@ -483,6 +507,16 @@ export function PlatformCompanyDetail() {
                 render: (r) => String(r.review_workflow_status || '—'),
               },
               {
+                key: 'notes',
+                header: 'Reviewer notes',
+                render: (r) => {
+                  const count =
+                    (r.reviewer_feedback || []).reduce((sum, review) => sum + review.comments.length, 0) +
+                    (r.reviewer_feedback || []).filter((review) => review.overall_note).length;
+                  return count > 0 ? `${count} note${count === 1 ? '' : 's'}` : '—';
+                },
+              },
+              {
                 key: 'generated',
                 header: 'Generated',
                 render: (r) => (r.generated_at ? new Date(r.generated_at).toLocaleString() : '—'),
@@ -505,8 +539,55 @@ export function PlatformCompanyDetail() {
               },
             ]}
             rows={reports}
+            onRowClick={(r) => setSelectedReportId((current) => (current === r.id ? null : r.id))}
             emptyState={<EmptyState title="No reports" description="This company has not generated a report yet." />}
           />
+
+          {selectedReport && (
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Card title={`Reviewer feedback · v${selectedReport.version}`}>
+                {(selectedReport.reviewer_feedback || []).length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No reviewer comments yet.</p>
+                ) : (
+                  <div className="space-y-4">
+                    {selectedReport.reviewer_feedback!.map((review) => (
+                      <div key={review.reviewer_name} className="rounded-lg border border-border p-3">
+                        <p className="m-0 text-sm font-medium text-foreground">
+                          {review.reviewer_name}{' '}
+                          <Badge variant="neutral">{review.status}</Badge>
+                        </p>
+                        {review.overall_note && (
+                          <p className="m-0 mt-2 text-sm text-muted-foreground">{review.overall_note}</p>
+                        )}
+                        {review.comments.length > 0 && (
+                          <ul className="m-0 mt-2 list-none space-y-2 p-0">
+                            {review.comments.map((comment) => (
+                              <li key={comment.id} className="text-sm">
+                                <span className="font-medium capitalize text-foreground">
+                                  {comment.section_key.replace(/_/g, ' ')}:
+                                </span>{' '}
+                                <span className="text-muted-foreground">{comment.body}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
+
+              {reportPreviewUrl && (
+                <Card title="Report preview">
+                  <iframe
+                    src={reportPreviewUrl}
+                    title="Report PDF preview"
+                    className="h-[520px] w-full rounded-lg border border-border bg-muted/30"
+                  />
+                </Card>
+              )}
+            </div>
+          )}
         </>
       )}
 

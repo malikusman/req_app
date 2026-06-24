@@ -26,6 +26,12 @@ const SECTIONS = [
   'recommendations',
 ] as const;
 
+const SECTION_STATUS_OPTIONS = [
+  { value: 'pending', label: 'Not started' },
+  { value: 'approved', label: 'Reviewed' },
+  { value: 'needs_info', label: 'Needs clarification' },
+] as const;
+
 type SectionKey = (typeof SECTIONS)[number];
 
 function SectionContent({ section, snapshot }: { section: SectionKey; snapshot: Record<string, unknown> }) {
@@ -159,6 +165,7 @@ export function ReviewerReportReview() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [companyMedia, setCompanyMedia] = useState<MediaAttachment[]>([]);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const load = useCallback(() => {
     if (!token || !companyId || !reportId) return;
@@ -182,6 +189,26 @@ export function ReviewerReportReview() {
     const t = setInterval(load, 15000);
     return () => clearInterval(t);
   }, [load]);
+
+  useEffect(() => {
+    if (!token || !companyId || !reportId || !report?.storage_key) {
+      setPreviewUrl(null);
+      return;
+    }
+
+    let objectUrl: string | null = null;
+    api
+      .previewReviewerReport(token, Number(companyId), Number(reportId))
+      .then((url) => {
+        objectUrl = url;
+        setPreviewUrl(url);
+      })
+      .catch(() => setPreviewUrl(null));
+
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [token, companyId, reportId, report?.storage_key]);
 
   const sidebarMedia = useMemo(() => {
     if (loading || !report) return [];
@@ -239,7 +266,7 @@ export function ReviewerReportReview() {
   }
 
   const review = payload.review;
-  const submitted = review.status === 'submitted';
+  const submitted = Boolean(review.submitted_at);
   const snapshot = report.report_snapshot;
   const sectionComments = review.comments.filter((c) => c.section_key === activeSection);
   const showSupportingMedia = activeSection === 'signals' || activeSection === 'patterns';
@@ -263,13 +290,23 @@ export function ReviewerReportReview() {
         }
       />
 
+      {previewUrl && (
+        <Card title="Report preview">
+          <iframe
+            src={previewUrl}
+            title="Report PDF preview"
+            className="h-[480px] w-full rounded-lg border border-border bg-muted/30"
+          />
+        </Card>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-12">
         {/* Section nav */}
         <nav className="lg:col-span-2">
           <Card padding={false} className="p-2">
             <ul className="m-0 list-none p-2">
               {SECTIONS.map((key) => {
-                const state = review.section_states.find((s) => s.section_key === key)?.status || 'not_started';
+                const state = review.section_states.find((s) => s.section_key === key)?.status || 'pending';
                 return (
                   <li key={key}>
                     <button
@@ -307,14 +344,9 @@ export function ReviewerReportReview() {
               <div className="mb-4 max-w-xs">
                 <Select
                   label="Section status"
-                  value={review.section_states.find((s) => s.section_key === activeSection)?.status || 'not_started'}
+                  value={review.section_states.find((s) => s.section_key === activeSection)?.status || 'pending'}
                   onChange={(e) => setSectionStatus(activeSection, e.target.value)}
-                  options={[
-                    { value: 'not_started', label: 'Not started' },
-                    { value: 'in_progress', label: 'In progress' },
-                    { value: 'reviewed', label: 'Reviewed' },
-                    { value: 'needs_clarification', label: 'Needs clarification' },
-                  ]}
+                  options={[...SECTION_STATUS_OPTIONS]}
                 />
               </div>
             )}

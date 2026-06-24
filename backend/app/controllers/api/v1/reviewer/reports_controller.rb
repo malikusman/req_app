@@ -4,6 +4,8 @@ module Api
   module V1
     module Reviewer
       class ReportsController < BaseController
+        include Api::V1::ReportDownload
+
         def index
           company = policy_scope(::Company).find(params[:company_id])
           reports = policy_scope(::Report).where(company_id: company.id).order(version: :desc)
@@ -14,6 +16,13 @@ module Api
           report = policy_scope(::Report).find(params[:id])
           authorize report, :show?
           render json: { report: report_detail_json(report) }
+        end
+
+        def download
+          report = policy_scope(::Report).find(params[:id])
+          authorize report, :download?
+          disposition = params[:inline].present? ? "inline" : "attachment"
+          send_report_download(report, disposition: disposition)
         end
 
         private

@@ -46,6 +46,7 @@ Rails.application.routes.draw do
         get "companies/:company_id/intelligence/recommendations", to: "intelligence#recommendations"
         get "companies/:company_id/intelligence/timeline", to: "intelligence#timeline"
         post "companies/:company_id/reports/:id/approve", to: "reports#approve"
+        get "companies/:company_id/reports/:id/download", to: "reports#download"
         post "companies/:company_id/impersonate", to: "impersonations#create"
         get "monitoring", to: "monitoring#show"
         get "dashboard", to: "dashboard#show"
@@ -77,6 +78,9 @@ Rails.application.routes.draw do
           get "recommendations", to: "intelligence#recommendations"
           get "review_sync", to: "review_sync#show"
           resources :reports, only: %i[index show], controller: "reports" do
+            member do
+              get :download
+            end
             resource :review, only: %i[show update], controller: "report_reviews" do
               post :submit, on: :member
               resources :comments, only: %i[index create update destroy], controller: "report_review_comments"

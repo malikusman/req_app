@@ -1,0 +1,22 @@
+<% if recommendations.empty? %>
+  <p class="meta"><em>No recommendations yet.</em></p>
+<% else %>
+  <% recommendations.each do |rec| %>
+    <div class="section-block">
+      <h3>
+        <%= h rec['title'] %>
+        <% if rec['priority'].present? %>
+          <span class="badge"><%= h rec['priority'] %></span>
+        <% end %>
+      </h3>
+      <p><%= h rec['description'].to_s %></p>
+      <% tools = Array(rec['catalog_matches']).map { |c| c['name'] }.compact.join(', ') %>
+      <% if tools.present? %>
+        <p class="meta">Suggested tools: <%= h tools %></p>
+      <% end %>
+      <% if rec['implementation_outline'].present? %>
+        <p><%= h rec['implementation_outline'] %></p>
+      <% end %>
+    </div>
+  <% end %>
+<% end %>

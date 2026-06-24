@@ -47,7 +47,13 @@ module Reports
       parts << "Content-Disposition: form-data; name=\"files\"; filename=\"index.html\"\r\n"
       parts << "Content-Type: text/html\r\n\r\n"
       parts << @html
-      parts << "\r\n--#{boundary}--\r\n"
+      parts << "\r\n"
+      %w[marginTop marginBottom marginLeft marginRight].each do |field|
+        parts << "--#{boundary}\r\n"
+        parts << "Content-Disposition: form-data; name=\"#{field}\"\r\n\r\n"
+        parts << "0.7\r\n"
+      end
+      parts << "--#{boundary}--\r\n"
       parts.join
     end
   end

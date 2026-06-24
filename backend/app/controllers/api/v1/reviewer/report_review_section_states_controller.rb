@@ -11,6 +11,10 @@ module Api
           authorize @review, :update?
           state.update!(status: params.require(:status))
           @review.update!(status: "in_review") if @review.status == "pending"
+          report = @review.report
+          if report.review_workflow_status == "awaiting_reviewers"
+            report.update!(review_workflow_status: "in_review")
+          end
           render json: { section_state: { section_key: state.section_key, status: state.status } }
         end
 

@@ -1,0 +1,13 @@
+<% review_notes.each do |note| %>
+  <div class="appendix-note section-block">
+    <p class="meta">
+      <%= h note['reviewer'] %>
+      <% if note['section_key'].present? %>
+        · <%= h note['section_key'].tr('_', ' ') %>
+      <% else %>
+        · Overall note
+      <% end %>
+    </p>
+    <p><%= h note['body'] %></p>
+  </div>
+<% end %>

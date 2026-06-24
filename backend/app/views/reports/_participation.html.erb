@@ -1,0 +1,23 @@
+<% if participation.blank? %>
+  <p class="meta"><em>No participation data.</em></p>
+<% else %>
+  <table>
+    <thead>
+      <tr><th>Metric</th><th>Value</th></tr>
+    </thead>
+    <tbody>
+      <% participation.each do |key, value| %>
+        <tr>
+          <td><%= h key.to_s.tr('_', ' ').capitalize %></td>
+          <td>
+            <% if value.is_a?(Numeric) && value < 1 && key.to_s.include?('rate') %>
+              <%= (value.to_f * 100).round %>%
+            <% else %>
+              <%= value %>
+            <% end %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+<% end %>
