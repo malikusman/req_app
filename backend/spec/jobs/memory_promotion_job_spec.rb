@@ -16,6 +16,11 @@ RSpec.describe MemoryPromotionJob do
            })
   end
 
+  before do
+    openai = instance_double(Openai::Client, configured?: true, embedding: Array.new(1536, 0.1))
+    allow(Openai::Client).to receive(:new).and_return(openai)
+  end
+
   it "promotes only findings above the confidence threshold" do
     described_class.perform_now(conversation.id)
 
