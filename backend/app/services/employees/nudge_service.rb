@@ -38,9 +38,9 @@ module Employees
         sent_at: Time.current
       )
 
-      SendEmployeeNudgeJob.perform_later(nudge.id)
+    SendEmployeeNudgeJob.perform_later(nudge.id)
 
-      Result.new(nudge: nudge, message: "Nudge queued")
+    Result.new(nudge: nudge, message: "Nudge queued")
     end
 
     private
@@ -60,7 +60,7 @@ module Employees
                      @employee.last_nudged_at > SendEmployeeNudgeJob::NUDGE_COOLDOWN.ago
 
       @employee.employee_nudges
-               .where(delivery_status: %w[queued sent partial])
+               .where(delivery_status: %w[sent partial])
                .where("sent_at > ?", SendEmployeeNudgeJob::NUDGE_COOLDOWN.ago)
                .exists?
     end

@@ -139,10 +139,15 @@ class FullCycleSimulator
     reset_stalled_employee!
     create_stalled_employee!
 
-    SendEmployeeNudgeJob.perform_now(@stalled_employee.id, @admin.id)
+    SendEmployeeNudgeJob.backfill_legacy_statuses!
+    result = Employees::NudgeService.call(
+      employee: @stalled_employee,
+      company_user: @admin
+    )
+    SendEmployeeNudgeJob.perform_now(result.nudge.id)
     @stalled_employee.reload
 
-    nudge = EmployeeNudge.where(employee_id: @stalled_employee.id).order(sent_at: :desc).first
+    nudge = result.nudge.reload
     check "Nudge job created EmployeeNudge record", nudge.present?
     check "Nudge updated last_nudged_at", @stalled_employee.last_nudged_at.present?
     check "Nudge linked to conversation", nudge&.conversation_id.present?

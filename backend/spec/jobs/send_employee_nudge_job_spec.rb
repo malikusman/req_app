@@ -66,4 +66,17 @@ RSpec.describe SendEmployeeNudgeJob, type: :job do
     expect(nudge.error_message).to include("Email")
     expect(employee.reload.last_nudged_at).to be_nil
   end
+
+  it "marks nudge failed when an unexpected error occurs" do
+    nudge = create_nudge(employee: employee)
+    allow(EmployeeNudge).to receive(:find).with(nudge.id).and_return(nudge)
+    allow(nudge).to receive(:employee).and_raise(StandardError, "boom")
+
+    expect {
+      described_class.perform_now(nudge.id)
+    }.to raise_error(StandardError, "boom")
+
+    expect(nudge.reload.delivery_status).to eq("failed")
+    expect(nudge.error_message).to eq("boom")
+  end
 end

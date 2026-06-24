@@ -10,6 +10,7 @@ import {
   Badge,
   FunnelChart,
   EmptyState,
+  Modal,
 } from '../../components/ui';
 
 function participationBadge(status: string) {
@@ -46,6 +47,7 @@ export function CompanyEmployees() {
   const [loading, setLoading] = useState(true);
   const [inviting, setInviting] = useState(false);
   const [nudgingId, setNudgingId] = useState<number | null>(null);
+  const [nudgeConfirmEmployee, setNudgeConfirmEmployee] = useState<Employee | null>(null);
   const [editingPhoneId, setEditingPhoneId] = useState<number | null>(null);
   const [editPhone, setEditPhone] = useState('');
   const [savingPhone, setSavingPhone] = useState(false);
@@ -108,12 +110,18 @@ export function CompanyEmployees() {
     try {
       const res = await api.nudgeEmployee(token, employeeId);
       setNudgeMsg(res.message || 'Nudge queued.');
+      setNudgeConfirmEmployee(null);
       load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Nudge failed');
     } finally {
       setNudgingId(null);
     }
+  };
+
+  const nudgeChannelsLabel = (employee: Employee) => {
+    if (employee.email) return 'WhatsApp and email';
+    return 'WhatsApp';
   };
 
   const copyCode = (code: string) => {
@@ -267,6 +275,9 @@ export function CompanyEmployees() {
                 <span className="text-xs text-text-secondary">
                   {label}
                   {e.latest_nudge?.sent_at ? ` · ${new Date(e.latest_nudge.sent_at).toLocaleString()}` : ''}
+                  {e.latest_nudge?.delivery_status === 'failed' && e.latest_nudge.error_message
+                    ? ` · ${e.latest_nudge.error_message}`
+                    : ''}
                 </span>
               );
             },
@@ -280,7 +291,7 @@ export function CompanyEmployees() {
                   variant="secondary"
                   size="sm"
                   loading={nudgingId === e.id}
-                  onClick={() => sendNudge(e.id)}
+                  onClick={() => setNudgeConfirmEmployee(e)}
                 >
                   Nudge
                 </Button>
@@ -292,6 +303,41 @@ export function CompanyEmployees() {
         rows={employees as Employee[]}
         emptyState={<EmptyState title="No employees" description="Invite your first employee to start discovery." />}
       />
+
+      <Modal
+        open={nudgeConfirmEmployee != null}
+        onClose={() => setNudgeConfirmEmployee(null)}
+        title="Send nudge reminder?"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setNudgeConfirmEmployee(null)}>
+              Cancel
+            </Button>
+            <Button
+              loading={nudgeConfirmEmployee != null && nudgingId === nudgeConfirmEmployee.id}
+              onClick={() => nudgeConfirmEmployee && sendNudge(nudgeConfirmEmployee.id)}
+            >
+              Send nudge
+            </Button>
+          </>
+        }
+      >
+        {nudgeConfirmEmployee && (
+          <div className="space-y-3 text-sm text-text-secondary">
+            <p className="m-0">
+              Send a reminder to{' '}
+              <span className="font-medium text-text-primary">
+                {nudgeConfirmEmployee.display_name || nudgeConfirmEmployee.phone_e164}
+              </span>{' '}
+              to continue their discovery interview?
+            </p>
+            <p className="m-0">
+              Delivery: <span className="text-text-primary">{nudgeChannelsLabel(nudgeConfirmEmployee)}</span>
+            </p>
+            <p className="m-0 text-xs">Nudges are limited to once every 24 hours per employee.</p>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

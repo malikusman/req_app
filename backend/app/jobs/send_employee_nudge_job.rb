@@ -5,14 +5,53 @@ class SendEmployeeNudgeJob < ApplicationJob
 
   NUDGE_COOLDOWN = 24.hours
 
+  discard_on ActiveRecord::RecordNotFound do |job, error|
+    Rails.logger.warn(
+      "[SendEmployeeNudgeJob] discarding job #{job.job_id}: #{error.message} args=#{job.arguments.inspect}"
+    )
+  end
+
   def perform(employee_nudge_id)
     nudge = EmployeeNudge.find(employee_nudge_id)
+    deliver!(nudge)
+  rescue StandardError => e
+    mark_failed!(nudge, e.message) if defined?(nudge) && nudge.is_a?(EmployeeNudge)
+    raise
+  end
+
+  def self.requeue_stuck!(older_than: 2.minutes)
+    scope = EmployeeNudge.where(delivery_status: "queued", whatsapp_status: "queued")
+                         .where("created_at < ?", older_than.ago)
+
+    scope.find_each do |nudge|
+      perform_later(nudge.id)
+    end
+  end
+
+  def self.backfill_legacy_statuses!
+    EmployeeNudge.where(delivery_status: "queued")
+                 .where.not(meta_message_id: nil)
+                 .update_all(delivery_status: "sent", whatsapp_status: "sent", updated_at: Time.current)
+
+    EmployeeNudge.where(delivery_status: "queued", whatsapp_status: nil, meta_message_id: nil)
+                 .where("created_at < ?", 1.hour.ago)
+                 .update_all(
+                   delivery_status: "failed",
+                   whatsapp_status: "failed",
+                   error_message: "Nudge was not delivered (legacy record)",
+                   updated_at: Time.current
+                 )
+  end
+
+  private
+
+  def deliver!(nudge)
     employee = nudge.employee
     company = employee.company
     errors = []
     whatsapp_ok = false
     email_ok = false
-    meta_id = nil
+    meta_id = nudge.meta_message_id
 
     if nudge.whatsapp_channel?
       whatsapp_ok, meta_id, wa_error = deliver_whatsapp!(employee, company)
@@ -42,7 +81,16 @@ class SendEmployeeNudgeJob < ApplicationJob
     employee.update!(last_nudged_at: Time.current) if delivery_status.in?(%w[sent partial])
   end
 
-  private
+  def mark_failed!(nudge, message)
+    nudge.update!(
+      delivery_status: "failed",
+      whatsapp_status: nudge.whatsapp_channel? ? "failed" : nudge.whatsapp_status,
+      email_status: nudge.email_channel? ? "failed" : nudge.email_status,
+      error_message: message
+    )
+  rescue StandardError => e
+    Rails.logger.error("[SendEmployeeNudgeJob] could not mark nudge #{nudge.id} failed: #{e.message}")
+  end
 
   def deliver_whatsapp!(employee, company)
     client = Whatsapp::MetaClient.new
