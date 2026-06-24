@@ -73,6 +73,9 @@ export const api = {
       usage: { conversations_used: number; conversation_limit: number | null; remaining: number | null; limit_reached: boolean };
     }>('/api/v1/company/me', {}, token),
 
+  companyDashboard: (token: string) =>
+    request<CompanyDashboardPayload>('/api/v1/company/dashboard', {}, token),
+
   companyOnboarding: (token: string) =>
     request<{ step: number; company: { display_name: string; locale: string }; invited_count: number }>(
       '/api/v1/company/onboarding',
@@ -388,6 +391,8 @@ export const api = {
 
   platformMonitoring: (token: string) => request<PlatformMonitoring>('/api/v1/platform/monitoring', {}, token),
 
+  platformDashboard: (token: string) => request<PlatformDashboardPayload>('/api/v1/platform/dashboard', {}, token),
+
   platformTrials: (token: string) =>
     request<{ trials: PlatformTrialRow[] }>('/api/v1/platform/trials', {}, token),
 
@@ -475,6 +480,8 @@ export const api = {
     request<{ expert_reviewers: ReviewerPublicCard[] }>('/api/v1/company/expert_reviewers', {}, token),
 
   reviewerCompanies: (token: string) => request<{ companies: ReviewerCompanySummary[] }>('/api/v1/reviewer/companies', {}, token),
+
+  reviewerDashboard: (token: string) => request<ReviewerDashboardPayload>('/api/v1/reviewer/dashboard', {}, token),
 
   reviewerCompany: (token: string, id: number) => request<{ company: ReviewerCompanyDetail }>(`/api/v1/reviewer/companies/${id}`, {}, token),
 
@@ -733,10 +740,85 @@ export interface ImpersonationResponse {
 
 export interface PlatformMonitoring {
   companies: { total: number; onboarded: number; avg_readiness: number };
-  subscriptions: { by_status: Record<string, number>; trials_expiring_7d: number; at_conversation_limit: number };
+  subscriptions: {
+    by_status: Record<string, number>;
+    active_trials?: number;
+    trials_expiring_7d: number;
+    at_conversation_limit: number;
+  };
   discovery: { active_conversations: number; completed_employees: number; conversations_last_24h: number };
+  multimodal?: {
+    ready_attachments: number;
+    processing_attachments: number;
+    failed_attachments: number;
+    attachments_last_24h: number;
+    companies_with_multimodal_enabled: number;
+    companies_with_media_indexing_enabled: number;
+  };
   reports: { ready: number; generating: number; failed: number };
   impersonations: { active_sessions: number; last_24h: number };
+}
+
+export interface PlatformDashboardPayload {
+  monitoring: PlatformMonitoring;
+  system: PlatformSystemHealth;
+  trials_expiring_soon: PlatformTrialRow[];
+}
+
+export interface CompanyDashboardPayload {
+  user: CompanyUser;
+  company: {
+    id: number;
+    name: string;
+    display_name: string | null;
+    locale?: string;
+    portal_onboarding_completed_at: string | null;
+    report_readiness_score: number;
+    completed_count: number;
+    invited_count: number;
+    onboarding_complete: boolean;
+  };
+  snapshot: IntelligenceSnapshot;
+  report_readiness_score: number;
+  report_readiness_breakdown: Record<string, number>;
+  usage: { conversations_used: number; conversation_limit: number | null; remaining: number | null; limit_reached: boolean };
+  latest_report: Report | null;
+  employees_summary: {
+    stalled_count: number;
+    in_progress_count: number;
+    can_nudge_count: number;
+    stalled_employees: {
+      id: number;
+      display_name: string | null;
+      department: string | null;
+      last_active_at: string | null;
+      can_nudge: boolean;
+    }[];
+  };
+  impersonating: boolean;
+  impersonation_expires_at: string | null;
+}
+
+export interface ReviewerDashboardPayload {
+  profile: { profile_completeness_percent: number; profile_status: string };
+  stats: {
+    assigned_companies: number;
+    avg_readiness: number;
+    total_completed: number;
+    total_invited: number;
+    pending_reviews: number;
+    open_followups: number;
+  };
+  attention_items: {
+    company_id: number;
+    company_name: string;
+    report_id: number;
+    report_version: number;
+    review_status: string | null;
+  }[];
+  recent_followups: ReviewerFollowupRow[];
+  companies: ReviewerCompanyDetail[];
+  unread_count: number;
 }
 
 export interface PlatformTrialRow {

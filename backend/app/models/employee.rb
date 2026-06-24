@@ -21,6 +21,11 @@ class Employee < ApplicationRecord
   validates :onboarding_step, inclusion: { in: ONBOARDING_STEPS }
   validates :seniority, inclusion: { in: SENIORITY_LEVELS }, allow_nil: true
 
+  scope :stalled, lambda {
+    where(participation_status: "started")
+      .where("last_active_at < ?", 48.hours.ago)
+  }
+
   def profile_data
     metadata["profile"] || {}
   end

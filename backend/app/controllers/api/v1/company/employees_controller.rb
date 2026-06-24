@@ -154,17 +154,11 @@ module Api
         end
 
         def can_nudge?(employee)
-          employee.participation_status == "started" && !nudge_cooldown_active?(employee)
-        end
-
-        def nudge_cooldown_active?(employee)
-          employee.last_nudged_at.present? &&
-            employee.last_nudged_at > SendEmployeeNudgeJob::NUDGE_COOLDOWN.ago
+          Employees::NudgeEligibility.can_nudge?(employee)
         end
 
         def stalled?(employee)
-          employee.participation_status == "started" &&
-            employee.last_active_at.present? &&
+          employee.participation_status == "started" && employee.last_active_at.present? &&
             employee.last_active_at < 48.hours.ago
         end
       end

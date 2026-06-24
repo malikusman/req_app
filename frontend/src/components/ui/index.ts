@@ -11,6 +11,7 @@ export { Skeleton } from './Skeleton';
 export { Modal } from './Modal';
 export { ConfirmDialog } from './ConfirmDialog';
 export { PageHeader, type Breadcrumb } from './PageHeader';
+export { DashboardShell } from './DashboardShell';
 export { Tabs, type TabItem } from './Tabs';
 export { DataTable, type Column } from './DataTable';
 export { StrengthBar } from './StrengthBar';

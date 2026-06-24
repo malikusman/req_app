@@ -48,6 +48,7 @@ Rails.application.routes.draw do
         post "companies/:company_id/reports/:id/approve", to: "reports#approve"
         post "companies/:company_id/impersonate", to: "impersonations#create"
         get "monitoring", to: "monitoring#show"
+        get "dashboard", to: "dashboard#show"
         get "audit_logs", to: "audit_logs#index"
         resources :reviewers, only: %i[index show create update]
         get "companies/:company_id/reviewer_assignments", to: "reviewer_assignments#index"
@@ -58,6 +59,7 @@ Rails.application.routes.draw do
 
       namespace :reviewer do
         get "me", to: "me#show"
+        get "dashboard", to: "dashboard#show"
         get "followups", to: "followups#index"
         get "profile", to: "profile#show"
         patch "profile", to: "profile#update"
@@ -92,6 +94,7 @@ Rails.application.routes.draw do
 
       namespace :company do
         get "me", to: "me#show"
+        get "dashboard", to: "dashboard#show"
         get "expert_reviewers", to: "expert_reviewers#index"
         get "onboarding", to: "onboarding#show"
         patch "onboarding/profile", to: "onboarding#update_profile"

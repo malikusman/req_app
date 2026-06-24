@@ -14,29 +14,33 @@ export type ParticipationStats = {
 export function ParticipationSummary({
   participation,
   departmentCoverage = [],
+  compact = false,
 }: {
   participation: ParticipationStats;
   departmentCoverage?: HeatmapCell[];
+  compact?: boolean;
 }) {
   const { invited, started, completed, completion_rate: rate } = participation;
   const completionPct = Math.round(rate * 100);
 
   return (
     <div className="space-y-6">
-      <StatCardGrid className="grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Invited" value={invited} icon={<Users className="h-5 w-5 text-accent" />} />
-        <StatCard label="Started" value={started} icon={<PlayCircle className="h-5 w-5 text-accent" />} />
-        <StatCard
-          label="Completed"
-          value={completed}
-          icon={<CheckCircle2 className="h-5 w-5 text-accent" />}
-        />
-        <StatCard
-          label="Completion rate"
-          value={`${completionPct}%`}
-          icon={<Percent className="h-5 w-5 text-accent" />}
-        />
-      </StatCardGrid>
+      {!compact && (
+        <StatCardGrid className="grid-cols-2 lg:grid-cols-4">
+          <StatCard label="Invited" value={invited} icon={<Users className="h-5 w-5 text-accent" />} />
+          <StatCard label="Started" value={started} icon={<PlayCircle className="h-5 w-5 text-accent" />} />
+          <StatCard
+            label="Completed"
+            value={completed}
+            icon={<CheckCircle2 className="h-5 w-5 text-accent" />}
+          />
+          <StatCard
+            label="Completion rate"
+            value={`${completionPct}%`}
+            icon={<Percent className="h-5 w-5 text-accent" />}
+          />
+        </StatCardGrid>
+      )}
 
       {invited > 0 ? (
         <div>
