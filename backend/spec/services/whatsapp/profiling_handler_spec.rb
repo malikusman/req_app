@@ -64,9 +64,7 @@ RSpec.describe Whatsapp::ProfilingHandler do
     end
 
     it "skips team_size for individual contributors and completes into discovery" do
-      allow(Discovery::ProcessTurnService).to receive(:call).and_return(
-        { "assistant_message" => "First question?", "completed" => false }
-      )
+      allow(Discovery::ProactiveStartService).to receive(:call)
 
       handler.handle_inbound_text("AP Specialist")
       handler.handle_inbound_text("Finance")
@@ -83,7 +81,9 @@ RSpec.describe Whatsapp::ProfilingHandler do
       conversation.reload
       expect(conversation.status).to eq("discovery")
       expect(conversation.blackboard["profile"]).to include("role_title" => "AP Specialist")
-      expect(Discovery::ProcessTurnService).to have_received(:call)
+      expect(Discovery::ProactiveStartService).to have_received(:call).with(
+        hash_including(conversation: conversation, employee: employee)
+      )
     end
 
     it "asks team_size for managers" do
@@ -94,7 +94,8 @@ RSpec.describe Whatsapp::ProfilingHandler do
 
       expect(conversation.reload.state_snapshot.dig("profiling", "step")).to eq("team_size")
 
-      allow(Discovery::ProcessTurnService).to receive(:call).and_return({ "assistant_message" => "Q", "completed" => false })
+      allow(Discovery::ProactiveStartService).to receive(:call)
+
       handler.handle_inbound_text("about 6 people")
       expect(employee.reload.profile_data["team_size"]).to eq(6)
     end
@@ -115,7 +116,9 @@ RSpec.describe Whatsapp::ProfilingHandler do
         "skipped" => [],
         "total_budget" => 4
       )
-      allow(Discovery::ProcessTurnService).to receive(:call).and_return({ "assistant_message" => "Q", "completed" => false })
+      allow(Discovery::ProcessTurnService).to receive(:call).and_return(
+        { "assistant_message" => "Q", "completed" => false, "question_count" => 1 }
+      )
 
       handler.handle_inbound_text("AP Specialist")
       handler.handle_inbound_text("Finance")

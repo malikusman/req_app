@@ -16,7 +16,7 @@ export function FunnelChart({
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className={cn('flex flex-col gap-2', className)}
+      className={cn('flex min-w-0 flex-col gap-2', className)}
     >
       {stages.map((stage, i) => {
         const widthPct = (stage.count / max) * 100;
@@ -26,15 +26,15 @@ export function FunnelChart({
             initial={{ opacity: 0, x: -12 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: i * 0.06 }}
-            className="flex flex-col gap-1"
+            className="flex min-w-0 flex-col gap-1"
           >
-            <motion.div className="flex items-center justify-between text-sm">
-              <span className="font-medium text-text-primary">{stage.label}</span>
-              <span className="text-text-secondary">{stage.count.toLocaleString()}</span>
-            </motion.div>
-            <div className="h-8 w-full overflow-hidden rounded-button bg-surface-muted">
+            <div className="flex items-center justify-between gap-2 text-sm">
+              <span className="truncate font-medium text-foreground">{stage.label}</span>
+              <span className="shrink-0 tabular-nums text-muted-foreground">{stage.count.toLocaleString()}</span>
+            </div>
+            <div className="h-8 min-w-0 overflow-hidden rounded-md bg-muted">
               <motion.div
-                className="flex h-full items-center rounded-button bg-accent px-3 text-xs font-medium text-white"
+                className="flex h-full min-w-0 items-center rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground"
                 initial={{ width: 0 }}
                 animate={{ width: `${widthPct}%` }}
                 transition={{ duration: 0.4, delay: i * 0.05 }}

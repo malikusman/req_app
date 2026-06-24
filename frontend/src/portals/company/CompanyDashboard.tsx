@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Users, CheckCircle2, Percent, FileBarChart, Radio, Lightbulb, AlertTriangle } from 'lucide-react';
+import {
+  FileBarChart,
+  Radio,
+  AlertTriangle,
+  PlayCircle,
+} from 'lucide-react';
 import { api, type CompanyDashboardPayload } from '../../lib/api';
 import { useAuth, useCompanyToken } from '../../lib/auth';
 import {
@@ -78,19 +83,33 @@ export function CompanyDashboard() {
       loading={loading}
       banner={
         error ? (
-          <div className="rounded-card border border-status-warning/30 bg-status-warningBg px-4 py-3 text-sm">{error}</div>
+          <div className="rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-foreground">
+            {error}
+          </div>
         ) : undefined
       }
       kpiRow={
-        p ? (
+        p && data ? (
           <>
-            <StatCard label="Readiness" value={`${score}%`} icon={<FileBarChart className="h-5 w-5 text-accent" />} />
-            <StatCard label="Invited" value={p.invited} icon={<Users className="h-5 w-5 text-accent" />} />
-            <StatCard label="Completed" value={p.completed} icon={<CheckCircle2 className="h-5 w-5 text-accent" />} />
             <StatCard
-              label="Completion rate"
-              value={`${Math.round(p.completion_rate * 100)}%`}
-              icon={<Percent className="h-5 w-5 text-accent" />}
+              label="Readiness"
+              value={`${score}%`}
+              icon={<FileBarChart className="h-5 w-5 text-primary" />}
+            />
+            <StatCard
+              label="In progress"
+              value={data.employees_summary.in_progress_count}
+              icon={<PlayCircle className="h-5 w-5 text-primary" />}
+            />
+            <StatCard
+              label="Stalled"
+              value={data.employees_summary.stalled_count}
+              icon={<AlertTriangle className="h-5 w-5 text-primary" />}
+            />
+            <StatCard
+              label="Signals"
+              value={snapshot?.top_pain_points.length ?? 0}
+              icon={<Radio className="h-5 w-5 text-primary" />}
             />
           </>
         ) : undefined
@@ -100,14 +119,14 @@ export function CompanyDashboard() {
         <>
           {data.employees_summary.stalled_count > 0 && (
             <Card title="Stalled employees">
-              <div className="mb-4 flex items-start gap-3 rounded-button border border-status-warning/30 bg-status-warningBg px-4 py-3 text-sm">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-status-warning" />
-                <div>
-                  <p className="m-0 font-medium text-text-primary">
+              <div className="mb-4 flex items-start gap-3 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+                <div className="min-w-0">
+                  <p className="m-0 font-medium text-foreground">
                     {data.employees_summary.stalled_count} employee
                     {data.employees_summary.stalled_count === 1 ? '' : 's'} inactive for 48h+
                   </p>
-                  <p className="mt-1 m-0 text-text-secondary">
+                  <p className="m-0 mt-1 text-muted-foreground">
                     Send a nudge reminder to help them continue discovery.
                   </p>
                 </div>
@@ -116,11 +135,13 @@ export function CompanyDashboard() {
                 {data.employees_summary.stalled_employees.map((employee) => (
                   <div
                     key={employee.id}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-card border border-border bg-surface-muted px-4 py-3"
+                    className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/50 px-4 py-3"
                   >
-                    <div>
-                      <p className="m-0 font-medium">{employee.display_name || `Employee #${employee.id}`}</p>
-                      <p className="m-0 text-xs text-text-secondary">
+                    <div className="min-w-0">
+                      <p className="m-0 truncate font-medium text-foreground">
+                        {employee.display_name || `Employee #${employee.id}`}
+                      </p>
+                      <p className="m-0 truncate text-xs text-muted-foreground">
                         {employee.department || 'No department'}
                         {employee.last_active_at
                           ? ` · last active ${new Date(employee.last_active_at).toLocaleString()}`
@@ -128,7 +149,7 @@ export function CompanyDashboard() {
                       </p>
                     </div>
                     {employee.can_nudge && (
-                      <Link to="/company/employees">
+                      <Link to="/company/employees" className="shrink-0">
                         <Button size="sm" variant="secondary">
                           Nudge
                         </Button>
@@ -137,23 +158,25 @@ export function CompanyDashboard() {
                   </div>
                 ))}
               </div>
-              <Link to="/company/employees" className="mt-4 inline-block text-sm font-medium text-accent hover:underline">
+              <Link to="/company/employees" className="mt-4 inline-block text-sm font-medium text-primary hover:underline">
                 Manage employees →
               </Link>
             </Card>
           )}
 
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Card title="Participation">
+          <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+            <Card title="Participation" className="min-w-0">
               <ParticipationSummary participation={p} departmentCoverage={snapshot.department_coverage} compact />
             </Card>
 
-            <Card title="Report readiness">
-              <div className="flex flex-col gap-6 md:flex-row md:items-start">
-                <ReadinessGauge score={score} breakdown={breakdown} />
-                <div className="flex-1 space-y-3">
+            <Card title="Report readiness" className="min-w-0">
+              <div className="flex min-w-0 flex-col gap-6 md:flex-row md:items-start">
+                <div className="mx-auto w-full min-w-0 shrink-0 md:mx-0 md:w-auto">
+                  <ReadinessGauge score={score} breakdown={breakdown} />
+                </div>
+                <div className="min-w-0 flex-1 space-y-3">
                   {data.latest_report && (
-                    <p className="text-sm text-text-primary">
+                    <p className="text-sm text-foreground">
                       Latest report:{' '}
                       <Badge variant={data.latest_report.status === 'ready' ? 'success' : 'neutral'}>
                         v{data.latest_report.version} — {data.latest_report.status}
@@ -161,22 +184,27 @@ export function CompanyDashboard() {
                     </p>
                   )}
                   {data.usage && (
-                    <p className="text-sm text-text-secondary">
+                    <p className="text-sm text-muted-foreground">
                       Trial conversations: {data.usage.conversations_used}
                       {data.usage.conversation_limit != null ? ` / ${data.usage.conversation_limit}` : ''} used
                     </p>
                   )}
-                  <p className="text-sm text-text-secondary">
+                  <p className="text-sm text-muted-foreground">
                     {snapshot.report_ready
                       ? 'Your organization meets the readiness threshold to generate a discovery report.'
                       : 'Continue interviews and document uploads to increase readiness.'}
                   </p>
-                  <div className="flex flex-wrap gap-2">
-                    <Link to="/company/reports">
-                      <Button>{snapshot.report_ready ? 'Generate report' : 'View reports'}</Button>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                    <Link to="/company/reports" className="w-full sm:w-auto">
+                      <Button className="w-full sm:w-auto">
+                        {snapshot.report_ready ? 'Generate report' : 'View reports'}
+                      </Button>
                     </Link>
-                    <Link to="/company/recommendations">
-                      <Button variant="secondary">Recommendations</Button>
+                    <Link to="/company/recommendations" className="w-full sm:w-auto">
+                      <Button variant="secondary" className="w-full sm:w-auto">
+                        Recommendations
+                        {snapshot.recommendation_count > 0 ? ` (${snapshot.recommendation_count})` : ''}
+                      </Button>
                     </Link>
                   </div>
                 </div>
@@ -184,61 +212,58 @@ export function CompanyDashboard() {
             </Card>
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Card title="Top pain points">
+          <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+            <Card title="Top pain points" className="min-w-0">
               {snapshot.top_pain_points.length === 0 ? (
-                <p className="text-sm text-text-secondary">Complete more interviews to surface signals.</p>
+                <p className="text-sm text-muted-foreground">Complete more interviews to surface signals.</p>
               ) : (
                 <div className="space-y-4">
                   {snapshot.top_pain_points.map((s) => (
-                    <div key={s.id}>
-                      <div className="mb-1 flex justify-between text-sm">
-                        <span className="font-medium text-text-primary">{s.label}</span>
-                        <span className="text-text-secondary">{Math.round(s.strength * 100)}%</span>
+                    <div key={s.id} className="min-w-0">
+                      <div className="mb-1 flex justify-between gap-2 text-sm">
+                        <span className="min-w-0 truncate font-medium text-foreground">{s.label}</span>
+                        <span className="shrink-0 text-muted-foreground">{Math.round(s.strength * 100)}%</span>
                       </div>
                       <StrengthBar strength={s.strength} />
                     </div>
                   ))}
                 </div>
               )}
-              <Link to="/company/intelligence/signals" className="mt-4 inline-block text-sm font-medium text-accent hover:underline">
+              <Link
+                to="/company/intelligence/signals"
+                className="mt-4 inline-block text-sm font-medium text-primary hover:underline"
+              >
                 View all signals →
               </Link>
             </Card>
 
-            <Card title="Emerging patterns">
+            <Card title="Emerging patterns" className="min-w-0">
               {(snapshot.emerging_patterns?.length ?? 0) === 0 ? (
-                <p className="text-sm text-text-secondary">Patterns appear when signals repeat across departments.</p>
+                <p className="text-sm text-muted-foreground">Patterns appear when signals repeat across departments.</p>
               ) : (
                 <div className="space-y-4">
                   {snapshot.emerging_patterns.map((pattern) => (
-                    <div key={pattern.id}>
+                    <div key={pattern.id} className="min-w-0">
                       <div className="mb-1 flex items-start justify-between gap-2 text-sm">
-                        <span className="font-medium text-text-primary">{pattern.title}</span>
-                        <span className="shrink-0 text-text-secondary">{Math.round(pattern.confidence * 100)}%</span>
+                        <span className="min-w-0 font-medium text-foreground">{pattern.title}</span>
+                        <span className="shrink-0 text-muted-foreground">{Math.round(pattern.confidence * 100)}%</span>
                       </div>
                       <StrengthBar strength={pattern.confidence} />
                     </div>
                   ))}
                 </div>
               )}
-              <Link to="/company/intelligence/patterns" className="mt-4 inline-block text-sm font-medium text-accent hover:underline">
+              <Link
+                to="/company/intelligence/patterns"
+                className="mt-4 inline-block text-sm font-medium text-primary hover:underline"
+              >
                 View all patterns →
               </Link>
             </Card>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <StatCard label="Signals" value={snapshot.top_pain_points.length} icon={<Radio className="h-5 w-5 text-accent" />} />
-            <StatCard
-              label="Recommendations"
-              value={snapshot.recommendation_count}
-              icon={<Lightbulb className="h-5 w-5 text-accent" />}
-            />
-          </div>
-
           {snapshot.recent_timeline.length > 0 && (
-            <Card title="Recent activity">
+            <Card title="Recent activity" className="min-w-0">
               <Timeline
                 events={snapshot.recent_timeline.map((e, i) => ({
                   id: String(i),
@@ -247,7 +272,10 @@ export function CompanyDashboard() {
                   occurredAt: e.occurred_at,
                 }))}
               />
-              <Link to="/company/intelligence/timeline" className="mt-4 inline-block text-sm font-medium text-accent hover:underline">
+              <Link
+                to="/company/intelligence/timeline"
+                className="mt-4 inline-block text-sm font-medium text-primary hover:underline"
+              >
                 View full timeline →
               </Link>
             </Card>

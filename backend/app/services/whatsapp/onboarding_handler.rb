@@ -9,7 +9,7 @@ module Whatsapp
       @client = client
     end
 
-    def handle_inbound_text(text)
+    def handle_inbound_text(text, external_id: nil)
       text = text.to_s.strip
       return handle_opt_out if opt_out?(text)
 
@@ -31,7 +31,7 @@ module Whatsapp
       when "awaiting_access_code"
         handle_access_code(text)
       when "awaiting_consent"
-        handle_consent(text)
+        handle_consent(text, external_id: external_id)
       when "verified"
         handle_post_verification(text)
       else
@@ -102,8 +102,8 @@ module Whatsapp
       end
     end
 
-    def handle_consent(text)
-      persist_message(direction: "inbound", body: text)
+    def handle_consent(text, external_id: nil)
+      persist_message(direction: "inbound", body: text, external_id: external_id)
       consent = active_consent
 
       if consent_confirmed?(text, consent)
@@ -133,7 +133,12 @@ module Whatsapp
             company: @company,
             conversation: @conversation
           )
-          send_text(welcome_after_consent(lang))
+          Discovery::ProactiveStartService.call(
+            conversation: @conversation,
+            employee: @employee,
+            client: @client,
+            trigger_message_id: external_id
+          )
         end
       else
         send_text("Please reply YES to continue or STOP to opt out.")
@@ -184,15 +189,6 @@ module Whatsapp
       return if @employee.preferred_language.present?
 
       @employee.update!(preferred_language: LanguageDetector.detect(text))
-    end
-
-    def welcome_after_consent(lang)
-      {
-        "en" => "Thank you! Your discovery conversation will begin shortly. Reply with a short description of your role—or send a voice note, photo, or PDF if that's easier.",
-        "es" => "¡Gracias! Tu conversación de descubrimiento comenzará en breve. Responde con una breve descripción de tu rol, o envía una nota de voz, foto o PDF si prefieres.",
-        "fr" => "Merci ! Votre conversation de découverte va commencer. Décrivez brièvement votre rôle, ou envoyez une note vocale, une photo ou un PDF.",
-        "de" => "Danke! Ihr Erkennungsgespräch beginnt in Kürze. Beschreiben Sie kurz Ihre Rolle — oder senden Sie eine Sprachnachricht, ein Foto oder ein PDF."
-      }.fetch(lang, "Thank you! Your discovery conversation will begin shortly.")
     end
 
     def greeting_for_unknown_step

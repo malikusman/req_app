@@ -8,11 +8,11 @@ export type HeatmapCell = {
 };
 
 function cellColor(ratio: number): string {
-  if (ratio >= 1) return 'bg-status-success text-white';
-  if (ratio >= 0.75) return 'bg-status-success/80 text-white';
-  if (ratio >= 0.5) return 'bg-status-warning/70 text-text-primary';
-  if (ratio >= 0.25) return 'bg-status-warning/40 text-text-primary';
-  return 'bg-status-error/30 text-text-primary';
+  if (ratio >= 1) return 'bg-success text-success-foreground';
+  if (ratio >= 0.75) return 'bg-success/80 text-success-foreground';
+  if (ratio >= 0.5) return 'bg-warning/70 text-warning-foreground';
+  if (ratio >= 0.25) return 'bg-warning/40 text-foreground';
+  return 'bg-destructive/20 text-foreground';
 }
 
 export function DepartmentHeatmap({
@@ -26,7 +26,7 @@ export function DepartmentHeatmap({
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className={cn('grid gap-2 sm:grid-cols-2 lg:grid-cols-3', className)}
+      className={cn('grid min-w-0 gap-2 sm:grid-cols-2', className)}
     >
       {cells.map((cell, i) => {
         const ratio = cell.target > 0 ? cell.completed / cell.target : 0;
@@ -37,9 +37,9 @@ export function DepartmentHeatmap({
             initial={{ opacity: 0, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: i * 0.04 }}
-            className={cn('rounded-card p-4', cellColor(ratio))}
+            className={cn('min-w-0 rounded-lg p-3 sm:p-4', cellColor(ratio))}
           >
-            <p className="text-sm font-semibold">{cell.department}</p>
+            <p className="truncate text-sm font-semibold">{cell.department}</p>
             <p className="mt-1 text-xs opacity-90">
               {cell.completed} / {cell.target} ({pct}%)
             </p>

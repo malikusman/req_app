@@ -3,6 +3,7 @@ import { StatCardGrid } from '../motion';
 import { DepartmentHeatmap, type HeatmapCell } from './DepartmentHeatmap';
 import { FunnelChart } from './FunnelChart';
 import { StatCard } from './StatCard';
+import { cn } from '../../lib/cn';
 
 export type ParticipationStats = {
   invited: number;
@@ -24,30 +25,30 @@ export function ParticipationSummary({
   const completionPct = Math.round(rate * 100);
 
   return (
-    <div className="space-y-6">
+    <div className={cn('min-w-0', compact ? 'space-y-4' : 'space-y-6')}>
       {!compact && (
         <StatCardGrid className="grid-cols-2 lg:grid-cols-4">
-          <StatCard label="Invited" value={invited} icon={<Users className="h-5 w-5 text-accent" />} />
-          <StatCard label="Started" value={started} icon={<PlayCircle className="h-5 w-5 text-accent" />} />
+          <StatCard label="Invited" value={invited} icon={<Users className="h-5 w-5 text-primary" />} />
+          <StatCard label="Started" value={started} icon={<PlayCircle className="h-5 w-5 text-primary" />} />
           <StatCard
             label="Completed"
             value={completed}
-            icon={<CheckCircle2 className="h-5 w-5 text-accent" />}
+            icon={<CheckCircle2 className="h-5 w-5 text-primary" />}
           />
           <StatCard
             label="Completion rate"
             value={`${completionPct}%`}
-            icon={<Percent className="h-5 w-5 text-accent" />}
+            icon={<Percent className="h-5 w-5 text-primary" />}
           />
         </StatCardGrid>
       )}
 
       {invited > 0 ? (
-        <div>
-          <div className="mb-3 flex items-center justify-between">
-            <p className="text-label-caps text-text-secondary">Interview funnel</p>
-            <span className="text-sm font-medium text-text-primary">
-              {completed} of {invited} finished
+        <div className="min-w-0 overflow-hidden">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-label-caps text-muted-foreground">Interview funnel</p>
+            <span className="text-sm font-medium text-foreground">
+              {completed} of {invited} finished ({completionPct}%)
             </span>
           </div>
           <FunnelChart
@@ -59,12 +60,12 @@ export function ParticipationSummary({
           />
         </div>
       ) : (
-        <p className="text-sm text-text-secondary">No employees invited yet.</p>
+        <p className="text-sm text-muted-foreground">No employees invited yet.</p>
       )}
 
       {departmentCoverage.length > 0 && (
-        <div>
-          <p className="mb-3 text-label-caps text-text-secondary">Department coverage</p>
+        <div className="min-w-0 overflow-hidden">
+          <p className="mb-3 text-label-caps text-muted-foreground">Department coverage</p>
           <DepartmentHeatmap cells={departmentCoverage} />
         </div>
       )}

@@ -75,6 +75,7 @@ module Discovery
       window = multi_agent_enabled? ? 6 : 24
       @conversation.messages.order(:created_at).last(window).filter_map do |msg|
         next if msg.body.blank?
+        next if msg.message_type == "system"
 
         role = msg.direction == "outbound" ? "assistant" : "user"
         { role: role, content: msg.body }

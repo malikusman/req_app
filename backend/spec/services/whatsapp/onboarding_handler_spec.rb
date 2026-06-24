@@ -73,4 +73,52 @@ RSpec.describe Whatsapp::OnboardingHandler do
       expect(employee.onboarding_step).to eq("awaiting_consent")
     end
   end
+
+  describe "awaiting_consent without profiling" do
+    let(:company) { create(:company, settings: { "discovery_profiling_enabled" => false }) }
+    let(:employee) do
+      create(:employee,
+             company: company,
+             phone_e164: "+14155550100",
+             display_name: "Sam Tester",
+             participation_status: "invited",
+             onboarding_step: "awaiting_consent",
+             invited_at: Time.current)
+    end
+    let(:plain_code) do
+      _record, plain = EmployeeAccessCode.issue_for!(employee: employee, issued_by_type: "system")
+      plain
+    end
+
+    before do
+      ConsentTextVersion.create!(
+        version: "2026-06-20",
+        locale: "en",
+        active: true,
+        confirmation_keywords: %w[YES],
+        body: "Reply YES to continue."
+      )
+      create(:discovery_playbook, department: "default")
+      allow(Subscriptions::ConversationLimitEnforcer).to receive(:can_start_discovery?).and_return(true)
+      allow(Subscriptions::ConversationLimitEnforcer).to receive(:record_discovery_started!)
+      allow(Discovery::ProactiveStartService).to receive(:call)
+    end
+
+    it "starts discovery proactively after consent" do
+      handler.handle_inbound_text(plain_code)
+      handler.handle_inbound_text("YES", external_id: "wamid.consent")
+
+      employee.reload
+      conversation.reload
+      expect(employee.onboarding_step).to eq("verified")
+      expect(conversation.status).to eq("discovery")
+      expect(Discovery::ProactiveStartService).to have_received(:call).with(
+        hash_including(
+          conversation: conversation,
+          employee: employee,
+          trigger_message_id: "wamid.consent"
+        )
+      )
+    end
+  end
 end

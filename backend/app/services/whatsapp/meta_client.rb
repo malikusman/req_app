@@ -81,6 +81,18 @@ module Whatsapp
       )
     end
 
+    def send_typing_on(message_id:)
+      return { "success" => false, "skipped" => "not_configured" } unless configured?
+      return { "success" => false, "skipped" => "missing_message_id" } if message_id.blank?
+
+      post_messages(
+        messaging_product: "whatsapp",
+        status: "read",
+        message_id: message_id,
+        typing_indicator: { type: "text" }
+      )
+    end
+
     def send_nudge_template(to:, employee_name:, company_name:)
       template_name = ENV.fetch("META_TEMPLATE_EMPLOYEE_NUDGE", "employee_discovery_nudge")
       send_template(

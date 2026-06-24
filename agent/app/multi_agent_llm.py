@@ -183,7 +183,8 @@ Interview state:
 Rules:
 - Conduct the conversation in {language} (ISO 639-1). Do not switch unless the employee does.
 - Ask ONE concise question, in a natural conversational voice. If you are taking over
-  from another interviewer, transition smoothly (e.g. "Thanks — I'd also like to understand...").
+  from another interviewer after the first turn, transition smoothly (e.g. "Thanks — I'd also like to understand...").
+- On the first turn of the interview (question_count is 0), open with a brief welcome and one discovery question — reference their role or context if provided; never mention handoffs or other interviewers.
 - Never reveal that multiple agents/interviewers exist.
 - Set completed=true ONLY if the interview should end now (employee asked to stop,
   or everything is genuinely covered).

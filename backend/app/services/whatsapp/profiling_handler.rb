@@ -52,7 +52,7 @@ module Whatsapp
         set_step(pending)
         ask_current_step
       else
-        complete_profiling!
+        complete_profiling!(trigger_message_id: external_id)
       end
     end
 
@@ -128,64 +128,19 @@ module Whatsapp
       text.split(/[,;\n]|\band\b/i).map(&:strip).reject(&:blank?).first(8)
     end
 
-    def complete_profiling!
+    def complete_profiling!(trigger_message_id: nil)
       snapshot = @conversation.state_snapshot.merge(
         "profiling" => profiling_state.merge("step" => nil, "completed_at" => Time.current.iso8601),
         "blackboard" => @conversation.blackboard.merge("profile" => @employee.profile_card)
       )
       @conversation.update!(status: "discovery", state_snapshot: snapshot)
 
-      route_agents!
-      send_text(bridging_message)
-      run_first_discovery_turn!
-    end
-
-    def route_agents!
-      return unless @company.merged_settings["discovery_multi_agent_enabled"]
-
-      result = Langgraph::Client.new.route!(
-        thread_id: ensure_thread_id,
-        profile: @employee.profile_card,
-        limits: Discovery::ContextBuilder.limits_for(@company),
-        context: { question_target: @company.merged_settings.fetch("discovery_question_target", 10).to_i }
-      )
-      @conversation.update_blackboard!(
-        "agent_queue" => result["agents"],
-        "skipped_agents" => result["skipped"],
-        "total_budget" => result["total_budget"]
-      )
-    rescue Langgraph::UnavailableError => e
-      # The agent service builds a default queue from the profile on first turn.
-      Rails.logger.warn("[Profiling] agent routing failed, deferring to first turn: #{e.message}")
-    end
-
-    def ensure_thread_id
-      return @conversation.langgraph_thread_id if @conversation.langgraph_thread_id.present?
-
-      thread_id = Langgraph::Client.new.create_thread!
-      @conversation.update!(langgraph_thread_id: thread_id)
-      thread_id
-    end
-
-    def run_first_discovery_turn!
-      kickoff = profile_summary_message
-
-      result = Discovery::ProcessTurnService.call(
+      Discovery::ProactiveStartService.call(
         conversation: @conversation,
         employee: @employee,
-        user_message: kickoff
+        client: @client,
+        trigger_message_id: trigger_message_id
       )
-      Whatsapp::DiscoveryHandler.new(employee: @employee, conversation: @conversation, client: @client)
-                                .deliver_assistant_reply(result)
-    end
-
-    def profile_summary_message
-      profile = @employee.profile_card
-      parts = ["I'm #{profile['name']}, a #{profile['role_title']} in #{profile['department']}."]
-      parts << profile["responsibilities"] if profile["responsibilities"].present?
-      tools = Array(profile["primary_tools"])
-      parts << "I mainly use #{tools.join(', ')}." if tools.any?
-      parts.join(" ")
     end
 
     def ask_current_step
@@ -228,13 +183,6 @@ module Whatsapp
         "en" => "Thank you! Before we dive in, I'd like to learn a little about your role so I can ask the right questions.",
         "es" => "¡Gracias! Antes de empezar, me gustaría conocer un poco tu rol para hacerte las preguntas adecuadas."
       }.fetch(locale, "Thank you! Before we dive in, I'd like to learn a little about your role so I can ask the right questions.")
-    end
-
-    def bridging_message
-      {
-        "en" => "Perfect, thanks #{@employee.display_name.presence || 'there'}! Give me a moment to prepare questions tailored to your role…",
-        "es" => "¡Perfecto, gracias #{@employee.display_name.presence || ''}! Dame un momento para preparar preguntas adaptadas a tu rol…"
-      }.fetch(locale, "Perfect, thanks! Give me a moment to prepare questions tailored to your role…")
     end
 
     def handle_opt_out

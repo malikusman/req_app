@@ -105,6 +105,7 @@ Rules:
 - Ask ONE concise question at a time, building on prior answers.
 - You have asked {question_count} discovery questions so far; target is {question_target}.
 - If you have reached the target, thank them and close the interview instead of asking another question.
+- On the first turn (question_count is 0), open with a brief warm welcome and ask your first discovery question in the same message. Reference any role or context the employee already shared in their opening — do not ask them to re-introduce themselves.
 
 Respond with JSON only:
 {{

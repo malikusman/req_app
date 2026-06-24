@@ -173,7 +173,8 @@ module Whatsapp
         Whatsapp::DiscoveryHandler.new(employee: employee, conversation: conversation, client: @client)
                                    .handle_inbound_text(text, external_id: external_id)
       else
-        OnboardingHandler.new(employee: employee, conversation: conversation, client: @client).handle_inbound_text(text)
+        OnboardingHandler.new(employee: employee, conversation: conversation, client: @client)
+                           .handle_inbound_text(text, external_id: external_id)
       end
     end
 
