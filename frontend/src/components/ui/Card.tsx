@@ -1,4 +1,5 @@
 import { type ReactNode } from 'react';
+import { Card as ShadcnCard, CardContent, CardHeader, CardTitle } from '@/components/shadcn/card';
 import { cn } from '../../lib/cn';
 
 export function Card({
@@ -12,10 +13,20 @@ export function Card({
   className?: string;
   padding?: boolean;
 }) {
+  if (title) {
+    return (
+      <ShadcnCard className={cn(className)}>
+        <CardHeader className={padding ? undefined : 'p-0 pb-0'}>
+          <CardTitle className="text-section-title">{title}</CardTitle>
+        </CardHeader>
+        <CardContent className={padding ? undefined : 'p-0'}>{children}</CardContent>
+      </ShadcnCard>
+    );
+  }
+
   return (
-    <div className={cn('rounded-card border border-border bg-surface shadow-card', padding && 'p-6', className)}>
-      {title && <h3 className="font-display text-section-title text-text-primary mb-4 mt-0">{title}</h3>}
+    <ShadcnCard className={cn(padding && 'p-6', className)}>
       {children}
-    </div>
+    </ShadcnCard>
   );
 }

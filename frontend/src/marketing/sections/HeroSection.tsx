@@ -15,18 +15,21 @@ export function HeroSection() {
       aria-label={discoveryGraph.ariaLabel}
     >
       <div
-        className="pointer-events-none absolute inset-0 opacity-[0.06] animate-grid-drift bg-[length:64px_64px] bg-[linear-gradient(rgba(255,255,255,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.06)_1px,transparent_1px)]"
+        className="pointer-events-none absolute inset-0 opacity-[0.35] animate-grid-drift bg-[length:64px_64px] bg-[linear-gradient(hsl(var(--border))_1px,transparent_1px),linear-gradient(90deg,hsl(var(--border))_1px,transparent_1px)]"
         aria-hidden
       />
       <HeroDiscoveryGraph
-        interviews={discoveryGraph.interviews}
+        interviews={discoveryGraph.interviews.map((i) => ({
+          ...i,
+          connectsTo: [...i.connectsTo],
+        }))}
         hub={discoveryGraph.hub}
         whatsappAppearances={discoveryGraph.whatsappAppearances}
         loopResetMs={discoveryGraph.loopResetMs}
         className="z-0 opacity-[0.52]"
       />
       <div
-        className="pointer-events-none absolute inset-0 z-[1] bg-[radial-gradient(ellipse_68%_58%_at_50%_44%,rgba(5,5,8,0.9)_0%,rgba(5,5,8,0.45)_48%,transparent_78%)] sm:bg-[radial-gradient(ellipse_62%_52%_at_50%_42%,rgba(5,5,8,0.88)_0%,rgba(5,5,8,0.4)_52%,transparent_80%)]"
+        className="pointer-events-none absolute inset-0 z-[1] bg-[radial-gradient(ellipse_68%_58%_at_50%_44%,hsl(var(--background)/0.95)_0%,hsl(var(--background)/0.55)_48%,transparent_78%)] sm:bg-[radial-gradient(ellipse_62%_52%_at_50%_42%,hsl(var(--background)/0.92)_0%,hsl(var(--background)/0.45)_52%,transparent_80%)]"
         aria-hidden
       />
       <HeroOrb className="z-[1] opacity-25" />

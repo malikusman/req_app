@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './lib/auth';
 import { ToastProvider } from './components/ui/ToastProvider';
+import { Toaster } from './components/shadcn/sonner';
 import { MarketingPage } from './marketing/MarketingPage';
 import { PlatformLogin } from './auth/PlatformLogin';
 import { CompanyLogin } from './auth/CompanyLogin';
@@ -84,6 +85,7 @@ export default function App() {
   return (
     <AuthProvider>
       <ToastProvider>
+        <Toaster richColors closeButton position="top-right" />
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<HomeRoute />} />

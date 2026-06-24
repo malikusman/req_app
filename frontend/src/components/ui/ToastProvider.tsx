@@ -3,11 +3,10 @@ import {
   useCallback,
   useContext,
   useMemo,
-  useState,
   type ReactNode,
 } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
-import { Toast, type ToastItem, type ToastVariant } from './Toast';
+import { toast as sonnerToast } from 'sonner';
+import type { ToastVariant } from './Toast';
 
 type ToastInput = {
   title: string;
@@ -18,7 +17,7 @@ type ToastInput = {
 
 type ToastContextValue = {
   toast: (input: ToastInput) => string;
-  dismiss: (id: string) => void;
+  dismiss: (id: string | number) => void;
 };
 
 const ToastContext = createContext<ToastContextValue | null>(null);
@@ -26,48 +25,39 @@ const ToastContext = createContext<ToastContextValue | null>(null);
 let toastId = 0;
 
 export function ToastProvider({ children }: { children: ReactNode }) {
-  const [toasts, setToasts] = useState<ToastItem[]>([]);
-
-  const dismiss = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
+  const dismiss = useCallback((id: string | number) => {
+    sonnerToast.dismiss(id);
   }, []);
 
-  const toast = useCallback(
-    (input: ToastInput) => {
-      const id = `toast-${++toastId}`;
-      const item: ToastItem = {
-        id,
-        title: input.title,
-        description: input.description,
-        variant: input.variant,
-      };
-      setToasts((prev) => [...prev, item]);
-      const duration = input.duration ?? 5000;
-      if (duration > 0) {
-        window.setTimeout(() => dismiss(id), duration);
-      }
-      return id;
-    },
-    [dismiss]
-  );
+  const toast = useCallback((input: ToastInput) => {
+    const id = `toast-${++toastId}`;
+    const duration = input.duration ?? 5000;
+    const options = {
+      id,
+      description: input.description,
+      duration: duration > 0 ? duration : Infinity,
+    };
+
+    switch (input.variant) {
+      case 'success':
+        sonnerToast.success(input.title, options);
+        break;
+      case 'error':
+        sonnerToast.error(input.title, options);
+        break;
+      case 'warning':
+        sonnerToast.warning(input.title, options);
+        break;
+      default:
+        sonnerToast(input.title, options);
+    }
+
+    return id;
+  }, []);
 
   const value = useMemo(() => ({ toast, dismiss }), [toast, dismiss]);
 
-  return (
-    <ToastContext.Provider value={value}>
-      {children}
-      <motion.div
-        className="pointer-events-none fixed right-4 top-4 z-[100] flex flex-col gap-2"
-        aria-live="polite"
-      >
-        <AnimatePresence mode="popLayout">
-          {toasts.map((t) => (
-            <Toast key={t.id} toast={t} onDismiss={dismiss} />
-          ))}
-        </AnimatePresence>
-      </motion.div>
-    </ToastContext.Provider>
-  );
+  return <ToastContext.Provider value={value}>{children}</ToastContext.Provider>;
 }
 
 export function useToast() {

@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
-import { X } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { cn } from '../../lib/cn';
 import { spring } from '../../lib/motion';
+import { Sheet, SheetContent } from '@/components/shadcn/sheet';
+import { ScrollArea } from '@/components/shadcn/scroll-area';
+import { Separator } from '@/components/shadcn/separator';
 
 export type SidebarItem = {
   to: string;
@@ -27,61 +29,46 @@ function isItemActive(activePath: string, to: string) {
   return activePath.startsWith(`${to}/`);
 }
 
-export function Sidebar({ logo, items, activePath, footer, mobileOpen, onMobileClose }: SidebarProps) {
+function SidebarNav({
+  logo,
+  items,
+  activePath,
+  footer,
+  onNavigate,
+}: SidebarProps & { onNavigate?: () => void }) {
   const reduced = useReducedMotion();
 
   return (
-    <>
-      {mobileOpen && (
-        <button
-          type="button"
-          className="fixed inset-0 z-40 bg-black/50 md:hidden"
-          aria-label="Close menu"
-          onClick={onMobileClose}
-        />
-      )}
-      <aside
-        className={cn(
-          'fixed left-0 top-0 z-50 flex h-screen w-sidebar flex-col bg-[#0F1117] text-text-inverse transition-transform duration-200 md:translate-x-0',
-          mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
-        )}
-      >
-        <div className="flex h-topbar shrink-0 items-center justify-between border-b border-white/10 px-5">
-          <span className="font-display text-sm font-semibold tracking-tight">{logo}</span>
-          {onMobileClose && (
-            <button
-              type="button"
-              className="rounded-md p-1 text-white/70 hover:text-white md:hidden"
-              onClick={onMobileClose}
-              aria-label="Close navigation"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          )}
-        </div>
+    <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
+      <div className="flex h-topbar shrink-0 items-center border-b border-sidebar-border px-5">
+        <span className="text-sm font-semibold tracking-tight text-foreground">{logo}</span>
+      </div>
 
-        <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-4">
+      <ScrollArea className="flex-1 px-3 py-4">
+        <nav className="flex flex-col gap-0.5">
           {items.map(({ to, label, icon: Icon }) => {
             const active = isItemActive(activePath, to);
             return (
               <Link
                 key={to}
                 to={to}
-                onClick={onMobileClose}
+                onClick={onNavigate}
                 className={cn(
-                  'relative flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium',
-                  active ? 'text-white' : 'text-white/60 hover:text-white/90'
+                  'relative flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors',
+                  active
+                    ? 'text-sidebar-accent-foreground'
+                    : 'text-sidebar-foreground hover:bg-sidebar-hover hover:text-foreground'
                 )}
               >
                 {active && !reduced && (
                   <motion.span
                     layoutId="sidebar-active-pill"
-                    className="absolute inset-0 rounded-md border-l-2 border-l-accent bg-sidebar-active"
+                    className="absolute inset-0 rounded-md bg-sidebar-accent"
                     transition={spring.soft}
                   />
                 )}
                 {active && reduced && (
-                  <span className="absolute inset-0 rounded-md border-l-2 border-l-accent bg-sidebar-active" />
+                  <span className="absolute inset-0 rounded-md bg-sidebar-accent" />
                 )}
                 <Icon className="relative z-10 h-[18px] w-[18px] shrink-0" aria-hidden />
                 <span className="relative z-10">{label}</span>
@@ -89,9 +76,36 @@ export function Sidebar({ logo, items, activePath, footer, mobileOpen, onMobileC
             );
           })}
         </nav>
+      </ScrollArea>
 
-        {footer ? <div className="shrink-0 border-t border-white/10 p-3">{footer}</div> : null}
+      {footer ? (
+        <>
+          <Separator />
+          <div className="shrink-0 p-3">{footer}</div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+export function Sidebar({ logo, items, activePath, footer, mobileOpen, onMobileClose }: SidebarProps) {
+  return (
+    <>
+      <aside className="fixed left-0 top-0 z-40 hidden h-screen w-sidebar border-r border-sidebar-border md:block">
+        <SidebarNav logo={logo} items={items} activePath={activePath} footer={footer} />
       </aside>
+
+      <Sheet open={mobileOpen} onOpenChange={(open) => !open && onMobileClose?.()}>
+        <SheetContent side="left" className="w-sidebar p-0 sm:max-w-sidebar">
+          <SidebarNav
+            logo={logo}
+            items={items}
+            activePath={activePath}
+            footer={footer}
+            onNavigate={onMobileClose}
+          />
+        </SheetContent>
+      </Sheet>
     </>
   );
 }

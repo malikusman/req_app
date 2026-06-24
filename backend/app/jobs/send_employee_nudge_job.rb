@@ -5,65 +5,99 @@ class SendEmployeeNudgeJob < ApplicationJob
 
   NUDGE_COOLDOWN = 24.hours
 
-  def perform(employee_id, company_user_id)
-    employee = Employee.find(employee_id)
-    company_user = CompanyUser.find(company_user_id)
-    nudge_created = false
+  def perform(employee_nudge_id)
+    nudge = EmployeeNudge.find(employee_nudge_id)
+    employee = nudge.employee
+    company = employee.company
+    errors = []
+    whatsapp_ok = false
+    email_ok = false
+    meta_id = nil
 
-    employee.with_lock do
-      employee.reload
-
-      if duplicate_nudge?(employee)
-        Rails.logger.info("[SendEmployeeNudgeJob] skip duplicate employee=#{employee_id}")
-        return
-      end
-
-      response = send_whatsapp!(employee)
-      meta_id = response.dig("messages", 0, "id")
-
-      EmployeeNudge.create!(
-        employee: employee,
-        company_user: company_user,
-        conversation: employee.conversations.order(updated_at: :desc).first,
-        meta_message_id: meta_id,
-        sent_at: Time.current
-      )
-      nudge_created = true
-
-      employee.update!(last_nudged_at: Time.current)
+    if nudge.whatsapp_channel?
+      whatsapp_ok, meta_id, wa_error = deliver_whatsapp!(employee, company)
+      errors << wa_error if wa_error.present?
+    else
+      nudge.update!(whatsapp_status: "skipped")
     end
-  rescue StandardError => e
-    restore_last_nudged_at!(employee_id) unless nudge_created
-    raise e
+
+    if nudge.email_channel? && employee.email.present?
+      email_ok, email_error = deliver_email!(employee, company)
+      errors << email_error if email_error.present?
+    elsif nudge.email_channel?
+      nudge.update!(email_status: "skipped")
+      errors << "Email: no address on file"
+    end
+
+    delivery_status = derive_delivery_status(whatsapp_ok: whatsapp_ok, email_ok: email_ok, nudge: nudge)
+
+    nudge.update!(
+      delivery_status: delivery_status,
+      whatsapp_status: whatsapp_status_for(whatsapp_ok, nudge),
+      email_status: email_status_for(email_ok, nudge, employee),
+      meta_message_id: meta_id,
+      error_message: errors.join("; ").presence
+    )
+
+    employee.update!(last_nudged_at: Time.current) if delivery_status.in?(%w[sent partial])
   end
 
   private
 
-  def duplicate_nudge?(employee)
-    employee.employee_nudges.where("sent_at > ?", NUDGE_COOLDOWN.ago).exists?
+  def deliver_whatsapp!(employee, company)
+    client = Whatsapp::MetaClient.new
+
+    unless client.configured?
+      Rails.logger.info("[WhatsApp dev nudge] employee=#{employee.id}")
+      WhatsappDeliveryMetric.record!("template_sent", metadata: { employee_id: employee.id, dev: true })
+      return [true, "dev-#{SecureRandom.hex(8)}", nil]
+    end
+
+    response = client.send_nudge_template(
+      to: employee.phone_e164,
+      employee_name: employee.display_name,
+      company_name: company.display_name || company.name
+    )
+    meta_id = response.dig("messages", 0, "id")
+    WhatsappDeliveryMetric.record!("template_sent", metadata: { employee_id: employee.id, meta_message_id: meta_id })
+    [true, meta_id, nil]
+  rescue Whatsapp::MetaClient::ApiError => e
+    WhatsappDeliveryMetric.record!("template_failed", metadata: { employee_id: employee.id, error: e.message })
+    [false, nil, "WhatsApp: #{e.message}"]
   end
 
-  def send_whatsapp!(employee)
-    client = Whatsapp::MetaClient.new
-    company = employee.company
+  def deliver_email!(employee, company)
+    EmployeeNudgeMailer.nudge_email(employee: employee, company: company).deliver_now
+    [true, nil]
+  rescue StandardError => e
+    [false, "Email: #{e.message}"]
+  end
 
-    if client.configured?
-      client.send_nudge_template(
-        to: employee.phone_e164,
-        employee_name: employee.display_name,
-        company_name: company.display_name || company.name
-      )
+  def derive_delivery_status(whatsapp_ok:, email_ok:, nudge:)
+    wants_wa = nudge.whatsapp_channel?
+    wants_email = nudge.email_channel? && nudge.employee.email.present?
+
+    wa_result = wants_wa ? whatsapp_ok : true
+    email_result = wants_email ? email_ok : true
+
+    if wa_result && email_result
+      "sent"
+    elsif whatsapp_ok || email_ok
+      "partial"
     else
-      Rails.logger.info("[WhatsApp dev nudge] employee=#{employee.id}")
-      { "messages" => [{ "id" => "dev-#{SecureRandom.hex(8)}" }] }
+      "failed"
     end
   end
 
-  def restore_last_nudged_at!(employee_id)
-    employee = Employee.find_by(id: employee_id)
-    return unless employee
+  def whatsapp_status_for(whatsapp_ok, nudge)
+    return "skipped" unless nudge.whatsapp_channel?
 
-    last_sent = employee.employee_nudges.maximum(:sent_at)
-    employee.update!(last_nudged_at: last_sent)
+    whatsapp_ok ? "sent" : "failed"
+  end
+
+  def email_status_for(email_ok, nudge, employee)
+    return "skipped" unless nudge.email_channel?
+
+    employee.email.blank? ? "skipped" : (email_ok ? "sent" : "failed")
   end
 end

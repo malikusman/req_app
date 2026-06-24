@@ -29,12 +29,11 @@ function DiscoverCard({ card }: { card: DiscoverCardContent }) {
   return (
     <motion.div
       variants={fadeUp}
-      transition={transition.reveal}
       className={cn(
         'rounded-card border border-marketing-border bg-marketing-surface/80 p-5 backdrop-blur-sm',
         card.span
       )}
-      whileHover={reduced ? undefined : { scale: 1.02, borderColor: 'rgba(34, 211, 238, 0.35)' }}
+      whileHover={reduced ? undefined : { scale: 1.02, borderColor: 'hsl(var(--primary) / 0.35)' }}
       transition={reduced ? transition.reveal : spring.snappy}
     >
       <div className="flex h-9 w-9 items-center justify-center rounded-md bg-marketing-accent-muted">

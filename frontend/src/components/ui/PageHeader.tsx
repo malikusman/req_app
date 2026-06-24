@@ -49,9 +49,9 @@ export function PageHeader({
       )}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="font-display text-page-title text-text-primary m-0">{title}</h1>
+          <h1 className="m-0 text-page-title text-foreground">{title}</h1>
           {description && (
-            <p className="mt-1 text-sm text-text-secondary">{description}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{description}</p>
           )}
         </div>
         {actions && <motion.div className="flex shrink-0 items-center gap-2">{actions}</motion.div>}

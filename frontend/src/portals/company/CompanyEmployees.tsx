@@ -19,10 +19,25 @@ function participationBadge(status: string) {
   return 'neutral' as const;
 }
 
+function nudgeStatusLabel(employee: Employee): string | null {
+  const nudge = employee.latest_nudge;
+  if (!nudge) return null;
+
+  if (nudge.delivery_status === 'queued') return 'Queued';
+  if (nudge.delivery_status === 'sent') {
+    if (nudge.channel === 'whatsapp_and_email') return 'Sent (WhatsApp + email)';
+    return 'Sent (WhatsApp)';
+  }
+  if (nudge.delivery_status === 'partial') return 'Partially sent';
+  if (nudge.delivery_status === 'failed') return 'Failed';
+  return nudge.delivery_status;
+}
+
 export function CompanyEmployees() {
   const token = useCompanyToken();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [department, setDepartment] = useState('');
   const [newCode, setNewCode] = useState<string | null>(null);
@@ -65,9 +80,16 @@ export function CompanyEmployees() {
     setNewCode(null);
     setInviting(true);
     try {
-      const res = await api.inviteEmployee(token, phone, displayName || undefined, department || undefined);
+      const res = await api.inviteEmployee(
+        token,
+        phone,
+        displayName || undefined,
+        department || undefined,
+        email || undefined
+      );
       setNewCode(res.access_code);
       setPhone('');
+      setEmail('');
       setDisplayName('');
       setDepartment('');
       load();
@@ -84,8 +106,8 @@ export function CompanyEmployees() {
     setError('');
     setNudgingId(employeeId);
     try {
-      await api.nudgeEmployee(token, employeeId);
-      setNudgeMsg('Nudge sent via WhatsApp.');
+      const res = await api.nudgeEmployee(token, employeeId);
+      setNudgeMsg(res.message || 'Nudge queued.');
       load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Nudge failed');
@@ -123,7 +145,7 @@ export function CompanyEmployees() {
     <div className="space-y-8">
       <PageHeader
         title="Employees"
-        description="Invite employees via WhatsApp. Share access codes privately — never in the template message."
+        description="Invite employees via WhatsApp. Optional email enables nudge reminders on both channels."
       />
 
       <Card title="Invite employee">
@@ -140,7 +162,7 @@ export function CompanyEmployees() {
             </Button>
           </div>
         )}
-        <form onSubmit={invite} className="grid gap-4 md:grid-cols-3">
+        <form onSubmit={invite} className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Input
             label="Phone E.164"
             value={phone}
@@ -148,9 +170,16 @@ export function CompanyEmployees() {
             required
             placeholder="+14155551234"
           />
+          <Input
+            label="Email (optional)"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="employee@company.com"
+          />
           <Input label="Name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
           <Input label="Department" value={department} onChange={(e) => setDepartment(e.target.value)} />
-          <div className="md:col-span-3">
+          <div className="md:col-span-2 lg:col-span-4">
             <Button type="submit" loading={inviting}>
               Send WhatsApp invite
             </Button>
@@ -194,6 +223,7 @@ export function CompanyEmployees() {
                 ) : (
                   <p className="m-0 text-xs text-text-secondary">
                     {e.phone_e164}
+                    {e.email ? ` · ${e.email}` : ''}
                     <button
                       type="button"
                       className="ml-2 text-accent hover:underline"
@@ -228,6 +258,20 @@ export function CompanyEmployees() {
             render: (e) => (e.last_active_at ? new Date(e.last_active_at).toLocaleString() : '—'),
           },
           {
+            key: 'nudge',
+            header: 'Last nudge',
+            render: (e) => {
+              const label = nudgeStatusLabel(e);
+              if (!label) return '—';
+              return (
+                <span className="text-xs text-text-secondary">
+                  {label}
+                  {e.latest_nudge?.sent_at ? ` · ${new Date(e.latest_nudge.sent_at).toLocaleString()}` : ''}
+                </span>
+              );
+            },
+          },
+          {
             key: 'actions',
             header: '',
             render: (e) =>
@@ -240,8 +284,8 @@ export function CompanyEmployees() {
                 >
                   Nudge
                 </Button>
-              ) : e.last_nudged_at && e.participation_status === 'started' ? (
-                <span className="text-xs text-text-secondary">Nudged recently</span>
+              ) : e.participation_status === 'started' && e.last_nudged_at ? (
+                <span className="text-xs text-text-secondary">Cooldown (24h)</span>
               ) : null,
           },
         ]}

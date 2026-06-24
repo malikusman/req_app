@@ -1,5 +1,7 @@
 import { type InputHTMLAttributes, useId } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
+import { Input as ShadcnInput } from '@/components/shadcn/input';
+import { Label } from '@/components/shadcn/label';
 import { cn } from '../../lib/cn';
 
 export function Input({
@@ -17,19 +19,11 @@ export function Input({
   const id = idProp ?? generatedId;
 
   return (
-    <motion.div className="flex flex-col gap-1.5" layout>
-      {label && (
-        <label htmlFor={id} className="text-sm font-medium text-text-primary">
-          {label}
-        </label>
-      )}
-      <input
+    <div className="flex flex-col gap-1.5">
+      {label && <Label htmlFor={id}>{label}</Label>}
+      <ShadcnInput
         id={id}
-        className={cn(
-          'h-10 w-full rounded-button border border-border bg-white px-3 text-sm text-text-primary placeholder:text-text-secondary transition-colors focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30',
-          error && 'border-status-error focus:border-status-error focus:ring-status-errorBg',
-          className
-        )}
+        className={cn(error && 'border-destructive focus-visible:ring-destructive', className)}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? `${id}-error` : undefined}
         {...props}
@@ -41,12 +35,12 @@ export function Input({
             initial={{ opacity: 0, y: -4 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
-            className="text-xs text-status-error"
+            className="text-xs text-destructive"
           >
             {error}
           </motion.span>
         )}
       </AnimatePresence>
-    </motion.div>
+    </div>
   );
 }

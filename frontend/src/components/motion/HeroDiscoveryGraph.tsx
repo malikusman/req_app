@@ -247,7 +247,7 @@ export function HeroDiscoveryGraph({
   const [bubbleFading, setBubbleFading] = useState(false);
   const [showWhatsapp, setShowWhatsapp] = useState(false);
   const [waExiting, setWaExiting] = useState(false);
-  const [waPosition, setWaPosition] = useState(WHATSAPP_ANCHORS[0]);
+  const [waPosition, setWaPosition] = useState<{ x: number; y: number }>(WHATSAPP_ANCHORS[0]);
   const [waKey, setWaKey] = useState(0);
   const [graphOpacity, setGraphOpacity] = useState(1);
   const [newlyDrawnEdges, setNewlyDrawnEdges] = useState<Set<string>>(new Set());

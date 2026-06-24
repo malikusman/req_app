@@ -28,14 +28,14 @@ export function Tabs({
               onClick={() => onChange(tab.value)}
               className={cn(
                 'relative px-4 py-2.5 text-sm font-medium transition-colors',
-                active ? 'text-accent' : 'text-text-secondary hover:text-text-primary'
+                active ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
               )}
             >
               {tab.label}
               {active && (
                 <motion.span
                   layoutId="tab-indicator"
-                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent"
+                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"
                   transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                 />
               )}

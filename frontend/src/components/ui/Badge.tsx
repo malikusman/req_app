@@ -1,15 +1,15 @@
 import { type ReactNode } from 'react';
-import { motion } from 'motion/react';
+import { Badge as ShadcnBadge } from '@/components/shadcn/badge';
 import { cn } from '../../lib/cn';
 
 type Variant = 'success' | 'warning' | 'error' | 'info' | 'neutral';
 
-const variants: Record<Variant, string> = {
-  success: 'bg-status-successBg text-status-success',
-  warning: 'bg-status-warningBg text-status-warning',
-  error: 'bg-status-errorBg text-status-error',
-  info: 'bg-status-infoBg text-status-info',
-  neutral: 'bg-status-neutralBg text-status-neutral',
+const variantMap: Record<Variant, 'success' | 'warning' | 'error' | 'info' | 'neutral'> = {
+  success: 'success',
+  warning: 'warning',
+  error: 'error',
+  info: 'info',
+  neutral: 'neutral',
 };
 
 export function Badge({
@@ -22,17 +22,30 @@ export function Badge({
   className?: string;
 }) {
   return (
-    <motion.span
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.15 }}
-      className={cn(
-        'inline-flex items-center rounded-badge px-2.5 py-0.5 text-xs font-medium',
-        variants[variant],
-        className
-      )}
-    >
+    <ShadcnBadge variant={variantMap[variant]} className={cn(className)}>
       {children}
-    </motion.span>
+    </ShadcnBadge>
+  );
+}
+
+export function StatusBadge({
+  status,
+  className,
+}: {
+  status: 'active' | 'pending' | 'complete' | 'error' | 'inactive';
+  className?: string;
+}) {
+  const config: Record<typeof status, { label: string; variant: Variant }> = {
+    active: { label: 'Active', variant: 'success' },
+    complete: { label: 'Complete', variant: 'success' },
+    pending: { label: 'Pending', variant: 'warning' },
+    error: { label: 'Error', variant: 'error' },
+    inactive: { label: 'Inactive', variant: 'neutral' },
+  };
+  const { label, variant } = config[status];
+  return (
+    <Badge variant={variant} className={className}>
+      {label}
+    </Badge>
   );
 }

@@ -3,20 +3,64 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 239 84% 67%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 239 84% 67%;
+    --radius: 0.625rem;
+    --chart-1: 239 84% 67%;
+    --chart-2: 160 84% 39%;
+    --chart-3: 38 92% 50%;
+    --chart-4: 217 91% 60%;
+    --chart-5: 280 65% 60%;
+    --chart-6: 340 75% 55%;
+    --success: 160 84% 39%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 222 47% 11%;
+    --info: 217 91% 60%;
+    --info-foreground: 0 0% 100%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 215 16% 47%;
+    --sidebar-primary: 239 84% 67%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 239 84% 97%;
+    --sidebar-accent-foreground: 239 84% 50%;
+    --sidebar-border: 214 32% 91%;
+    --sidebar-ring: 239 84% 67%;
+  }
+
   * {
-    @apply box-border;
+    @apply border-border;
   }
 
   body {
-    @apply m-0 font-sans text-text-primary bg-surface-muted antialiased;
+    @apply m-0 bg-background font-sans text-foreground antialiased;
+    font-feature-settings: 'rlig' 1, 'calt' 1, 'tnum' 1;
   }
 
   a {
-    @apply text-accent no-underline;
+    @apply text-primary no-underline;
   }
 
   a:hover {
-    @apply text-accent-hover;
+    @apply text-primary/80;
   }
 
   button,
@@ -27,19 +71,19 @@
   }
 
   :focus-visible {
-    @apply outline-none ring-2 ring-accent ring-offset-2;
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
   }
 
   .marketing {
-    @apply bg-marketing-bg text-marketing-foreground antialiased;
+    @apply bg-background text-foreground antialiased;
   }
 
   .marketing a:not([class*='button']) {
-    @apply text-marketing-accent no-underline hover:text-marketing-accent-hover;
+    @apply text-primary no-underline hover:text-primary/80;
   }
 
   .marketing :focus-visible {
-    @apply ring-marketing-accent ring-offset-marketing-bg;
+    @apply ring-ring ring-offset-background;
   }
 }
 

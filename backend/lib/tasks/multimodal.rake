@@ -38,4 +38,20 @@ namespace :multimodal do
     puts "Transcript: #{extracted}"
     puts "Check Rails logs for assistant reply."
   end
+
+  desc "Upload MinIO placeholders for dev/simulated media missing from storage"
+  task backfill_dev_storage: :environment do
+    scope = MediaAttachment.where(status: "ready").where("storage_key LIKE ? OR storage_key IS NOT NULL", "dev/simulated/%")
+    count = 0
+    scope.find_each do |attachment|
+      begin
+        Storage::MinioClient.new.download(attachment.storage_key)
+      rescue Aws::S3::Errors::NoSuchKey
+        Multimodal::DevStorageBackfill.call(attachment)
+        count += 1
+        puts "Backfilled attachment ##{attachment.id} (#{attachment.attachment_type})"
+      end
+    end
+    puts "Done. Backfilled #{count} attachment(s)."
+  end
 end

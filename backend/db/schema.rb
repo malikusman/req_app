@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_06_20_000002) do
+ActiveRecord::Schema[7.1].define(version: 2026_06_25_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -269,6 +269,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_20_000002) do
     t.datetime "sent_at", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "delivery_status", default: "queued", null: false
+    t.text "error_message"
+    t.string "whatsapp_status"
+    t.string "email_status"
     t.index ["company_user_id"], name: "index_employee_nudges_on_company_user_id"
     t.index ["conversation_id"], name: "index_employee_nudges_on_conversation_id"
     t.index ["employee_id"], name: "index_employee_nudges_on_employee_id"
@@ -296,7 +300,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_20_000002) do
     t.jsonb "metadata", default: {}, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "email"
     t.index ["company_id"], name: "index_employees_on_company_id"
+    t.index ["email"], name: "index_employees_on_email", where: "(email IS NOT NULL)"
     t.index ["invited_by_company_user_id"], name: "index_employees_on_invited_by_company_user_id"
     t.index ["phone_e164"], name: "index_employees_on_phone_e164", unique: true
   end

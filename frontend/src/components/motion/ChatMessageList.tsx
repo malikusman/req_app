@@ -34,12 +34,17 @@ export function ChatMessageList({
   }, [messages.length, showTyping, autoScroll]);
 
   return (
-    <div ref={scrollRef} className={cn(className)}>
+    <div
+      ref={scrollRef}
+      className={cn(
+        'flex flex-col gap-4 overflow-y-auto overscroll-contain px-1 py-2',
+        className
+      )}
+    >
       <AnimatePresence initial={false} mode="popLayout">
         {messages.map((m) => (
           <ChatBubble
             key={m.id}
-            className="mb-4 last:mb-0"
             direction={m.direction}
             body={m.body}
             timestamp={m.timestamp}
@@ -48,7 +53,7 @@ export function ChatMessageList({
         ))}
       </AnimatePresence>
       {showTyping && (
-        <div className="mt-4">
+        <div>
           <TypingIndicator />
         </div>
       )}

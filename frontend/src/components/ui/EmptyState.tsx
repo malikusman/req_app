@@ -28,14 +28,14 @@ export function EmptyState({
           initial={{ scale: 0.9 }}
           animate={{ scale: 1 }}
           transition={{ delay: 0.05 }}
-          className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-surface-muted"
+          className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-muted"
         >
-          <Icon className="h-7 w-7 text-text-secondary" strokeWidth={1.5} />
+          <Icon className="h-7 w-7 text-muted-foreground" strokeWidth={1.5} />
         </motion.div>
       )}
-      <h3 className="font-display text-section-title text-text-primary">{title}</h3>
+      <h3 className="text-section-title text-foreground">{title}</h3>
       {description && (
-        <p className="mt-2 max-w-sm text-sm text-text-secondary">{description}</p>
+        <p className="mt-2 max-w-sm text-sm text-muted-foreground">{description}</p>
       )}
       {action && (
         <motion.div className="mt-6">

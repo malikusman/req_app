@@ -21,14 +21,14 @@ export function ProgressBar({
 
   return (
     <div
-      className={cn('w-full overflow-hidden rounded-badge bg-surface-muted', sizes[size], className)}
+      className={cn('w-full overflow-hidden rounded-full bg-muted', sizes[size], className)}
       role="progressbar"
       aria-valuenow={clamped}
       aria-valuemin={0}
       aria-valuemax={100}
     >
       <motion.div
-        className="h-full rounded-badge bg-accent"
+        className="h-full rounded-full bg-primary"
         initial={{ width: 0 }}
         animate={{ width: `${clamped}%` }}
         transition={{ duration: 0.4, ease: 'easeOut' }}

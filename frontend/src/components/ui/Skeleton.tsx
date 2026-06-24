@@ -4,7 +4,7 @@ import { cn } from '../../lib/cn';
 type Variant = 'text' | 'card' | 'table-row';
 
 export function Skeleton({ variant = 'text', className }: { variant?: Variant; className?: string }) {
-  const base = 'animate-pulse rounded bg-border';
+  const base = 'animate-pulse rounded bg-muted';
 
   if (variant === 'card') {
     return (
@@ -12,7 +12,7 @@ export function Skeleton({ variant = 'text', className }: { variant?: Variant; c
         initial={{ opacity: 0.6 }}
         animate={{ opacity: [0.6, 1, 0.6] }}
         transition={{ duration: 1.5, repeat: Infinity }}
-        className={cn('rounded-card border border-border bg-surface p-6 shadow-card', className)}
+        className={cn('rounded-lg border border-border bg-card p-6 shadow-sm', className)}
       >
         <div className={cn(base, 'mb-4 h-4 w-1/3')} />
         <motion.div className={cn(base, 'mb-2 h-3 w-full')} />

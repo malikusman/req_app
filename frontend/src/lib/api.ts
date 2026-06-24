@@ -93,26 +93,48 @@ export const api = {
   companyEmployees: (token: string) =>
     request<{ employees: Employee[] }>('/api/v1/company/employees', {}, token),
 
-  inviteEmployee: (token: string, phone_e164: string, display_name?: string, department?: string) =>
+  inviteEmployee: (
+    token: string,
+    phone_e164: string,
+    display_name?: string,
+    department?: string,
+    email?: string
+  ) =>
     request<{ employee: Employee; access_code: string }>(
       '/api/v1/company/employees',
-      { method: 'POST', body: JSON.stringify({ phone_e164, display_name, department }) },
+      { method: 'POST', body: JSON.stringify({ phone_e164, display_name, department, email }) },
       token
     ),
 
-  bulkInviteEmployees: (token: string, employees: { phone_e164: string; display_name?: string; department?: string }[]) =>
+  bulkInviteEmployees: (
+    token: string,
+    employees: { phone_e164: string; display_name?: string; department?: string; email?: string }[]
+  ) =>
     request<{ employees: (Employee & { access_code: string })[] }>(
       '/api/v1/company/employees/bulk_create',
       { method: 'POST', body: JSON.stringify({ employees }) },
       token
     ),
 
-  nudgeEmployee: (token: string, employeeId: number) =>
-    request<{ ok: boolean; message: string }>(
-      `/api/v1/company/employees/${employeeId}/nudge`,
-      { method: 'POST' },
-      token
-    ),
+  nudgeEmployee: async (token: string, employeeId: number) => {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    };
+    const res = await fetch(`${API_URL}/api/v1/company/employees/${employeeId}/nudge`, {
+      method: 'POST',
+      headers,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const body = data as ApiError & { retry_after_hours?: number };
+      if (res.status === 429 && body.retry_after_hours != null) {
+        throw new Error(`Nudge cooldown active — try again in ~${Math.ceil(body.retry_after_hours)}h`);
+      }
+      throw new Error(body.error || res.statusText);
+    }
+    return data as { ok: boolean; message: string; nudge: EmployeeNudge };
+  },
 
   companyConversations: (token: string) =>
     request<{ conversations: CompanyConversation[] }>('/api/v1/company/conversations', {}, token),
@@ -135,11 +157,25 @@ export const api = {
     ),
 
   fetchMediaBlob: async (token: string, downloadUrl: string) => {
-    const url = downloadUrl.startsWith('http') ? downloadUrl : `${API_URL}${downloadUrl}`;
+    let path = downloadUrl;
+    if (downloadUrl.startsWith('http://') || downloadUrl.startsWith('https://')) {
+      try {
+        const parsed = new URL(downloadUrl);
+        path = `${parsed.pathname}${parsed.search}`;
+      } catch {
+        path = downloadUrl;
+      }
+    }
+    if (!path.startsWith('/')) path = `/${path}`;
+
+    const url = `${API_URL}${path}`;
     const res = await fetch(url, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (!res.ok) throw new Error('Media download failed');
+    if (!res.ok) {
+      const detail = res.status === 404 ? 'Media not found' : res.status === 401 ? 'Unauthorized' : `HTTP ${res.status}`;
+      throw new Error(`Media download failed (${detail})`);
+    }
     const blob = await res.blob();
     return URL.createObjectURL(blob);
   },
@@ -893,9 +929,20 @@ export interface CompanyUser {
   onboarding_completed_at: string | null;
 }
 
+export interface EmployeeNudge {
+  id: number;
+  channel: string;
+  delivery_status: string;
+  whatsapp_status: string | null;
+  email_status: string | null;
+  error_message: string | null;
+  sent_at: string;
+}
+
 export interface Employee {
   id: number;
   phone_e164: string;
+  email: string | null;
   display_name: string | null;
   department: string | null;
   participation_status: string;
@@ -911,6 +958,8 @@ export interface Employee {
   can_nudge?: boolean;
   stalled?: boolean;
   invitation_status?: string;
+  latest_nudge?: EmployeeNudge | null;
+  recent_nudges?: EmployeeNudge[];
 }
 
 export interface CompanyConversation {

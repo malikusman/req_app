@@ -99,13 +99,14 @@ module Whatsapp
       lang = @employee.preferred_language.presence || @company.locale
       result = Multimodal::DevUnderstanding.call(attachment: attachment, language: lang)
       body = [attachment.caption, result.plain_text].map(&:presence).compact.join("\n\n")
+      key = Multimodal::DevStorageBackfill.upload_placeholder!(attachment)
 
       attachment.update!(
         status: "ready",
         extracted_text: body,
         structured_insights: result.structured_insights,
         confidence: result.confidence,
-        storage_key: "dev/simulated/#{attachment.id}",
+        storage_key: key,
         language: lang
       )
       message.update!(body: body, processing_status: "ready")

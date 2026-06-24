@@ -18,7 +18,8 @@ module Api
           render json: {
             employee: employee_json(employee, include_nudge: true).merge(
               active_access_code_hint: active_code&.code_hint_last_two,
-              invitation_status: latest_invitation&.delivery_status
+              invitation_status: latest_invitation&.delivery_status,
+              recent_nudges: recent_nudges_json(employee)
             )
           }
         end
@@ -30,6 +31,7 @@ module Api
             phone_e164: params[:phone_e164],
             display_name: params[:display_name],
             department: params[:department],
+            email: params[:email],
             invited_by: current_company_user,
             send_whatsapp: params[:send_whatsapp] != false
           )
@@ -52,6 +54,7 @@ module Api
               phone_e164: row[:phone_e164] || row["phone_e164"],
               display_name: row[:display_name] || row["display_name"],
               department: row[:department] || row["department"],
+              email: row[:email] || row["email"],
               invited_by: current_company_user
             )
             result[:invitation].update!(batch_id: batch_id)
@@ -85,30 +88,20 @@ module Api
           employee = policy_scope(Employee).find(params[:id])
           authorize employee, :nudge?
 
-          response = nil
-          employee.with_lock do
-            employee.reload
+          result = Employees::NudgeService.call(employee: employee, company_user: current_company_user)
 
-            if employee.participation_status == "completed"
-              response = { status: :unprocessable_entity, json: { error: "Employee already completed" } }
-              next
-            end
-
-            if nudge_cooldown_active?(employee)
-              hours_left = nudge_cooldown_hours_remaining(employee)
-              response = {
-                status: :too_many_requests,
-                json: { error: "Nudge cooldown active", retry_after_hours: hours_left.ceil }
-              }
-              next
-            end
-
-            employee.update!(last_nudged_at: Time.current)
-            SendEmployeeNudgeJob.perform_later(employee.id, current_company_user.id)
-            response = { status: :ok, json: { ok: true, message: "Nudge queued" } }
-          end
-
-          render json: response[:json], status: response[:status]
+          render json: {
+            ok: true,
+            message: result.message,
+            nudge: nudge_json(result.nudge)
+          }
+        rescue Employees::NudgeService::CooldownError => e
+          render json: {
+            error: e.message,
+            retry_after_hours: e.retry_after_hours.ceil
+          }, status: :too_many_requests
+        rescue Employees::NudgeService::NudgeError => e
+          render json: { error: e.message }, status: :unprocessable_entity
         end
 
         private
@@ -117,6 +110,7 @@ module Api
           json = {
             id: employee.id,
             phone_e164: employee.phone_e164,
+            email: employee.email,
             display_name: employee.display_name,
             department: employee.department,
             role_title: employee.role_title,
@@ -136,9 +130,27 @@ module Api
           if include_nudge
             json[:can_nudge] = can_nudge?(employee)
             json[:stalled] = stalled?(employee)
+            latest = employee.employee_nudges.order(sent_at: :desc).first
+            json[:latest_nudge] = latest ? nudge_json(latest) : nil
           end
 
           json
+        end
+
+        def nudge_json(nudge)
+          {
+            id: nudge.id,
+            channel: nudge.channel,
+            delivery_status: nudge.delivery_status,
+            whatsapp_status: nudge.whatsapp_status,
+            email_status: nudge.email_status,
+            error_message: nudge.error_message,
+            sent_at: nudge.sent_at
+          }
+        end
+
+        def recent_nudges_json(employee)
+          employee.employee_nudges.order(sent_at: :desc).limit(5).map { |n| nudge_json(n) }
         end
 
         def can_nudge?(employee)
@@ -148,10 +160,6 @@ module Api
         def nudge_cooldown_active?(employee)
           employee.last_nudged_at.present? &&
             employee.last_nudged_at > SendEmployeeNudgeJob::NUDGE_COOLDOWN.ago
-        end
-
-        def nudge_cooldown_hours_remaining(employee)
-          ((employee.last_nudged_at + SendEmployeeNudgeJob::NUDGE_COOLDOWN) - Time.current) / 1.hour
         end
 
         def stalled?(employee)

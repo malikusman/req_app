@@ -302,16 +302,17 @@ export function PlatformCompanyDetail() {
           />
 
           {selectedConversation && (
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
               <Card
                 title={`Transcript · ${selectedConversation.employee_name || `Employee #${selectedConversation.employee_id}`}`}
+                className="min-h-0"
               >
                 {conversationDetailLoading ? (
                   <Skeleton variant="card" />
                 ) : chatMessages.length === 0 ? (
                   <EmptyState title="No messages yet" description="Messages appear once the interview starts." />
                 ) : (
-                  <ChatMessageList messages={chatMessages} className="max-h-[480px]" />
+                  <ChatMessageList messages={chatMessages} className="max-h-[520px]" />
                 )}
               </Card>
 

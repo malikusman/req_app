@@ -40,15 +40,15 @@ export function AuthLayout({ portal, portalName, tagline, children }: AuthLayout
       <div
         className={cn(
           'relative flex w-full flex-col justify-between overflow-hidden md:w-[40%]',
-          'bg-sidebar px-8 py-10 text-text-inverse md:px-10 md:py-12'
+          'border-r border-border bg-accent-muted px-8 py-10 text-foreground md:px-10 md:py-12'
         )}
       >
         <div
-          className="pointer-events-none absolute inset-0 opacity-[0.09] animate-grid-drift bg-[length:64px_64px] bg-[linear-gradient(rgba(255,255,255,0.07)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.07)_1px,transparent_1px)]"
+          className="pointer-events-none absolute inset-0 opacity-[0.4] animate-grid-drift bg-[length:64px_64px] bg-[linear-gradient(hsl(var(--border))_1px,transparent_1px),linear-gradient(90deg,hsl(var(--border))_1px,transparent_1px)]"
           aria-hidden
         />
         <div
-          className="pointer-events-none absolute right-0 top-0 h-full w-px bg-gradient-to-b from-transparent via-accent to-transparent opacity-60"
+          className="pointer-events-none absolute right-0 top-0 h-full w-px bg-gradient-to-b from-transparent via-primary to-transparent opacity-40"
           aria-hidden
         />
 
@@ -59,20 +59,20 @@ export function AuthLayout({ portal, portalName, tagline, children }: AuthLayout
           variants={staggerContainer(0.08)}
         >
           <motion.div variants={fadeUp} transition={transition.reveal} className="flex items-center gap-2">
-            <span className="h-6 w-2 shrink-0 rounded-sm bg-accent" aria-hidden />
-            <span className="font-display text-3xl font-bold tracking-tight text-white">Req</span>
+            <span className="h-6 w-2 shrink-0 rounded-sm bg-primary" aria-hidden />
+            <span className="text-3xl font-bold tracking-tight text-foreground">Req</span>
           </motion.div>
           <motion.p
             variants={fadeUp}
             transition={transition.reveal}
-            className="mt-8 max-w-sm text-lg font-medium text-text-inverse"
+            className="mt-8 max-w-sm text-lg font-medium text-foreground"
           >
             {portalName}
           </motion.p>
           <motion.p
             variants={fadeUp}
             transition={transition.reveal}
-            className="mt-2 max-w-sm text-sm text-text-inverse/70"
+            className="mt-2 max-w-sm text-sm text-muted-foreground"
           >
             {tagline}
           </motion.p>
@@ -82,9 +82,9 @@ export function AuthLayout({ portal, portalName, tagline, children }: AuthLayout
                 key={item}
                 variants={fadeUp}
                 transition={transition.reveal}
-                className="flex items-start gap-2 text-sm text-text-inverse/80"
+                className="flex items-start gap-2 text-sm text-muted-foreground"
               >
-                <Check className="mt-0.5 h-4 w-4 shrink-0 text-accent" aria-hidden />
+                <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
                 <span>{item}</span>
               </motion.li>
             ))}
@@ -92,7 +92,7 @@ export function AuthLayout({ portal, portalName, tagline, children }: AuthLayout
         </motion.div>
 
         <motion.blockquote
-          className="relative z-10 mt-10 text-sm italic text-white/50 md:mt-0"
+          className="relative z-10 mt-10 text-sm italic text-muted-foreground md:mt-0"
           initial={reduced ? false : { opacity: 0 }}
           animate={reduced ? undefined : { opacity: 1 }}
           transition={{ ...transition.reveal, delay: 0.35 }}
@@ -101,7 +101,7 @@ export function AuthLayout({ portal, portalName, tagline, children }: AuthLayout
         </motion.blockquote>
       </div>
 
-      <div className="flex min-h-screen w-full flex-col items-center justify-center bg-surface px-6 py-10 md:w-[60%] md:px-8 md:py-12">
+      <div className="flex min-h-screen w-full flex-col items-center justify-center bg-background px-6 py-10 md:w-[60%] md:px-8 md:py-12">
         <motion.div
           className="w-full max-w-md"
           initial={reduced ? false : 'hidden'}

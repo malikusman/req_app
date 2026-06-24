@@ -1,27 +1,23 @@
 import { type ButtonHTMLAttributes, type ReactNode } from 'react';
 import { Loader2 } from 'lucide-react';
-import { motion, useReducedMotion } from 'motion/react';
+import { Button as ShadcnButton } from '@/components/shadcn/button';
 import { cn } from '../../lib/cn';
-import { spring, tapScale } from '../../lib/motion';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 type Size = 'sm' | 'md' | 'lg';
 
-const variants: Record<Variant, string> = {
-  primary:
-    'bg-accent text-white hover:bg-accent-hover hover:shadow-[0_0_20px_rgba(79,70,229,0.3)] border-transparent',
-  secondary: 'bg-white text-text-primary border-border hover:bg-surface-muted',
-  ghost: 'bg-transparent text-text-secondary border-transparent hover:bg-surface-muted',
-  danger: 'bg-status-error text-white border-transparent hover:bg-red-600',
+const variantMap: Record<Variant, 'default' | 'secondary' | 'ghost' | 'destructive' | 'outline'> = {
+  primary: 'default',
+  secondary: 'secondary',
+  ghost: 'ghost',
+  danger: 'destructive',
 };
 
-const sizes: Record<Size, string> = {
-  sm: 'h-8 px-3 text-sm',
-  md: 'h-10 px-4 text-sm',
-  lg: 'h-11 px-5 text-base',
+const sizeMap: Record<Size, 'sm' | 'default' | 'lg'> = {
+  sm: 'sm',
+  md: 'default',
+  lg: 'lg',
 };
-
-const MotionButton = motion.button;
 
 export function Button({
   variant = 'primary',
@@ -38,37 +34,16 @@ export function Button({
   loading?: boolean;
   icon?: ReactNode;
 }) {
-  const reduced = useReducedMotion();
-
-  const classes = cn(
-    'inline-flex items-center justify-center gap-2 rounded-button border font-medium disabled:opacity-50 disabled:pointer-events-none',
-    !reduced && 'transition-none',
-    reduced && 'transition-colors',
-    variants[variant],
-    sizes[size],
-    className
-  );
-
-  if (reduced) {
-    return (
-      <button className={classes} disabled={disabled || loading} {...props}>
-        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : icon}
-        {children}
-      </button>
-    );
-  }
-
   return (
-    <MotionButton
-      className={classes}
+    <ShadcnButton
+      variant={variantMap[variant]}
+      size={sizeMap[size]}
+      className={cn(className)}
       disabled={disabled || loading}
-      whileHover={disabled || loading ? undefined : { scale: tapScale.hover }}
-      whileTap={disabled || loading ? undefined : { scale: tapScale.tap }}
-      transition={spring.snappy}
       {...props}
     >
       {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : icon}
       {children}
-    </MotionButton>
+    </ShadcnButton>
   );
 }

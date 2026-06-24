@@ -2,7 +2,16 @@ import { type ReactNode } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { cn } from '../../lib/cn';
 import { fadeUp, stagger, transition } from '../../lib/motion';
-import { Skeleton } from './Skeleton';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/shadcn/table';
+import { Card } from '@/components/shadcn/card';
+import { Skeleton } from '@/components/shadcn/skeleton';
 import { EmptyState } from './EmptyState';
 
 export type Column<T> = {
@@ -33,11 +42,15 @@ export function DataTable<T extends object>({
 
   if (loading) {
     return (
-      <div className={cn('overflow-hidden rounded-card border border-border bg-surface shadow-card', className)}>
-        {Array.from({ length: 5 }).map((_, i) => (
-          <Skeleton key={i} variant="table-row" />
-        ))}
-      </div>
+      <Card className={cn('overflow-hidden p-0', className)}>
+        <div className="divide-y">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="flex gap-4 px-4 py-3">
+              <Skeleton className="h-4 w-full" />
+            </div>
+          ))}
+        </div>
+      </Card>
     );
   }
 
@@ -47,80 +60,73 @@ export function DataTable<T extends object>({
     );
 
   return (
-    <div className={cn('overflow-x-auto rounded-card border border-border bg-surface shadow-card', className)}>
-      <table className="w-full min-w-[480px] border-collapse text-sm">
-        <thead>
-          <tr className="border-b border-border bg-surface-muted">
+    <Card className={cn('overflow-hidden p-0', className)}>
+      <Table>
+        <TableHeader>
+          <TableRow className="hover:bg-transparent">
             {columns.map((col) => (
-              <th
-                key={col.key}
-                className={cn(
-                  'px-4 py-3 text-left text-label-caps uppercase text-text-secondary',
-                  col.className
-                )}
-              >
+              <TableHead key={col.key} className={col.className}>
                 {col.header}
-              </th>
+              </TableHead>
             ))}
-          </tr>
-        </thead>
-        <tbody>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {rows.length === 0 ? (
-            <tr>
-              <td colSpan={columns.length} className="p-0">
+            <TableRow className="hover:bg-transparent">
+              <TableCell colSpan={columns.length} className="p-0">
                 {emptyContent}
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ) : (
             rows.map((row, i) => {
-              const rowProps = {
-                key: getRowKey(row, i),
-                onClick: onRowClick ? () => onRowClick(row) : undefined,
-                className: cn(
-                  'border-b border-border last:border-0',
-                  onRowClick && 'cursor-pointer'
-                ),
-              };
+              const rowKey = getRowKey(row, i);
+              const clickable = Boolean(onRowClick);
 
               if (reduced) {
                 return (
-                  <tr
-                    {...rowProps}
-                    className={cn(rowProps.className, onRowClick && 'hover:bg-surface-muted')}
+                  <TableRow
+                    key={rowKey}
+                    onClick={onRowClick ? () => onRowClick(row) : undefined}
+                    className={cn(clickable && 'cursor-pointer')}
                   >
                     {columns.map((col) => (
-                      <td key={col.key} className={cn('px-4 py-3 text-text-primary', col.className)}>
+                      <TableCell key={col.key} className={col.className}>
                         {col.render
                           ? col.render(row)
                           : String((row as Record<string, unknown>)[col.key] ?? '')}
-                      </td>
+                      </TableCell>
                     ))}
-                  </tr>
+                  </TableRow>
                 );
               }
 
               return (
                 <motion.tr
-                  {...rowProps}
+                  key={rowKey}
+                  onClick={onRowClick ? () => onRowClick(row) : undefined}
                   initial="hidden"
                   animate="visible"
                   variants={fadeUp}
                   transition={{ ...transition.fast, delay: i * stagger.tight }}
-                  whileHover={onRowClick ? { backgroundColor: 'rgb(248 249 252)' } : undefined}
+                  className={cn(
+                    'border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted',
+                    clickable && 'cursor-pointer'
+                  )}
                 >
                   {columns.map((col) => (
-                    <td key={col.key} className={cn('px-4 py-3 text-text-primary', col.className)}>
+                    <TableCell key={col.key} className={col.className}>
                       {col.render
                         ? col.render(row)
                         : String((row as Record<string, unknown>)[col.key] ?? '')}
-                    </td>
+                    </TableCell>
                   ))}
                 </motion.tr>
               );
             })
           )}
-        </tbody>
-      </table>
-    </div>
+        </TableBody>
+      </Table>
+    </Card>
   );
 }

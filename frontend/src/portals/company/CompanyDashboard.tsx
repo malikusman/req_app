@@ -68,7 +68,7 @@ export function CompanyDashboard() {
         if (meResult.status === 'fulfilled') {
           setUsage(meResult.value.usage);
           if (snapResult.status !== 'fulfilled' && meResult.value.company.intelligence_snapshot) {
-            setSnapshot(meResult.value.company.intelligence_snapshot as IntelligenceSnapshot);
+            setSnapshot(meResult.value.company.intelligence_snapshot as unknown as IntelligenceSnapshot);
             setScore(Math.round(meResult.value.company.report_readiness_score ?? 0));
             setBreakdown((meResult.value.company.report_readiness_breakdown ?? {}) as Record<string, number>);
             setSnapshotError('');

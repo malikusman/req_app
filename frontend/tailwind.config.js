@@ -1,40 +1,130 @@
 /** @type {import('tailwindcss').Config} */
+import tailwindcssAnimate from 'tailwindcss-animate';
+
 export default {
+  darkMode: ['class'],
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
       colors: {
-        marketing: {
-          bg: '#050508',
-          surface: '#111118',
-          'surface-elevated': '#16161f',
-          foreground: '#f4f4f5',
-          muted: '#a1a1aa',
-          accent: { DEFAULT: '#22d3ee', hover: '#06b6d4', muted: 'rgba(34, 211, 238, 0.12)' },
-          gold: '#d4a853',
-          border: 'rgba(255, 255, 255, 0.08)',
+        border: {
+          DEFAULT: 'hsl(var(--border))',
+          strong: 'hsl(var(--border))',
         },
-        sidebar: { DEFAULT: '#0F1117', hover: '#1A1D27', active: '#22263A' },
-        surface: { DEFAULT: '#FFFFFF', muted: '#F8F9FC' },
-        border: { DEFAULT: '#E5E7EB', strong: '#D1D5DB' },
-        accent: { DEFAULT: '#4F46E5', hover: '#4338CA', muted: '#EEF2FF' },
-        text: { primary: '#111827', secondary: '#6B7280', inverse: '#F9FAFB' },
+        input: 'hsl(var(--input))',
+        ring: 'hsl(var(--ring))',
+        background: 'hsl(var(--background))',
+        foreground: 'hsl(var(--foreground))',
+        primary: {
+          DEFAULT: 'hsl(var(--primary))',
+          foreground: 'hsl(var(--primary-foreground))',
+        },
+        secondary: {
+          DEFAULT: 'hsl(var(--secondary))',
+          foreground: 'hsl(var(--secondary-foreground))',
+        },
+        destructive: {
+          DEFAULT: 'hsl(var(--destructive))',
+          foreground: 'hsl(var(--destructive-foreground))',
+        },
+        muted: {
+          DEFAULT: 'hsl(var(--muted))',
+          foreground: 'hsl(var(--muted-foreground))',
+        },
+        accent: {
+          DEFAULT: 'hsl(var(--primary))',
+          hover: 'hsl(239 84% 58%)',
+          muted: 'hsl(239 84% 97%)',
+          foreground: 'hsl(var(--accent-foreground))',
+        },
+        popover: {
+          DEFAULT: 'hsl(var(--popover))',
+          foreground: 'hsl(var(--popover-foreground))',
+        },
+        card: {
+          DEFAULT: 'hsl(var(--card))',
+          foreground: 'hsl(var(--card-foreground))',
+        },
+        success: {
+          DEFAULT: 'hsl(var(--success))',
+          foreground: 'hsl(var(--success-foreground))',
+        },
+        warning: {
+          DEFAULT: 'hsl(var(--warning))',
+          foreground: 'hsl(var(--warning-foreground))',
+        },
+        info: {
+          DEFAULT: 'hsl(var(--info))',
+          foreground: 'hsl(var(--info-foreground))',
+        },
+        chart: {
+          1: 'hsl(var(--chart-1))',
+          2: 'hsl(var(--chart-2))',
+          3: 'hsl(var(--chart-3))',
+          4: 'hsl(var(--chart-4))',
+          5: 'hsl(var(--chart-5))',
+          6: 'hsl(var(--chart-6))',
+        },
+        sidebar: {
+          DEFAULT: 'hsl(var(--sidebar-background))',
+          foreground: 'hsl(var(--sidebar-foreground))',
+          primary: 'hsl(var(--sidebar-primary))',
+          'primary-foreground': 'hsl(var(--sidebar-primary-foreground))',
+          accent: 'hsl(var(--sidebar-accent))',
+          'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
+          border: 'hsl(var(--sidebar-border))',
+          ring: 'hsl(var(--sidebar-ring))',
+          hover: 'hsl(var(--muted))',
+          active: 'hsl(var(--sidebar-accent))',
+        },
+        surface: {
+          DEFAULT: 'hsl(var(--card))',
+          muted: 'hsl(var(--background))',
+        },
+        text: {
+          primary: 'hsl(var(--foreground))',
+          secondary: 'hsl(var(--muted-foreground))',
+          inverse: 'hsl(var(--primary-foreground))',
+        },
         status: {
-          success: '#10B981',
-          successBg: '#D1FAE5',
-          warning: '#F59E0B',
-          warningBg: '#FEF3C7',
-          error: '#EF4444',
-          errorBg: '#FEE2E2',
-          info: '#3B82F6',
-          infoBg: '#DBEAFE',
-          neutral: '#6B7280',
-          neutralBg: '#F3F4F6',
+          success: 'hsl(var(--success))',
+          successBg: 'hsl(160 84% 95%)',
+          warning: 'hsl(var(--warning))',
+          warningBg: 'hsl(38 92% 95%)',
+          error: 'hsl(var(--destructive))',
+          errorBg: 'hsl(0 84% 95%)',
+          info: 'hsl(var(--info))',
+          infoBg: 'hsl(217 91% 95%)',
+          neutral: 'hsl(var(--muted-foreground))',
+          neutralBg: 'hsl(var(--muted))',
         },
+        marketing: {
+          bg: 'hsl(var(--background))',
+          surface: 'hsl(var(--card))',
+          'surface-elevated': 'hsl(var(--muted))',
+          foreground: 'hsl(var(--foreground))',
+          muted: 'hsl(var(--muted-foreground))',
+          accent: {
+            DEFAULT: 'hsl(var(--primary))',
+            hover: 'hsl(239 84% 58%)',
+            muted: 'hsl(239 84% 97%)',
+          },
+          gold: '#d4a853',
+          border: 'hsl(var(--border))',
+        },
+      },
+      borderRadius: {
+        lg: 'var(--radius)',
+        md: 'calc(var(--radius) - 2px)',
+        sm: 'calc(var(--radius) - 4px)',
+        card: 'var(--radius)',
+        button: 'calc(var(--radius) - 2px)',
+        badge: '9999px',
+        modal: 'var(--radius)',
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
-        display: ['Sora', 'Inter', 'sans-serif'],
+        display: ['Inter', 'system-ui', 'sans-serif'],
       },
       fontSize: {
         'page-title': ['1.5rem', { lineHeight: '2rem', fontWeight: '600' }],
@@ -49,20 +139,13 @@ export default {
       maxWidth: {
         content: '1280px',
       },
-      borderRadius: {
-        card: '8px',
-        button: '6px',
-        badge: '9999px',
-        modal: '12px',
-      },
       boxShadow: {
         card: '0 1px 2px 0 rgb(0 0 0 / 0.04)',
         modal: '0 20px 25px -5px rgb(0 0 0 / 0.1)',
-        'hero-mockup':
-          '0 0 0 1px rgba(255,255,255,0.05), 0 25px 50px rgba(0,0,0,0.5)',
-        'button-glow': '0 0 20px rgba(79,70,229,0.4)',
-        'marketing-glow': '0 0 40px rgba(34, 211, 238, 0.25)',
-        'marketing-card': '0 0 0 1px rgba(255,255,255,0.06), 0 12px 40px rgba(0,0,0,0.4)',
+        'hero-mockup': '0 1px 3px 0 rgb(0 0 0 / 0.08), 0 8px 24px rgb(0 0 0 / 0.06)',
+        'button-glow': '0 0 20px hsl(var(--primary) / 0.3)',
+        'marketing-glow': '0 0 40px hsl(var(--primary) / 0.15)',
+        'marketing-card': '0 1px 3px 0 rgb(0 0 0 / 0.06), 0 8px 24px rgb(0 0 0 / 0.04)',
       },
       animation: {
         'grid-drift': 'gridDrift 60s linear infinite',
@@ -73,6 +156,8 @@ export default {
         'border-beam-pulse': 'borderBeamPulse 4s ease-in-out infinite alternate',
         'text-gradient': 'textGradient 4s ease infinite',
         shine: 'shine 3s linear infinite',
+        'accordion-down': 'accordion-down 0.2s ease-out',
+        'accordion-up': 'accordion-up 0.2s ease-out',
       },
       keyframes: {
         gridDrift: {
@@ -103,8 +188,16 @@ export default {
           '0%': { transform: 'rotate(0deg)' },
           '100%': { transform: 'rotate(360deg)' },
         },
+        'accordion-down': {
+          from: { height: '0' },
+          to: { height: 'var(--radix-accordion-content-height)' },
+        },
+        'accordion-up': {
+          from: { height: 'var(--radix-accordion-content-height)' },
+          to: { height: '0' },
+        },
       },
     },
   },
-  plugins: [],
+  plugins: [tailwindcssAnimate],
 };

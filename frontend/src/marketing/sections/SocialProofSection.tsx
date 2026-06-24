@@ -11,7 +11,7 @@ export function SocialProofSection() {
           <p className="text-label-caps text-marketing-gold">{socialProof.eyebrow}</p>
         </ScrollReveal>
         <div className="mt-8 [&_span]:text-marketing-muted">
-          <LogoMarquee items={socialProof.logos} />
+          <LogoMarquee items={[...socialProof.logos]} />
         </div>
         <ScrollReveal variant="fadeIn" delay={0.1}>
           <blockquote className="mx-auto mt-16 max-w-3xl rounded-card border border-marketing-border bg-marketing-surface/50 p-8 backdrop-blur-sm">

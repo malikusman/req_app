@@ -59,7 +59,7 @@ export const messageBubble: Variants = {
   exit: { opacity: 0, y: -6, scale: 0.98 },
 };
 
-export const staggerContainer = (staggerChildren = stagger.default): Variants => ({
+export const staggerContainer = (staggerChildren: number = stagger.default): Variants => ({
   hidden: {},
   visible: {
     transition: { staggerChildren, delayChildren: 0.05 },

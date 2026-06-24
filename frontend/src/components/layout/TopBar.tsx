@@ -1,6 +1,7 @@
-import type { ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { Menu } from 'lucide-react';
 import { cn } from '../../lib/cn';
+import { Button } from '@/components/shadcn/button';
 
 type TopBarProps = {
   title: string;
@@ -14,24 +15,26 @@ export function TopBar({ title, subtitle, actions, onMenuClick }: TopBarProps) {
     <header
       className={cn(
         'flex h-topbar shrink-0 items-center justify-between gap-4',
-        'border-b border-border bg-white px-4 md:px-8'
+        'border-b border-border bg-card px-4 md:px-8'
       )}
     >
       <div className="flex min-w-0 items-center gap-3">
         {onMenuClick && (
-          <button
+          <Button
             type="button"
-            className="rounded-md p-2 text-text-secondary hover:bg-surface-muted md:hidden"
+            variant="ghost"
+            size="icon"
+            className="md:hidden"
             onClick={onMenuClick}
             aria-label="Open menu"
           >
             <Menu className="h-5 w-5" />
-          </button>
+          </Button>
         )}
         <div className="min-w-0">
-          <h1 className="truncate font-display text-page-title text-text-primary">{title}</h1>
+          <h1 className="truncate text-page-title text-foreground">{title}</h1>
           {subtitle ? (
-            <p className="truncate text-sm text-text-secondary">{subtitle}</p>
+            <p className="truncate text-sm text-muted-foreground">{subtitle}</p>
           ) : null}
         </div>
       </div>

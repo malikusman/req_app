@@ -1,11 +1,14 @@
 # frozen_string_literal: true
 
 class InviteEmployeeService
-  def self.call(company:, phone_e164:, display_name: nil, department: nil, invited_by: nil, send_whatsapp: true)
+  def self.call(company:, phone_e164:, display_name: nil, department: nil, email: nil, invited_by: nil, send_whatsapp: true)
+    normalized_email = email.to_s.strip.downcase.presence
+
     employee = company.employees.create!(
       phone_e164: PhoneNormalizer.call(phone_e164),
       display_name: display_name,
       department: department,
+      email: normalized_email,
       participation_status: "invited",
       onboarding_step: display_name.present? ? "awaiting_access_code" : "awaiting_name",
       invited_at: Time.current,

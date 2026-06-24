@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, type MediaAttachment } from '../lib/api';
-import { Badge } from './ui';
+import { cn } from '../lib/cn';
+import { Badge, Button } from './ui';
 
 const TYPE_LABELS: Record<string, string> = {
   audio: 'Voice note',
@@ -20,10 +21,10 @@ export function ConversationMediaCard({
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!attachment.download_url || attachment.status !== 'ready' || !token) return;
-
     let active = true;
     setLoading(true);
     setError('');
@@ -43,7 +44,7 @@ export function ConversationMediaCard({
     return () => {
       active = false;
     };
-  }, [attachment.download_url, attachment.status, token]);
+  }, [attachment.download_url, attachment.status, token, reloadKey]);
 
   useEffect(() => {
     return () => {
@@ -57,9 +58,14 @@ export function ConversationMediaCard({
     TYPE_LABELS[attachment.attachment_type] ||
     'Media';
 
+  const shellClass = cn(
+    'w-full min-w-0 rounded-lg border border-border bg-muted/50',
+    compact ? 'p-2' : 'p-3'
+  );
+
   if (attachment.status === 'processing' || attachment.status === 'pending') {
     return (
-      <div className="rounded-lg border border-border bg-surface-secondary p-3 text-sm text-text-secondary">
+      <div className={cn(shellClass, 'text-sm text-muted-foreground')}>
         Processing {TYPE_LABELS[attachment.attachment_type]?.toLowerCase() || 'media'}…
       </div>
     );
@@ -67,7 +73,7 @@ export function ConversationMediaCard({
 
   if (attachment.status === 'failed') {
     return (
-      <div className="rounded-lg border border-status-error/30 bg-surface-secondary p-3 text-sm text-status-error">
+      <div className={cn(shellClass, 'text-sm text-destructive')}>
         Could not process {TYPE_LABELS[attachment.attachment_type]?.toLowerCase() || 'media'}.
         {attachment.processing_error ? ` ${attachment.processing_error}` : ''}
       </div>
@@ -75,26 +81,38 @@ export function ConversationMediaCard({
   }
 
   return (
-    <div className={`rounded-lg border border-border bg-surface-secondary ${compact ? 'p-2' : 'p-3'}`}>
+    <div className={shellClass}>
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <Badge variant="neutral">{TYPE_LABELS[attachment.attachment_type] || attachment.attachment_type}</Badge>
         {attachment.confidence != null && (
-          <span className="text-xs text-text-secondary">{Math.round(attachment.confidence * 100)}% confidence</span>
+          <span className="text-xs text-muted-foreground">
+            {Math.round(attachment.confidence * 100)}% confidence
+          </span>
         )}
       </div>
 
       {!compact && attachment.caption && (
-        <p className="mb-2 text-sm text-text-primary">{attachment.caption}</p>
+        <p className="mb-2 text-sm text-foreground">{attachment.caption}</p>
       )}
 
-      {loading && <p className="text-sm text-text-secondary">Loading preview…</p>}
-      {error && <p className="text-sm text-status-error">{error}</p>}
+      {loading && <p className="text-sm text-muted-foreground">Loading preview…</p>}
+      {error && (
+        <div className="space-y-2">
+          <p className="text-sm text-destructive">{error}</p>
+          <Button type="button" variant="secondary" size="sm" onClick={() => setReloadKey((k) => k + 1)}>
+            Retry
+          </Button>
+        </div>
+      )}
 
       {blobUrl && attachment.attachment_type === 'image' && (
         <img
           src={blobUrl}
           alt={summary}
-          className={`mt-2 max-w-full rounded-md border border-border object-contain ${compact ? 'max-h-40' : 'max-h-64'}`}
+          className={cn(
+            'mt-2 max-w-full rounded-md border border-border object-contain',
+            compact ? 'max-h-40' : 'max-h-64'
+          )}
         />
       )}
 
@@ -106,14 +124,14 @@ export function ConversationMediaCard({
         <a
           href={blobUrl}
           download={attachment.filename}
-          className="mt-2 inline-flex text-sm font-medium text-accent hover:underline"
+          className="mt-2 inline-flex text-sm font-medium text-primary hover:underline"
         >
           Download {attachment.filename}
         </a>
       )}
 
-      {!compact && summary && attachment.attachment_type !== 'audio' && (
-        <p className="mt-2 text-xs text-text-secondary">{summary}</p>
+      {!compact && summary && attachment.attachment_type !== 'audio' && !error && (
+        <p className="mt-2 text-xs text-muted-foreground">{summary}</p>
       )}
     </div>
   );
@@ -127,7 +145,7 @@ export function ConversationMediaList({
   token: string;
 }) {
   if (attachments.length === 0) {
-    return <p className="text-sm text-text-secondary">No media shared yet.</p>;
+    return <p className="text-sm text-muted-foreground">No media shared yet.</p>;
   }
 
   return (

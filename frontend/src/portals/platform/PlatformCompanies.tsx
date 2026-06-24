@@ -3,15 +3,17 @@ import { flushSync } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import { api, type Company } from '../../lib/api';
 import { useAuth, usePlatformToken, startImpersonation } from '../../lib/auth';
+import { ProgressBar } from '../../components/ui/ProgressBar';
 import {
   PageHeader,
   Button,
   DataTable,
-  Badge,
+  StatusBadge,
   Input,
   EmptyState,
   Modal,
 } from '../../components/ui';
+import { Button as OutlineButton } from '@/components/shadcn/button';
 
 export function PlatformCompanies() {
   const { session, setSession } = useAuth();
@@ -71,7 +73,6 @@ export function PlatformCompanies() {
     setError('');
     try {
       const res = await api.impersonateCompany(token, companyId);
-      // flushSync so CompanyGuard sees the company session before navigate runs
       flushSync(() => {
         startImpersonation(setSession, session, {
           token: res.token,
@@ -102,7 +103,7 @@ export function PlatformCompanies() {
       />
 
       {error && (
-        <p className="text-sm text-status-error">
+        <p className="text-sm text-destructive">
           {error}
           {error.toLowerCase().includes('unauthorized') && (
             <> — try logging out and signing in again at <a href="/platform/login" className="underline">/platform/login</a>.</>
@@ -120,19 +121,26 @@ export function PlatformCompanies() {
               <div>
                 <Link
                   to={`/platform/companies/${c.id}`}
-                  className="font-medium text-accent hover:underline"
+                  className="font-medium text-primary hover:underline"
                   onClick={(e) => e.stopPropagation()}
                 >
                   {c.display_name || c.name}
                 </Link>
-                <p className="m-0 text-xs text-text-secondary">{c.slug}</p>
+                <p className="m-0 text-xs text-muted-foreground">{c.slug}</p>
               </div>
             ),
           },
           {
             key: 'readiness',
             header: 'Readiness',
-            render: (c) => `${Math.round(c.report_readiness_score)}%`,
+            render: (c) => (
+              <div className="flex min-w-[120px] flex-col gap-1">
+                <span className="text-xs font-medium tabular-nums text-foreground">
+                  {Math.round(c.report_readiness_score)}%
+                </span>
+                <ProgressBar value={c.report_readiness_score} size="sm" />
+              </div>
+            ),
           },
           {
             key: 'subscription',
@@ -144,9 +152,7 @@ export function PlatformCompanies() {
             key: 'onboarding',
             header: 'Onboarding',
             render: (c) => (
-              <Badge variant={c.portal_onboarding_completed_at ? 'success' : 'warning'}>
-                {c.portal_onboarding_completed_at ? 'Complete' : 'Pending'}
-              </Badge>
+              <StatusBadge status={c.portal_onboarding_completed_at ? 'complete' : 'pending'} />
             ),
           },
           {
@@ -155,14 +161,14 @@ export function PlatformCompanies() {
             className: 'text-right',
             render: (c) => (
               <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-                <Button
-                  variant="secondary"
+                <OutlineButton
+                  variant="outline"
                   size="sm"
                   disabled={impersonatingId === c.id}
                   onClick={() => handleImpersonate(c.id)}
                 >
                   {impersonatingId === c.id ? 'Opening…' : 'Impersonate'}
-                </Button>
+                </OutlineButton>
               </div>
             ),
           },

@@ -16,6 +16,7 @@ class Employee < ApplicationRecord
   SENIORITY_LEVELS = %w[individual_contributor team_lead manager director executive].freeze
 
   validates :phone_e164, presence: true, uniqueness: true
+  validates :email, format: { with: URI::MailTo::EMAIL_REGEXP }, allow_blank: true
   validates :participation_status, inclusion: { in: PARTICIPATION_STATUSES }
   validates :onboarding_step, inclusion: { in: ONBOARDING_STEPS }
   validates :seniority, inclusion: { in: SENIORITY_LEVELS }, allow_nil: true
