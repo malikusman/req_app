@@ -2,11 +2,19 @@
 
 module Whatsapp
   class OnboardingHandler
-    def initialize(employee:, conversation:, client: MetaClient.new)
+    def initialize(employee:, conversation:, client: MetaClient.new, channel: "whatsapp")
       @employee = employee
       @company = employee.company
       @conversation = conversation
       @client = client
+      @channel = channel
+    end
+
+    def prompt_consent_if_needed!
+      return unless @employee.onboarding_step == "awaiting_consent"
+      return if consent_already_sent?
+
+      send_consent_message
     end
 
     def handle_inbound_text(text, external_id: nil)
@@ -137,7 +145,8 @@ module Whatsapp
             conversation: @conversation,
             employee: @employee,
             client: @client,
-            trigger_message_id: external_id
+            trigger_message_id: external_id,
+            delivery_channel: delivery_channel
           )
         end
       else
@@ -164,6 +173,11 @@ module Whatsapp
     def send_consent_message
       consent = active_consent
       send_text(consent.body)
+    end
+
+    def consent_already_sent?
+      consent = active_consent
+      @conversation.messages.where(direction: "outbound", channel: @channel).exists?(body: consent.body)
     end
 
     def active_consent
@@ -226,11 +240,16 @@ module Whatsapp
       Message.create!(
         conversation: @conversation,
         direction: direction,
+        channel: @channel,
         message_type: "text",
         body: body,
         external_id: external_id,
         is_discovery_question: direction == "outbound" && @employee.onboarding_step == "verified"
       )
+    end
+
+    def delivery_channel
+      @channel == "web" ? :web : :whatsapp
     end
 
     def log_verification(success:, reason: nil)

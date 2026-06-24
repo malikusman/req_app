@@ -109,11 +109,15 @@ export const api = {
     phone_e164: string,
     display_name?: string,
     department?: string,
-    email?: string
+    email?: string,
+    preferred_channel?: 'whatsapp' | 'web' | 'both'
   ) =>
-    request<{ employee: Employee; access_code: string }>(
+    request<{ employee: Employee; access_code: string; discover_url?: string }>(
       '/api/v1/company/employees',
-      { method: 'POST', body: JSON.stringify({ phone_e164, display_name, department, email }) },
+      {
+        method: 'POST',
+        body: JSON.stringify({ phone_e164, display_name, department, email, preferred_channel }),
+      },
       token
     ),
 
@@ -1058,6 +1062,7 @@ export interface Employee {
   id: number;
   phone_e164: string;
   email: string | null;
+  preferred_channel?: string;
   display_name: string | null;
   department: string | null;
   participation_status: string;

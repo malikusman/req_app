@@ -43,5 +43,22 @@ RSpec.describe InviteEmployeeService do
         described_class.call(company: company, phone_e164: "+15551112222", send_whatsapp: false)
       }.to change { company.reload.invited_count }.by(1)
     end
+
+    it "issues web session and email when preferred_channel is web" do
+      expect {
+        result = described_class.call(
+          company: company,
+          phone_e164: "+15553334444",
+          display_name: "Web User",
+          email: "web@example.com",
+          preferred_channel: "web",
+          send_whatsapp: false
+        )
+
+        expect(result[:discover_url]).to include("/discover/")
+        expect(result[:employee].preferred_channel).to eq("web")
+      }.to change(EmployeeWebSession, :count).by(1)
+        .and have_enqueued_job(ActionMailer::MailDeliveryJob)
+    end
   end
 end

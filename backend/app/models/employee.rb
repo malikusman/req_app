@@ -6,6 +6,7 @@ class Employee < ApplicationRecord
   has_many :employee_access_codes, dependent: :destroy
   has_many :employee_invitations, dependent: :destroy
   has_many :employee_nudges, dependent: :destroy
+  has_many :employee_web_sessions, dependent: :destroy
   has_many :conversations, dependent: :destroy
   has_many :conversation_insights, dependent: :destroy
   has_many :media_attachments, dependent: :destroy
@@ -13,12 +14,14 @@ class Employee < ApplicationRecord
 
   PARTICIPATION_STATUSES = %w[invited started completed declined].freeze
   ONBOARDING_STEPS = %w[awaiting_name awaiting_company awaiting_access_code awaiting_consent verified].freeze
+  PREFERRED_CHANNELS = %w[whatsapp web both].freeze
   SENIORITY_LEVELS = %w[individual_contributor team_lead manager director executive].freeze
 
   validates :phone_e164, presence: true, uniqueness: true
   validates :email, format: { with: URI::MailTo::EMAIL_REGEXP }, allow_blank: true
   validates :participation_status, inclusion: { in: PARTICIPATION_STATUSES }
   validates :onboarding_step, inclusion: { in: ONBOARDING_STEPS }
+  validates :preferred_channel, inclusion: { in: PREFERRED_CHANNELS }
   validates :seniority, inclusion: { in: SENIORITY_LEVELS }, allow_nil: true
 
   scope :stalled, lambda {

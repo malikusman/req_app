@@ -44,6 +44,8 @@ import { ReviewerChat } from './portals/reviewer/ReviewerChat';
 import { ReviewerEmployeeFollowup } from './portals/reviewer/ReviewerEmployeeFollowup';
 import { ReviewerProfile } from './portals/reviewer/ReviewerProfile';
 import { DevUiShowcase } from './dev/DevUiShowcase';
+import { DiscoverLanding } from './employee/DiscoverLanding';
+import { DiscoverChat } from './employee/DiscoverChat';
 
 function PlatformGuard({ children }: { children: React.ReactNode }) {
   const { session } = useAuth();
@@ -157,6 +159,8 @@ export default function App() {
               <Route path="settings" element={<CompanySettings />} />
               <Route path="billing" element={<CompanyBilling />} />
             </Route>
+            <Route path="/discover/:token" element={<DiscoverLanding />} />
+            <Route path="/discover/:token/chat" element={<DiscoverChat />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>

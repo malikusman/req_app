@@ -1,19 +1,20 @@
 <p>Hi <%= ERB::Util.html_escape(@employee.display_name.presence || "there") %>,</p>
 
 <p>
-  This is a friendly reminder to continue your workflow discovery interview with
+  You've been invited to complete a workflow discovery interview with
   <strong><%= ERB::Util.html_escape(@company_name) %></strong>.
 </p>
 
 <p>
-  If you started on WhatsApp, open your chat with the Req discovery bot and pick up where you left off.
+  Open your personal interview link to get started in your browser:
 </p>
 
-<% if @discover_url.present? %>
 <p>
-  Or continue in your browser:
   <a href="<%= @discover_url %>"><%= ERB::Util.html_escape(@discover_url) %></a>
 </p>
-<% end %>
+
+<p>
+  Your personal access code: <strong><%= ERB::Util.html_escape(@access_code) %></strong>
+</p>
 
 <p>Thank you,<br><%= ERB::Util.html_escape(@company_name) %> via Req</p>

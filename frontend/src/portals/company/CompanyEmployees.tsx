@@ -41,6 +41,7 @@ export function CompanyEmployees() {
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [department, setDepartment] = useState('');
+  const [preferredChannel, setPreferredChannel] = useState<'whatsapp' | 'web' | 'both'>('whatsapp');
   const [newCode, setNewCode] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [nudgeMsg, setNudgeMsg] = useState('');
@@ -87,13 +88,15 @@ export function CompanyEmployees() {
         phone,
         displayName || undefined,
         department || undefined,
-        email || undefined
+        email || undefined,
+        email ? preferredChannel : undefined
       );
       setNewCode(res.access_code);
       setPhone('');
       setEmail('');
       setDisplayName('');
       setDepartment('');
+      setPreferredChannel('whatsapp');
       load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Invite failed');
@@ -153,7 +156,7 @@ export function CompanyEmployees() {
     <div className="space-y-8">
       <PageHeader
         title="Employees"
-        description="Invite employees via WhatsApp. Optional email enables nudge reminders on both channels."
+        description="Invite employees via WhatsApp, browser, or both. Email is required for browser invites."
       />
 
       <Card title="Invite employee">
@@ -187,9 +190,23 @@ export function CompanyEmployees() {
           />
           <Input label="Name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
           <Input label="Department" value={department} onChange={(e) => setDepartment(e.target.value)} />
+          {email && (
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-text-secondary">Invite channel</span>
+              <select
+                className="rounded-button border border-border bg-surface px-3 py-2 text-text-primary"
+                value={preferredChannel}
+                onChange={(e) => setPreferredChannel(e.target.value as 'whatsapp' | 'web' | 'both')}
+              >
+                <option value="whatsapp">WhatsApp only</option>
+                <option value="web">Browser only</option>
+                <option value="both">WhatsApp + browser</option>
+              </select>
+            </label>
+          )}
           <div className="md:col-span-2 lg:col-span-4">
             <Button type="submit" loading={inviting}>
-              Send WhatsApp invite
+              {email && preferredChannel === 'web' ? 'Send email invite' : 'Send invite'}
             </Button>
           </div>
         </form>

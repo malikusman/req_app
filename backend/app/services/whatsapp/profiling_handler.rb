@@ -19,11 +19,12 @@ module Whatsapp
       company.merged_settings["discovery_profiling_enabled"] == true
     end
 
-    def initialize(employee:, conversation:, client: MetaClient.new)
+    def initialize(employee:, conversation:, client: MetaClient.new, channel: "whatsapp")
       @employee = employee
       @company = employee.company
       @conversation = conversation
       @client = client
+      @channel = channel
     end
 
     # Sends the profiling intro + first question. Called once after consent.
@@ -139,7 +140,8 @@ module Whatsapp
         conversation: @conversation,
         employee: @employee,
         client: @client,
-        trigger_message_id: trigger_message_id
+        trigger_message_id: trigger_message_id,
+        delivery_channel: @channel == "web" ? :web : :whatsapp
       )
     end
 
@@ -212,6 +214,7 @@ module Whatsapp
       Message.create!(
         conversation: @conversation,
         direction: direction,
+        channel: @channel,
         message_type: "text",
         body: body,
         external_id: external_id,

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_06_25_000002) do
+ActiveRecord::Schema[7.1].define(version: 2026_06_25_000003) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -278,6 +278,22 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_25_000002) do
     t.index ["employee_id"], name: "index_employee_nudges_on_employee_id"
   end
 
+  create_table "employee_web_sessions", force: :cascade do |t|
+    t.bigint "employee_id", null: false
+    t.bigint "company_id", null: false
+    t.string "token_digest", null: false
+    t.datetime "expires_at", null: false
+    t.datetime "verified_at"
+    t.datetime "last_seen_at"
+    t.string "ip_address"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_employee_web_sessions_on_company_id"
+    t.index ["employee_id", "expires_at"], name: "index_employee_web_sessions_on_employee_id_and_expires_at"
+    t.index ["employee_id"], name: "index_employee_web_sessions_on_employee_id"
+    t.index ["token_digest"], name: "index_employee_web_sessions_on_token_digest", unique: true
+  end
+
   create_table "employees", force: :cascade do |t|
     t.bigint "company_id", null: false
     t.string "phone_e164", null: false
@@ -301,6 +317,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_25_000002) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "email"
+    t.string "preferred_channel", default: "whatsapp", null: false
     t.index ["company_id"], name: "index_employees_on_company_id"
     t.index ["email"], name: "index_employees_on_email", where: "(email IS NOT NULL)"
     t.index ["invited_by_company_user_id"], name: "index_employees_on_invited_by_company_user_id"
@@ -740,6 +757,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_25_000002) do
   add_foreign_key "employee_nudges", "company_users"
   add_foreign_key "employee_nudges", "conversations"
   add_foreign_key "employee_nudges", "employees"
+  add_foreign_key "employee_web_sessions", "companies"
+  add_foreign_key "employee_web_sessions", "employees"
   add_foreign_key "employees", "companies"
   add_foreign_key "employees", "company_users", column: "invited_by_company_user_id"
   add_foreign_key "impersonation_sessions", "companies"

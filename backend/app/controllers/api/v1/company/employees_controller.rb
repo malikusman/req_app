@@ -33,13 +33,15 @@ module Api
             department: params[:department],
             email: params[:email],
             invited_by: current_company_user,
-            send_whatsapp: params[:send_whatsapp] != false
+            send_whatsapp: params[:send_whatsapp] != false,
+            preferred_channel: params[:preferred_channel].presence || "whatsapp"
           )
 
           render json: {
             employee: employee_json(result[:employee]),
             access_code: result[:access_code],
-            invitation_id: result[:invitation].id
+            invitation_id: result[:invitation].id,
+            discover_url: result[:discover_url]
           }, status: :created
         end
 
@@ -111,6 +113,7 @@ module Api
             id: employee.id,
             phone_e164: employee.phone_e164,
             email: employee.email,
+            preferred_channel: employee.preferred_channel,
             display_name: employee.display_name,
             department: employee.department,
             role_title: employee.role_title,

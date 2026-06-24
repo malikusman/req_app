@@ -2,11 +2,12 @@
 
 module Whatsapp
   class DiscoveryHandler
-    def initialize(employee:, conversation:, client: MetaClient.new)
+    def initialize(employee:, conversation:, client: MetaClient.new, channel: "whatsapp")
       @employee = employee
       @company = employee.company
       @conversation = conversation
       @client = client
+      @channel = channel
     end
 
     def handle_inbound_text(text, external_id: nil)
@@ -38,21 +39,12 @@ module Whatsapp
     end
 
     def deliver_assistant_reply(result)
-      if result["delayed"]
-        body = result["assistant_message"].to_s
-        send_text(body, is_discovery_question: false) if body.present?
-        return
-      end
-
-      assistant_body = result["assistant_message"].to_s
-      return if assistant_body.blank?
-
-      is_question = !result["completed"] && @conversation.reload.question_count.positive?
-      send_text(
-        assistant_body,
-        is_discovery_question: is_question,
-        agent_id: agent_id_from(result),
-        routing_decision: result["routing_decision"]
+      Discovery::DeliverReply.call(
+        conversation: @conversation,
+        employee: @employee,
+        result: result,
+        channel: @channel == "web" ? :web : :whatsapp,
+        client: @client
       )
     end
 
@@ -88,6 +80,7 @@ module Whatsapp
       Message.create!(
         conversation: @conversation,
         direction: direction,
+        channel: @channel,
         message_type: "text",
         body: body,
         external_id: external_id,
@@ -95,15 +88,6 @@ module Whatsapp
         agent_id: agent_id,
         routing_decision: routing_decision.presence || {}
       )
-    end
-
-    def agent_id_from(result)
-      decision = result["routing_decision"]
-      if decision.is_a?(Hash) && decision["agent"].present?
-        return decision["agent"]
-      end
-
-      result["active_agent_id"].presence
     end
   end
 end

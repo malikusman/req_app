@@ -115,10 +115,17 @@ class SendEmployeeNudgeJob < ApplicationJob
   end
 
   def deliver_email!(employee, company)
-    EmployeeNudgeMailer.nudge_email(employee: employee, company: company).deliver_now
+    discover_url = web_discover_url_for(employee)
+    EmployeeNudgeMailer.nudge_email(employee: employee, company: company, discover_url: discover_url).deliver_now
     [true, nil]
   rescue StandardError => e
     [false, "Email: #{e.message}"]
+  end
+
+  def web_discover_url_for(employee)
+    return nil unless employee.email.present?
+
+    EmployeeWebSessions::IssueService.call(employee: employee)[:url]
   end
 
   def derive_delivery_status(whatsapp_ok:, email_ok:, nudge:)

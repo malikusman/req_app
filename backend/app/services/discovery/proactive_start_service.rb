@@ -5,17 +5,19 @@ module Discovery
   # routes agents when needed, persists a system kickoff inbound, shows typing,
   # runs the first LangGraph turn, and delivers the assistant reply.
   class ProactiveStartService
-    def self.call(conversation:, employee:, client: Whatsapp::MetaClient.new, trigger_message_id: nil)
+    def self.call(conversation:, employee:, client: Whatsapp::MetaClient.new, trigger_message_id: nil,
+                  delivery_channel: :whatsapp)
       new(conversation: conversation, employee: employee, client: client,
-          trigger_message_id: trigger_message_id).call
+          trigger_message_id: trigger_message_id, delivery_channel: delivery_channel).call
     end
 
-    def initialize(conversation:, employee:, client:, trigger_message_id: nil)
+    def initialize(conversation:, employee:, client:, trigger_message_id: nil, delivery_channel: :whatsapp)
       @conversation = conversation
       @employee = employee
       @company = employee.company
       @client = client
       @trigger_message_id = trigger_message_id
+      @delivery_channel = delivery_channel
     end
 
     def call
@@ -32,8 +34,13 @@ module Discovery
         inbound_message: inbound
       )
 
-      Whatsapp::DiscoveryHandler.new(employee: @employee, conversation: @conversation, client: @client)
-                                .deliver_assistant_reply(result)
+      Discovery::DeliverReply.call(
+        conversation: @conversation,
+        employee: @employee,
+        result: result,
+        channel: @delivery_channel,
+        client: @client
+      )
     end
 
     private
@@ -76,6 +83,7 @@ module Discovery
         conversation: @conversation,
         direction: "inbound",
         message_type: "system",
+        channel: @delivery_channel == :web ? "web" : "whatsapp",
         body: body,
         raw_payload: { "kind" => "discovery_kickoff" },
         is_discovery_question: false

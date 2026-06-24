@@ -148,6 +148,10 @@ Rails.application.routes.draw do
 
       namespace :public do
         get "reports/:token", to: "reports#show"
+        get "discover/sessions/:token", to: "discover_sessions#show"
+        post "discover/sessions/:token/verify", to: "discover_verifications#create"
+        get "discover/messages", to: "discover_messages#index"
+        post "discover/messages", to: "discover_messages#create"
       end
     end
   end
