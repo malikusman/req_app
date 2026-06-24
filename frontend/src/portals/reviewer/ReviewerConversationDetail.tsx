@@ -1,15 +1,25 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useParams } from 'react-router-dom';
-import { api, type MediaAttachment } from '../../lib/api';
+import { api, type DiscoveryProvenanceEntry, type DiscoveryState, type MediaAttachment } from '../../lib/api';
 import { useReviewerToken } from '../../lib/auth';
 import { ChatMessageList, type ChatMessageItem } from '../../components/motion';
 import { ConversationMediaCard, ConversationMediaList } from '../../components/ConversationMediaCard';
-import { PageHeader, Card, Textarea, Button, Skeleton } from '../../components/ui';
+import {
+  PageHeader,
+  Card,
+  Textarea,
+  Button,
+  Skeleton,
+  DiscoveryProvenancePanel,
+} from '../../components/ui';
 
 export function ReviewerConversationDetail() {
   const { companyId, conversationId } = useParams();
   const token = useReviewerToken();
   const [messages, setMessages] = useState<ChatMessageItem[]>([]);
+  const [discoveryState, setDiscoveryState] = useState<DiscoveryState | null>(null);
+  const [discoveryProvenance, setDiscoveryProvenance] = useState<DiscoveryProvenanceEntry[]>([]);
+  const [highlightedMessageId, setHighlightedMessageId] = useState<number | null>(null);
   const [mediaAttachments, setMediaAttachments] = useState<MediaAttachment[]>([]);
   const [employeeId, setEmployeeId] = useState<number | null>(null);
   const [followupBody, setFollowupBody] = useState('');
@@ -32,6 +42,8 @@ export function ReviewerConversationDetail() {
             ) : undefined,
         }))
       );
+      setDiscoveryProvenance(d.discovery_provenance || []);
+      setDiscoveryState(d.conversation.discovery_state ?? null);
       setMediaAttachments(d.media_attachments || []);
       setEmployeeId(d.conversation.employee_id ?? null);
     });
@@ -79,7 +91,7 @@ export function ReviewerConversationDetail() {
         ]}
       />
 
-      {error && <p className="text-sm text-status-error">{error}</p>}
+      {error && <p className="text-sm text-destructive">{error}</p>}
 
       {token && mediaAttachments.length > 0 && (
         <Card title="Shared media">
@@ -87,9 +99,25 @@ export function ReviewerConversationDetail() {
         </Card>
       )}
 
-      <Card>
-        <ChatMessageList messages={messages} className="max-h-[480px]" showTyping={sending} />
-      </Card>
+      <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
+        <Card className="min-w-0">
+          <ChatMessageList
+            messages={messages}
+            className="max-h-[520px]"
+            showTyping={sending}
+            highlightedMessageId={highlightedMessageId}
+          />
+        </Card>
+
+        <Card title="Discovery provenance" className="min-w-0 lg:sticky lg:top-6">
+          <DiscoveryProvenancePanel
+            state={discoveryState}
+            provenance={discoveryProvenance}
+            selectedMessageId={highlightedMessageId}
+            onSelectMessage={setHighlightedMessageId}
+          />
+        </Card>
+      </div>
 
       {employeeId && (
         <Card title="WhatsApp follow-up">

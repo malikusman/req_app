@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_06_25_000001) do
+ActiveRecord::Schema[7.1].define(version: 2026_06_25_000002) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -380,6 +380,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_25_000001) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.boolean "reviewer_followup", default: false, null: false
+    t.string "agent_id"
+    t.jsonb "routing_decision", default: {}, null: false
+    t.index ["agent_id"], name: "index_messages_on_agent_id", where: "(agent_id IS NOT NULL)"
     t.index ["conversation_id", "reviewer_followup", "created_at"], name: "index_messages_on_conversation_followup"
     t.index ["conversation_id"], name: "index_messages_on_conversation_id"
     t.index ["external_id"], name: "index_messages_on_external_id", unique: true, where: "(external_id IS NOT NULL)"

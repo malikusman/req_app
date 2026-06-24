@@ -5,6 +5,7 @@ module Api
     module Reviewer
       class ConversationsController < BaseController
         include Api::V1::MediaAttachmentJson
+        include Api::V1::DiscoveryConversationJson
 
         def index
           company = policy_scope(::Company).find(params[:company_id])
@@ -28,13 +29,17 @@ module Api
         def show
           conversation = policy_scope(::Conversation).find(params[:id])
           authorize conversation, :show?
+          employee = conversation.employee
           messages = conversation.messages.includes(:media_attachment).order(:created_at)
+
           render json: {
             conversation: {
               id: conversation.id,
               employee_id: conversation.employee_id,
-              status: conversation.status
+              status: conversation.status,
+              discovery_state: discovery_state_json(conversation, employee)
             },
+            discovery_provenance: discovery_provenance_json(messages),
             messages: messages.map { |m| message_json(m) },
             media_attachments: media_attachments_json(
               conversation, namespace: :reviewer, company_id: conversation.company_id
@@ -53,7 +58,7 @@ module Api
             reviewer_followup: message.reviewer_followup,
             is_discovery_question: message.is_discovery_question,
             created_at: message.created_at
-          }
+          }.merge(message_provenance_fields(message))
           if message.media_attachment
             json[:media_attachment] = media_attachment_json(
               message.media_attachment,

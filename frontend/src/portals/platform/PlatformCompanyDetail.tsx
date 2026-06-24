@@ -6,6 +6,7 @@ import {
   type Company,
   type CompanyConversation,
   type CompanyConversationMessage,
+  type DiscoveryProvenanceEntry,
   type MediaAttachment,
   type CompanyPattern,
   type CompanySignal,
@@ -29,9 +30,9 @@ import {
   Timeline,
   ReadinessGauge,
   ParticipationSummary,
+  DiscoveryProvenancePanel,
 } from '../../components/ui';
 import { PlatformCompanyReviewers } from './PlatformCompanyReviewers';
-import { DiscoveryAgentPanel } from './DiscoveryAgentPanel';
 import { ConversationMediaCard, ConversationMediaList } from '../../components/ConversationMediaCard';
 
 export function PlatformCompanyDetail() {
@@ -43,6 +44,8 @@ export function PlatformCompanyDetail() {
   const [conversations, setConversations] = useState<CompanyConversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<CompanyConversation | null>(null);
   const [conversationMessages, setConversationMessages] = useState<CompanyConversationMessage[]>([]);
+  const [conversationProvenance, setConversationProvenance] = useState<DiscoveryProvenanceEntry[]>([]);
+  const [highlightedMessageId, setHighlightedMessageId] = useState<number | null>(null);
   const [conversationMedia, setConversationMedia] = useState<MediaAttachment[]>([]);
   const [conversationsLoading, setConversationsLoading] = useState(false);
   const [conversationDetailLoading, setConversationDetailLoading] = useState(false);
@@ -152,12 +155,15 @@ export function PlatformCompanyDetail() {
     setSelectedConversation(conversation);
     setConversationDetailLoading(true);
     setConversationMessages([]);
+    setConversationProvenance([]);
+    setHighlightedMessageId(null);
     setConversationMedia([]);
     api
       .platformCompanyConversation(token, companyId, conversation.id)
       .then((d) => {
         setSelectedConversation(d.conversation);
         setConversationMessages(d.messages);
+        setConversationProvenance(d.discovery_provenance || []);
         setConversationMedia(d.media_attachments || []);
       })
       .catch((err) => {
@@ -312,7 +318,11 @@ export function PlatformCompanyDetail() {
                 ) : chatMessages.length === 0 ? (
                   <EmptyState title="No messages yet" description="Messages appear once the interview starts." />
                 ) : (
-                  <ChatMessageList messages={chatMessages} className="max-h-[520px]" />
+                  <ChatMessageList
+                    messages={chatMessages}
+                    className="max-h-[520px]"
+                    highlightedMessageId={highlightedMessageId}
+                  />
                 )}
               </Card>
 
@@ -327,17 +337,16 @@ export function PlatformCompanyDetail() {
                   </Card>
                 )}
 
-              <Card title="Discovery agents">
+              <Card title="Discovery provenance">
                 {conversationDetailLoading ? (
                   <Skeleton variant="card" />
-                ) : !selectedConversation.discovery_state ||
-                  selectedConversation.discovery_state.agent_queue.length === 0 ? (
-                  <EmptyState
-                    title="Single-agent interview"
-                    description="Multi-agent routing data appears here when the feature is enabled for this company."
-                  />
                 ) : (
-                  <DiscoveryAgentPanel state={selectedConversation.discovery_state} />
+                  <DiscoveryProvenancePanel
+                    state={selectedConversation.discovery_state}
+                    provenance={conversationProvenance}
+                    selectedMessageId={highlightedMessageId}
+                    onSelectMessage={setHighlightedMessageId}
+                  />
                 )}
               </Card>
               </div>

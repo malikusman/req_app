@@ -2,15 +2,30 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ChatMessageList, type ChatMessageItem } from '../../components/motion';
 import { ConversationMediaCard, ConversationMediaList } from '../../components/ConversationMediaCard';
-import { api, type CompanyConversation, type CompanyConversationMessage, type MediaAttachment } from '../../lib/api';
+import {
+  api,
+  type CompanyConversation,
+  type CompanyConversationMessage,
+  type DiscoveryProvenanceEntry,
+  type MediaAttachment,
+} from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
-import { PageHeader, Card, Badge, EmptyState, Skeleton } from '../../components/ui';
+import {
+  PageHeader,
+  Card,
+  Badge,
+  EmptyState,
+  Skeleton,
+  DiscoveryProvenancePanel,
+} from '../../components/ui';
 
 export function CompanyConversationDetail() {
   const { id } = useParams();
   const token = useCompanyToken();
   const [conversation, setConversation] = useState<CompanyConversation | null>(null);
   const [messages, setMessages] = useState<CompanyConversationMessage[]>([]);
+  const [discoveryProvenance, setDiscoveryProvenance] = useState<DiscoveryProvenanceEntry[]>([]);
+  const [highlightedMessageId, setHighlightedMessageId] = useState<number | null>(null);
   const [mediaAttachments, setMediaAttachments] = useState<MediaAttachment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -23,6 +38,7 @@ export function CompanyConversationDetail() {
       .then((d) => {
         setConversation(d.conversation);
         setMessages(d.messages);
+        setDiscoveryProvenance(d.discovery_provenance || []);
         setMediaAttachments(d.media_attachments || []);
       })
       .catch((err) => {
@@ -79,12 +95,12 @@ export function CompanyConversationDetail() {
         }
       />
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-1">
+      <div className="grid min-w-0 gap-6 lg:grid-cols-[240px_minmax(0,1fr)_300px]">
+        <div className="space-y-6">
           <Card title="Details">
             <dl className="space-y-3 text-sm">
               <div>
-                <dt className="text-text-secondary">Status</dt>
+                <dt className="text-muted-foreground">Status</dt>
                 <dd>
                   <Badge variant={conversation.status === 'completed' ? 'success' : 'info'}>
                     {conversation.status}
@@ -92,12 +108,12 @@ export function CompanyConversationDetail() {
                 </dd>
               </div>
               <div>
-                <dt className="text-text-secondary">Questions</dt>
-                <dd className="text-text-primary">{conversation.question_count ?? 0}</dd>
+                <dt className="text-muted-foreground">Questions</dt>
+                <dd className="text-foreground">{conversation.question_count ?? 0}</dd>
               </div>
               <div>
-                <dt className="text-text-secondary">Last activity</dt>
-                <dd className="text-text-primary">
+                <dt className="text-muted-foreground">Last activity</dt>
+                <dd className="text-foreground">
                   {conversation.last_activity_at
                     ? new Date(conversation.last_activity_at).toLocaleString()
                     : '—'}
@@ -115,12 +131,25 @@ export function CompanyConversationDetail() {
           </Card>
         </div>
 
-        <Card title="Transcript" className="lg:col-span-2">
+        <Card title="Transcript" className="min-w-0">
           {chatMessages.length === 0 ? (
             <EmptyState title="No messages yet" description="Messages appear once the interview starts." />
           ) : (
-            <ChatMessageList messages={chatMessages} className="max-h-[480px]" />
+            <ChatMessageList
+              messages={chatMessages}
+              className="max-h-[520px]"
+              highlightedMessageId={highlightedMessageId}
+            />
           )}
+        </Card>
+
+        <Card title="Discovery provenance" className="min-w-0 lg:sticky lg:top-6">
+          <DiscoveryProvenancePanel
+            state={conversation.discovery_state}
+            provenance={discoveryProvenance}
+            selectedMessageId={highlightedMessageId}
+            onSelectMessage={setHighlightedMessageId}
+          />
         </Card>
       </div>
     </div>

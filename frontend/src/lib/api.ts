@@ -143,7 +143,12 @@ export const api = {
     request<{ conversations: CompanyConversation[] }>('/api/v1/company/conversations', {}, token),
 
   companyConversation: (token: string, conversationId: number) =>
-    request<{ conversation: CompanyConversation; messages: CompanyConversationMessage[]; media_attachments: MediaAttachment[] }>(
+    request<{
+      conversation: CompanyConversation;
+      discovery_provenance: DiscoveryProvenanceEntry[];
+      messages: CompanyConversationMessage[];
+      media_attachments: MediaAttachment[];
+    }>(
       `/api/v1/company/conversations/${conversationId}`,
       {},
       token
@@ -244,7 +249,12 @@ export const api = {
     ),
 
   platformCompanyConversation: (token: string, companyId: number, conversationId: number) =>
-    request<{ conversation: CompanyConversation; messages: CompanyConversationMessage[]; media_attachments: MediaAttachment[] }>(
+    request<{
+      conversation: CompanyConversation;
+      discovery_provenance: DiscoveryProvenanceEntry[];
+      messages: CompanyConversationMessage[];
+      media_attachments: MediaAttachment[];
+    }>(
       `/api/v1/platform/companies/${companyId}/conversations/${conversationId}`,
       {},
       token
@@ -541,7 +551,8 @@ export const api = {
 
   reviewerConversation: (token: string, companyId: number, conversationId: number) =>
     request<{
-      conversation: { id: number; employee_id: number; status: string };
+      conversation: { id: number; employee_id: number; status: string; discovery_state?: DiscoveryState };
+      discovery_provenance: DiscoveryProvenanceEntry[];
       messages: CompanyConversationMessage[];
       media_attachments: MediaAttachment[];
     }>(
@@ -1081,6 +1092,15 @@ export interface DiscoveryState {
   last_routing_decision: { action: string; agent: string | null; reason: string } | null;
 }
 
+export interface DiscoveryProvenanceEntry {
+  message_id: number;
+  agent_id: string | null;
+  routing_decision: { action: string; agent: string | null; reason: string } | null;
+  is_discovery_question: boolean;
+  created_at: string;
+  body_preview: string;
+}
+
 export interface CompanyConversationMessage {
   id: number;
   direction: string;
@@ -1088,6 +1108,8 @@ export interface CompanyConversationMessage {
   body: string;
   is_discovery_question?: boolean;
   reviewer_followup?: boolean;
+  agent_id?: string;
+  routing_decision?: { action: string; agent: string | null; reason: string };
   media_attachment?: MediaAttachment;
   created_at: string;
 }

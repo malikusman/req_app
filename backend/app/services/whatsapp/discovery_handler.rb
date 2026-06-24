@@ -48,7 +48,12 @@ module Whatsapp
       return if assistant_body.blank?
 
       is_question = !result["completed"] && @conversation.reload.question_count.positive?
-      send_text(assistant_body, is_discovery_question: is_question)
+      send_text(
+        assistant_body,
+        is_discovery_question: is_question,
+        agent_id: agent_id_from(result),
+        routing_decision: result["routing_decision"]
+      )
     end
 
     private
@@ -63,8 +68,14 @@ module Whatsapp
       %w[stop unsubscribe cancel].include?(text.downcase)
     end
 
-    def send_text(body, is_discovery_question: false)
-      persist_message(direction: "outbound", body: body, is_discovery_question: is_discovery_question)
+    def send_text(body, is_discovery_question: false, agent_id: nil, routing_decision: nil)
+      persist_message(
+        direction: "outbound",
+        body: body,
+        is_discovery_question: is_discovery_question,
+        agent_id: agent_id,
+        routing_decision: routing_decision
+      )
       if @client.configured?
         @client.send_text(to: @employee.phone_e164, body: body)
       else
@@ -72,15 +83,27 @@ module Whatsapp
       end
     end
 
-    def persist_message(direction:, body:, external_id: nil, is_discovery_question: false)
+    def persist_message(direction:, body:, external_id: nil, is_discovery_question: false, agent_id: nil,
+                        routing_decision: nil)
       Message.create!(
         conversation: @conversation,
         direction: direction,
         message_type: "text",
         body: body,
         external_id: external_id,
-        is_discovery_question: is_discovery_question
+        is_discovery_question: is_discovery_question,
+        agent_id: agent_id,
+        routing_decision: routing_decision.presence || {}
       )
+    end
+
+    def agent_id_from(result)
+      decision = result["routing_decision"]
+      if decision.is_a?(Hash) && decision["agent"].present?
+        return decision["agent"]
+      end
+
+      result["active_agent_id"].presence
     end
   end
 end

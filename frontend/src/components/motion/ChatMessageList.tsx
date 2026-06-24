@@ -17,11 +17,13 @@ export function ChatMessageList({
   className,
   showTyping = false,
   autoScroll = true,
+  highlightedMessageId,
 }: {
   messages: ChatMessageItem[];
   className?: string;
   showTyping?: boolean;
   autoScroll?: boolean;
+  highlightedMessageId?: string | number | null;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -49,6 +51,9 @@ export function ChatMessageList({
             body={m.body}
             timestamp={m.timestamp}
             meta={m.meta}
+            className={cn(
+              highlightedMessageId != null && m.id === highlightedMessageId && 'rounded-lg ring-2 ring-primary/40'
+            )}
           />
         ))}
       </AnimatePresence>

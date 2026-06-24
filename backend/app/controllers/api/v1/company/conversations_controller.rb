@@ -5,6 +5,7 @@ module Api
     module Company
       class ConversationsController < BaseController
         include Api::V1::MediaAttachmentJson
+        include Api::V1::DiscoveryConversationJson
 
         def index
           conversations = policy_scope(::Conversation).includes(:employee).order(updated_at: :desc)
@@ -20,6 +21,7 @@ module Api
 
           render json: {
             conversation: conversation_detail(conversation),
+            discovery_provenance: discovery_provenance_json(messages),
             messages: messages.map { |m| message_json(m) },
             media_attachments: media_attachments_json(conversation, namespace: :company)
           }
@@ -43,7 +45,8 @@ module Api
         def conversation_detail(conversation)
           employee = conversation.employee
           conversation_summary(conversation).merge(
-            employee_name: employee.display_name || "Employee ##{employee.id}"
+            employee_name: employee.display_name || "Employee ##{employee.id}",
+            discovery_state: discovery_state_json(conversation, employee)
           )
         end
 
@@ -55,7 +58,7 @@ module Api
             body: message.body,
             is_discovery_question: message.is_discovery_question,
             created_at: message.created_at
-          }
+          }.merge(message_provenance_fields(message))
           if message.media_attachment
             json[:media_attachment] = media_attachment_json(message.media_attachment, namespace: :company)
           end

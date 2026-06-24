@@ -5,6 +5,7 @@ module Api
     module Platform
       class ConversationsController < BaseController
         include Api::V1::MediaAttachmentJson
+        include Api::V1::DiscoveryConversationJson
 
         def index
           company = ::Company.find(params[:company_id])
@@ -30,6 +31,7 @@ module Api
 
           render json: {
             conversation: conversation_detail(conversation),
+            discovery_provenance: discovery_provenance_json(messages),
             messages: messages.map { |m| message_json(m) },
             media_attachments: media_attachments_json(
               conversation, namespace: :platform, company_id: conversation.company_id
@@ -60,21 +62,6 @@ module Api
           )
         end
 
-        def discovery_state_json(conversation, employee)
-          blackboard = conversation.blackboard
-          {
-            profile: blackboard["profile"] || employee.profile_card,
-            agent_queue: blackboard["agent_queue"] || [],
-            skipped_agents: blackboard["skipped_agents"] || [],
-            agent_states: blackboard["agent_states"] || {},
-            active_agent_id: blackboard["active_agent_id"],
-            coverage: blackboard["coverage"] || {},
-            shared_findings: blackboard["shared_findings"] || [],
-            conversation_summary: blackboard["conversation_summary"],
-            last_routing_decision: conversation.state_snapshot["last_routing_decision"]
-          }
-        end
-
         def message_json(message)
           json = {
             id: message.id,
@@ -83,7 +70,7 @@ module Api
             body: message.body,
             is_discovery_question: message.is_discovery_question,
             created_at: message.created_at
-          }
+          }.merge(message_provenance_fields(message))
           if message.media_attachment
             json[:media_attachment] = media_attachment_json(
               message.media_attachment,
