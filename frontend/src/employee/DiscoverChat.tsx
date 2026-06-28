@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Paperclip, X } from 'lucide-react';
 import { ChatMessageList, type ChatMessageItem } from '../components/motion';
-import { Button, Card, Textarea } from '../components/ui';
+import { Button, Textarea } from '../components/ui';
 import {
   clearDiscoverToken,
   discoverApi,
@@ -138,23 +138,24 @@ export function DiscoverChat() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="flex h-dvh items-center justify-center bg-background">
         <p className="text-muted-foreground">Loading chat…</p>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <header className="border-b border-border px-4 py-3">
+    <div className="flex h-dvh flex-col overflow-hidden bg-background">
+      <header className="shrink-0 border-b border-border bg-card/80 px-4 py-3 backdrop-blur-sm">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
-          <div>
-            <h1 className="text-lg font-semibold text-foreground">Discovery interview</h1>
-            {statusLabel && <p className="text-sm text-muted-foreground">{statusLabel}</p>}
+          <div className="min-w-0">
+            <h1 className="truncate text-lg font-semibold text-foreground">Discovery interview</h1>
+            {statusLabel && <p className="truncate text-sm text-muted-foreground">{statusLabel}</p>}
           </div>
           <Button
             variant="ghost"
             size="sm"
+            className="shrink-0"
             onClick={() => {
               clearDiscoverToken();
               navigate(`/discover/${token}`, { replace: true });
@@ -165,20 +166,27 @@ export function DiscoverChat() {
         </div>
       </header>
 
-      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 py-4">
-        {error && <p className="mb-3 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
+      <div className="mx-auto flex w-full max-w-3xl min-h-0 flex-1 flex-col px-3 py-3 sm:px-4">
+        {error && (
+          <p className="mb-2 shrink-0 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {error}
+          </p>
+        )}
 
-        <Card className="flex min-h-0 flex-1 flex-col p-4">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm">
           <ChatMessageList
             messages={messages}
-            className="min-h-[50vh] flex-1"
+            className="min-h-0 flex-1 px-3 py-4 sm:px-4"
             showTyping={sending || processingMedia}
           />
 
           {!state?.completed && (
-            <form onSubmit={send} className="mt-4 border-t border-border pt-4">
+            <form
+              onSubmit={send}
+              className="shrink-0 border-t border-border bg-background/95 px-3 py-3 backdrop-blur-sm sm:px-4 sm:py-4"
+            >
               {selectedFile && (
-                <div className="mb-3 flex items-center gap-2 rounded-md bg-muted px-3 py-2 text-sm">
+                <div className="mb-3 flex items-center gap-2 rounded-lg bg-muted px-3 py-2 text-sm">
                   <Paperclip className="h-4 w-4 shrink-0 text-muted-foreground" />
                   <span className="min-w-0 flex-1 truncate text-foreground">{selectedFile.name}</span>
                   <button
@@ -215,27 +223,33 @@ export function DiscoverChat() {
                   icon={<Paperclip className="h-5 w-5" />}
                 />
 
-                <Textarea
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder={selectedFile ? 'Add a caption (optional)…' : 'Type your reply…'}
-                  disabled={sending || processingMedia}
-                  className="min-h-[88px] flex-1 resize-none text-base"
-                />
+                <div className="min-w-0 flex-1">
+                  <Textarea
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder={selectedFile ? 'Add a caption (optional)…' : 'Type your reply…'}
+                    disabled={sending || processingMedia}
+                    className="min-h-[72px] max-h-40 w-full resize-none text-base sm:min-h-[88px]"
+                  />
+                </div>
 
                 <Button
                   type="submit"
                   disabled={sending || processingMedia || !canSend}
-                  className="h-11 shrink-0 px-5"
+                  className="h-11 shrink-0 px-4 sm:px-5"
                 >
                   Send
                 </Button>
               </div>
+              <p className="mt-2 hidden text-xs text-muted-foreground sm:block">
+                Enter to send · Shift+Enter for a new line
+                {canAttach ? ' · Attach images or PDFs during discovery' : ''}
+              </p>
             </form>
           )}
-        </Card>
-      </main>
+        </div>
+      </div>
     </div>
   );
 }
