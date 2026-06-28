@@ -26,6 +26,15 @@ module Web
       client.sent_messages
     end
 
+    def self.handle_media(employee:, conversation:, file:, caption: nil)
+      Web::MediaInboundService.call(
+        employee: employee,
+        conversation: conversation,
+        file: file,
+        caption: caption
+      )
+    end
+
     def self.handle_text(employee:, conversation:, text:)
       text = text.to_s.strip
       return { employee: employee, conversation: conversation } if text.blank?

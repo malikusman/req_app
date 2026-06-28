@@ -31,7 +31,7 @@ module Multimodal
           employee: @employee,
           conversation: @conversation,
           message: @message,
-          source: "whatsapp_upload",
+          source: @message.channel == "web" ? "web_upload" : "whatsapp_upload",
           department: @employee.department.presence,
           filename: filename_for_attachment,
           content_type: @attachment.mime_type,

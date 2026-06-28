@@ -34,4 +34,19 @@ module AuthHelpers
   def internal_headers
     { "X-Internal-Token" => ENV.fetch("INTERNAL_API_TOKEN", "test-internal-token") }
   end
+
+  def employee_web_headers(session:, employee:)
+    token = JsonWebToken.encode(
+      {
+        sub: "employee:#{employee.id}",
+        aud: "employee_web",
+        employee_id: employee.id,
+        web_session_id: session.id,
+        company_id: employee.company_id,
+        jti: SecureRandom.uuid
+      },
+      expires_at: session.expires_at
+    )
+    { "Authorization" => "Bearer #{token}" }
+  end
 end

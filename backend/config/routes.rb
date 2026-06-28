@@ -152,6 +152,7 @@ Rails.application.routes.draw do
         post "discover/sessions/:token/verify", to: "discover_verifications#create"
         get "discover/messages", to: "discover_messages#index"
         post "discover/messages", to: "discover_messages#create"
+        post "discover/attachments", to: "discover_attachments#create"
       end
     end
   end

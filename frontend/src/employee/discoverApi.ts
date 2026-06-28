@@ -48,9 +48,12 @@ export function clearDiscoverToken() {
 
 async function discoverRequest<T>(path: string, options: RequestInit = {}, token?: string | null): Promise<T> {
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
   };
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
+  if (!isFormData) {
+    headers['Content-Type'] = 'application/json';
+  }
   if (token) headers.Authorization = `Bearer ${token}`;
 
   const res = await fetch(`${API_URL}${path}`, { ...options, headers });
@@ -86,4 +89,15 @@ export const discoverApi = {
       { method: 'POST', body: JSON.stringify({ body }) },
       jwt
     ),
+
+  sendAttachment: (jwt: string, file: File, caption?: string) => {
+    const form = new FormData();
+    form.append('file', file);
+    if (caption?.trim()) form.append('caption', caption.trim());
+    return discoverRequest<{ messages: DiscoverMessage[]; state: DiscoverState }>(
+      '/api/v1/public/discover/attachments',
+      { method: 'POST', body: form },
+      jwt
+    );
+  },
 };

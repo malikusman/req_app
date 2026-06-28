@@ -14,7 +14,14 @@ class ContinueDiscoveryAfterMediaJob < ApplicationJob
 
     return unless conversation.discovery? || employee.onboarding_step == "verified"
 
-    Whatsapp::DiscoveryHandler.new(employee: employee, conversation: conversation)
-                               .process_extracted_text(text, inbound_message: attachment.message)
+    channel = attachment.message.channel == "web" ? "web" : "whatsapp"
+    client = channel == "web" ? Web::CapturingMetaClient.new : Whatsapp::MetaClient.new
+
+    Whatsapp::DiscoveryHandler.new(
+      employee: employee,
+      conversation: conversation,
+      client: client,
+      channel: channel
+    ).process_extracted_text(text, inbound_message: attachment.message)
   end
 end
