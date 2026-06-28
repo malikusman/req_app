@@ -31,8 +31,13 @@ module Web
     end
 
     def call
+      if @conversation.profiling?
+        send_notice(profiling_notice)
+        return result_payload
+      end
+
       unless allowed_phase?
-        send_notice(phase_notice)
+        send_notice(onboarding_notice)
         return result_payload
       end
 
@@ -85,12 +90,12 @@ module Web
       @conversation.discovery? || @employee.onboarding_step == "verified"
     end
 
-    def phase_notice
-      if @conversation.profiling?
-        "Please answer with a short text message for now. Once we start the interview you can send voice notes and images."
-      else
-        "Please complete onboarding with text messages first. After verification you can send voice notes and images."
-      end
+    def profiling_notice
+      "Please answer with a short text message for now. Once we start the interview you can send voice notes and images."
+    end
+
+    def onboarding_notice
+      "Please complete onboarding with text messages first. After verification you can send voice notes and images."
     end
 
     def validate_file!

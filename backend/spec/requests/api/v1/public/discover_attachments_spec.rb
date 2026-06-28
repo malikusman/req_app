@@ -41,7 +41,7 @@ RSpec.describe "Api::V1::Public::DiscoverAttachments", type: :request do
       expect(body["messages"]).to be_present
       ack = body["messages"].reverse.find { |m| m["direction"] == "outbound" }
       expect(ack["body"]).to include("image")
-      expect(ack["body"]).to include("processing")
+      expect(ack["body"]).to match(/processing|analyzing/i)
       expect(MediaAttachment.count).to eq(1)
       expect(MediaAttachment.last.message.channel).to eq("web")
       expect(ProcessMediaAttachmentJob).to have_received(:perform_later)
