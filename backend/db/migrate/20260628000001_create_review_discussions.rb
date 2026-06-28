@@ -18,8 +18,8 @@ class CreateReviewDiscussions < ActiveRecord::Migration[7.1]
       t.timestamps
     end
 
-    add_index :review_discussions, %i[report_id anchor_type anchor_id]
-    add_index :review_discussions, %i[report_id parent_id]
+    add_index :review_discussions, %i[report_id anchor_type anchor_id], name: "idx_review_discussions_report_anchor"
+    add_index :review_discussions, %i[report_id parent_id], name: "idx_review_discussions_report_parent"
 
     add_reference :reviewer_info_requests, :message, foreign_key: true
     add_reference :reviewer_info_requests, :review_discussion, foreign_key: true

@@ -595,8 +595,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_28_000001) do
     t.index ["conversation_id"], name: "index_review_discussions_on_conversation_id"
     t.index ["employee_id"], name: "index_review_discussions_on_employee_id"
     t.index ["parent_id"], name: "index_review_discussions_on_parent_id"
-    t.index ["report_id", "anchor_type", "anchor_id"], name: "index_review_discussions_on_report_id_and_anchor_type_and_anchor_id"
-    t.index ["report_id", "parent_id"], name: "index_review_discussions_on_report_id_and_parent_id"
+    t.index ["report_id", "anchor_type", "anchor_id"], name: "idx_review_discussions_report_anchor"
+    t.index ["report_id", "parent_id"], name: "idx_review_discussions_report_parent"
     t.index ["report_id"], name: "index_review_discussions_on_report_id"
     t.index ["target_reviewer_user_id"], name: "index_review_discussions_on_target_reviewer_user_id"
   end
