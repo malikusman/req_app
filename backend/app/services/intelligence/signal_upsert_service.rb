@@ -58,12 +58,22 @@ module Intelligence
         Array(existing["multimodal_evidence"]),
         Array(attrs[:multimodal_evidence])
       )
-      existing.merge("multimodal_evidence" => merged)
+      excerpts = merge_source_excerpts(
+        Array(existing["source_excerpts"]),
+        Array(attrs[:source_excerpts])
+      )
+      existing.merge("multimodal_evidence" => merged, "source_excerpts" => excerpts)
     end
 
     def merge_multimodal_evidence(existing, incoming)
       (existing + incoming.map { |item| item.stringify_keys }).uniq do |item|
         [item["source"], item["id"]]
+      end.first(Intelligence::SignalExtractor::MAX_EVIDENCE)
+    end
+
+    def merge_source_excerpts(existing, incoming)
+      (existing + incoming.map { |item| item.stringify_keys }).uniq do |item|
+        item["message_id"]
       end.first(Intelligence::SignalExtractor::MAX_EVIDENCE)
     end
   end

@@ -80,6 +80,7 @@ Rails.application.routes.draw do
           resources :reports, only: %i[index show], controller: "reports" do
             member do
               get :download
+              get :workspace, to: "review_workspace#show"
             end
             resource :review, only: %i[show update], controller: "report_reviews" do
               post :submit, on: :member

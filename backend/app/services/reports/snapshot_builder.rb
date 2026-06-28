@@ -31,7 +31,8 @@ module Reports
             "departments" => s.departments,
             "signal_type" => s.signal_type,
             "evidence_count" => s.evidence_count,
-            "multimodal_evidence" => s.metadata.fetch("multimodal_evidence", [])
+            "multimodal_evidence" => s.metadata.fetch("multimodal_evidence", []),
+            "source_excerpts" => s.metadata.fetch("source_excerpts", [])
           }
         end,
         "patterns" => @company.patterns.order(confidence: :desc).map do |p|

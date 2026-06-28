@@ -23,23 +23,26 @@ module Intelligence
 
     def call
       texts = gather_texts
+      message_sources = gather_message_sources
       multimodal = gather_multimodal_sources
-      return [] if texts.blank? && multimodal.blank?
+      return [] if texts.blank? && multimodal.blank? && message_sources.blank?
 
       detected = []
       RULES.each do |rule|
         text_hits = texts.count { |t| t.match?(rule[:pattern]) }
+        source_excerpts = message_evidence_for(rule, message_sources)
         evidence = multimodal_evidence_for(rule, multimodal)
-        total_hits = text_hits + evidence.size
+        total_hits = text_hits + evidence.size + source_excerpts.size
         next if total_hits.zero?
 
-        strength = [[total_hits / [texts.size.to_f + multimodal.size, 1].max, 0.35].max, 1.0].min.round(2)
+        strength = [[total_hits / [texts.size.to_f + multimodal.size + message_sources.size, 1].max, 0.35].max, 1.0].min.round(2)
         detected << {
           label: rule[:label],
           signal_type: rule[:type],
           strength: strength,
           evidence_count: total_hits,
-          multimodal_evidence: evidence
+          multimodal_evidence: evidence,
+          source_excerpts: source_excerpts
         }
       end
 
@@ -60,12 +63,39 @@ module Intelligence
       insight_texts = ConversationInsight.where(company_id: @company.id).pluck(:summary)
       doc_texts = @company.documents.where(status: "ready").map { |d| d.insights_preview["summary"].to_s }
       fact_texts = @company.company_memory_facts.limit(200).pluck(:content)
-      message_texts = Message.joins(:conversation)
-                             .where(conversations: { company_id: @company.id, status: "completed" })
-                             .where(direction: "inbound")
-                             .limit(200)
-                             .pluck(:body)
+      message_texts = gather_message_sources.map { |m| m[:body] }
       (insight_texts + doc_texts + fact_texts + message_texts).compact
+    end
+
+    def gather_message_sources
+      @message_sources ||= Message.joins(:conversation)
+                                  .includes(conversation: :employee)
+                                  .where(conversations: { company_id: @company.id, status: "completed" })
+                                  .where(direction: "inbound")
+                                  .where.not(body: [nil, ""])
+                                  .order(created_at: :desc)
+                                  .limit(200)
+                                  .map do |message|
+        {
+          message_id: message.id,
+          employee_id: message.conversation.employee_id,
+          conversation_id: message.conversation_id,
+          body: message.body.to_s
+        }
+      end
+    end
+
+    def message_evidence_for(rule, message_sources)
+      message_sources.filter_map do |source|
+        next unless source[:body].match?(rule[:pattern])
+
+        {
+          message_id: source[:message_id],
+          employee_id: source[:employee_id],
+          conversation_id: source[:conversation_id],
+          excerpt: source[:body].truncate(200)
+        }
+      end.first(MAX_EVIDENCE)
     end
 
     def gather_multimodal_sources
@@ -117,7 +147,7 @@ module Intelligence
 
     def infer_from_topic(topic)
       RULES.find { |r| topic.match?(r[:pattern]) }&.then do |rule|
-        { label: rule[:label], signal_type: rule[:type], strength: 0.45, evidence_count: 1, multimodal_evidence: [] }
+        { label: rule[:label], signal_type: rule[:type], strength: 0.45, evidence_count: 1, multimodal_evidence: [], source_excerpts: [] }
       end
     end
   end

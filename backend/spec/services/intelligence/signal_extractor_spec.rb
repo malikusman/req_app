@@ -50,4 +50,18 @@ RSpec.describe Intelligence::SignalExtractor do
     expect(signal.metadata["multimodal_evidence"]).to be_present
     expect(signal.metadata["multimodal_evidence"].first["attachment_type"]).to eq("document")
   end
+
+  it "captures inbound message excerpts as source evidence" do
+    create(:message,
+           conversation: conversation,
+           direction: "inbound",
+           body: "I spend hours in Excel copying data manually every week")
+
+    signals = described_class.call(company: company)
+    manual = signals.find { |s| s[:signal_type] == "manual_process" }
+
+    expect(manual).to be_present
+    expect(manual[:source_excerpts].size).to eq(1)
+    expect(manual[:source_excerpts].first[:excerpt]).to include("Excel")
+  end
 end

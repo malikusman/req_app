@@ -519,6 +519,13 @@ export const api = {
   reviewerReportReview: (token: string, companyId: number, reportId: number) =>
     request<ReportReviewPayload>(`/api/v1/reviewer/companies/${companyId}/reports/${reportId}/review`, {}, token),
 
+  reviewerReportWorkspace: (token: string, companyId: number, reportId: number) =>
+    request<ReviewerReportWorkspacePayload>(
+      `/api/v1/reviewer/companies/${companyId}/reports/${reportId}/workspace`,
+      {},
+      token
+    ),
+
   updateReviewerReportReview: (token: string, companyId: number, reportId: number, payload: { status?: string; overall_note?: string }) =>
     request<ReportReviewPayload>(`/api/v1/reviewer/companies/${companyId}/reports/${reportId}/review`, { method: 'PATCH', body: JSON.stringify(payload) }, token),
 
@@ -735,6 +742,28 @@ export interface ReportReviewPayload {
     section_states: { section_key: string; status: string }[];
     comments: { section_key: string; body: string }[];
   }[];
+}
+
+export interface ReviewerWorkspaceConversation {
+  id: number;
+  employee_id: number;
+  employee_name: string | null;
+  department: string | null;
+  status: string;
+  question_count: number;
+  last_activity_at: string | null;
+  discovery_state: DiscoveryState;
+  discovery_provenance: DiscoveryProvenanceEntry[];
+  messages: CompanyConversationMessage[];
+  media_attachments: MediaAttachment[];
+}
+
+export interface ReviewerReportWorkspacePayload {
+  company: { id: number; name: string };
+  report: ReviewerReportDetail;
+  review: ReportReviewPayload['review'];
+  co_reviewer_reviews: ReportReviewPayload['co_reviewer_reviews'];
+  conversations: ReviewerWorkspaceConversation[];
 }
 
 export interface AppNotification {
