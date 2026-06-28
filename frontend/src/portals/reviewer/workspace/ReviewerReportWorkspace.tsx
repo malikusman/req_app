@@ -63,13 +63,12 @@ export function ReviewerReportWorkspace() {
     setSearchParams(next, { replace: true });
   };
 
-  const load = useCallback(() => {
-    if (!token || !companyId || !reportId) return Promise.resolve();
-    return api.reviewerReportWorkspace(token, Number(companyId), Number(reportId)).then((data) => {
-      setWorkspace(data);
-      setNote(data.review.overall_note || '');
-    });
-  }, [token, companyId, reportId]);
+  const load = useCallback(async () => {
+    if (!token || !companyId || !reportId) return;
+    const data = await api.reviewerReportWorkspace(token, Number(companyId), Number(reportId));
+    setWorkspace(data);
+    setNote(data.review.overall_note || '');
+  }, [token, companyId, reportId, setNote, setWorkspace]);
 
   useEffect(() => {
     if (!token || !companyId || !reportId) return;

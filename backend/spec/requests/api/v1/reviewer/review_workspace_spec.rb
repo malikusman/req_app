@@ -9,14 +9,16 @@ RSpec.describe "Reviewer report workspace", type: :request do
   let!(:conversation) do
     create(:conversation, employee: employee, company: company, status: "completed", question_count: 3).tap do |conv|
       conv.update!(
-        state_snapshot: { "last_routing_decision" => { "action" => "close", "agent" => "process", "reason" => "done" } },
-        blackboard: {
-          "profile" => { "role_title" => "Analyst", "department" => "finance" },
-          "shared_findings" => [{ "agent" => "process", "finding" => "Uses Slack for reviews", "confidence" => 0.8, "turn" => 2 }],
-          "conversation_summary" => "Employee described daily workflow.",
-          "agent_queue" => [],
-          "agent_states" => {},
-          "coverage" => { "topics_required" => %w[tools], "topics_covered" => %w[tools] }
+        state_snapshot: {
+          "last_routing_decision" => { "action" => "close", "agent" => "process", "reason" => "done" },
+          "blackboard" => {
+            "profile" => { "role_title" => "Analyst", "department" => "finance" },
+            "shared_findings" => [{ "agent" => "process", "finding" => "Uses Slack for reviews", "confidence" => 0.8, "turn" => 2 }],
+            "conversation_summary" => "Employee described daily workflow.",
+            "agent_queue" => [],
+            "agent_states" => {},
+            "coverage" => { "topics_required" => %w[tools], "topics_covered" => %w[tools] }
+          }
         }
       )
       create(:message, conversation: conv, direction: "inbound", body: "We use Slack and Excel daily")
