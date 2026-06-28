@@ -5,14 +5,17 @@ import type {
   DiscoveryProvenanceEntry,
   DiscoveryState,
   MediaAttachment,
+  ReviewDiscussion,
 } from '../../../lib/api';
 import { ChatMessageList, type ChatMessageItem } from '../../../components/motion';
 import { ConversationMediaCard, ConversationMediaList } from '../../../components/ConversationMediaCard';
 import { Card, Button, Textarea, DiscoveryProvenancePanel } from '../../../components/ui';
+import { EvidenceAskBubble } from './EvidenceAskBubble';
 
 export function ReviewerTranscriptPanel({
   companyId,
   conversationId,
+  employeeId,
   employeeName,
   messages,
   discoveryState,
@@ -23,9 +26,14 @@ export function ReviewerTranscriptPanel({
   onHighlightMessage,
   onSendFollowup,
   sendingFollowup,
+  discussions,
+  coReviewers,
+  onAskReviewer,
+  onAskEmployee,
 }: {
   companyId: number;
   conversationId: number;
+  employeeId: number;
   employeeName: string | null;
   messages: CompanyConversationMessage[];
   discoveryState: DiscoveryState | null;
@@ -36,8 +44,14 @@ export function ReviewerTranscriptPanel({
   onHighlightMessage: (id: number | null) => void;
   onSendFollowup?: (body: string) => Promise<void>;
   sendingFollowup?: boolean;
+  discussions?: ReviewDiscussion[];
+  coReviewers?: { reviewer_user_id: number; reviewer_name: string }[];
+  onAskReviewer?: (targetReviewerUserId: number, body: string, anchorType: 'message', anchorId: string, messageId: number) => Promise<void>;
+  onAskEmployee?: (body: string, messageId: number) => Promise<void>;
 }) {
   const [followupBody, setFollowupBody] = useState('');
+  const threadDiscussions = discussions ?? [];
+  const reviewers = coReviewers ?? [];
 
   const chatItems: ChatMessageItem[] = messages.map((m) => ({
     id: m.id,
@@ -47,6 +61,21 @@ export function ReviewerTranscriptPanel({
     meta:
       m.media_attachment && token ? (
         <ConversationMediaCard attachment={m.media_attachment} token={token} compact />
+      ) : undefined,
+    actions:
+      onAskReviewer && reviewers.length > 0 ? (
+        <EvidenceAskBubble
+          anchorType="message"
+          anchorId={String(m.id)}
+          coReviewers={reviewers}
+          employeeId={employeeId}
+          conversationId={conversationId}
+          discussions={threadDiscussions}
+          onAskReviewer={(targetId, body) => onAskReviewer(targetId, body, 'message', String(m.id), m.id)}
+          onAskEmployee={
+            onAskEmployee ? (body) => onAskEmployee(body, m.id) : undefined
+          }
+        />
       ) : undefined,
   }));
 
@@ -76,7 +105,7 @@ export function ReviewerTranscriptPanel({
       )}
 
       <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
-        <Card className="min-w-0">
+        <Card className="min-w-0 overflow-visible">
           <ChatMessageList
             messages={chatItems}
             className="max-h-[520px] min-h-[320px]"

@@ -612,6 +612,34 @@ export const api = {
       { method: 'POST', body: JSON.stringify({ body }) },
       token
     ),
+
+  createReviewDiscussion: (
+    token: string,
+    companyId: number,
+    reportId: number,
+    payload: {
+      target_type: 'reviewer' | 'employee';
+      target_reviewer_user_id?: number;
+      employee_id?: number;
+      conversation_id?: number;
+      anchor_type: 'message' | 'finding' | 'section';
+      anchor_id: string;
+      body: string;
+      message_id?: number;
+    }
+  ) =>
+    request<{ discussion: ReviewDiscussion }>(
+      `/api/v1/reviewer/companies/${companyId}/reports/${reportId}/discussions`,
+      { method: 'POST', body: JSON.stringify(payload) },
+      token
+    ),
+
+  replyReviewDiscussion: (token: string, companyId: number, reportId: number, discussionId: number, body: string) =>
+    request<{ discussion: ReviewDiscussion }>(
+      `/api/v1/reviewer/companies/${companyId}/reports/${reportId}/discussions/${discussionId}/reply`,
+      { method: 'POST', body: JSON.stringify({ body }) },
+      token
+    ),
 };
 
 export interface ReviewerProfileCompleteness {
@@ -737,8 +765,15 @@ export interface ReportReviewPayload {
     comments: { id: number; section_key: string; body: string; reviewer_name: string }[];
   };
   co_reviewer_reviews: {
+    reviewer_user_id?: number;
     reviewer_name: string;
     status: string;
+    activity?: 'not_started' | 'discussing' | 'reviewing' | 'submitted';
+    activity_detail?: string;
+    chat_message_count?: number;
+    comment_count?: number;
+    sections_touched?: number;
+    last_active_at?: string | null;
     section_states: { section_key: string; status: string }[];
     comments: { section_key: string; body: string }[];
   }[];
@@ -758,11 +793,30 @@ export interface ReviewerWorkspaceConversation {
   media_attachments: MediaAttachment[];
 }
 
+export interface ReviewDiscussion {
+  id: number;
+  parent_id: number | null;
+  target_type: 'reviewer' | 'employee';
+  target_reviewer_user_id: number | null;
+  target_reviewer_name: string | null;
+  employee_id: number | null;
+  conversation_id: number | null;
+  anchor_type: 'message' | 'finding' | 'section';
+  anchor_id: string;
+  body: string;
+  status: 'open' | 'resolved';
+  author_reviewer_user_id: number;
+  author_name: string;
+  created_at: string;
+  replies: ReviewDiscussion[];
+}
+
 export interface ReviewerReportWorkspacePayload {
   company: { id: number; name: string };
   report: ReviewerReportDetail;
   review: ReportReviewPayload['review'];
   co_reviewer_reviews: ReportReviewPayload['co_reviewer_reviews'];
+  discussions: ReviewDiscussion[];
   conversations: ReviewerWorkspaceConversation[];
 }
 

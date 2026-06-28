@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_06_25_000003) do
+ActiveRecord::Schema[7.1].define(version: 2026_06_28_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -575,6 +575,32 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_25_000003) do
     t.index ["share_token"], name: "index_reports_on_share_token", unique: true, where: "(share_token IS NOT NULL)"
   end
 
+  create_table "review_discussions", force: :cascade do |t|
+    t.bigint "report_id", null: false
+    t.bigint "company_id", null: false
+    t.bigint "author_reviewer_user_id", null: false
+    t.bigint "target_reviewer_user_id"
+    t.bigint "employee_id"
+    t.bigint "conversation_id"
+    t.bigint "parent_id"
+    t.string "target_type", null: false
+    t.string "anchor_type", null: false
+    t.string "anchor_id", null: false
+    t.text "body", null: false
+    t.string "status", default: "open", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["author_reviewer_user_id"], name: "index_review_discussions_on_author_reviewer_user_id"
+    t.index ["company_id"], name: "index_review_discussions_on_company_id"
+    t.index ["conversation_id"], name: "index_review_discussions_on_conversation_id"
+    t.index ["employee_id"], name: "index_review_discussions_on_employee_id"
+    t.index ["parent_id"], name: "index_review_discussions_on_parent_id"
+    t.index ["report_id", "anchor_type", "anchor_id"], name: "index_review_discussions_on_report_id_and_anchor_type_and_anchor_id"
+    t.index ["report_id", "parent_id"], name: "index_review_discussions_on_report_id_and_parent_id"
+    t.index ["report_id"], name: "index_review_discussions_on_report_id"
+    t.index ["target_reviewer_user_id"], name: "index_review_discussions_on_target_reviewer_user_id"
+  end
+
   create_table "reviewer_assignments", force: :cascade do |t|
     t.bigint "reviewer_user_id", null: false
     t.bigint "company_id", null: false
@@ -636,13 +662,17 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_25_000003) do
     t.string "status", default: "draft", null: false
     t.string "meta_message_id"
     t.datetime "sent_at"
+    t.bigint "message_id"
+    t.bigint "review_discussion_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["company_id"], name: "index_reviewer_info_requests_on_company_id"
     t.index ["conversation_id"], name: "index_reviewer_info_requests_on_conversation_id"
     t.index ["employee_id", "status"], name: "index_reviewer_info_requests_awaiting_reply", where: "((status)::text = 'awaiting_reply'::text)"
     t.index ["employee_id"], name: "index_reviewer_info_requests_on_employee_id"
+    t.index ["message_id"], name: "index_reviewer_info_requests_on_message_id"
     t.index ["report_id"], name: "index_reviewer_info_requests_on_report_id"
+    t.index ["review_discussion_id"], name: "index_reviewer_info_requests_on_review_discussion_id"
     t.index ["reviewer_user_id"], name: "index_reviewer_info_requests_on_reviewer_user_id"
   end
 
@@ -788,6 +818,13 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_25_000003) do
   add_foreign_key "reports", "companies"
   add_foreign_key "reports", "platform_users", column: "reviewed_by_platform_user_id"
   add_foreign_key "reports", "reports", column: "previous_report_id"
+  add_foreign_key "review_discussions", "companies"
+  add_foreign_key "review_discussions", "conversations"
+  add_foreign_key "review_discussions", "employees"
+  add_foreign_key "review_discussions", "reports"
+  add_foreign_key "review_discussions", "review_discussions", column: "parent_id"
+  add_foreign_key "review_discussions", "reviewer_users", column: "author_reviewer_user_id"
+  add_foreign_key "review_discussions", "reviewer_users", column: "target_reviewer_user_id"
   add_foreign_key "reviewer_assignments", "companies"
   add_foreign_key "reviewer_assignments", "platform_users", column: "assigned_by_platform_user_id"
   add_foreign_key "reviewer_assignments", "reviewer_users"
@@ -799,7 +836,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_25_000003) do
   add_foreign_key "reviewer_info_requests", "companies"
   add_foreign_key "reviewer_info_requests", "conversations"
   add_foreign_key "reviewer_info_requests", "employees"
+  add_foreign_key "reviewer_info_requests", "messages"
   add_foreign_key "reviewer_info_requests", "reports"
+  add_foreign_key "reviewer_info_requests", "review_discussions"
   add_foreign_key "reviewer_info_requests", "reviewer_users"
   add_foreign_key "subscriptions", "companies"
 end

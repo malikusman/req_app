@@ -23,6 +23,7 @@ export type PortalShellProps = {
   subtitle?: string;
   topBarActions?: ReactNode;
   sidebarFooter?: ReactNode;
+  fullBleed?: boolean;
   children?: ReactNode;
 };
 
@@ -35,6 +36,7 @@ export function PortalShell({
   subtitle,
   topBarActions,
   sidebarFooter,
+  fullBleed = false,
   children,
 }: PortalShellProps) {
   const { pathname } = useLocation();
@@ -58,8 +60,12 @@ export function PortalShell({
           actions={topBarActions}
           onMenuClick={() => setSidebarOpen(true)}
         />
-        <main className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-content bg-surface-muted p-4 md:p-8">
+        <main className={cn('flex-1 overflow-y-auto', fullBleed && 'overflow-hidden')}>
+          <div
+            className={cn(
+              fullBleed ? 'h-full' : 'mx-auto max-w-content bg-surface-muted p-4 md:p-8'
+            )}
+          >
             <PageTransition>{children ?? <Outlet />}</PageTransition>
           </div>
         </main>

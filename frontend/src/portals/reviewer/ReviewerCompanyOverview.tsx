@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { MessageSquare } from 'lucide-react';
 import { api, type ReviewerCompanyDetail } from '../../lib/api';
 import { useReviewerToken } from '../../lib/auth';
 import { PageHeader, Card, StatCard, Button, Badge, Skeleton, EmptyState } from '../../components/ui';
 import { FileBarChart, Users, UserPlus } from 'lucide-react';
+import { ReviewerChatDrawer } from './workspace/ReviewerChatDrawer';
 
 export function ReviewerCompanyOverview() {
   const { companyId } = useParams();
   const token = useReviewerToken();
   const [company, setCompany] = useState<ReviewerCompanyDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [chatOpen, setChatOpen] = useState(false);
 
   useEffect(() => {
     if (!token || !companyId) return;
@@ -45,7 +48,11 @@ export function ReviewerCompanyOverview() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title={company.name} description="Company overview and report review." />
+      <PageHeader
+        title={company.name}
+        description="Company overview and report review."
+        breadcrumbs={[{ label: 'Dashboard', href: '/reviewer/dashboard' }, { label: company.name }]}
+      />
 
       <div className="grid gap-4 md:grid-cols-3">
         <StatCard
@@ -83,10 +90,18 @@ export function ReviewerCompanyOverview() {
         <Link to={`/reviewer/companies/${companyId}/conversations`}>
           <Button variant="secondary">Conversations</Button>
         </Link>
-        <Link to={`/reviewer/companies/${companyId}/chat`}>
-          <Button variant="secondary">Co-reviewer chat</Button>
-        </Link>
+        {company.co_reviewer_count >= 2 && (
+          <Button variant="secondary" onClick={() => setChatOpen(true)} icon={<MessageSquare className="h-4 w-4" />}>
+            Co-reviewer chat
+          </Button>
+        )}
       </div>
+
+      <ReviewerChatDrawer
+        companyId={Number(companyId)}
+        open={chatOpen}
+        onOpenChange={setChatOpen}
+      />
     </div>
   );
 }

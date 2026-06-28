@@ -1,23 +1,24 @@
-import { Outlet, useNavigate, useParams } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../lib/auth';
 import { PortalShell } from '../../components/layout/PortalShell';
-import { navItems, companyNavItems } from './nav';
+import { navItems } from './nav';
 import { usePageMeta } from '../../lib/usePageMeta';
 
 export function ReviewerLayout() {
   const { session, logout } = useAuth();
   const navigate = useNavigate();
-  const { companyId } = useParams();
+  const { pathname } = useLocation();
   const { title } = usePageMeta('Reviewer');
 
   if (session?.portal !== 'reviewer') return null;
 
-  const items = companyId ? [...navItems, ...companyNavItems(Number(companyId))] : navItems;
+  const fullBleed = /\/reports\/\d+\/review$/.test(pathname);
 
   return (
     <PortalShell
       portal="reviewer"
-      navItems={items}
+      navItems={navItems}
+      fullBleed={fullBleed}
       title={title}
       userMenu={{
         name: session.user.name,

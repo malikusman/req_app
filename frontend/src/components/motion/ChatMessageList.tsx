@@ -10,6 +10,7 @@ export type ChatMessageItem = {
   body: string;
   timestamp: string | Date;
   meta?: React.ReactNode;
+  actions?: React.ReactNode;
 };
 
 export function ChatMessageList({
@@ -45,16 +46,28 @@ export function ChatMessageList({
     >
       <AnimatePresence initial={false} mode="popLayout">
         {messages.map((m) => (
-          <ChatBubble
+          <div
             key={m.id}
-            direction={m.direction}
-            body={m.body}
-            timestamp={m.timestamp}
-            meta={m.meta}
             className={cn(
-              highlightedMessageId != null && m.id === highlightedMessageId && 'rounded-lg ring-2 ring-primary/40'
+              'group relative',
+              m.direction === 'outbound' ? 'self-end' : 'self-start'
             )}
-          />
+          >
+            <ChatBubble
+              direction={m.direction}
+              body={m.body}
+              timestamp={m.timestamp}
+              meta={m.meta}
+              className={cn(
+                highlightedMessageId != null && m.id === highlightedMessageId && 'rounded-lg ring-2 ring-primary/40'
+              )}
+            />
+            {m.actions && (
+              <div className={cn('absolute top-1 opacity-0 transition-opacity group-hover:opacity-100', m.direction === 'outbound' ? 'left-0 -translate-x-full pr-2' : 'right-0 translate-x-full pl-2')}>
+                {m.actions}
+              </div>
+            )}
+          </div>
         ))}
       </AnimatePresence>
       {showTyping && (

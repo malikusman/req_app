@@ -7,6 +7,9 @@ class ReviewerInfoRequest < ApplicationRecord
   belongs_to :employee
   belongs_to :conversation
 
+  belongs_to :message, optional: true
+  belongs_to :review_discussion, optional: true
+
   has_many :reviewer_info_replies, dependent: :destroy
 
   STATUSES = %w[draft sent awaiting_reply replied closed failed].freeze

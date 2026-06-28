@@ -179,6 +179,24 @@ class NotificationService
     )
   end
 
+  def self.notify_discussion_mention(recipient:, company:, report:, author:, discussion:)
+    anchor = "#{discussion.anchor_type}:#{discussion.anchor_id}"
+    notify(
+      type: :discussion_mention,
+      company: company,
+      recipients: recipient,
+      title: "Question from co-reviewer",
+      body: "#{author.name} asked about #{discussion.anchor_type} on #{company.display_name || company.name} report v#{report.version}.",
+      action_url: "#{app_host}/reviewer/companies/#{company.id}/reports/#{report.id}/review?step=evidence&anchor=#{anchor}",
+      metadata: {
+        report_id: report.id,
+        discussion_id: discussion.id,
+        anchor_type: discussion.anchor_type,
+        anchor_id: discussion.anchor_id
+      }
+    )
+  end
+
   def self.notify_platform_admins(type:, company:, title:, body:, action_url: nil, metadata: {})
     recipients = PlatformUser.all
     notify(

@@ -35,9 +35,12 @@ RSpec.describe "Reviewer report workspace", type: :request do
   end
   let!(:report) { create(:report, :ready, company: company) }
   let!(:review) { create(:report_review, report: report, reviewer_user: reviewer, company: company) }
+  let(:co_reviewer) { create(:reviewer_user, name: "Co Reviewer") }
+  let!(:co_review) { create(:report_review, report: report, reviewer_user: co_reviewer, company: company, status: "pending") }
 
   before do
     create(:reviewer_assignment, company: company, reviewer_user: reviewer)
+    create(:reviewer_assignment, company: company, reviewer_user: co_reviewer)
     report.update!(
       report_snapshot: report.report_snapshot.merge(
         "executive_summary" => "One employee completed discovery.",
@@ -59,5 +62,17 @@ RSpec.describe "Reviewer report workspace", type: :request do
     expect(body["conversations"].first["messages"].length).to be >= 2
     expect(body["conversations"].first["discovery_state"]["shared_findings"].length).to eq(1)
     expect(body["conversations"].first["discovery_provenance"].length).to eq(1)
+  end
+
+  it "includes co-reviewer activity when they have chatted" do
+    create(:reviewer_chat_message, company: company, sender_reviewer_user: co_reviewer, body: "Hello from co-reviewer")
+
+    get "/api/v1/reviewer/companies/#{company.id}/reports/#{report.id}/workspace",
+        headers: auth_headers_for(reviewer)
+
+    co_payload = JSON.parse(response.body)["co_reviewer_reviews"].first
+    expect(co_payload["activity"]).to eq("discussing")
+    expect(co_payload["chat_message_count"]).to eq(1)
+    expect(co_payload["activity_detail"]).to include("1 chat message")
   end
 end

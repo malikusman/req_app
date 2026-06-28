@@ -25,7 +25,8 @@ const titles: Record<string, string> = {
   '/company/onboarding': 'Setup',
   '/reviewer/dashboard': 'Dashboard',
   '/reviewer/profile': 'Profile',
-  '/reviewer/followups': 'Follow-ups',
+  '/reviewer/inbox': 'Inbox',
+  '/reviewer/followups': 'Inbox',
 };
 
 export function usePageMeta(fallback = 'Req') {
@@ -33,7 +34,7 @@ export function usePageMeta(fallback = 'Req') {
   const exact = titles[pathname];
   if (exact) return { title: exact };
 
-  if (pathname.includes('/review/companies/') && pathname.endsWith('/review')) {
+  if (pathname.includes('/reviewer/companies/') && pathname.includes('/reports/') && pathname.endsWith('/review')) {
     return { title: 'Report review' };
   }
   if (pathname.includes('/companies/') && pathname.includes('/conversations/')) {

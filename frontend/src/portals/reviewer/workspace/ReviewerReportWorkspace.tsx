@@ -1,16 +1,18 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { Check, ChevronRight, FileText } from 'lucide-react';
+import { Check, ChevronRight, FileText, MessageSquare } from 'lucide-react';
 import { api, type ReviewerReportWorkspacePayload } from '../../../lib/api';
 import { useReviewerToken } from '../../../lib/auth';
 import { Badge, Button, Card, Skeleton, StatCard, Textarea } from '../../../components/ui';
 import { cn } from '../../../lib/cn';
 import { ReviewerAnnotationRail } from './ReviewerAnnotationRail';
+import { ReviewerChatDrawer } from './ReviewerChatDrawer';
 import { ReviewerEmployeeProfileCard } from './ReviewerEmployeeProfileCard';
 import { ReviewerPdfDrawer } from './ReviewerPdfDrawer';
 import { ReviewerSectionContent } from './ReviewerSectionContent';
 import { ReviewerSharedFindingsPanel } from './ReviewerSharedFindingsPanel';
 import { ReviewerTranscriptPanel } from './ReviewerTranscriptPanel';
+import { coReviewerActivityLabel, coReviewerActivityVariant } from './coReviewerActivity';
 import {
   REPORT_SECTIONS,
   WORKSPACE_STEPS,
@@ -47,6 +49,9 @@ export function ReviewerReportWorkspace() {
   const [activeConversationIndex, setActiveConversationIndex] = useState(0);
   const [highlightedMessageId, setHighlightedMessageId] = useState<number | null>(null);
   const [pdfOpen, setPdfOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatUnread, setChatUnread] = useState(false);
+  const lastSeenChatMessageId = useRef<number | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [sendingFollowup, setSendingFollowup] = useState(false);
 
@@ -78,6 +83,56 @@ export function ReviewerReportWorkspace() {
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load workspace'))
       .finally(() => setLoading(false));
   }, [token, companyId, reportId, load]);
+
+  useEffect(() => {
+    if (searchParams.get('chat') === '1') {
+      setChatOpen(true);
+    }
+    const anchor = searchParams.get('anchor');
+    if (anchor?.startsWith('message:')) {
+      const messageId = Number(anchor.split(':')[1]);
+      if (!Number.isNaN(messageId)) {
+        setHighlightedMessageId(messageId);
+        setStep('evidence');
+      }
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!token || !companyId) return;
+    const pollChat = () => {
+      api
+        .reviewerChatMessages(token, Number(companyId))
+        .then((data) => {
+          const latestId = data.messages.length > 0 ? data.messages[data.messages.length - 1].id : null;
+          const hasUnread =
+            latestId != null &&
+            (lastSeenChatMessageId.current == null || latestId > lastSeenChatMessageId.current) &&
+            data.messages.some((m) => !m.mine && m.id === latestId);
+          if (!chatOpen && hasUnread) setChatUnread(true);
+        })
+        .catch(() => {});
+    };
+    pollChat();
+    const interval = setInterval(pollChat, 15000);
+    return () => clearInterval(interval);
+  }, [token, companyId, chatOpen]);
+
+  const handleChatOpenChange = (open: boolean) => {
+    setChatOpen(open);
+    if (open) {
+      setChatUnread(false);
+    }
+  };
+
+  const handleChatMessagesLoaded = (latestId: number | null) => {
+    if (chatOpen && latestId != null) {
+      lastSeenChatMessageId.current = latestId;
+      setChatUnread(false);
+    } else if (lastSeenChatMessageId.current == null && latestId != null) {
+      lastSeenChatMessageId.current = latestId;
+    }
+  };
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -156,6 +211,61 @@ export function ReviewerReportWorkspace() {
     }
   };
 
+  const coReviewers = useMemo(
+    () =>
+      (workspace?.co_reviewer_reviews ?? [])
+        .filter((cr) => cr.reviewer_user_id != null)
+        .map((cr) => ({
+          reviewer_user_id: cr.reviewer_user_id as number,
+          reviewer_name: cr.reviewer_name,
+        })),
+    [workspace?.co_reviewer_reviews]
+  );
+
+  const handleAskReviewer = async (
+    targetReviewerUserId: number,
+    body: string,
+    anchorType: 'message' | 'finding' | 'section',
+    anchorId: string,
+    messageId?: number,
+    employeeId?: number,
+    conversationId?: number
+  ) => {
+    if (!token || !companyId || !reportId) return;
+    await api.createReviewDiscussion(token, Number(companyId), Number(reportId), {
+      target_type: 'reviewer',
+      target_reviewer_user_id: targetReviewerUserId,
+      anchor_type: anchorType,
+      anchor_id: anchorId,
+      body,
+      message_id: messageId,
+      employee_id: employeeId,
+      conversation_id: conversationId,
+    });
+    await load();
+  };
+
+  const handleAskEmployee = async (
+    body: string,
+    anchorType: 'message' | 'finding',
+    anchorId: string,
+    messageId?: number,
+    employeeId?: number,
+    conversationId?: number
+  ) => {
+    if (!token || !companyId || !reportId || !employeeId || !conversationId) return;
+    await api.createReviewDiscussion(token, Number(companyId), Number(reportId), {
+      target_type: 'employee',
+      employee_id: employeeId,
+      conversation_id: conversationId,
+      anchor_type: anchorType,
+      anchor_id: anchorId,
+      body,
+      message_id: messageId,
+    });
+    await load();
+  };
+
   const stepComplete = useMemo(() => {
     if (!workspace) return {} as Record<WorkspaceStepId, boolean>;
     const states = workspace.review.section_states;
@@ -164,7 +274,11 @@ export function ReviewerReportWorkspace() {
       evidence: workspace.conversations.length > 0,
       synthesis: workspace.conversations.some((c) => c.discovery_state.shared_findings.length > 0),
       sections: sectionsComplete(states),
-      collaborate: workspace.co_reviewer_reviews.some((cr) => cr.comments.length > 0),
+      collaborate: workspace.co_reviewer_reviews.some(
+        (cr) =>
+          cr.comments.length > 0 ||
+          (cr.activity && cr.activity !== 'not_started')
+      ),
       submit: submitted,
     } satisfies Record<WorkspaceStepId, boolean>;
   }, [workspace, submitted]);
@@ -185,7 +299,7 @@ export function ReviewerReportWorkspace() {
   const currentStepIndex = stepIndex(activeStep);
 
   return (
-    <div className="flex h-[calc(100dvh-4rem)] min-h-[640px] flex-col overflow-hidden">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <header className="shrink-0 border-b border-border bg-card/80 px-4 py-3 backdrop-blur-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
@@ -199,6 +313,16 @@ export function ReviewerReportWorkspace() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant={submitted ? 'success' : 'warning'}>{workspace.review.status}</Badge>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => handleChatOpenChange(true)}
+              icon={<MessageSquare className="h-4 w-4" />}
+              className="relative"
+            >
+              Chat
+              {chatUnread && <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-accent" />}
+            </Button>
             <Button variant="secondary" size="sm" onClick={() => setPdfOpen(true)} icon={<FileText className="h-4 w-4" />}>
               Client PDF
             </Button>
@@ -334,6 +458,7 @@ export function ReviewerReportWorkspace() {
               <ReviewerTranscriptPanel
                 companyId={Number(companyId)}
                 conversationId={activeConversation.id}
+                employeeId={activeConversation.employee_id}
                 employeeName={activeConversation.employee_name}
                 messages={activeConversation.messages}
                 discoveryState={activeConversation.discovery_state}
@@ -344,6 +469,29 @@ export function ReviewerReportWorkspace() {
                 onHighlightMessage={setHighlightedMessageId}
                 onSendFollowup={handleFollowup}
                 sendingFollowup={sendingFollowup}
+                discussions={workspace.discussions}
+                coReviewers={coReviewers}
+                onAskReviewer={(targetId, body, anchorType, anchorId, messageId) =>
+                  handleAskReviewer(
+                    targetId,
+                    body,
+                    anchorType,
+                    anchorId,
+                    messageId,
+                    activeConversation.employee_id,
+                    activeConversation.id
+                  )
+                }
+                onAskEmployee={(body, messageId) =>
+                  handleAskEmployee(
+                    body,
+                    'message',
+                    String(messageId),
+                    messageId,
+                    activeConversation.employee_id,
+                    activeConversation.id
+                  )
+                }
               />
             </div>
           )}
@@ -370,11 +518,37 @@ export function ReviewerReportWorkspace() {
               <ReviewerSharedFindingsPanel
                 findings={activeConversation.discovery_state.shared_findings}
                 conversationSummary={activeConversation.discovery_state.conversation_summary}
+                discussions={workspace.discussions}
+                coReviewers={coReviewers}
+                employeeId={activeConversation.employee_id}
+                conversationId={activeConversation.id}
+                onAskReviewer={(targetId, body, anchorId) =>
+                  handleAskReviewer(
+                    targetId,
+                    body,
+                    'finding',
+                    anchorId,
+                    undefined,
+                    activeConversation.employee_id,
+                    activeConversation.id
+                  )
+                }
+                onAskEmployee={(body, anchorId) =>
+                  handleAskEmployee(
+                    body,
+                    'finding',
+                    anchorId,
+                    undefined,
+                    activeConversation.employee_id,
+                    activeConversation.id
+                  )
+                }
               />
               {token && (
                 <ReviewerTranscriptPanel
                   companyId={Number(companyId)}
                   conversationId={activeConversation.id}
+                  employeeId={activeConversation.employee_id}
                   employeeName={activeConversation.employee_name}
                   messages={activeConversation.messages}
                   discoveryState={activeConversation.discovery_state}
@@ -383,6 +557,29 @@ export function ReviewerReportWorkspace() {
                   token={token}
                   highlightedMessageId={highlightedMessageId}
                   onHighlightMessage={setHighlightedMessageId}
+                  discussions={workspace.discussions}
+                  coReviewers={coReviewers}
+                  onAskReviewer={(targetId, body, anchorType, anchorId, messageId) =>
+                    handleAskReviewer(
+                      targetId,
+                      body,
+                      anchorType,
+                      anchorId,
+                      messageId,
+                      activeConversation.employee_id,
+                      activeConversation.id
+                    )
+                  }
+                  onAskEmployee={(body, messageId) =>
+                    handleAskEmployee(
+                      body,
+                      'message',
+                      String(messageId),
+                      messageId,
+                      activeConversation.employee_id,
+                      activeConversation.id
+                    )
+                  }
                 />
               )}
             </div>
@@ -415,31 +612,37 @@ export function ReviewerReportWorkspace() {
             <div className="space-y-4">
               <Card title="Co-reviewer alignment">
                 <p className="text-sm text-muted-foreground">
-                  Compare section comments in the right rail and use co-reviewer chat for real-time discussion.
+                  Compare section comments in the right rail and use co-reviewer chat for real-time discussion — without leaving this workspace.
                 </p>
-                <Link to={`/reviewer/companies/${companyId}/chat`}>
-                  <Button className="mt-4">Open co-reviewer chat</Button>
-                </Link>
+                <Button className="mt-4" onClick={() => handleChatOpenChange(true)} icon={<MessageSquare className="h-4 w-4" />}>
+                  Open co-reviewer chat
+                </Button>
               </Card>
-              {workspace.co_reviewer_reviews.map((cr) => (
-                <Card key={cr.reviewer_name} title={cr.reviewer_name}>
-                  <p className="mb-2 text-sm">
-                    Status: <Badge variant="neutral">{cr.status}</Badge>
-                  </p>
-                  {cr.comments.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No comments yet.</p>
-                  ) : (
-                    <ul className="space-y-2 text-sm">
-                      {cr.comments.map((c, i) => (
-                        <li key={i} className="rounded-lg border border-border p-3">
-                          <span className="text-xs uppercase text-muted-foreground">{c.section_key.replace(/_/g, ' ')}</span>
-                          <p className="m-0 mt-1">{c.body}</p>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </Card>
-              ))}
+              {workspace.co_reviewer_reviews.map((cr) => {
+                const activity = cr.activity || cr.status;
+                return (
+                  <Card key={cr.reviewer_name} title={cr.reviewer_name}>
+                    <p className="mb-2 text-sm">
+                      <Badge variant={coReviewerActivityVariant(activity)}>{coReviewerActivityLabel(activity)}</Badge>
+                    </p>
+                    {cr.activity_detail && (
+                      <p className="mb-2 text-xs text-muted-foreground">{cr.activity_detail}</p>
+                    )}
+                    {cr.comments.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No section comments yet.</p>
+                    ) : (
+                      <ul className="space-y-2 text-sm">
+                        {cr.comments.map((c, i) => (
+                          <li key={i} className="rounded-lg border border-border p-3">
+                            <span className="text-xs uppercase text-muted-foreground">{c.section_key.replace(/_/g, ' ')}</span>
+                            <p className="m-0 mt-1">{c.body}</p>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </Card>
+                );
+              })}
             </div>
           )}
 
@@ -472,7 +675,6 @@ export function ReviewerReportWorkspace() {
 
         <div className="hidden min-h-0 overflow-y-auto border-l border-border bg-muted/10 p-4 lg:block">
           <ReviewerAnnotationRail
-            companyId={Number(companyId)}
             activeSection={activeSection}
             onSectionChange={setSection}
             sectionStates={workspace.review.section_states}
@@ -484,6 +686,8 @@ export function ReviewerReportWorkspace() {
             onAddComment={handleAddComment}
             onSectionStatusChange={handleSectionStatus}
             showSectionNav={activeStep === 'sections' || activeStep === 'collaborate' || activeStep === 'submit'}
+            onOpenChat={() => handleChatOpenChange(true)}
+            chatUnread={chatUnread}
           />
         </div>
       </div>
@@ -493,6 +697,14 @@ export function ReviewerReportWorkspace() {
         onOpenChange={setPdfOpen}
         previewUrl={previewUrl}
         downloadUrl={previewUrl}
+      />
+
+      <ReviewerChatDrawer
+        companyId={Number(companyId)}
+        open={chatOpen}
+        onOpenChange={handleChatOpenChange}
+        coReviewerNames={workspace.co_reviewer_reviews.map((cr) => cr.reviewer_name)}
+        onMessagesLoaded={handleChatMessagesLoaded}
       />
 
       <Link

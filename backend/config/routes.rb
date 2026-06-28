@@ -82,6 +82,12 @@ Rails.application.routes.draw do
               get :download
               get :workspace, to: "review_workspace#show"
             end
+            resources :discussions, only: %i[index create], controller: "review_discussions" do
+              member do
+                post :reply
+                patch :resolve
+              end
+            end
             resource :review, only: %i[show update], controller: "report_reviews" do
               post :submit, on: :member
               resources :comments, only: %i[index create update destroy], controller: "report_review_comments"

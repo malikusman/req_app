@@ -1,8 +1,8 @@
-import { Link } from 'react-router-dom';
 import type { FormEvent } from 'react';
 import { MessageSquare } from 'lucide-react';
 import { Badge, Button, Card, Input, Select } from '../../../components/ui';
 import { cn } from '../../../lib/cn';
+import { coReviewerActivityLabel, coReviewerActivityVariant } from './coReviewerActivity';
 import { REPORT_SECTIONS, SECTION_STATUS_OPTIONS, type ReportSectionKey } from './workspaceSteps';
 
 type ReviewComment = {
@@ -15,11 +15,12 @@ type ReviewComment = {
 type CoReviewerReview = {
   reviewer_name: string;
   status: string;
+  activity?: string;
+  activity_detail?: string;
   comments: { section_key: string; body: string }[];
 };
 
 export function ReviewerAnnotationRail({
-  companyId,
   activeSection,
   onSectionChange,
   sectionStates,
@@ -31,8 +32,9 @@ export function ReviewerAnnotationRail({
   onAddComment,
   onSectionStatusChange,
   showSectionNav,
+  onOpenChat,
+  chatUnread,
 }: {
-  companyId: number;
   activeSection: ReportSectionKey;
   onSectionChange: (section: ReportSectionKey) => void;
   sectionStates: { section_key: string; status: string }[];
@@ -44,6 +46,8 @@ export function ReviewerAnnotationRail({
   onAddComment: (e: FormEvent) => void;
   onSectionStatusChange: (status: string) => void;
   showSectionNav: boolean;
+  onOpenChat: () => void;
+  chatUnread?: boolean;
 }) {
   const filteredComments = sectionComments.filter((c) => c.section_key === activeSection);
   const currentStatus = sectionStates.find((s) => s.section_key === activeSection)?.status || 'pending';
@@ -121,32 +125,45 @@ export function ReviewerAnnotationRail({
 
       {coReviewerReviews.length > 0 && (
         <Card title="Co-reviewer progress" className="min-h-0 flex-1 overflow-y-auto">
-          {coReviewerReviews.map((cr) => (
-            <div key={cr.reviewer_name} className="border-t border-border py-3 first:border-0 first:pt-0">
-              <p className="m-0 text-sm font-medium">
-                {cr.reviewer_name} — <Badge variant="neutral">{cr.status}</Badge>
-              </p>
-              {cr.comments.length > 0 ? (
-                <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
-                  {cr.comments.map((c, i) => (
-                    <li key={i}>
-                      <span className="capitalize">{c.section_key.replace(/_/g, ' ')}:</span> {c.body}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="mt-1 text-xs text-muted-foreground">No comments yet.</p>
-              )}
-            </div>
-          ))}
+          {coReviewerReviews.map((cr) => {
+            const activity = cr.activity || cr.status;
+            return (
+              <div key={cr.reviewer_name} className="border-t border-border py-3 first:border-0 first:pt-0">
+                <p className="m-0 text-sm font-medium">
+                  {cr.reviewer_name}{' '}
+                  <Badge variant={coReviewerActivityVariant(activity)}>{coReviewerActivityLabel(activity)}</Badge>
+                </p>
+                {cr.activity_detail && (
+                  <p className="mt-1 text-xs text-muted-foreground">{cr.activity_detail}</p>
+                )}
+                {cr.comments.length > 0 ? (
+                  <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
+                    {cr.comments.map((c, i) => (
+                      <li key={i}>
+                        <span className="capitalize">{c.section_key.replace(/_/g, ' ')}:</span> {c.body}
+                      </li>
+                    ))}
+                  </ul>
+                ) : activity === 'not_started' || activity === 'pending' ? (
+                  <p className="mt-1 text-xs text-muted-foreground">No activity yet.</p>
+                ) : null}
+              </div>
+            );
+          })}
         </Card>
       )}
 
-      <Link to={`/reviewer/companies/${companyId}/chat`} className="shrink-0">
-        <Button variant="secondary" className="w-full" icon={<MessageSquare className="h-4 w-4" />}>
-          Open co-reviewer chat
-        </Button>
-      </Link>
+      <Button
+        variant="secondary"
+        className="relative w-full shrink-0"
+        icon={<MessageSquare className="h-4 w-4" />}
+        onClick={onOpenChat}
+      >
+        Co-reviewer chat
+        {chatUnread && (
+          <span className="absolute right-3 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-accent" />
+        )}
+      </Button>
     </aside>
   );
 }

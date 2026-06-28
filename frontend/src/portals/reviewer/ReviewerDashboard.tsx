@@ -152,7 +152,7 @@ export function ReviewerDashboard() {
                     </div>
                   ))}
                   {data.stats.open_followups > 3 && (
-                    <Link to="/reviewer/followups" className="text-sm font-medium text-accent hover:underline">
+                    <Link to="/reviewer/inbox" className="text-sm font-medium text-accent hover:underline">
                       View all follow-ups →
                     </Link>
                   )}

@@ -126,7 +126,8 @@ export default function App() {
               <Route index element={<Navigate to="dashboard" replace />} />
               <Route path="dashboard" element={<ReviewerDashboard />} />
               <Route path="profile" element={<ReviewerProfile />} />
-              <Route path="followups" element={<ReviewerFollowups />} />
+              <Route path="followups" element={<Navigate to="/reviewer/inbox" replace />} />
+              <Route path="inbox" element={<ReviewerFollowups />} />
               <Route path="companies/:companyId" element={<ReviewerCompanyOverview />} />
               <Route path="companies/:companyId/reports/:reportId/review" element={<ReviewerReportReview />} />
               <Route path="companies/:companyId/conversations" element={<ReviewerConversations />} />

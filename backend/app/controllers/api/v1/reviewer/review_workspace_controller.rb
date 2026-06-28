@@ -28,6 +28,7 @@ module Api
             report: report_json(report),
             review: review_json(review),
             co_reviewer_reviews: co_reviewer_reviews_json(report, review),
+            discussions: discussions_json(report),
             conversations: conversations.map { |c| conversation_json(c) }
           }
         end
@@ -58,10 +59,12 @@ module Api
         end
 
         def co_reviewer_reviews_json(report, review)
+          company_id = report.company_id
           report.report_reviews
-                .includes(:reviewer_user)
+                .includes(:reviewer_user, :report_review_section_states, :report_review_comments)
                 .where.not(id: review.id)
                 .map do |cr|
+            activity = Reviewers::CoReviewerActivity.call(review: cr, company_id: company_id)
             {
               reviewer_user_id: cr.reviewer_user_id,
               reviewer_name: cr.reviewer_user.name,
@@ -69,8 +72,37 @@ module Api
               submitted_at: cr.submitted_at,
               section_states: cr.report_review_section_states.map { |s| { section_key: s.section_key, status: s.status } },
               comments: cr.report_review_comments.order(:created_at).map { |c| comment_json(c) }
-            }
+            }.merge(activity)
           end
+        end
+
+        def discussions_json(report)
+          ReviewDiscussion
+            .where(report_id: report.id)
+            .includes(:author_reviewer_user, :target_reviewer_user, :replies)
+            .roots
+            .order(:created_at)
+            .map { |d| discussion_json(d) }
+        end
+
+        def discussion_json(discussion)
+          {
+            id: discussion.id,
+            parent_id: discussion.parent_id,
+            target_type: discussion.target_type,
+            target_reviewer_user_id: discussion.target_reviewer_user_id,
+            target_reviewer_name: discussion.target_reviewer_user&.name,
+            employee_id: discussion.employee_id,
+            conversation_id: discussion.conversation_id,
+            anchor_type: discussion.anchor_type,
+            anchor_id: discussion.anchor_id,
+            body: discussion.body,
+            status: discussion.status,
+            author_reviewer_user_id: discussion.author_reviewer_user_id,
+            author_name: discussion.author_reviewer_user.name,
+            created_at: discussion.created_at,
+            replies: discussion.replies.order(:created_at).map { |r| discussion_json(r) }
+          }
         end
 
         def comment_json(comment)
