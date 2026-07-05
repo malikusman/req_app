@@ -1,6 +1,7 @@
 import { MarketingLayout } from '../components/layout/MarketingLayout';
 import { MarketingNav } from './MarketingNav';
 import { HeroSection } from './sections/HeroSection';
+import { LogoStripSection } from './sections/LogoStripSection';
 import { ProblemSection } from './sections/ProblemSection';
 import { HowItWorksSection } from './sections/HowItWorksSection';
 import { WhatYouDiscoverSection } from './sections/WhatYouDiscoverSection';
@@ -16,6 +17,7 @@ export function MarketingPage() {
     <MarketingLayout>
       <MarketingNav />
       <HeroSection />
+      <LogoStripSection />
       <ProblemSection />
       <HowItWorksSection />
       <WhatYouDiscoverSection />

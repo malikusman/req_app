@@ -4,46 +4,48 @@
 
 @layer base {
   :root {
-    --background: 210 40% 98%;
-    --foreground: 222 47% 11%;
+    /* Pulse theme — mist green surfaces, pine ink, WhatsApp-warm green accent */
+    --background: 135 29% 97%;
+    --foreground: 146 23% 12%;
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 146 23% 12%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
-    --primary: 239 84% 67%;
+    --popover-foreground: 146 23% 12%;
+    --primary: 160 84% 34%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222 47% 11%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
-    --accent: 210 40% 96%;
-    --accent-foreground: 222 47% 11%;
+    --secondary: 143 27% 94%;
+    --secondary-foreground: 146 23% 12%;
+    --muted: 143 27% 94%;
+    --muted-foreground: 144 8% 39%;
+    --accent: 153 46% 91%;
+    --accent-foreground: 160 83% 26%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 239 84% 67%;
-    --radius: 0.625rem;
-    --chart-1: 239 84% 67%;
-    --chart-2: 160 84% 39%;
-    --chart-3: 38 92% 50%;
-    --chart-4: 217 91% 60%;
-    --chart-5: 280 65% 60%;
-    --chart-6: 340 75% 55%;
-    --success: 160 84% 39%;
+    --border: 138 21% 91%;
+    --input: 138 21% 91%;
+    --ring: 160 84% 34%;
+    --radius: 0.875rem;
+    /* Chart palette validated for CVD separation + contrast on the mist surface */
+    --chart-1: 160 84% 34%;
+    --chart-2: 213 68% 50%;
+    --chart-3: 26 90% 37%;
+    --chart-4: 305 31% 42%;
+    --chart-5: 192 91% 36%;
+    --chart-6: 333 71% 51%;
+    --success: 142 71% 40%;
     --success-foreground: 0 0% 100%;
     --warning: 38 92% 50%;
-    --warning-foreground: 222 47% 11%;
-    --info: 217 91% 60%;
+    --warning-foreground: 146 23% 12%;
+    --info: 213 68% 50%;
     --info-foreground: 0 0% 100%;
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 215 16% 47%;
-    --sidebar-primary: 239 84% 67%;
+    --sidebar-foreground: 144 8% 39%;
+    --sidebar-primary: 160 84% 34%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 239 84% 97%;
-    --sidebar-accent-foreground: 239 84% 50%;
-    --sidebar-border: 214 32% 91%;
-    --sidebar-ring: 239 84% 67%;
+    --sidebar-accent: 153 46% 91%;
+    --sidebar-accent-foreground: 160 83% 26%;
+    --sidebar-border: 138 21% 91%;
+    --sidebar-ring: 160 84% 34%;
   }
 
   * {

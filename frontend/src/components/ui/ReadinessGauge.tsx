@@ -24,7 +24,7 @@ export function ReadinessGauge({
   className?: string;
 }) {
   const clamped = Math.min(100, Math.max(0, score));
-  const data = [{ name: 'score', value: clamped, fill: '#4F46E5' }];
+  const data = [{ name: 'score', value: clamped, fill: 'hsl(var(--chart-1))' }];
 
   return (
     <motion.div
@@ -46,7 +46,7 @@ export function ReadinessGauge({
           >
             <PolarAngleAxis type="number" domain={[0, 100]} angleAxisId={0} tick={false} />
             <RadialBar
-              background={{ fill: '#E5E7EB' }}
+              background={{ fill: 'hsl(var(--muted))' }}
               dataKey="value"
               cornerRadius={6}
               animationDuration={600}

@@ -33,8 +33,8 @@ export default {
         },
         accent: {
           DEFAULT: 'hsl(var(--primary))',
-          hover: 'hsl(239 84% 58%)',
-          muted: 'hsl(239 84% 97%)',
+          hover: 'hsl(160 83% 26%)',
+          muted: 'hsl(153 46% 91%)',
           foreground: 'hsl(var(--accent-foreground))',
         },
         popover: {
@@ -88,13 +88,13 @@ export default {
         },
         status: {
           success: 'hsl(var(--success))',
-          successBg: 'hsl(160 84% 95%)',
+          successBg: 'hsl(142 71% 95%)',
           warning: 'hsl(var(--warning))',
           warningBg: 'hsl(38 92% 95%)',
           error: 'hsl(var(--destructive))',
           errorBg: 'hsl(0 84% 95%)',
           info: 'hsl(var(--info))',
-          infoBg: 'hsl(217 91% 95%)',
+          infoBg: 'hsl(213 68% 95%)',
           neutral: 'hsl(var(--muted-foreground))',
           neutralBg: 'hsl(var(--muted))',
         },
@@ -106,8 +106,8 @@ export default {
           muted: 'hsl(var(--muted-foreground))',
           accent: {
             DEFAULT: 'hsl(var(--primary))',
-            hover: 'hsl(239 84% 58%)',
-            muted: 'hsl(239 84% 97%)',
+            hover: 'hsl(160 83% 26%)',
+            muted: 'hsl(153 46% 91%)',
           },
           gold: '#d4a853',
           border: 'hsl(var(--border))',
@@ -123,8 +123,8 @@ export default {
         modal: 'var(--radius)',
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-        display: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['Manrope', 'Inter', 'system-ui', 'sans-serif'],
+        display: ['Sora', 'Manrope', 'system-ui', 'sans-serif'],
       },
       fontSize: {
         'page-title': ['1.5rem', { lineHeight: '2rem', fontWeight: '600' }],
@@ -140,12 +140,12 @@ export default {
         content: '1280px',
       },
       boxShadow: {
-        card: '0 1px 2px 0 rgb(0 0 0 / 0.04)',
-        modal: '0 20px 25px -5px rgb(0 0 0 / 0.1)',
-        'hero-mockup': '0 1px 3px 0 rgb(0 0 0 / 0.08), 0 8px 24px rgb(0 0 0 / 0.06)',
+        card: '0 1px 2px rgb(23 37 29 / 0.03), 0 3px 10px rgb(23 37 29 / 0.05)',
+        modal: '0 24px 48px -12px rgb(23 37 29 / 0.18)',
+        'hero-mockup': '0 2px 6px rgb(23 37 29 / 0.06), 0 20px 46px rgb(14 159 110 / 0.13)',
         'button-glow': '0 0 20px hsl(var(--primary) / 0.3)',
         'marketing-glow': '0 0 40px hsl(var(--primary) / 0.15)',
-        'marketing-card': '0 1px 3px 0 rgb(0 0 0 / 0.06), 0 8px 24px rgb(0 0 0 / 0.04)',
+        'marketing-card': '0 2px 6px rgb(23 37 29 / 0.04), 0 10px 28px rgb(23 37 29 / 0.06)',
       },
       animation: {
         'grid-drift': 'gridDrift 60s linear infinite',

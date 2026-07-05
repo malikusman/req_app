@@ -1,6 +1,7 @@
 /**
  * Marketing site copy — single source of truth for the public homepage.
  * Edit here when positioning, pricing, or product capabilities change.
+ * Voice: warm, plain, confident — the product interviews people, so the site talks like a person.
  */
 
 export const marketingContent = {
@@ -12,193 +13,131 @@ export const marketingContent = {
       { label: 'FAQ', href: '#faq' },
     ],
     signInLabel: 'Sign in',
-    ctaLabel: 'Request access',
+    ctaLabel: 'Get started',
   },
 
   hero: {
-    eyebrow: 'Enterprise workflow discovery',
-    headlinePrefix: 'From conversations to',
-    rotatingWords: ['workflows', 'bottlenecks', 'patterns', 'roadmaps'],
-    headline: 'Understand how your company',
-    headlineAccent: 'actually works',
+    eyebrow: 'Workflow discovery on WhatsApp',
+    headline: 'Your team already knows what’s broken.',
+    headlineAccent: 'Just ask.',
     subhead:
-      'Req runs adaptive AI interviews over WhatsApp with the people who do the work — then turns thousands of micro-conversations into signals, patterns, and an executive-ready transformation report. No new apps for employees. No six-month discovery projects.',
-    bullets: [
-      'Meet employees on WhatsApp — voice, text, images, and documents',
-      'LangGraph-powered interviews that adapt by role and department',
-      'Live intelligence dashboard plus versioned PDF reports for leadership',
-    ],
-    primaryCta: 'Request access',
+      'Req chats with every employee on WhatsApp — text, voice notes, photos, documents — and turns what they say into signals, patterns, and a board-ready automation roadmap. No new apps. No six-month discovery project.',
+    primaryCta: 'Get started',
     secondaryCta: 'See how it works',
-    // discoveryGraph positions: keep x/y outside center ~30–70% so bubbles avoid headline
-    discoveryGraph: {
-      ariaLabel:
-        'Animated graph of employee conversations connecting into shared company intelligence',
-      hub: { id: 'hub', x: 50, y: 68 },
-      whatsappAppearances: 1,
-      loopResetMs: 28000,
-      interviews: [
+    chat: {
+      contactName: 'Req',
+      contactStatus: 'online · WhatsApp',
+      messages: [
         {
-          id: 'sarah',
-          name: 'Sarah K.',
-          snippet: '“We wait three days on every approval…”',
-          x: 82,
-          y: 16,
-          connectsTo: ['hub'],
+          from: 'req' as const,
+          text: 'Morning Jordan! Walk me through what happens after an invoice lands in your inbox? 📄',
         },
         {
-          id: 'james',
-          name: 'James O.',
-          snippet: '“Friday handoffs always lose context”',
-          x: 12,
-          y: 20,
-          connectsTo: ['sarah', 'hub'],
+          from: 'employee' as const,
+          text: 'Honestly? I re-type it into SAP, then chase two approvals over email. Month-end it’s 40+ invoices…',
         },
         {
-          id: 'priya',
-          name: 'Priya M.',
-          snippet: '“Nobody has the latest onboarding doc”',
-          x: 90,
-          y: 38,
-          connectsTo: ['hub'],
+          from: 'req' as const,
+          text: 'That sounds heavy. Where does it usually get stuck — the re-typing or the approvals?',
         },
         {
-          id: 'marcus',
-          name: 'Marcus T.',
-          snippet: '“Tickets reopen when procurement stalls”',
-          x: 8,
-          y: 48,
-          connectsTo: ['james'],
-        },
-        {
-          id: 'elena',
-          name: 'Elena R.',
-          snippet: '“Quotes touch three different systems”',
-          x: 78,
-          y: 58,
-          connectsTo: ['priya', 'hub'],
-        },
-        {
-          id: 'david',
-          name: 'David L.',
-          snippet: '“Legal adds a full week to launches”',
-          x: 18,
-          y: 72,
-          connectsTo: ['marcus', 'hub'],
-        },
-        {
-          id: 'amira',
-          name: 'Amira H.',
-          snippet: '“HR policy isn’t the same in practice”',
-          x: 88,
-          y: 78,
-          connectsTo: ['elena'],
-        },
-        {
-          id: 'noah',
-          name: 'Noah W.',
-          snippet: '“Warehouse scans lag until morning”',
-          x: 14,
-          y: 88,
-          connectsTo: ['david', 'hub'],
-        },
-        {
-          id: 'lisa',
-          name: 'Lisa P.',
-          snippet: '“Refunds need two manager sign-offs”',
-          x: 72,
-          y: 88,
-          connectsTo: ['elena', 'hub'],
-        },
-        {
-          id: 'omar',
-          name: 'Omar B.',
-          snippet: '“The real process never matches the deck”',
-          x: 50,
-          y: 12,
-          connectsTo: ['sarah', 'priya'],
-        },
-        {
-          id: 'fatima',
-          name: 'Fatima A.',
-          displayName: 'فاطمة',
-          snippet: '«الموافقات تأخذ ثلاثة أيام كل مرة»',
-          dir: 'rtl',
-          x: 6,
-          y: 34,
-          connectsTo: ['hub', 'priya'],
+          from: 'employee' as const,
+          text: 'Approvals. Finance sign-off can take three days every single time.',
         },
       ],
+      insight: {
+        label: 'Signal detected',
+        text: 'Manual invoice entry + 3-day approval bottleneck · Finance · high automation potential',
+      },
     },
+    stats: [
+      { value: '3–5 wks', label: 'to first executive report' },
+      { value: '85%+', label: 'employee participation on WhatsApp' },
+      { value: '100%', label: 'of findings traceable to real quotes' },
+    ],
+    statsDisclaimer: 'Early enterprise programs; timelines vary with cohort size.',
+  },
+
+  logos: {
+    eyebrow: 'Trusted by transformation teams across',
+    industries: [
+      'Global manufacturers',
+      'Financial services',
+      'Healthcare operators',
+      'Logistics & supply chain',
+      'Professional services',
+    ],
   },
 
   problem: {
+    eyebrow: 'The problem',
     title: 'Your org chart is not your operating model',
     subtitle:
-      'Transformation programs stall when discovery is slow, shallow, or filtered through layers of management. Req goes direct to the work.',
+      'Transformation stalls when discovery is slow, shallow, or filtered through three layers of management. Req goes straight to the people doing the work.',
     pains: [
       {
-        title: 'Surveys tell you sentiment, not workflow',
+        title: 'Surveys measure mood, not workflow',
         description:
-          'Likert scales cannot capture the seventeen-step workaround finance invented after the ERP rollout — or who still emails spreadsheets because the approval chain times out.',
+          'A Likert scale can’t capture the seventeen-step workaround finance invented after the ERP rollout — or who still emails spreadsheets because approvals time out.',
       },
       {
         title: 'Consulting discovery is expensive and episodic',
         description:
-          'A six-week interview blitz produces a deck, then the map goes stale. Req keeps discovery continuous: invite more employees, refresh intelligence, regenerate reports as the business changes.',
+          'A six-week interview blitz produces a deck, then the map goes stale. Req keeps discovery running: invite more people, refresh intelligence, regenerate the report.',
       },
       {
-        title: 'IT-only assessments miss the front line',
+        title: 'IT assessments miss the front line',
         description:
-          'Architecture diagrams show systems. They rarely show the 45 minutes per invoice someone spends reconciling SAP with three trackers — or which handoffs break every month-end.',
+          'Architecture diagrams show systems talking to systems. They never show the 45 minutes per invoice someone spends reconciling SAP against three trackers.',
       },
       {
         title: 'AI pilots fail without operational truth',
         description:
-          'You cannot prioritize automation until you know which processes are manual, duplicated, and politically entrenched. Req surfaces that evidence with quotes, signals, and ranked recommendations.',
+          'You can’t prioritise automation until you know which processes are manual, duplicated, and politically entrenched. Req surfaces the evidence — quotes included.',
       },
     ],
   },
 
   howItWorks: {
-    title: 'How it works',
-    subtitle:
-      'From WhatsApp message to board-ready roadmap in three layers — conversation, intelligence, and governed delivery.',
+    eyebrow: 'How it works',
+    title: 'From a WhatsApp “hi” to a board-ready roadmap',
+    subtitle: 'Three layers: conversation, intelligence, and governed delivery.',
     steps: [
       {
-        title: 'Invite employees. They interview on WhatsApp.',
+        title: 'Employees chat. That’s it.',
         description:
-          'You upload or invite participants with per-person access codes. Req sends compliant WhatsApp templates; employees consent in their language. The AI interviewer adapts questions by department playbook — operations, finance, HR, or custom — and accepts text, voice notes, photos, and PDFs.',
+          'Invite your team with per-person access codes. Req says hello on WhatsApp, gets consent in their language, and interviews them the way a great consultant would — adapting questions by role, department, and what they said last.',
         details: [
-          'No employee login or training',
-          'Adaptive follow-ups based on prior answers',
-          'Multimodal input: voice (transcribed), images, documents',
+          'No login, no app, no training',
+          'Voice notes transcribed, photos and PDFs understood',
+          'Specialist AI interviewers for domain, process, technical and strategy questions',
         ],
       },
       {
-        title: 'AI structures raw conversation into intelligence',
+        title: 'Conversations become intelligence',
         description:
-          'Each turn is processed through our LangGraph discovery agent. Insights become signals (pain points, tools, time sinks). Signals roll up into patterns — recurring bottlenecks, shadow processes, cross-team dependencies. A live dashboard shows readiness, department coverage, and top themes as interviews complete.',
+          'Every answer is distilled into signals — pain points, tools, time sinks. Signals cluster into patterns: recurring bottlenecks, shadow processes, cross-team dependencies. Your dashboard fills in live as interviews complete.',
         details: [
-          'Per-turn insight extraction and session quality tracking',
+          'Readiness score and department coverage at a glance',
           'Pattern detection across teams and systems',
-          'Discovery questions you can flag as off-track or not relevant',
+          'Company memory: every interview makes the next one smarter',
         ],
       },
       {
-        title: 'Reports, reviewers, and recommendations you can act on',
+        title: 'A report you can defend',
         description:
-          'When readiness thresholds are met, Req generates versioned HTML/PDF reports with deltas vs. the previous run. Assigned reviewers annotate sections, request WhatsApp follow-ups with employees, and collaborate in a private channel — invisible to the company admin until you choose. Recommendations tie to your solution catalog with prioritized AI opportunities.',
+          'Req generates versioned reports with deltas against the last run. Expert reviewers annotate section by section and follow up with employees on WhatsApp before anything reaches your leadership. Recommendations map to real tools.',
         details: [
-          'Shareable report links with access logging',
-          'Optional platform QA before delivery to the client',
-          'Stripe-backed plans: trial, starter, and growth tiers',
+          'Versioned PDF & share links with access logging',
+          'Independent expert review before delivery',
+          'Ranked automation opportunities with evidence',
         ],
       },
     ],
   },
 
   discover: {
+    eyebrow: 'Intelligence',
     title: 'What you discover',
     subtitle:
       'Every interview feeds a structured model of how work really happens — not how the process wiki says it should.',
@@ -242,18 +181,19 @@ export const marketingContent = {
   },
 
   platform: {
-    title: 'One platform. Three audiences.',
+    eyebrow: 'Platform',
+    title: 'One platform. Every seat at the table.',
     subtitle:
-      'Req is built for operators running discovery, companies consuming intelligence, and expert reviewers ensuring quality.',
+      'Operators run discovery, companies consume intelligence, independent experts guarantee quality — each in their own portal.',
     audiences: [
       {
         title: 'Company portal',
         for: 'Transformation leads & operations',
         features: [
-          'Onboarding wizard: profile, employee invites, WhatsApp instructions',
-          'Live dashboard: participation, readiness score, department heatmap',
-          'Signals, patterns, timeline, and discovery-question preview',
-          'Document upload with AI extraction into the same intelligence graph',
+          'Onboarding wizard: profile, employee invites, WhatsApp setup',
+          'Live dashboard: participation, readiness, department heatmap',
+          'Signals, patterns, timeline, and discovery-question feedback',
+          'Document upload feeding the same intelligence graph',
           'Versioned reports, share links, settings, and billing',
         ],
       },
@@ -263,7 +203,7 @@ export const marketingContent = {
         features: [
           'Assigned companies only — up to two reviewers per client',
           'Section-by-section report review and approval workflow',
-          'WhatsApp follow-ups with employees (hidden from company APIs)',
+          'WhatsApp follow-ups with employees, invisible to the company',
           'Co-reviewer chat for coordination on complex accounts',
         ],
       },
@@ -271,9 +211,9 @@ export const marketingContent = {
         title: 'Platform console',
         for: 'Req operators & partners',
         features: [
-          'Company and trial management, audit log, impersonation for support',
-          'Discovery playbooks by department, solution catalog, system health',
-          'Cross-tenant monitoring: LangGraph, queues, WhatsApp delivery',
+          'Company and trial management, audit log, support impersonation',
+          'Discovery playbooks by department and solution catalog',
+          'Cross-tenant monitoring: agents, queues, WhatsApp delivery',
           'Report approval gate when clients require platform sign-off',
         ],
       },
@@ -281,49 +221,36 @@ export const marketingContent = {
   },
 
   personas: {
+    eyebrow: 'Who it’s for',
     title: 'Built for teams who own change',
-    subtitle: 'Whether you run discovery in-house or as a partner, Req compresses time-to-insight without sacrificing depth.',
+    subtitle:
+      'Run discovery in-house or as a partner — Req compresses time-to-insight without sacrificing depth.',
     items: [
       {
         title: 'COO & transformation offices',
-        body: 'Get a single source of operational truth before a reorg, ERP cutover, or AI rollout — grounded in frontline interviews, not workshop stickies.',
+        body: 'A single source of operational truth before a reorg, ERP cutover, or AI rollout — grounded in frontline interviews, not workshop stickies.',
       },
       {
         title: 'Operations & process excellence',
-        body: 'See department coverage, pain-point strength, and pattern recurrence in one dashboard instead of synthesizing fifty interview notes.',
+        body: 'Department coverage, pain-point strength, and pattern recurrence in one dashboard instead of fifty interview notes.',
       },
       {
         title: 'Technology & automation leaders',
-        body: 'Prioritize integrations and agents using evidence: which tools are actually used, where APIs will not fix the real bottleneck.',
+        body: 'Prioritise integrations and agents with evidence: which tools people actually use, and where an API won’t fix the real bottleneck.',
       },
       {
         title: 'Consultancies & BPO partners',
-        body: 'Run repeatable discovery engagements with governed reviewer workflows, client-ready PDFs, and WhatsApp-native participation rates.',
+        body: 'Repeatable discovery engagements with governed reviewer workflows, client-ready PDFs, and WhatsApp-level participation rates.',
       },
     ],
   },
 
-  socialProof: {
-    eyebrow: 'Trusted by transformation teams',
-    logos: [
-      'Global manufacturers',
-      'Financial services',
-      'Healthcare operators',
-      'Logistics & supply chain',
-      'Professional services',
-    ],
+  testimonial: {
     quote: {
       text: 'We finally had a shared picture of how work actually flows — not how the org chart says it should. The WhatsApp channel got us answers from people who would never join a workshop.',
       attribution: 'VP Operations',
       company: 'Fortune 500 industrial group',
     },
-    stats: [
-      { value: '3–5 wks', label: 'Typical time to first executive report' },
-      { value: '85%+', label: 'Employee participation when using WhatsApp' },
-      { value: '100%', label: 'Interview evidence traceable to source turns' },
-    ],
-    disclaimer:
-      'Figures represent outcomes from early enterprise programs; your timeline depends on cohort size and departments in scope.',
   },
 
   faq: {
@@ -351,16 +278,17 @@ export const marketingContent = {
       },
       {
         q: 'What does pricing look like?',
-        a: 'Plans are tiered by conversation volume — trial, starter, and growth — with in-app billing. Request access for a guided walkthrough and cohort sizing.',
+        a: 'Plans are tiered by conversation volume — trial, starter, and growth — with in-app billing. Get started for a guided walkthrough and cohort sizing.',
       },
     ],
   },
 
   cta: {
-    title: 'See your operating model — not your assumptions',
+    eyebrow: 'Get started',
+    title: 'Hear what your team has been trying to tell you',
     subtitle:
-      'Tell us about your organization and discovery goals. We will walk you through a live demo with the company portal, sample intelligence, and report output.',
-    button: 'Request access',
+      'Tell us about your organisation and discovery goals. We’ll walk you through a live demo with the company portal, sample intelligence, and report output.',
+    button: 'Get started',
     note: 'Typical onboarding: profile setup, employee invites, first interviews within days — not months.',
   },
 
@@ -376,3 +304,4 @@ export const marketingContent = {
 } as const;
 
 export type DiscoverCardContent = (typeof marketingContent.discover.cards)[number];
+export type HeroChatMessage = (typeof marketingContent.hero.chat.messages)[number];

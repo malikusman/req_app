@@ -37,8 +37,8 @@ export function FileDropzone({
       onDragLeave={() => setDragging(false)}
       onDrop={onDrop}
       animate={{
-        borderColor: dragging ? '#4F46E5' : '#E5E7EB',
-        backgroundColor: dragging ? '#EEF2FF' : '#F8F9FC',
+        borderColor: dragging ? 'hsl(160 84% 34%)' : 'hsl(138 21% 91%)',
+        backgroundColor: dragging ? 'hsl(153 46% 91%)' : 'hsl(135 29% 97%)',
       }}
       transition={{ duration: 0.15 }}
       className={cn(
