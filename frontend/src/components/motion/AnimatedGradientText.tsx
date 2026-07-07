@@ -19,7 +19,7 @@ export function AnimatedGradientText({
   return (
     <span
       className={cn(
-        'animate-text-gradient bg-gradient-to-r from-accent via-indigo-300 to-accent bg-[length:200%_auto] bg-clip-text text-transparent',
+        'animate-text-gradient bg-gradient-to-r from-accent via-emerald-300 to-accent bg-[length:200%_auto] bg-clip-text text-transparent',
         className
       )}
     >

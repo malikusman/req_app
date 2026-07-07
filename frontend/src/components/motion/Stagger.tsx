@@ -1,4 +1,4 @@
-import { Children, type ReactNode } from 'react';
+import { Children, Fragment, isValidElement, type ReactNode } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { cn } from '../../lib/cn';
 import { fadeUp, stagger, staggerContainer, transition } from '../../lib/motion';
@@ -15,7 +15,13 @@ export function Stagger({
   childClassName?: string;
 }) {
   const reduced = useReducedMotion();
-  const items = Children.toArray(children);
+  // Flatten one level of <>…</> so a fragment of cards becomes one grid item per card,
+  // matching how the fragment renders in the reduced-motion path.
+  const items = Children.toArray(children).flatMap((child) =>
+    isValidElement(child) && child.type === Fragment
+      ? Children.toArray((child.props as { children?: ReactNode }).children)
+      : [child]
+  );
 
   if (reduced) {
     return <div className={className}>{children}</div>;

@@ -29,17 +29,14 @@ function DiscoverCard({ card }: { card: DiscoverCardContent }) {
   return (
     <motion.div
       variants={fadeUp}
-      className={cn(
-        'rounded-card border border-marketing-border bg-marketing-surface/80 p-5 backdrop-blur-sm',
-        card.span
-      )}
-      whileHover={reduced ? undefined : { scale: 1.02, borderColor: 'hsl(var(--primary) / 0.35)' }}
+      className={cn('rounded-2xl bg-marketing-surface p-6 shadow-marketing-card', card.span)}
+      whileHover={reduced ? undefined : { scale: 1.02 }}
       transition={reduced ? transition.reveal : spring.snappy}
     >
-      <div className="flex h-9 w-9 items-center justify-center rounded-md bg-marketing-accent-muted">
+      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-marketing-accent-muted">
         <Icon className="h-5 w-5 text-marketing-accent" aria-hidden />
       </div>
-      <h3 className="mt-3 font-semibold text-marketing-foreground">{card.title}</h3>
+      <h3 className="mt-4 font-semibold text-marketing-foreground">{card.title}</h3>
       <p className="mt-2 text-sm leading-relaxed text-marketing-muted">{card.description}</p>
     </motion.div>
   );
@@ -50,10 +47,10 @@ export function WhatYouDiscoverSection() {
   const { discover } = marketingContent;
 
   return (
-    <section id="what-you-discover" className="border-y border-marketing-border bg-marketing-surface px-6 py-20 md:px-12 md:py-24">
+    <section id="what-you-discover" className="bg-marketing-bg px-6 py-24 md:px-12 md:py-28">
       <div className="mx-auto max-w-6xl">
         <ScrollReveal>
-          <p className="text-label-caps text-marketing-gold">Intelligence</p>
+          <p className="text-label-caps text-marketing-accent">{discover.eyebrow}</p>
           <h2 className="mt-2 font-display text-page-title text-marketing-foreground">{discover.title}</h2>
           <p className="mt-3 max-w-3xl text-lg text-marketing-muted">{discover.subtitle}</p>
         </ScrollReveal>

@@ -9,26 +9,26 @@ export function FinalCtaSection() {
   const { cta } = marketingContent;
 
   return (
-    <section className="relative overflow-hidden border-t border-marketing-border bg-marketing-bg px-6 py-20 text-center md:px-12 md:py-24">
-      <div
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(34,211,238,0.12)_0%,transparent_60%)]"
-        aria-hidden
-      />
-      <ScrollReveal className="relative mx-auto max-w-2xl">
-        <p className="text-label-caps text-marketing-gold">Get started</p>
-        <h2 className="mt-2 font-display text-3xl font-bold text-marketing-foreground md:text-4xl">
-          {cta.title}
-        </h2>
-        <p className="mt-4 text-base leading-relaxed text-marketing-muted md:text-lg">{cta.subtitle}</p>
-        <p className="mt-3 text-sm text-marketing-muted/80">{cta.note}</p>
-        <div className="relative mt-8 inline-flex items-center justify-center">
-          <span
-            className="pointer-events-none absolute inset-0 rounded-md border border-marketing-accent/30 animate-cta-pulse"
+    <section className="bg-marketing-bg px-6 pb-24 pt-4 md:px-12">
+      <ScrollReveal className="mx-auto max-w-6xl">
+        <div className="relative overflow-hidden rounded-3xl bg-foreground px-8 py-16 text-center md:px-16 md:py-20">
+          <div
+            className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_80%_at_50%_-10%,hsl(var(--primary)/0.35)_0%,transparent_65%)]"
             aria-hidden
           />
-          <Button size="lg" className="relative gap-2 px-8" onClick={() => setOpen(true)}>
-            {cta.button}
-          </Button>
+          <div className="relative mx-auto max-w-2xl">
+            <p className="text-label-caps text-primary-foreground/60">{cta.eyebrow}</p>
+            <h2 className="mt-3 font-display text-3xl font-bold text-primary-foreground md:text-4xl">
+              {cta.title}
+            </h2>
+            <p className="mt-4 text-base leading-relaxed text-primary-foreground/75 md:text-lg">{cta.subtitle}</p>
+            <div className="mt-8">
+              <Button size="lg" className="px-10" onClick={() => setOpen(true)}>
+                {cta.button}
+              </Button>
+            </div>
+            <p className="mt-5 text-xs text-primary-foreground/55">{cta.note}</p>
+          </div>
         </div>
       </ScrollReveal>
       <RequestAccessModal open={open} onClose={() => setOpen(false)} />
