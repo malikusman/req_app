@@ -169,13 +169,6 @@ export const api = {
   companyMediaAttachments: (token: string) =>
     request<{ media_attachments: MediaAttachment[] }>('/api/v1/company/media_attachments', {}, token),
 
-  reviewerMediaAttachments: (token: string, companyId: number) =>
-    request<{ media_attachments: MediaAttachment[] }>(
-      `/api/v1/reviewer/companies/${companyId}/media_attachments`,
-      {},
-      token
-    ),
-
   fetchMediaBlob: async (token: string, downloadUrl: string) => {
     let path = downloadUrl;
     if (downloadUrl.startsWith('http://') || downloadUrl.startsWith('https://')) {
@@ -465,14 +458,6 @@ export const api = {
   removeReviewerAssignment: (token: string, companyId: number, assignmentId: number) =>
     request<void>(`/api/v1/platform/companies/${companyId}/reviewer_assignments/${assignmentId}`, { method: 'DELETE' }, token),
 
-  reviewerMe: (token: string) =>
-    request<{
-      user: { id: number; email: string; name: string };
-      profile: ReviewerProfile;
-      profile_completeness_percent: number;
-      assignments: { company_id: number; company_name: string }[];
-    }>('/api/v1/reviewer/me', {}, token),
-
   reviewerProfile: (token: string) =>
     request<{ ok: boolean; user: { id: number; email: string; name: string }; profile: ReviewerProfile }>(
       '/api/v1/reviewer/profile',
@@ -507,17 +492,9 @@ export const api = {
   companyExpertReviewers: (token: string) =>
     request<{ expert_reviewers: ReviewerPublicCard[] }>('/api/v1/company/expert_reviewers', {}, token),
 
-  reviewerCompanies: (token: string) => request<{ companies: ReviewerCompanySummary[] }>('/api/v1/reviewer/companies', {}, token),
-
   reviewerDashboard: (token: string) => request<ReviewerDashboardPayload>('/api/v1/reviewer/dashboard', {}, token),
 
   reviewerCompany: (token: string, id: number) => request<{ company: ReviewerCompanyDetail }>(`/api/v1/reviewer/companies/${id}`, {}, token),
-
-  reviewerReport: (token: string, companyId: number, reportId: number) =>
-    request<{ report: ReviewerReportDetail }>(`/api/v1/reviewer/companies/${companyId}/reports/${reportId}`, {}, token),
-
-  reviewerReportReview: (token: string, companyId: number, reportId: number) =>
-    request<ReportReviewPayload>(`/api/v1/reviewer/companies/${companyId}/reports/${reportId}/review`, {}, token),
 
   reviewerReportWorkspace: (token: string, companyId: number, reportId: number) =>
     request<ReviewerReportWorkspacePayload>(

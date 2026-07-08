@@ -32,6 +32,7 @@ export function ReviewerAnnotationRail({
   onAddComment,
   onSectionStatusChange,
   showSectionNav,
+  showChat = true,
   onOpenChat,
   chatUnread,
 }: {
@@ -46,6 +47,7 @@ export function ReviewerAnnotationRail({
   onAddComment: (e: FormEvent) => void;
   onSectionStatusChange: (status: string) => void;
   showSectionNav: boolean;
+  showChat?: boolean;
   onOpenChat: () => void;
   chatUnread?: boolean;
 }) {
@@ -153,17 +155,19 @@ export function ReviewerAnnotationRail({
         </Card>
       )}
 
-      <Button
-        variant="secondary"
-        className="relative w-full shrink-0"
-        icon={<MessageSquare className="h-4 w-4" />}
-        onClick={onOpenChat}
-      >
-        Co-reviewer chat
-        {chatUnread && (
-          <span className="absolute right-3 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-accent" />
-        )}
-      </Button>
+      {showChat && (
+        <Button
+          variant="secondary"
+          className="relative w-full shrink-0"
+          icon={<MessageSquare className="h-4 w-4" />}
+          onClick={onOpenChat}
+        >
+          Co-reviewer chat
+          {chatUnread && (
+            <span className="absolute right-3 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-accent" />
+          )}
+        </Button>
+      )}
     </aside>
   );
 }

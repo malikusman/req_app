@@ -37,10 +37,9 @@ import { ReviewerLayout } from './portals/reviewer/ReviewerLayout';
 import { ReviewerDashboard } from './portals/reviewer/ReviewerDashboard';
 import { ReviewerFollowups } from './portals/reviewer/ReviewerFollowups';
 import { ReviewerCompanyOverview } from './portals/reviewer/ReviewerCompanyOverview';
-import { ReviewerReportReview } from './portals/reviewer/ReviewerReportReview';
+import { ReviewerReportWorkspace } from './portals/reviewer/workspace/ReviewerReportWorkspace';
 import { ReviewerConversations } from './portals/reviewer/ReviewerConversations';
 import { ReviewerConversationDetail } from './portals/reviewer/ReviewerConversationDetail';
-import { ReviewerChat } from './portals/reviewer/ReviewerChat';
 import { ReviewerEmployeeFollowup } from './portals/reviewer/ReviewerEmployeeFollowup';
 import { ReviewerProfile } from './portals/reviewer/ReviewerProfile';
 import { DevUiShowcase } from './dev/DevUiShowcase';
@@ -129,10 +128,9 @@ export default function App() {
               <Route path="followups" element={<Navigate to="/reviewer/inbox" replace />} />
               <Route path="inbox" element={<ReviewerFollowups />} />
               <Route path="companies/:companyId" element={<ReviewerCompanyOverview />} />
-              <Route path="companies/:companyId/reports/:reportId/review" element={<ReviewerReportReview />} />
+              <Route path="companies/:companyId/reports/:reportId/review" element={<ReviewerReportWorkspace />} />
               <Route path="companies/:companyId/conversations" element={<ReviewerConversations />} />
               <Route path="companies/:companyId/conversations/:conversationId" element={<ReviewerConversationDetail />} />
-              <Route path="companies/:companyId/chat" element={<ReviewerChat />} />
               <Route path="companies/:companyId/employees/:employeeId/followup" element={<ReviewerEmployeeFollowup />} />
             </Route>
             <Route

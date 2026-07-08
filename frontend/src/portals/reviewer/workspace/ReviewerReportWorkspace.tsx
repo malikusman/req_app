@@ -3,7 +3,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { Check, ChevronRight, FileText, MessageSquare } from 'lucide-react';
 import { api, type ReviewerReportWorkspacePayload } from '../../../lib/api';
 import { useReviewerToken } from '../../../lib/auth';
-import { Badge, Button, Card, Skeleton, StatCard, Textarea } from '../../../components/ui';
+import { Badge, Button, Card, ConfirmDialog, Skeleton, StatCard, Textarea } from '../../../components/ui';
 import { cn } from '../../../lib/cn';
 import { ReviewerAnnotationRail } from './ReviewerAnnotationRail';
 import { ReviewerChatDrawer } from './ReviewerChatDrawer';
@@ -54,6 +54,14 @@ export function ReviewerReportWorkspace() {
   const lastSeenChatMessageId = useRef<number | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [sendingFollowup, setSendingFollowup] = useState(false);
+  const [confirmSubmitOpen, setConfirmSubmitOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const noteSeeded = useRef(false);
+  const [visited, setVisited] = useState<Set<WorkspaceStepId>>(() => new Set<WorkspaceStepId>(['context']));
+
+  useEffect(() => {
+    setVisited((prev) => (prev.has(activeStep) ? prev : new Set(prev).add(activeStep)));
+  }, [activeStep]);
 
   const setStep = (step: WorkspaceStepId) => {
     const next = new URLSearchParams(searchParams);
@@ -72,8 +80,12 @@ export function ReviewerReportWorkspace() {
     if (!token || !companyId || !reportId) return;
     const data = await api.reviewerReportWorkspace(token, Number(companyId), Number(reportId));
     setWorkspace(data);
-    setNote(data.review.overall_note || '');
-  }, [token, companyId, reportId, setNote, setWorkspace]);
+    // Seed the note only once, so the 15s poll never clobbers in-progress edits.
+    if (!noteSeeded.current) {
+      setNote(data.review.overall_note || '');
+      noteSeeded.current = true;
+    }
+  }, [token, companyId, reportId]);
 
   useEffect(() => {
     if (!token || !companyId || !reportId) return;
@@ -195,9 +207,14 @@ export function ReviewerReportWorkspace() {
 
   const handleSubmit = async () => {
     if (!token || !companyId || !reportId) return;
-    if (!window.confirm('Submit your review? You can still view co-reviewer notes.')) return;
-    await api.submitReviewerReportReview(token, Number(companyId), Number(reportId));
-    await load();
+    setSubmitting(true);
+    try {
+      await api.submitReviewerReportReview(token, Number(companyId), Number(reportId));
+      await load();
+      setConfirmSubmitOpen(false);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleFollowup = async (body: string) => {
@@ -221,6 +238,8 @@ export function ReviewerReportWorkspace() {
         })),
     [workspace?.co_reviewer_reviews]
   );
+
+  const hasCoReviewers = coReviewers.length > 0;
 
   const handleAskReviewer = async (
     targetReviewerUserId: number,
@@ -270,18 +289,20 @@ export function ReviewerReportWorkspace() {
     if (!workspace) return {} as Record<WorkspaceStepId, boolean>;
     const states = workspace.review.section_states;
     return {
-      context: true,
-      evidence: workspace.conversations.length > 0,
-      synthesis: workspace.conversations.some((c) => c.discovery_state.shared_findings.length > 0),
+      // Exploratory steps are "done" once the reviewer has actually opened them,
+      // not merely because data exists — otherwise every step shows pre-checked.
+      context: visited.has('context'),
+      evidence: visited.has('evidence'),
+      synthesis: visited.has('synthesis'),
       sections: sectionsComplete(states),
-      collaborate: workspace.co_reviewer_reviews.some(
-        (cr) =>
-          cr.comments.length > 0 ||
-          (cr.activity && cr.activity !== 'not_started')
-      ),
+      collaborate:
+        !hasCoReviewers ||
+        workspace.co_reviewer_reviews.some(
+          (cr) => cr.comments.length > 0 || (cr.activity && cr.activity !== 'not_started')
+        ),
       submit: submitted,
     } satisfies Record<WorkspaceStepId, boolean>;
-  }, [workspace, submitted]);
+  }, [workspace, submitted, visited, hasCoReviewers]);
 
   if (loading) {
     return (
@@ -297,6 +318,9 @@ export function ReviewerReportWorkspace() {
   }
 
   const currentStepIndex = stepIndex(activeStep);
+  // The annotation rail (section status + comments) only earns its column on the
+  // sections step; elsewhere the main column carries the content and can breathe.
+  const showRail = activeStep === 'sections';
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
@@ -313,21 +337,23 @@ export function ReviewerReportWorkspace() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant={submitted ? 'success' : 'warning'}>{workspace.review.status}</Badge>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => handleChatOpenChange(true)}
-              icon={<MessageSquare className="h-4 w-4" />}
-              className="relative"
-            >
-              Chat
-              {chatUnread && <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-accent" />}
-            </Button>
+            {hasCoReviewers && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => handleChatOpenChange(true)}
+                icon={<MessageSquare className="h-4 w-4" />}
+                className="relative"
+              >
+                Chat
+                {chatUnread && <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-accent" />}
+              </Button>
+            )}
             <Button variant="secondary" size="sm" onClick={() => setPdfOpen(true)} icon={<FileText className="h-4 w-4" />}>
               Client PDF
             </Button>
             {!submitted && activeStep === 'submit' && (
-              <Button size="sm" onClick={handleSubmit}>
+              <Button size="sm" onClick={() => setConfirmSubmitOpen(true)}>
                 Submit review
               </Button>
             )}
@@ -335,7 +361,12 @@ export function ReviewerReportWorkspace() {
         </div>
       </header>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)_360px]">
+      <div
+        className={cn(
+          'grid min-h-0 flex-1 grid-cols-1',
+          showRail ? 'lg:grid-cols-[240px_minmax(0,1fr)_360px]' : 'lg:grid-cols-[240px_minmax(0,1fr)]'
+        )}
+      >
         <nav className="hidden shrink-0 overflow-y-auto border-r border-border bg-muted/20 p-3 lg:block">
           <ol className="m-0 list-none space-y-1 p-0">
             {WORKSPACE_STEPS.map((step, index) => {
@@ -354,7 +385,7 @@ export function ReviewerReportWorkspace() {
                     <span
                       className={cn(
                         'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs',
-                        done ? 'bg-emerald-100 text-emerald-700' : 'bg-muted text-muted-foreground'
+                        done ? 'bg-status-successBg text-status-success' : 'bg-muted text-muted-foreground'
                       )}
                     >
                       {done ? <Check className="h-3 w-3" /> : index + 1}
@@ -610,14 +641,23 @@ export function ReviewerReportWorkspace() {
 
           {activeStep === 'collaborate' && (
             <div className="space-y-4">
-              <Card title="Co-reviewer alignment">
-                <p className="text-sm text-muted-foreground">
-                  Compare section comments in the right rail and use co-reviewer chat for real-time discussion — without leaving this workspace.
-                </p>
-                <Button className="mt-4" onClick={() => handleChatOpenChange(true)} icon={<MessageSquare className="h-4 w-4" />}>
-                  Open co-reviewer chat
-                </Button>
-              </Card>
+              {hasCoReviewers ? (
+                <Card title="Co-reviewer alignment">
+                  <p className="text-sm text-muted-foreground">
+                    Compare section comments in the right rail and use co-reviewer chat for real-time discussion — without leaving this workspace.
+                  </p>
+                  <Button className="mt-4" onClick={() => handleChatOpenChange(true)} icon={<MessageSquare className="h-4 w-4" />}>
+                    Open co-reviewer chat
+                  </Button>
+                </Card>
+              ) : (
+                <Card title="Co-reviewer alignment">
+                  <p className="text-sm text-muted-foreground">
+                    You’re the only reviewer assigned to this company, so there’s nothing to align on here. If a
+                    second reviewer is added, their progress and a chat channel will appear on this step.
+                  </p>
+                </Card>
+              )}
               {workspace.co_reviewer_reviews.map((cr) => {
                 const activity = cr.activity || cr.status;
                 return (
@@ -664,33 +704,47 @@ export function ReviewerReportWorkspace() {
                 )}
               </Card>
               {!submitted && (
-                <Button onClick={handleSubmit}>Submit review</Button>
+                <Button onClick={() => setConfirmSubmitOpen(true)}>Submit review</Button>
               )}
               {submitted && (
-                <p className="text-sm text-emerald-700">Review submitted — platform team will be notified.</p>
+                <p className="text-sm text-status-success">Review submitted — platform team will be notified.</p>
               )}
             </div>
           )}
         </main>
 
-        <div className="hidden min-h-0 overflow-y-auto border-l border-border bg-muted/10 p-4 lg:block">
-          <ReviewerAnnotationRail
-            activeSection={activeSection}
-            onSectionChange={setSection}
-            sectionStates={workspace.review.section_states}
-            sectionComments={workspace.review.comments}
-            coReviewerReviews={workspace.co_reviewer_reviews}
-            submitted={submitted}
-            commentBody={commentBody}
-            onCommentBodyChange={setCommentBody}
-            onAddComment={handleAddComment}
-            onSectionStatusChange={handleSectionStatus}
-            showSectionNav={activeStep === 'sections' || activeStep === 'collaborate' || activeStep === 'submit'}
-            onOpenChat={() => handleChatOpenChange(true)}
-            chatUnread={chatUnread}
-          />
-        </div>
+        {showRail && (
+          <div className="min-h-0 overflow-y-auto border-t border-border bg-muted/10 p-4 lg:border-l lg:border-t-0">
+            <ReviewerAnnotationRail
+              activeSection={activeSection}
+              onSectionChange={setSection}
+              sectionStates={workspace.review.section_states}
+              sectionComments={workspace.review.comments}
+              coReviewerReviews={workspace.co_reviewer_reviews}
+              submitted={submitted}
+              commentBody={commentBody}
+              onCommentBodyChange={setCommentBody}
+              onAddComment={handleAddComment}
+              onSectionStatusChange={handleSectionStatus}
+              showSectionNav={activeStep === 'sections'}
+              showChat={hasCoReviewers}
+              onOpenChat={() => handleChatOpenChange(true)}
+              chatUnread={chatUnread}
+            />
+          </div>
+        )}
       </div>
+
+      <ConfirmDialog
+        open={confirmSubmitOpen}
+        onClose={() => setConfirmSubmitOpen(false)}
+        onConfirm={handleSubmit}
+        title="Submit your review?"
+        description="This hands your review to the platform team for approval. You can still view co-reviewer notes and the transcript afterwards, but your section decisions and note will be locked."
+        confirmLabel="Submit review"
+        variant="primary"
+        loading={submitting}
+      />
 
       <ReviewerPdfDrawer
         open={pdfOpen}
