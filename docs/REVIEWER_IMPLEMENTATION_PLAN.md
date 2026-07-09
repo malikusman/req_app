@@ -97,15 +97,12 @@ dev at `http://localhost:5173`. Screenshot harness: `scripts/manual_test/capture
 
 ---
 
-## Phase 1 — IA & information design
+## Phase 1 — IA & information design  *(✅ COMPLETE)*
 
 **Objective:** make the reviewer's job legible; one consistent shell; no dead space; employees
 and intelligence are first-class. No product decisions required. Mostly frontend; one small API add.
 
-**Progress so far (started):** workspace header now uses shared `PageHeader` + breadcrumbs (1.1);
-Company Overview intelligence preview is wired via `reviewerSignals`/`reviewerPatterns`/
-`reviewerRecommendations` (part of 1.3). **Still to do:** dashboard action queue (1.2), the
-**employees roster** half of 1.3 (needs the `reviewerEmployees` API — not yet added), and 1.4.
+**Progress:** all planned Phase 1 items are now implemented.
 
 ### 1.1 Shared page shell / header  *(✅ workspace done; audit the rest)*
 - **Done:** `ReviewerReportWorkspace` now renders `PageHeader` (title/description/breadcrumbs/actions).
@@ -113,7 +110,7 @@ Company Overview intelligence preview is wired via `reviewerSignals`/`reviewerPa
   uniform via `ReviewerLayout`/`PortalShell`.
 - **Acceptance:** every page has identical header rhythm + working breadcrumbs.
 
-### 1.2 Dashboard action queue  *(to do)*
+### 1.2 Dashboard action queue  *(✅ done)*
 - **Problem:** dashboard shows KPIs but the "what needs me now" list is weak.
 - **Do:** add a ranked **Action queue** card at top of `ReviewerDashboard.tsx` derived from
   `reviewerDashboard` payload: pending reviews first, then employee follow-ups awaiting reply,
@@ -121,25 +118,27 @@ Company Overview intelligence preview is wired via `reviewerSignals`/`reviewerPa
   (report review / employee thread / chat). Use `Badge` for state, `Button`/`Link` for the action.
 - **Acceptance:** a reviewer can clear their queue without hunting through company pages.
 
-### 1.3 Company Overview — employees + intelligence  *(intelligence preview ✅; employees roster to do)*
+### 1.3 Company Overview — employees + intelligence  *(✅ done)*
 - **Intelligence preview — done:** signals/patterns/recommendations cards wired via
   `reviewerSignals`/`reviewerPatterns`/`reviewerRecommendations` with an empty state.
   *(Optional polish: add a "View report review" CTA on each block.)*
-- **Employees (first-class) — to do:**
-  - Add `reviewerEmployees(token, companyId)` to `api.ts` → `GET /companies/:id/employees`.
-  - Add an **Employees** card to `ReviewerCompanyOverview.tsx`: roster from that endpoint
-    (name, department, participation_status badge), each row linking to
-    `/reviewer/companies/:id/employees/:eid/followup` (ask this person) **and** to their
-    transcript. Prefer this over deriving people from `conversations`.
+- **Employees (first-class) — done:**
+  - Added `reviewerEmployees(token, companyId)` in `api.ts` → `GET /companies/:id/employees`.
+  - Added an **Employees** card in `ReviewerCompanyOverview.tsx`: name, department,
+    participation-status badge, follow-up link, transcript link.
 - **Acceptance:** Company Overview is a genuine hub — report, employees, interviews,
   intelligence, collaboration — no dead space at 1280px or mobile.
 
-### 1.4 Conversations list polish
-- **Do:** `ReviewerConversations.tsx` — add department + last-active columns (available from the
-  employees endpoint if joined, else conversation payload), row → transcript. Consistent
-  `DataTable` empty/loading.
+### 1.4 Conversations list polish  *(✅ done)*
+- `ReviewerConversations.tsx` now includes department + last-active columns with row-to-transcript navigation and consistent `DataTable` empty/loading handling.
 
-**Verify Phase 1:** lint+build; screenshot dashboard, overview (desktop+mobile), conversations.
+**Verify Phase 1:** lint+build passing; screenshots added:
+- `dashboard-action-queue-phase1.png`
+- `company-overview-acme-employees-phase1.png`
+- `conversations-acme-phase1.png`
+- `inbox-phase1.png`
+- `profile-phase1.png`
+- `conversation-detail-acme-phase1.png`
 
 ---
 

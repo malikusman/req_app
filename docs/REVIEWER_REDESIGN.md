@@ -1,6 +1,6 @@
 # Reviewer Module Redesign — Working Doc & Handoff
 
-> **Status:** Phase 0 complete, Phase 1 started
+> **Status:** Phase 0 complete, Phase 1 complete (ready for Phase 2 decision gate)
 > **Branch:** `reviewer-redesign` (branched from `main` @ `01d5d3c`)
 > **Last commit:** `e33e7ee` — "Reviewer module Phase 0 (WIP): remove dead code, fix workspace bugs, rebuild company overview"
 > **Last updated:** 2026-07-09
@@ -211,6 +211,6 @@ docker compose run --rm --no-deps frontend sh -c "npm run lint"
 ---
 
 ## 9. Suggested next actions for Cursor (in order)
-1. Continue **Phase 1** implementation and polish.
-2. Validate Phase 2 scope with product owner using §6 recommendations.
-3. Keep this doc updated as Phase 1 and Phase 2 land.
+1. Validate Phase 2 scope with product owner using §6 recommendations (do not start Phase 2 implementation until decided).
+2. If approved, start Phase 2 with discussion reply/resolve + amend model selected in §6.
+3. Keep this doc updated as Phase 2 and Phase 3 land.
