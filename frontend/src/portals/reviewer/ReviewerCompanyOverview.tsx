@@ -9,7 +9,14 @@ import {
   ClipboardCheck,
   MessagesSquare,
 } from 'lucide-react';
-import { api, type CompanyPattern, type CompanySignal, type Recommendation, type ReviewerCompanyDetail } from '../../lib/api';
+import {
+  api,
+  type CompanyPattern,
+  type CompanySignal,
+  type Employee,
+  type Recommendation,
+  type ReviewerCompanyDetail,
+} from '../../lib/api';
 import { useReviewerToken } from '../../lib/auth';
 import { PageHeader, Card, StatCard, Button, Badge, Skeleton, EmptyState } from '../../components/ui';
 import { ReviewerChatDrawer } from './workspace/ReviewerChatDrawer';
@@ -34,6 +41,7 @@ export function ReviewerCompanyOverview() {
   const [signals, setSignals] = useState<CompanySignal[]>([]);
   const [patterns, setPatterns] = useState<CompanyPattern[]>([]);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
 
   useEffect(() => {
     if (!token || !companyId) return;
@@ -42,13 +50,15 @@ export function ReviewerCompanyOverview() {
     Promise.all([
       api.reviewerCompany(token, Number(companyId)),
       api.reviewerConversations(token, Number(companyId)).catch(() => ({ conversations: [] })),
+      api.reviewerEmployees(token, Number(companyId)).catch(() => ({ employees: [] })),
       api.reviewerSignals(token, Number(companyId)).catch(() => ({ signals: [] })),
       api.reviewerPatterns(token, Number(companyId)).catch(() => ({ patterns: [] })),
       api.reviewerRecommendations(token, Number(companyId)).catch(() => ({ recommendations: [] })),
     ])
-      .then(([detail, convs, signalsData, patternsData, recommendationsData]) => {
+      .then(([detail, convs, employeesData, signalsData, patternsData, recommendationsData]) => {
         setCompany(detail.company);
         setConversations(convs.conversations);
+        setEmployees(employeesData.employees);
         setSignals(signalsData.signals);
         setPatterns(patternsData.patterns);
         setRecommendations(recommendationsData.recommendations);
@@ -87,6 +97,21 @@ export function ReviewerCompanyOverview() {
   const reviewSubmitted = company.my_review_status === 'submitted';
   const hasCoReviewers = company.co_reviewer_count >= 2;
   const completedInterviews = conversations.filter((c) => c.status === 'completed').length;
+  const roster = employees.length > 0 ? employees : conversations.map((c) => ({
+    id: c.employee_id,
+    phone_e164: '',
+    email: null,
+    display_name: c.employee_name,
+    department: null,
+    participation_status: c.status,
+    onboarding_step: 'unknown',
+    preferred_language: null,
+    invited_at: null,
+    started_at: null,
+    completed_at: null,
+    last_active_at: null,
+    last_nudged_at: null,
+  }));
 
   return (
     <div className="space-y-6">
@@ -188,6 +213,56 @@ export function ReviewerCompanyOverview() {
                   ))}
                 </ul>
               </>
+            )}
+          </Card>
+
+          <Card title="Employees">
+            {roster.length === 0 ? (
+              <EmptyState
+                title="No employees yet"
+                description="Employee roster will appear once the company starts inviting participants."
+              />
+            ) : (
+              <ul className="m-0 list-none space-y-2 p-0">
+                {roster.slice(0, 8).map((employee) => {
+                  const conversation = conversations.find((c) => c.employee_id === employee.id);
+                  return (
+                    <li key={employee.id} className="rounded-lg border border-border px-3 py-2.5">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="m-0 text-sm font-medium text-foreground">
+                            {employee.display_name || `Employee #${employee.id}`}
+                          </p>
+                          <p className="m-0 text-xs text-muted-foreground">
+                            {employee.department || 'No department'} · {employee.last_active_at ? new Date(employee.last_active_at).toLocaleString() : 'No activity yet'}
+                          </p>
+                        </div>
+                        <Badge variant={employee.participation_status === 'completed' ? 'success' : 'info'}>
+                          {employee.participation_status.replace(/_/g, ' ')}
+                        </Badge>
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">
+                        <Link
+                          to={`/reviewer/companies/${companyId}/employees/${employee.id}/followup`}
+                          className="font-medium text-accent hover:underline"
+                        >
+                          Follow-up
+                        </Link>
+                        {conversation ? (
+                          <Link
+                            to={`/reviewer/companies/${companyId}/conversations/${conversation.id}`}
+                            className="font-medium text-accent hover:underline"
+                          >
+                            Transcript
+                          </Link>
+                        ) : (
+                          <span className="text-muted-foreground">Transcript unavailable</span>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
             )}
           </Card>
 

@@ -496,6 +496,9 @@ export const api = {
 
   reviewerCompany: (token: string, id: number) => request<{ company: ReviewerCompanyDetail }>(`/api/v1/reviewer/companies/${id}`, {}, token),
 
+  reviewerEmployees: (token: string, companyId: number) =>
+    request<{ employees: Employee[] }>(`/api/v1/reviewer/companies/${companyId}/employees`, {}, token),
+
   reviewerReportWorkspace: (token: string, companyId: number, reportId: number) =>
     request<ReviewerReportWorkspacePayload>(
       `/api/v1/reviewer/companies/${companyId}/reports/${reportId}/workspace`,
@@ -524,7 +527,16 @@ export const api = {
     ),
 
   reviewerConversations: (token: string, companyId: number) =>
-    request<{ conversations: { id: number; employee_id: number; employee_name: string | null; status: string }[] }>(
+    request<{
+      conversations: {
+        id: number;
+        employee_id: number;
+        employee_name: string | null;
+        status: string;
+        question_count: number;
+        last_activity_at: string | null;
+      }[];
+    }>(
       `/api/v1/reviewer/companies/${companyId}/conversations`,
       {},
       token
