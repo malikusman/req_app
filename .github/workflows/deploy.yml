@@ -19,9 +19,12 @@ jobs:
       - name: Deploy to production
         uses: appleboy/ssh-action@v1.2.0
         with:
-          host: ${{ secrets.DEPLOY_HOST }}
+          host: 142.93.240.146
+          port: 22
           username: root
           key: ${{ secrets.DEPLOY_SSH_KEY }}
+          timeout: 60s
+          command_timeout: 30m
           script_stop: true
           script: |
             cd /opt/req_app
