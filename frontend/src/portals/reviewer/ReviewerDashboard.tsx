@@ -54,15 +54,46 @@ export function ReviewerDashboard() {
 
   const stats = data?.stats;
   const companies = data?.companies ?? [];
-  const actionQueue = [...(data?.attention_items ?? [])].sort((a, b) => {
-    const rank = (status: string | null) => {
-      if (!status || status === 'pending') return 0;
-      if (status === 'needs_info') return 1;
-      if (status === 'in_review') return 2;
-      return 3;
-    };
-    return rank(a.review_status) - rank(b.review_status);
-  });
+  const actionQueue = data
+    ? [
+        ...data.attention_items.map((item) => ({
+          id: `review-${item.company_id}-${item.report_id}`,
+          rank: !item.review_status || item.review_status === 'pending' ? 0 : item.review_status === 'needs_info' ? 1 : 2,
+          title: item.company_name,
+          subtitle: `Report v${item.report_version}`,
+          badgeLabel: item.review_status || 'not started',
+          badgeVariant: reviewStatusVariant(item.review_status),
+          href: `/reviewer/companies/${item.company_id}/reports/${item.report_id}/review`,
+          cta: 'Open review',
+        })),
+        ...data.recent_followups
+          .filter((f) => f.status === 'awaiting_reply')
+          .map((f) => ({
+            id: `followup-${f.id}`,
+            rank: 3,
+            title: f.company_name,
+            subtitle: f.employee_name || `Employee #${f.employee_id}`,
+            badgeLabel: 'awaiting reply',
+            badgeVariant: 'warning' as const,
+            href: `/reviewer/companies/${f.company_id}/employees/${f.employee_id}/followup`,
+            cta: 'Open follow-up',
+          })),
+        ...(data.unread_count > 0
+          ? [
+              {
+                id: 'notifications',
+                rank: 4,
+                title: 'Unread notifications',
+                subtitle: 'Co-reviewer and platform updates',
+                badgeLabel: `${data.unread_count} unread`,
+                badgeVariant: 'info' as const,
+                href: '/reviewer/inbox',
+                cta: 'Open inbox',
+              },
+            ]
+          : []),
+      ].sort((a, b) => a.rank - b.rank)
+    : [];
 
   return (
     <DashboardShell
@@ -106,20 +137,18 @@ export function ReviewerDashboard() {
                 <div className="space-y-3">
                   {actionQueue.map((item) => (
                     <div
-                      key={`${item.company_id}-${item.report_id}`}
+                      key={item.id}
                       className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted px-4 py-3"
                     >
                       <div>
-                        <p className="m-0 font-medium text-foreground">{item.company_name}</p>
+                        <p className="m-0 font-medium text-foreground">{item.title}</p>
                         <div className="mt-2 flex flex-wrap gap-2">
-                          <Badge variant="info">Report v{item.report_version}</Badge>
-                          <Badge variant={reviewStatusVariant(item.review_status)}>
-                            {item.review_status || 'not started'}
-                          </Badge>
+                          <Badge variant="info">{item.subtitle}</Badge>
+                          <Badge variant={item.badgeVariant}>{item.badgeLabel}</Badge>
                         </div>
                       </div>
-                      <Link to={`/reviewer/companies/${item.company_id}/reports/${item.report_id}/review`}>
-                        <Button>Open review</Button>
+                      <Link to={item.href}>
+                        <Button>{item.cta}</Button>
                       </Link>
                     </div>
                   ))}
