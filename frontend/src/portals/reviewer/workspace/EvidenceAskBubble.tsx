@@ -69,13 +69,14 @@ export function EvidenceAskBubble({
         type="button"
         disabled={disabled}
         onClick={() => setOpen((v) => !v)}
+        aria-label={open ? 'Close ask panel' : 'Ask a question about this item'}
+        aria-expanded={open}
         className={cn(
-          'inline-flex h-7 w-7 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground',
+          'inline-flex h-7 w-7 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
           anchorThreads.length > 0 && 'border-accent text-accent'
         )}
-        title="Ask a question on this"
       >
-        <MessageCirclePlus className="h-3.5 w-3.5" />
+        <MessageCirclePlus className="h-3.5 w-3.5" aria-hidden />
         {anchorThreads.length > 0 && (
           <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] text-accent-foreground">
             {anchorThreads.length}

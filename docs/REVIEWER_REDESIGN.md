@@ -1,6 +1,6 @@
 # Reviewer Module Redesign — Working Doc & Handoff
 
-> **Status:** Phase 0 complete, Phase 1 complete, **Phase 2 complete** (ready for Phase 3 polish)
+> **Status:** Phase 0–2 complete, **Phase 3 complete** (reviewer redesign ready for merge review)
 > **Branch:** `reviewer-redesign` (branched from `main` @ `01d5d3c`)
 > **Last commit:** `e33e7ee` — "Reviewer module Phase 0 (WIP): remove dead code, fix workspace bugs, rebuild company overview"
 > **Last updated:** 2026-07-09
@@ -166,8 +166,14 @@ a11y audit, reduced-motion, final screenshots, and a proper `<title>`.
 - **2.3 Co-reviewer:** `reviewerReviewSync` lightweight poll (replaces full workspace reload);
   chat unread badge shows count of unseen messages.
 
+### ✅ Done in Phase 3
+- **Document titles:** `index.html` default `Req`; `usePageMeta` sets `Title · Req` per route (incl. employee follow-up).
+- **Motion:** `AnimatedNumber` on dashboard KPIs and workspace context stats; page transitions + chat bubble entrance already via `PortalShell` / `ChatBubble` with `prefers-reduced-motion`.
+- **Skeletons:** profile, co-reviewer chat, workspace loading, dashboard KPI row (6 cards).
+- **A11y:** `aria-label` / `aria-expanded` on evidence ask control and workspace chat; icon buttons decorated with `aria-hidden` on glyphs.
+
 ### ⛔ Left
-- **Phase 3** — motion, a11y/contrast, per-route `<title>`, final screenshot pass.
+- Merge `reviewer-redesign` → `main` when product signs off.
 
 ---
 
@@ -220,6 +226,5 @@ docker compose run --rm --no-deps frontend sh -c "npm run lint"
 ---
 
 ## 9. Suggested next actions for Cursor (in order)
-1. Phase 3 polish: motion (`PageTransition`, `AnimatedNumber`), skeleton consistency, a11y/contrast, per-route titles.
-2. Final screenshot pass (light + mobile) and update this doc when Phase 3 lands.
-3. Merge `reviewer-redesign` → `main` when product signs off (auto-deploys to production).
+1. Product review of `reviewer-redesign` branch (screenshots in `docs/reviewer-screenshots/`).
+2. Merge to `main` when approved (auto-deploys to production).

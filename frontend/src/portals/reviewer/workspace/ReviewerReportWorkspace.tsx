@@ -4,6 +4,7 @@ import { Check, ChevronRight, FileText, MessageSquare } from 'lucide-react';
 import { api, type ReviewerReportWorkspacePayload } from '../../../lib/api';
 import { useAuth, useReviewerToken } from '../../../lib/auth';
 import { Badge, Button, Card, ConfirmDialog, PageHeader, Skeleton, StatCard, Textarea } from '../../../components/ui';
+import { AnimatedNumber } from '../../../components/motion';
 import { cn } from '../../../lib/cn';
 import { ReviewerAnnotationRail } from './ReviewerAnnotationRail';
 import { ReviewerChatDrawer } from './ReviewerChatDrawer';
@@ -403,7 +404,11 @@ export function ReviewerReportWorkspace() {
     return (
       <div className="space-y-4">
         <Skeleton variant="text" />
-        <Skeleton variant="card" />
+        <div className="grid min-h-[480px] grid-cols-1 gap-4 lg:grid-cols-[240px_minmax(0,1fr)_360px]">
+          <Skeleton variant="card" className="hidden min-h-[400px] lg:block" />
+          <Skeleton variant="card" className="min-h-[400px]" />
+          <Skeleton variant="card" className="hidden min-h-[400px] lg:block" />
+        </div>
       </div>
     );
   }
@@ -436,8 +441,9 @@ export function ReviewerReportWorkspace() {
                   variant="secondary"
                   size="sm"
                   onClick={() => handleChatOpenChange(true)}
-                  icon={<MessageSquare className="h-4 w-4" />}
+                  icon={<MessageSquare className="h-4 w-4" aria-hidden />}
                   className="relative"
+                  aria-label={chatUnread ? `Open co-reviewer chat, ${chatUnreadCount} unread` : 'Open co-reviewer chat'}
                 >
                   Chat
                   {chatUnread && chatUnreadCount > 0 ? (
@@ -523,9 +529,9 @@ export function ReviewerReportWorkspace() {
             <div className="space-y-4">
               <Card title="Engagement context">
                 <div className="grid gap-4 md:grid-cols-3">
-                  <StatCard label="Readiness" value={`${readiness?.score ?? 0}%`} />
-                  <StatCard label="Completed" value={participation?.completed ?? workspace.conversations.filter((c) => c.status === 'completed').length} />
-                  <StatCard label="Invited" value={participation?.invited ?? workspace.conversations.length} />
+                  <StatCard label="Readiness" value={<AnimatedNumber value={readiness?.score ?? 0} suffix="%" />} />
+                  <StatCard label="Completed" value={<AnimatedNumber value={participation?.completed ?? workspace.conversations.filter((c) => c.status === 'completed').length} />} />
+                  <StatCard label="Invited" value={<AnimatedNumber value={participation?.invited ?? workspace.conversations.length} />} />
                 </div>
                 {workspace.report.generated_at && (
                   <p className="mt-4 text-sm text-muted-foreground">

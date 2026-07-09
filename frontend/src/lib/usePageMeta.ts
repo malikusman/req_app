@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
 const titles: Record<string, string> = {
@@ -29,29 +30,42 @@ const titles: Record<string, string> = {
   '/reviewer/followups': 'Inbox',
 };
 
-export function usePageMeta(fallback = 'Req') {
-  const { pathname } = useLocation();
+function resolveTitle(pathname: string, fallback: string): string {
   const exact = titles[pathname];
-  if (exact) return { title: exact };
+  if (exact) return exact;
 
   if (pathname.includes('/reviewer/companies/') && pathname.includes('/reports/') && pathname.endsWith('/review')) {
-    return { title: 'Report review' };
+    return 'Report review';
+  }
+  if (pathname.match(/\/reviewer\/companies\/\d+\/employees\/\d+\/followup/)) {
+    return 'Employee follow-up';
   }
   if (pathname.includes('/companies/') && pathname.includes('/conversations/')) {
-    return { title: 'Conversation' };
+    return 'Conversation';
   }
   if (pathname.includes('/companies/') && pathname.includes('/conversations')) {
-    return { title: 'Conversations' };
+    return 'Conversations';
   }
   if (pathname.includes('/companies/') && pathname.includes('/chat')) {
-    return { title: 'Co-reviewer chat' };
+    return 'Co-reviewer chat';
   }
   if (pathname.match(/\/reviewer\/companies\/\d+$/)) {
-    return { title: 'Company overview' };
+    return 'Company overview';
   }
   if (pathname.match(/\/platform\/companies\/\d+/)) {
-    return { title: 'Company detail' };
+    return 'Company detail';
   }
 
-  return { title: fallback };
+  return fallback;
+}
+
+export function usePageMeta(fallback = 'Req') {
+  const { pathname } = useLocation();
+  const title = resolveTitle(pathname, fallback);
+
+  useEffect(() => {
+    document.title = title === 'Req' ? 'Req' : `${title} · Req`;
+  }, [title]);
+
+  return { title };
 }

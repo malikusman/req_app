@@ -13,7 +13,7 @@ export function StatCard({
   className,
 }: {
   label: string;
-  value: string | number;
+  value: ReactNode;
   suffix?: string;
   trend?: { value: number; label?: string };
   icon?: ReactNode;

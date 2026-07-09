@@ -7,7 +7,7 @@ import {
   type ReviewerProfilePayload,
 } from '../../lib/api';
 import { useReviewerToken } from '../../lib/auth';
-import { PageHeader, Card, Button, Input, Badge, Textarea } from '../../components/ui';
+import { PageHeader, Card, Button, Input, Badge, Textarea, Skeleton } from '../../components/ui';
 import { ExpertReviewerCard } from '../../components/ExpertReviewerCard';
 
 const emptyExperience = (): ReviewerExperience => ({
@@ -110,7 +110,17 @@ export function ReviewerProfile() {
     }
   };
 
-  if (loading) return <p className="text-sm text-muted-foreground">Loading profile…</p>;
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton variant="text" />
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
+          <Skeleton variant="card" className="min-h-[480px]" />
+          <Skeleton variant="card" className="min-h-[320px]" />
+        </div>
+      </div>
+    );
+  }
 
   const previewCard = profile
     ? {

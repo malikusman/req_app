@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { api, type ReviewerDashboardPayload } from '../../lib/api';
 import { useReviewerToken } from '../../lib/auth';
-import { AnimatedCard, Stagger } from '../../components/motion';
+import { AnimatedCard, AnimatedNumber, Stagger } from '../../components/motion';
 import {
   DashboardShell,
   Card,
@@ -113,16 +113,16 @@ export function ReviewerDashboard() {
       kpiRow={
         stats ? (
           <>
-            <StatCard label="Assigned companies" value={stats.assigned_companies} icon={<Building2 className="h-5 w-5 text-accent" />} />
-            <StatCard label="Avg readiness" value={`${stats.avg_readiness}%`} icon={<FileBarChart className="h-5 w-5 text-accent" />} />
+            <StatCard label="Assigned companies" value={<AnimatedNumber value={stats.assigned_companies} />} icon={<Building2 className="h-5 w-5 text-accent" />} />
+            <StatCard label="Avg readiness" value={<AnimatedNumber value={stats.avg_readiness} suffix="%" />} icon={<FileBarChart className="h-5 w-5 text-accent" />} />
             <StatCard
               label="Interviews completed"
               value={`${stats.total_completed}/${stats.total_invited}`}
               icon={<Users className="h-5 w-5 text-accent" />}
             />
-            <StatCard label="Reviews pending" value={stats.pending_reviews} icon={<ClipboardList className="h-5 w-5 text-accent" />} />
-            <StatCard label="Open follow-ups" value={stats.open_followups} icon={<MessageSquare className="h-5 w-5 text-accent" />} />
-            <StatCard label="Unread notifications" value={data?.unread_count ?? 0} icon={<Bell className="h-5 w-5 text-accent" />} />
+            <StatCard label="Reviews pending" value={<AnimatedNumber value={stats.pending_reviews} />} icon={<ClipboardList className="h-5 w-5 text-accent" />} />
+            <StatCard label="Open follow-ups" value={<AnimatedNumber value={stats.open_followups} />} icon={<MessageSquare className="h-5 w-5 text-accent" />} />
+            <StatCard label="Unread notifications" value={<AnimatedNumber value={data?.unread_count ?? 0} />} icon={<Bell className="h-5 w-5 text-accent" />} />
           </>
         ) : undefined
       }

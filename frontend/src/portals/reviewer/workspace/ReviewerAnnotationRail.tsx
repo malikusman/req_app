@@ -199,7 +199,7 @@ export function ReviewerAnnotationRail({
                   )}
                   {!submitted && isMine && !isEditing && (
                     <div className="mt-2 flex flex-wrap gap-1">
-                      <Button size="sm" variant="ghost" icon={<Pencil className="h-3 w-3" />} onClick={() => startEdit(c)}>
+                      <Button size="sm" variant="ghost" icon={<Pencil className="h-3 w-3" aria-hidden />} onClick={() => startEdit(c)} aria-label="Edit comment">
                         Edit
                       </Button>
                       <Button
@@ -213,9 +213,10 @@ export function ReviewerAnnotationRail({
                       <Button
                         size="sm"
                         variant="ghost"
-                        icon={<Trash2 className="h-3 w-3" />}
+                        icon={<Trash2 className="h-3 w-3" aria-hidden />}
                         loading={busyId === c.id}
                         onClick={() => handleDelete(c.id)}
+                        aria-label="Delete comment"
                       >
                         Delete
                       </Button>

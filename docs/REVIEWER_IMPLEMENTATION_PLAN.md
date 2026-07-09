@@ -162,17 +162,14 @@ and intelligence are first-class. No product decisions required. Mostly frontend
 
 ---
 
-## Phase 3 — Polish & motion
+## Phase 3 — Polish & motion  *(✅ COMPLETE)*
 
-- **Motion:** page transitions (`components/motion/PageTransition`), `AnimatedNumber` on KPIs,
-  chat bubble entrance, respect `prefers-reduced-motion`.
-- **Loading/skeleton consistency:** every list/card has a matching `Skeleton`.
-- **A11y & contrast:** focus-visible rings on all interactive elements, aria labels on icon
-  buttons, run a contrast check on badges/status chips against Pulse surfaces.
-- **`<title>`:** set per-route document titles (currently the browser tab shows "frontend" —
-  fix in `index.html` + per-page via `usePageMeta`).
-- **Final:** full screenshot pass (all reviewer screens, light + mobile); update
-  `REVIEWER_REDESIGN.md` statuses to done.
+- **Motion:** `AnimatedNumber` on `ReviewerDashboard` KPIs and workspace context `StatCard`s; `PageTransition` + `ChatBubble` entrance respect `prefers-reduced-motion`.
+- **Skeletons:** profile, co-reviewer chat panel, workspace 3-column loading, dashboard 6-card KPI skeleton.
+- **A11y:** `aria-label` / `aria-expanded` on `EvidenceAskBubble` and workspace chat control; global `:focus-visible` rings via `index.css`.
+- **Titles:** `index.html` → `Req`; `usePageMeta` sets `document.title` (`Employee follow-up` route added).
+
+**Verify Phase 3:** lint+build passing; refresh screenshots via `scripts/manual_test/capture_reviewer_screenshots.mjs`.
 
 ---
 

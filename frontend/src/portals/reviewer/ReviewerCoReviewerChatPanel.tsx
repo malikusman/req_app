@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { api } from '../../lib/api';
 import { useReviewerToken } from '../../lib/auth';
 import { ChatMessageList, type ChatMessageItem } from '../../components/motion';
-import { Textarea, Button } from '../../components/ui';
+import { Textarea, Button, Skeleton } from '../../components/ui';
 
 export function ReviewerCoReviewerChatPanel({
   companyId,
@@ -75,7 +75,14 @@ export function ReviewerCoReviewerChatPanel({
   };
 
   if (loading && messages.length === 0) {
-    return <p className="text-sm text-muted-foreground">Loading chat…</p>;
+    return (
+      <div className="flex min-h-0 flex-1 flex-col gap-3">
+        <Skeleton className="h-14 w-3/4 self-start rounded-lg" />
+        <Skeleton className="h-14 w-2/3 self-end rounded-lg" />
+        <Skeleton className="h-14 w-3/5 self-start rounded-lg" />
+        <Skeleton className="mt-auto h-24 w-full rounded-lg" />
+      </div>
+    );
   }
 
   return (
