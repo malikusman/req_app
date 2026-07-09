@@ -29,6 +29,6 @@ RSpec.describe Reports::RegenerateWithReviewService do
     described_class.call(report: report)
 
     expect(report.reload.content_type).to eq("application/pdf")
-    expect(report.storage_key).to include("reports/#{company.id}/v1/report.pdf")
+    expect(report.storage_key).to include("reports/#{company.id}/v#{report.version}/report.pdf")
   end
 end
