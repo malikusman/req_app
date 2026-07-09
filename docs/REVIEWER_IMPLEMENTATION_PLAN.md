@@ -1,0 +1,218 @@
+# Reviewer Module — In-Depth Implementation Plan
+
+> Companion to [`REVIEWER_REDESIGN.md`](./REVIEWER_REDESIGN.md) (status/handoff). **That** doc =
+> where we are. **This** doc = exactly what to build in each phase and how, at a level Cursor
+> can execute without re-deriving anything.
+>
+> Branch: `reviewer-redesign`. Verify after every phase with:
+> `docker compose run --rm --no-deps frontend sh -c "npm run lint && npm run build"`
+
+---
+
+## 0. Read this first — conventions & ground truth
+
+### Design tokens (Pulse) — never hardcode colors
+Use semantic Tailwind tokens only. Canonical set (defined in `frontend/tailwind.config.js` +
+`frontend/src/index.css`):
+
+| Use | Token |
+|-----|-------|
+| Page text | `text-foreground` / `text-muted-foreground` |
+| Surfaces | `bg-card`, `bg-muted`, `bg-background` |
+| Accent (green) | `text-accent`, `bg-accent`, `bg-accent-muted`, `text-accent-foreground` |
+| Status | `text-status-success` / `bg-status-successBg` (and `warning`/`error`/`info` variants) |
+| Borders | `border-border` |
+| Radius | `rounded-lg` (cards), `rounded-full` (pills/buttons) |
+
+**Deprecated aliases still in some reviewer files** (resolve to correct colors but must be
+replaced for consistency): `text-text-primary`→`text-foreground`, `text-text-secondary`→
+`text-muted-foreground`, `bg-surface-muted`→`bg-muted`, `rounded-card`→`rounded-lg`,
+`rounded-button`/`rounded-badge`→`rounded-full`, any `emerald-*`→`status-success*`.
+
+### Frontend API pattern
+All calls live in `frontend/src/lib/api.ts` as methods on the `api` object; **every method takes
+`token` as its first arg**. Get the token in a page via `useReviewerToken()` (`lib/auth.tsx`).
+Errors throw `Error(message)`; pages catch into local `error` state. No react-query — data is
+`useEffect` + `useState`; near-real-time via `setInterval` polling.
+
+### Shared UI components (`frontend/src/components/ui`, barrel `index.ts`)
+`PageHeader` (title/description/breadcrumbs), `Card` (now supports `title`, `action`, `padding`),
+`StatCard`, `Button` (variants primary/secondary/ghost/danger; `icon`, `loading`), `Badge`
+(success/warning/info/...), `DataTable`, `Select` (use this, **not** native `<select>`),
+`Input`, `Textarea`, `Modal`, `ConfirmDialog`, `EmptyState`, `Skeleton`, `Tabs`,
+`Timeline`, `ReadinessGauge`, `ParticipationSummary`.
+
+### Backend reviewer endpoints (verified — all under `/api/v1/reviewer`)
+Controllers in `backend/app/controllers/api/v1/reviewer/`. Reviewer is scoped to assigned
+companies via Pundit `policy_scope`; **max 2 reviewers/company**.
+
+| Method | Path | Purpose | FE method in `api.ts` |
+|--------|------|---------|-----------------------|
+| GET | `/dashboard` | portfolio KPIs, action queue, follow-ups | `reviewerDashboard` ✅ |
+| GET | `/companies` / `/companies/:id` | assigned companies / detail | `reviewerCompany` ✅ |
+| GET | `/companies/:id/employees` `/employees/:eid` | **employee roster** (dept, participation_status, timestamps) | **MISSING — add** |
+| GET | `/companies/:id/conversations` `/conversations/:cid` | transcripts | `reviewerConversations` ✅ |
+| GET | `/companies/:id/signals` `/patterns` `/recommendations` | intelligence | `reviewerSignals`/`Patterns`/`Recommendations` ✅ |
+| GET | `/companies/:id/review_sync` | lightweight collab digest for polling | **MISSING — add if used** |
+| GET | `/companies/:id/reports` `/reports/:rid` `/reports/:rid/download` | reports + PDF | ✅ (workspace + preview/download) |
+| GET | `/reports/:rid/workspace` | full workspace payload | `reviewerReportWorkspace` ✅ |
+| GET/POST | `/reports/:rid/discussions` | anchored discussions (message/finding/section; target co-reviewer or employee) | `createReviewDiscussion` (create) ✅; **index MISSING** |
+| POST | `/reports/:rid/discussions/:did/reply` | **reply to a discussion** | **MISSING — add** |
+| PATCH | `/reports/:rid/discussions/:did/resolve` | **resolve a discussion** | **MISSING — add** |
+| GET/PATCH | `/reports/:rid/review` | review (show / update `status`+`overall_note`) | `reviewerReportWorkspace` + `updateReviewerReportReview` ✅ |
+| POST | `/reports/:rid/review/submit` | submit review | `submitReviewerReportReview` ✅ |
+| GET/POST/PATCH/DELETE | `/reports/:rid/review/comments` | **section comments full CRUD** (+ `resolved` flag) | only `addReviewComment` (create) ✅; **update/destroy MISSING** |
+| PATCH | `/reports/:rid/review/section_states/:key` | set section status | `updateSectionState` ✅ |
+| GET/POST | `/companies/:id/info_requests` + `/employees/:eid/followup` | **WhatsApp follow-up** to an employee (+ `thread`) | `sendReviewerFollowup` ✅ (+ employee-followup page) |
+| GET/POST | `/companies/:id/chat_messages` | **co-reviewer chat** | `reviewerChatMessages` / `sendReviewerChat` ✅ |
+| GET/PATCH | `/notifications` + `/mark_all_read` | notifications | `markAllReviewerNotificationsRead` ✅ |
+| GET/PATCH | `/profile` (+ `/avatar`) | reviewer profile | `reviewerProfile`/`updateReviewerProfile`/`uploadReviewerAvatar` ✅ |
+
+> **CRITICAL — amend capability:** `report_reviews#update` permits **only** `status` and
+> `overall_note` (see `report_reviews_controller.rb`). There is **NO endpoint to edit report
+> body/snapshot content.** Reviewers annotate (comments), set per-section status, write an
+> overall note, and submit. **"Amend the report" is not currently possible without new backend
+> work.** See Phase 2 for the two options.
+
+---
+
+## Phase 0 — Cleanup & correctness  *(DONE, committed `e33e7ee`; finish the two leftovers)*
+
+Already implemented: dead code removed, workspace bugs fixed, Company Overview rebuilt, Card
+`action` slot. **Remaining sub-tasks:**
+
+### 0b — Token sweep (cosmetic consistency)
+- **Files:** `ReviewerDashboard.tsx`, `ReviewerFollowups.tsx`, `ReviewerProfile.tsx`,
+  `ReviewerCoReviewerChatPanel.tsx`, `ReviewerConversationDetail.tsx`, `ReviewerEmployeeFollowup.tsx`.
+- **Do:** replace deprecated aliases per the table in §0. Replace any native `<select>` with the
+  shared `Select`. Grep to confirm zero remain:
+  `grep -rnE "text-text-|bg-surface-muted|rounded-card|rounded-button|rounded-badge|emerald-" frontend/src/portals/reviewer`
+- **Acceptance:** grep returns nothing; visuals unchanged; build green.
+
+### 0e — Empty / error / loading states
+- **Do:** each reviewer page must handle all three: `Skeleton` while loading, `EmptyState` when
+  no data, and an error branch (store `error` in state, render it — copy the pattern now in
+  `ReviewerCompanyOverview.tsx`). Audit `ReviewerConversations`, `ReviewerConversationDetail`,
+  `ReviewerEmployeeFollowup`, `ReviewerFollowups`, `ReviewerProfile`.
+- **Acceptance:** kill the API (or load a bad id) → every page shows a graceful message, never a blank/crash.
+
+### 0 — Visual verification (not yet done)
+- Get a preview (see `REVIEWER_REDESIGN.md` §7 — local `:3000` is taken by another app; either
+  stop it and run this stack, or temporarily point `frontend/vite.config.ts` proxy at
+  production and **revert after**). Screenshot: all 6 workspace steps, new Company Overview,
+  and a mobile width (≤640px) for the workspace section rail.
+
+---
+
+## Phase 1 — IA & information design
+
+**Objective:** make the reviewer's job legible; one consistent shell; no dead space; employees
+and intelligence are first-class. No product decisions required. Mostly frontend; one small API add.
+
+### 1.1 Shared page shell / header
+- **Problem:** most pages use `PageHeader`, but `ReviewerReportWorkspace` uses a bespoke header;
+  spacing/breadcrumbs differ across pages.
+- **Do:** standardize. Every non-workspace reviewer page: `PageHeader` with `title`,
+  `description`, `breadcrumbs`. Keep the workspace's custom header (it's a full-bleed tool) but
+  align its type/spacing tokens to `PageHeader`. Ensure consistent page padding via
+  `ReviewerLayout`/`PortalShell`.
+- **Files:** `ReviewerLayout.tsx`, each `portals/reviewer/*.tsx`.
+- **Acceptance:** every page has identical header rhythm + working breadcrumbs.
+
+### 1.2 Dashboard action queue
+- **Problem:** dashboard shows KPIs but the "what needs me now" list is weak.
+- **Do:** add a ranked **Action queue** card at top of `ReviewerDashboard.tsx` derived from
+  `reviewerDashboard` payload: pending reviews first, then employee follow-ups awaiting reply,
+  then unread co-reviewer messages/notifications. Each row = one click to the exact surface
+  (report review / employee thread / chat). Use `Badge` for state, `Button`/`Link` for the action.
+- **Acceptance:** a reviewer can clear their queue without hunting through company pages.
+
+### 1.3 Company Overview — employees + intelligence  *(intelligence preview already partially wired)*
+- **Employees (first-class):**
+  - Add `reviewerEmployees(token, companyId)` to `api.ts` → `GET /companies/:id/employees`.
+  - Add an **Employees** card to `ReviewerCompanyOverview.tsx`: roster from that endpoint
+    (name, department, participation_status badge), each row linking to
+    `/reviewer/companies/:id/employees/:eid/followup` (ask this person) **and** to their
+    transcript. Prefer this over deriving people from `conversations`.
+- **Intelligence preview:** finish the signals/patterns/recommendations cards
+  (`reviewerSignals`/`reviewerPatterns`/`reviewerRecommendations` already exist). Show top 3–5
+  each with a "View report review" CTA; empty states when none.
+- **Acceptance:** Company Overview is a genuine hub — report, employees, interviews,
+  intelligence, collaboration — no dead space at 1280px or mobile.
+
+### 1.4 Conversations list polish
+- **Do:** `ReviewerConversations.tsx` — add department + last-active columns (available from the
+  employees endpoint if joined, else conversation payload), row → transcript. Consistent
+  `DataTable` empty/loading.
+
+**Verify Phase 1:** lint+build; screenshot dashboard, overview (desktop+mobile), conversations.
+
+---
+
+## Phase 2 — Capability completion  *(READ the decisions first)*
+
+> **Blocking decisions (see `REVIEWER_REDESIGN.md` §6):** answer 1 & 2 before starting 2.1.
+
+### 2.1 "Amend / contribute to the report" — pick a path
+Backend today: reviewers **cannot edit report content** (only status/overall_note/comments).
+Two options:
+
+- **Option A (recommended, no backend, governance-safe): "Suggestions" via existing primitives.**
+  Reframe amend as: set section status `needs_info` + attach a comment describing the requested
+  change. Platform sees these on approval (they already merge reviewer notes on approve —
+  see `git log`: "merge reviewer notes on platform approve"). Make the sections step present
+  comments as first-class "suggested changes" with clear status. **Wire comment edit/delete/
+  resolve** (endpoints exist): add `updateReviewComment`, `deleteReviewComment` to `api.ts`
+  (`PATCH/DELETE /reports/:rid/review/comments/:id`) and surface in `ReviewerAnnotationRail.tsx`.
+- **Option B (real inline amend — needs backend):** add a `report_amendments` concept (or a
+  `suggested_edits` JSON on `ReportReview`) with a controller endpoint; render an editable diff
+  of the report snapshot in the sections step; platform accepts/rejects per amendment on approval.
+  Larger; only if the product truly needs reviewers rewriting deliverable text.
+
+### 2.2 Wire review discussions (reply + resolve + list)
+Endpoints exist, frontend is create-only. Add to `api.ts`:
+- `reviewerDiscussions(token, companyId, reportId)` → `GET …/discussions`
+- `replyReviewDiscussion(token, companyId, reportId, discussionId, body)` → `POST …/:did/reply`
+- `resolveReviewDiscussion(token, companyId, reportId, discussionId)` → `PATCH …/:did/resolve`
+Surface threaded discussions + reply box + resolve in `ReviewerTranscriptPanel.tsx` /
+`ReviewerSharedFindingsPanel.tsx` (anchors already created via `EvidenceAskBubble`). Employee-
+targeted discussions route out over WhatsApp (backend handles) — show their state.
+
+### 2.3 Co-reviewer depth
+- Use `review_sync` (`GET /companies/:id/review_sync`) for a lightweight poll digest instead of
+  full workspace reloads; add `reviewerReviewSync` to `api.ts`.
+- Add unread counts to co-reviewer chat (`ReviewerChatDrawer`) and, if desired, @mentions
+  (needs a small backend field on chat_messages — decision 4).
+
+**Verify Phase 2:** with 2 reviewers assigned (`reviewer2@reqapp.local`, assign via platform),
+exercise: comment CRUD, discussion reply/resolve, employee ask→WhatsApp, chat unread.
+
+---
+
+## Phase 3 — Polish & motion
+
+- **Motion:** page transitions (`components/motion/PageTransition`), `AnimatedNumber` on KPIs,
+  chat bubble entrance, respect `prefers-reduced-motion`.
+- **Loading/skeleton consistency:** every list/card has a matching `Skeleton`.
+- **A11y & contrast:** focus-visible rings on all interactive elements, aria labels on icon
+  buttons, run a contrast check on badges/status chips against Pulse surfaces.
+- **`<title>`:** set per-route document titles (currently the browser tab shows "frontend" —
+  fix in `index.html` + per-page via `usePageMeta`).
+- **Final:** full screenshot pass (all reviewer screens, light + mobile); update
+  `REVIEWER_REDESIGN.md` statuses to done.
+
+---
+
+## Appendix — quick file map
+- Pages: `frontend/src/portals/reviewer/*.tsx`
+- Workspace: `frontend/src/portals/reviewer/workspace/*.tsx`
+- API: `frontend/src/lib/api.ts` (reviewer block)
+- Shared UI: `frontend/src/components/ui/*`
+- Backend controllers: `backend/app/controllers/api/v1/reviewer/*`
+- Backend routes: `backend/config/routes.rb` (`namespace :reviewer`)
+- Policies: `backend/app/policies/*` (esp. `review_discussion_policy.rb`)
+
+## Appendix — seeded logins
+- `reviewer@reqapp.local` / `password123` — assigned to Acme + Beta (solo on each).
+- `reviewer2@reqapp.local` / `password123` — unassigned; assign via platform portal to test the
+  2-reviewer / co-reviewer-chat / discussions paths.
