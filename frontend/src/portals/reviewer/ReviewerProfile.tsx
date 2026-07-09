@@ -134,6 +134,7 @@ export function ReviewerProfile() {
       <PageHeader
         title="Your profile"
         description="Build a credible expert profile before reviewing client reports."
+        breadcrumbs={[{ label: 'Dashboard', href: '/reviewer/dashboard' }, { label: 'Profile' }]}
       />
 
       {profile && profile.profile_status === 'draft' && !profile.completeness.complete && (

@@ -52,6 +52,7 @@ export function ReviewerFollowups() {
       <PageHeader
         title="Inbox"
         description="Employee follow-ups, co-reviewer mentions, and notifications."
+        breadcrumbs={[{ label: 'Dashboard', href: '/reviewer/dashboard' }, { label: 'Inbox' }]}
         actions={
           unreadCount > 0 ? (
             <Button variant="secondary" size="sm" onClick={markAllRead}>

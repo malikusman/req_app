@@ -84,6 +84,8 @@ export function ReviewerEmployeeFollowup() {
         title={displayName}
         description="WhatsApp follow-up thread"
         breadcrumbs={[
+          { label: 'Dashboard', href: '/reviewer/dashboard' },
+          { label: 'Company', href: `/reviewer/companies/${companyId}` },
           { label: 'Inbox', href: '/reviewer/inbox' },
           { label: displayName },
         ]}

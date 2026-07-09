@@ -86,6 +86,7 @@ export function ReviewerConversationDetail() {
       <PageHeader
         title="Conversation"
         breadcrumbs={[
+          { label: 'Dashboard', href: '/reviewer/dashboard' },
           { label: 'Company', href: `/reviewer/companies/${companyId}` },
           { label: 'Conversations', href: `/reviewer/companies/${companyId}/conversations` },
           { label: 'Transcript' },

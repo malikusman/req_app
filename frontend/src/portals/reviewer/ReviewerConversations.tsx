@@ -8,7 +8,9 @@ type ConversationRow = {
   id: number;
   employee_id: number;
   employee_name: string | null;
+  department: string | null;
   status: string;
+  last_active_at: string | null;
 };
 
 export function ReviewerConversations() {
@@ -25,7 +27,17 @@ export function ReviewerConversations() {
     setError('');
     api
       .reviewerConversations(token, Number(companyId))
-      .then((d) => setConversations(d.conversations))
+      .then(async (d) => {
+        const employees = await api.reviewerEmployees(token, Number(companyId)).catch(() => ({ employees: [] }));
+        const deptByEmployee = new Map(employees.employees.map((e) => [e.id, e.department]));
+        setConversations(
+          d.conversations.map((c) => ({
+            ...c,
+            department: deptByEmployee.get(c.employee_id) || null,
+            last_active_at: c.last_activity_at,
+          }))
+        );
+      })
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load conversations'))
       .finally(() => setLoading(false));
   }, [token, companyId]);
@@ -54,6 +66,16 @@ export function ReviewerConversations() {
             key: 'status',
             header: 'Status',
             render: (c) => <Badge variant={c.status === 'completed' ? 'success' : 'info'}>{c.status}</Badge>,
+          },
+          {
+            key: 'department',
+            header: 'Department',
+            render: (c) => c.department || '—',
+          },
+          {
+            key: 'lastActive',
+            header: 'Last active',
+            render: (c) => (c.last_active_at ? new Date(c.last_active_at).toLocaleString() : '—'),
           },
           {
             key: 'view',

@@ -32,16 +32,16 @@ export function PageHeader({
         <nav aria-label="Breadcrumb" className="mb-3 flex flex-wrap items-center gap-1 text-sm">
           {breadcrumbs.map((crumb, i) => (
             <span key={crumb.label} className="flex items-center gap-1">
-              {i > 0 && <ChevronRight className="h-3.5 w-3.5 text-text-secondary" />}
+              {i > 0 && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
               {crumb.href ? (
                 <Link
                   to={crumb.href}
-                  className="text-text-secondary transition-colors hover:text-accent"
+                  className="text-muted-foreground transition-colors hover:text-accent"
                 >
                   {crumb.label}
                 </Link>
               ) : (
-                <span className="text-text-secondary">{crumb.label}</span>
+                <span className="text-muted-foreground">{crumb.label}</span>
               )}
             </span>
           ))}
