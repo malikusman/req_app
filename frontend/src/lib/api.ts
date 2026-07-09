@@ -520,11 +520,41 @@ export const api = {
     ),
 
   addReviewComment: (token: string, companyId: number, reportId: number, comment: { section_key: string; body: string }) =>
-    request<{ comment: { id: number } }>(
+    request<{ comment: ReviewCommentPayload }>(
       `/api/v1/reviewer/companies/${companyId}/reports/${reportId}/review/comments`,
       { method: 'POST', body: JSON.stringify({ comment }) },
       token
     ),
+
+  updateReviewComment: (
+    token: string,
+    companyId: number,
+    reportId: number,
+    commentId: number,
+    comment: { body?: string; resolved?: boolean }
+  ) =>
+    request<{ comment: ReviewCommentPayload }>(
+      `/api/v1/reviewer/companies/${companyId}/reports/${reportId}/review/comments/${commentId}`,
+      { method: 'PATCH', body: JSON.stringify({ comment }) },
+      token
+    ),
+
+  deleteReviewComment: (token: string, companyId: number, reportId: number, commentId: number) =>
+    request<void>(
+      `/api/v1/reviewer/companies/${companyId}/reports/${reportId}/review/comments/${commentId}`,
+      { method: 'DELETE' },
+      token
+    ),
+
+  reviewerReviewSync: (token: string, companyId: number, reportId: number, since?: string) => {
+    const qs = new URLSearchParams({ report_id: String(reportId) });
+    if (since) qs.set('since', since);
+    return request<ReviewerReviewSyncPayload>(
+      `/api/v1/reviewer/companies/${companyId}/review_sync?${qs}`,
+      {},
+      token
+    );
+  },
 
   reviewerConversations: (token: string, companyId: number) =>
     request<{
@@ -632,10 +662,24 @@ export const api = {
       token
     ),
 
+  reviewerDiscussions: (token: string, companyId: number, reportId: number) =>
+    request<{ discussions: ReviewDiscussion[] }>(
+      `/api/v1/reviewer/companies/${companyId}/reports/${reportId}/discussions`,
+      {},
+      token
+    ),
+
   replyReviewDiscussion: (token: string, companyId: number, reportId: number, discussionId: number, body: string) =>
     request<{ discussion: ReviewDiscussion }>(
       `/api/v1/reviewer/companies/${companyId}/reports/${reportId}/discussions/${discussionId}/reply`,
       { method: 'POST', body: JSON.stringify({ body }) },
+      token
+    ),
+
+  resolveReviewDiscussion: (token: string, companyId: number, reportId: number, discussionId: number) =>
+    request<{ discussion: ReviewDiscussion }>(
+      `/api/v1/reviewer/companies/${companyId}/reports/${reportId}/discussions/${discussionId}/resolve`,
+      { method: 'PATCH' },
       token
     ),
 };
@@ -753,6 +797,23 @@ export interface ReviewerReportDetail {
   storage_key?: boolean;
 }
 
+export interface ReviewCommentPayload {
+  id: number;
+  section_key: string;
+  body: string;
+  resolved: boolean;
+  reviewer_user_id: number;
+  reviewer_name?: string;
+  created_at?: string;
+}
+
+export interface ReviewerReviewSyncPayload {
+  synced_at: string;
+  reviews: { reviewer_user_id: number; status: string; submitted_at: string | null }[];
+  comments: { id: number; section_key: string; body: string; reviewer_user_id: number; updated_at: string }[];
+  section_states: { reviewer_user_id: number; section_key: string; status: string }[];
+}
+
 export interface ReportReviewPayload {
   review: {
     id: number;
@@ -760,7 +821,7 @@ export interface ReportReviewPayload {
     overall_note: string | null;
     submitted_at: string | null;
     section_states: { section_key: string; status: string }[];
-    comments: { id: number; section_key: string; body: string; reviewer_name: string }[];
+    comments: ReviewCommentPayload[];
   };
   co_reviewer_reviews: {
     reviewer_user_id?: number;

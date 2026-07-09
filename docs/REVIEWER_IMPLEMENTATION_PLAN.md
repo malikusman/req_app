@@ -53,15 +53,15 @@ companies via Pundit `policy_scope`; **max 2 reviewers/company**.
 | GET | `/companies/:id/employees` `/employees/:eid` | **employee roster** (dept, participation_status, timestamps) | **MISSING — add** |
 | GET | `/companies/:id/conversations` `/conversations/:cid` | transcripts | `reviewerConversations` ✅ |
 | GET | `/companies/:id/signals` `/patterns` `/recommendations` | intelligence | `reviewerSignals`/`Patterns`/`Recommendations` ✅ |
-| GET | `/companies/:id/review_sync` | lightweight collab digest for polling | **MISSING — add if used** |
+| GET | `/companies/:id/review_sync` | lightweight collab digest for polling | `reviewerReviewSync` ✅ |
 | GET | `/companies/:id/reports` `/reports/:rid` `/reports/:rid/download` | reports + PDF | ✅ (workspace + preview/download) |
 | GET | `/reports/:rid/workspace` | full workspace payload | `reviewerReportWorkspace` ✅ |
-| GET/POST | `/reports/:rid/discussions` | anchored discussions (message/finding/section; target co-reviewer or employee) | `createReviewDiscussion` (create) ✅; **index MISSING** |
-| POST | `/reports/:rid/discussions/:did/reply` | **reply to a discussion** | **MISSING — add** |
-| PATCH | `/reports/:rid/discussions/:did/resolve` | **resolve a discussion** | **MISSING — add** |
+| GET/POST | `/reports/:rid/discussions` | anchored discussions (message/finding/section; target co-reviewer or employee) | `reviewerDiscussions` ✅ / `createReviewDiscussion` ✅ |
+| POST | `/reports/:rid/discussions/:did/reply` | **reply to a discussion** | `replyReviewDiscussion` ✅ |
+| PATCH | `/reports/:rid/discussions/:did/resolve` | **resolve a discussion** | `resolveReviewDiscussion` ✅ |
 | GET/PATCH | `/reports/:rid/review` | review (show / update `status`+`overall_note`) | `reviewerReportWorkspace` + `updateReviewerReportReview` ✅ |
 | POST | `/reports/:rid/review/submit` | submit review | `submitReviewerReportReview` ✅ |
-| GET/POST/PATCH/DELETE | `/reports/:rid/review/comments` | **section comments full CRUD** (+ `resolved` flag) | only `addReviewComment` (create) ✅; **update/destroy MISSING** |
+| GET/POST/PATCH/DELETE | `/reports/:rid/review/comments` | **section comments full CRUD** (+ `resolved` flag) | `addReviewComment` / `updateReviewComment` / `deleteReviewComment` ✅ |
 | PATCH | `/reports/:rid/review/section_states/:key` | set section status | `updateSectionState` ✅ |
 | GET/POST | `/companies/:id/info_requests` + `/employees/:eid/followup` | **WhatsApp follow-up** to an employee (+ `thread`) | `sendReviewerFollowup` ✅ (+ employee-followup page) |
 | GET/POST | `/companies/:id/chat_messages` | **co-reviewer chat** | `reviewerChatMessages` / `sendReviewerChat` ✅ |
@@ -142,43 +142,23 @@ and intelligence are first-class. No product decisions required. Mostly frontend
 
 ---
 
-## Phase 2 — Capability completion  *(READ the decisions first)*
+## Phase 2 — Capability completion  *(✅ COMPLETE)*
 
-> **Blocking decisions (see `REVIEWER_REDESIGN.md` §6):** answer 1 & 2 before starting 2.1.
+**Decisions (confirmed):** Option A suggestions; transcript + findings + section anchors; chat + activity + unread (no @mentions).
 
-### 2.1 "Amend / contribute to the report" — pick a path
-Backend today: reviewers **cannot edit report content** (only status/overall_note/comments).
-Two options:
+### 2.1 "Amend / contribute to the report" — Option A  *(✅ done)*
+- `updateReviewComment`, `deleteReviewComment` in `api.ts`.
+- `ReviewerAnnotationRail`: suggestions UI when section status is `needs_info`; edit/delete/resolve on own comments.
 
-- **Option A (recommended, no backend, governance-safe): "Suggestions" via existing primitives.**
-  Reframe amend as: set section status `needs_info` + attach a comment describing the requested
-  change. Platform sees these on approval (they already merge reviewer notes on approve —
-  see `git log`: "merge reviewer notes on platform approve"). Make the sections step present
-  comments as first-class "suggested changes" with clear status. **Wire comment edit/delete/
-  resolve** (endpoints exist): add `updateReviewComment`, `deleteReviewComment` to `api.ts`
-  (`PATCH/DELETE /reports/:rid/review/comments/:id`) and surface in `ReviewerAnnotationRail.tsx`.
-- **Option B (real inline amend — needs backend):** add a `report_amendments` concept (or a
-  `suggested_edits` JSON on `ReportReview`) with a controller endpoint; render an editable diff
-  of the report snapshot in the sections step; platform accepts/rejects per amendment on approval.
-  Larger; only if the product truly needs reviewers rewriting deliverable text.
+### 2.2 Wire review discussions (reply + resolve + list)  *(✅ done)*
+- `reviewerDiscussions`, `resolveReviewDiscussion` in `api.ts` (`replyReviewDiscussion` was already present).
+- `ReviewDiscussionThreadList` surfaced in `ReviewerTranscriptPanel`, `ReviewerSharedFindingsPanel`, and sections step.
 
-### 2.2 Wire review discussions (reply + resolve + list)
-Endpoints exist, frontend is create-only. Add to `api.ts`:
-- `reviewerDiscussions(token, companyId, reportId)` → `GET …/discussions`
-- `replyReviewDiscussion(token, companyId, reportId, discussionId, body)` → `POST …/:did/reply`
-- `resolveReviewDiscussion(token, companyId, reportId, discussionId)` → `PATCH …/:did/resolve`
-Surface threaded discussions + reply box + resolve in `ReviewerTranscriptPanel.tsx` /
-`ReviewerSharedFindingsPanel.tsx` (anchors already created via `EvidenceAskBubble`). Employee-
-targeted discussions route out over WhatsApp (backend handles) — show their state.
+### 2.3 Co-reviewer depth  *(✅ done)*
+- `reviewerReviewSync` poll every 15s (co-reviewer comments/states + discussions refresh).
+- Chat unread count badge in workspace header and annotation rail.
 
-### 2.3 Co-reviewer depth
-- Use `review_sync` (`GET /companies/:id/review_sync`) for a lightweight poll digest instead of
-  full workspace reloads; add `reviewerReviewSync` to `api.ts`.
-- Add unread counts to co-reviewer chat (`ReviewerChatDrawer`) and, if desired, @mentions
-  (needs a small backend field on chat_messages — decision 4).
-
-**Verify Phase 2:** with 2 reviewers assigned (`reviewer2@reqapp.local`, assign via platform),
-exercise: comment CRUD, discussion reply/resolve, employee ask→WhatsApp, chat unread.
+**Verify Phase 2:** lint+build passing. Manual: assign `reviewer2@reqapp.local` via platform, exercise comment CRUD, discussion reply/resolve, employee ask→WhatsApp, chat unread.
 
 ---
 

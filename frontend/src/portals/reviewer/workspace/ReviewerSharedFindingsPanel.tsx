@@ -2,6 +2,7 @@ import type { DiscoveryState, ReviewDiscussion } from '../../../lib/api';
 import { agentLabel } from '../../../components/ui/DiscoveryProvenancePanel';
 import { Badge, Card, StrengthBar } from '../../../components/ui';
 import { EvidenceAskBubble } from './EvidenceAskBubble';
+import { ReviewDiscussionThreadList } from './ReviewDiscussionThreadList';
 
 export function ReviewerSharedFindingsPanel({
   findings,
@@ -10,8 +11,12 @@ export function ReviewerSharedFindingsPanel({
   coReviewers,
   employeeId,
   conversationId,
+  currentReviewerUserId,
   onAskReviewer,
   onAskEmployee,
+  onReplyDiscussion,
+  onResolveDiscussion,
+  readOnly,
 }: {
   findings: DiscoveryState['shared_findings'];
   conversationSummary: string | null;
@@ -19,11 +24,16 @@ export function ReviewerSharedFindingsPanel({
   coReviewers?: { reviewer_user_id: number; reviewer_name: string }[];
   employeeId?: number;
   conversationId?: number;
+  currentReviewerUserId?: number | null;
   onAskReviewer?: (targetReviewerUserId: number, body: string, anchorId: string) => Promise<void>;
   onAskEmployee?: (body: string, anchorId: string) => Promise<void>;
+  onReplyDiscussion?: (discussionId: number, body: string) => Promise<void>;
+  onResolveDiscussion?: (discussionId: number) => Promise<void>;
+  readOnly?: boolean;
 }) {
   const threadDiscussions = discussions ?? [];
   const reviewers = coReviewers ?? [];
+  const findingThreads = threadDiscussions.filter((d) => d.anchor_type === 'finding');
 
   return (
     <div className="space-y-4">
@@ -75,6 +85,19 @@ export function ReviewerSharedFindingsPanel({
           </ul>
         )}
       </Card>
+
+      {onReplyDiscussion && onResolveDiscussion && (
+        <Card title="Finding discussions">
+          <ReviewDiscussionThreadList
+            discussions={findingThreads}
+            currentReviewerUserId={currentReviewerUserId ?? null}
+            onReply={onReplyDiscussion}
+            onResolve={onResolveDiscussion}
+            disabled={readOnly}
+            emptyMessage="No discussions on findings yet. Use the + icon on a finding to ask a question."
+          />
+        </Card>
+      )}
     </div>
   );
 }

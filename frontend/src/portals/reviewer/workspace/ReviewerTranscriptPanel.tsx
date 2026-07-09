@@ -11,6 +11,7 @@ import { ChatMessageList, type ChatMessageItem } from '../../../components/motio
 import { ConversationMediaCard, ConversationMediaList } from '../../../components/ConversationMediaCard';
 import { Card, Button, Textarea, DiscoveryProvenancePanel } from '../../../components/ui';
 import { EvidenceAskBubble } from './EvidenceAskBubble';
+import { ReviewDiscussionThreadList } from './ReviewDiscussionThreadList';
 
 export function ReviewerTranscriptPanel({
   companyId,
@@ -28,8 +29,12 @@ export function ReviewerTranscriptPanel({
   sendingFollowup,
   discussions,
   coReviewers,
+  currentReviewerUserId,
   onAskReviewer,
   onAskEmployee,
+  onReplyDiscussion,
+  onResolveDiscussion,
+  readOnly,
 }: {
   companyId: number;
   conversationId: number;
@@ -46,12 +51,22 @@ export function ReviewerTranscriptPanel({
   sendingFollowup?: boolean;
   discussions?: ReviewDiscussion[];
   coReviewers?: { reviewer_user_id: number; reviewer_name: string }[];
+  currentReviewerUserId?: number | null;
   onAskReviewer?: (targetReviewerUserId: number, body: string, anchorType: 'message', anchorId: string, messageId: number) => Promise<void>;
   onAskEmployee?: (body: string, messageId: number) => Promise<void>;
+  onReplyDiscussion?: (discussionId: number, body: string) => Promise<void>;
+  onResolveDiscussion?: (discussionId: number) => Promise<void>;
+  readOnly?: boolean;
 }) {
   const [followupBody, setFollowupBody] = useState('');
   const threadDiscussions = discussions ?? [];
   const reviewers = coReviewers ?? [];
+  const messageIds = new Set(messages.map((m) => String(m.id)));
+  const conversationThreads = threadDiscussions.filter(
+    (d) =>
+      d.conversation_id === conversationId ||
+      (d.anchor_type === 'message' && messageIds.has(d.anchor_id))
+  );
 
   const chatItems: ChatMessageItem[] = messages.map((m) => ({
     id: m.id,
@@ -63,7 +78,7 @@ export function ReviewerTranscriptPanel({
         <ConversationMediaCard attachment={m.media_attachment} token={token} compact />
       ) : undefined,
     actions:
-      onAskReviewer && reviewers.length > 0 ? (
+      (onAskReviewer && reviewers.length > 0) || onAskEmployee ? (
         <EvidenceAskBubble
           anchorType="message"
           anchorId={String(m.id)}
@@ -71,7 +86,7 @@ export function ReviewerTranscriptPanel({
           employeeId={employeeId}
           conversationId={conversationId}
           discussions={threadDiscussions}
-          onAskReviewer={(targetId, body) => onAskReviewer(targetId, body, 'message', String(m.id), m.id)}
+          onAskReviewer={(targetId, body) => onAskReviewer!(targetId, body, 'message', String(m.id), m.id)}
           onAskEmployee={
             onAskEmployee ? (body) => onAskEmployee(body, m.id) : undefined
           }
@@ -137,6 +152,22 @@ export function ReviewerTranscriptPanel({
               Send follow-up
             </Button>
           </form>
+        </Card>
+      )}
+
+      {onReplyDiscussion && onResolveDiscussion && (
+        <Card title="Anchored discussions">
+          <p className="mb-3 text-xs text-muted-foreground">
+            Questions tied to transcript messages — employee asks route over WhatsApp when targeted.
+          </p>
+          <ReviewDiscussionThreadList
+            discussions={conversationThreads}
+            currentReviewerUserId={currentReviewerUserId ?? null}
+            onReply={onReplyDiscussion}
+            onResolve={onResolveDiscussion}
+            disabled={readOnly}
+            emptyMessage="No discussions on this transcript yet. Use the + icon on a message to start one."
+          />
         </Card>
       )}
     </div>

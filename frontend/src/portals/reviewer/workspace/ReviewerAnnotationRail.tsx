@@ -1,16 +1,10 @@
-import type { FormEvent } from 'react';
-import { MessageSquare } from 'lucide-react';
+import { useState, type FormEvent } from 'react';
+import { MessageSquare, Pencil, Trash2 } from 'lucide-react';
+import type { ReviewCommentPayload } from '../../../lib/api';
 import { Badge, Button, Card, Input, Select } from '../../../components/ui';
 import { cn } from '../../../lib/cn';
 import { coReviewerActivityLabel, coReviewerActivityVariant } from './coReviewerActivity';
 import { REPORT_SECTIONS, SECTION_STATUS_OPTIONS, type ReportSectionKey } from './workspaceSteps';
-
-type ReviewComment = {
-  id: number;
-  section_key: string;
-  body: string;
-  reviewer_name: string;
-};
 
 type CoReviewerReview = {
   reviewer_name: string;
@@ -25,34 +19,85 @@ export function ReviewerAnnotationRail({
   onSectionChange,
   sectionStates,
   sectionComments,
+  currentReviewerUserId,
   coReviewerReviews,
   submitted,
   commentBody,
   onCommentBodyChange,
   onAddComment,
+  onUpdateComment,
+  onDeleteComment,
+  onResolveComment,
   onSectionStatusChange,
   showSectionNav,
   showChat = true,
   onOpenChat,
   chatUnread,
+  chatUnreadCount,
 }: {
   activeSection: ReportSectionKey;
   onSectionChange: (section: ReportSectionKey) => void;
   sectionStates: { section_key: string; status: string }[];
-  sectionComments: ReviewComment[];
+  sectionComments: ReviewCommentPayload[];
+  currentReviewerUserId: number | null;
   coReviewerReviews: CoReviewerReview[];
   submitted: boolean;
   commentBody: string;
   onCommentBodyChange: (value: string) => void;
   onAddComment: (e: FormEvent) => void;
+  onUpdateComment: (commentId: number, body: string) => Promise<void>;
+  onDeleteComment: (commentId: number) => Promise<void>;
+  onResolveComment: (commentId: number, resolved: boolean) => Promise<void>;
   onSectionStatusChange: (status: string) => void;
   showSectionNav: boolean;
   showChat?: boolean;
   onOpenChat: () => void;
   chatUnread?: boolean;
+  chatUnreadCount?: number;
 }) {
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editBody, setEditBody] = useState('');
+  const [busyId, setBusyId] = useState<number | null>(null);
+
   const filteredComments = sectionComments.filter((c) => c.section_key === activeSection);
   const currentStatus = sectionStates.find((s) => s.section_key === activeSection)?.status || 'pending';
+  const suggestionsMode = currentStatus === 'needs_info';
+
+  const startEdit = (comment: ReviewCommentPayload) => {
+    setEditingId(comment.id);
+    setEditBody(comment.body);
+  };
+
+  const saveEdit = async (commentId: number) => {
+    if (!editBody.trim()) return;
+    setBusyId(commentId);
+    try {
+      await onUpdateComment(commentId, editBody.trim());
+      setEditingId(null);
+      setEditBody('');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleDelete = async (commentId: number) => {
+    setBusyId(commentId);
+    try {
+      await onDeleteComment(commentId);
+      if (editingId === commentId) setEditingId(null);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleResolve = async (commentId: number, resolved: boolean) => {
+    setBusyId(commentId);
+    try {
+      await onResolveComment(commentId, resolved);
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   return (
     <aside className="flex h-full min-h-0 flex-col gap-4">
@@ -64,6 +109,9 @@ export function ReviewerAnnotationRail({
           <ul className="m-0 list-none p-0">
             {REPORT_SECTIONS.map((key) => {
               const state = sectionStates.find((s) => s.section_key === key)?.status || 'pending';
+              const openSuggestions = sectionComments.filter(
+                (c) => c.section_key === key && !c.resolved
+              ).length;
               return (
                 <li key={key}>
                   <button
@@ -76,7 +124,12 @@ export function ReviewerAnnotationRail({
                         : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                     )}
                   >
-                    <span className="block capitalize">{key.replace(/_/g, ' ')}</span>
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="capitalize">{key.replace(/_/g, ' ')}</span>
+                      {openSuggestions > 0 && state === 'needs_info' && (
+                        <Badge variant="warning">{openSuggestions}</Badge>
+                      )}
+                    </span>
                     <span className="text-xs opacity-70">{state.replace(/_/g, ' ')}</span>
                   </button>
                 </li>
@@ -86,7 +139,16 @@ export function ReviewerAnnotationRail({
         </Card>
       )}
 
-      <Card title="Section review" className="min-h-0 shrink-0">
+      <Card
+        title={suggestionsMode ? 'Suggested changes' : 'Section review'}
+        className="min-h-0 shrink-0"
+      >
+        {suggestionsMode && (
+          <p className="mb-3 text-xs text-muted-foreground">
+            Marked as needs clarification — comments here are change requests for the platform team on approval.
+          </p>
+        )}
+
         {!submitted && showSectionNav && (
           <div className="mb-4">
             <Select
@@ -100,14 +162,68 @@ export function ReviewerAnnotationRail({
 
         <ul className="mb-4 max-h-48 space-y-2 overflow-y-auto">
           {filteredComments.length === 0 ? (
-            <li className="text-sm text-muted-foreground">No comments on this section yet.</li>
+            <li className="text-sm text-muted-foreground">
+              {suggestionsMode ? 'No suggestions yet — add a comment describing the change needed.' : 'No comments on this section yet.'}
+            </li>
           ) : (
-            filteredComments.map((c) => (
-              <li key={c.id} className="rounded-lg border border-border bg-muted/40 p-3 text-sm">
-                <p className="m-0 text-xs text-muted-foreground">{c.reviewer_name}</p>
-                <p className="m-0 mt-1 text-foreground">{c.body}</p>
-              </li>
-            ))
+            filteredComments.map((c) => {
+              const isMine = currentReviewerUserId != null && c.reviewer_user_id === currentReviewerUserId;
+              const isEditing = editingId === c.id;
+              return (
+                <li
+                  key={c.id}
+                  className={cn(
+                    'rounded-lg border p-3 text-sm',
+                    c.resolved ? 'border-border bg-muted/20 opacity-80' : 'border-border bg-muted/40'
+                  )}
+                >
+                  <div className="mb-1 flex flex-wrap items-center gap-2">
+                    <p className="m-0 text-xs text-muted-foreground">{c.reviewer_name}</p>
+                    {c.resolved && <Badge variant="success">Resolved</Badge>}
+                    {suggestionsMode && !c.resolved && <Badge variant="warning">Suggestion</Badge>}
+                  </div>
+                  {isEditing ? (
+                    <div className="space-y-2">
+                      <Input value={editBody} onChange={(e) => setEditBody(e.target.value)} />
+                      <div className="flex gap-2">
+                        <Button size="sm" loading={busyId === c.id} onClick={() => saveEdit(c.id)}>
+                          Save
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="m-0 mt-1 text-foreground">{c.body}</p>
+                  )}
+                  {!submitted && isMine && !isEditing && (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      <Button size="sm" variant="ghost" icon={<Pencil className="h-3 w-3" />} onClick={() => startEdit(c)}>
+                        Edit
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        loading={busyId === c.id}
+                        onClick={() => handleResolve(c.id, !c.resolved)}
+                      >
+                        {c.resolved ? 'Reopen' : 'Resolve'}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        icon={<Trash2 className="h-3 w-3" />}
+                        loading={busyId === c.id}
+                        onClick={() => handleDelete(c.id)}
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  )}
+                </li>
+              );
+            })
           )}
         </ul>
 
@@ -116,10 +232,14 @@ export function ReviewerAnnotationRail({
             <Input
               value={commentBody}
               onChange={(e) => onCommentBodyChange(e.target.value)}
-              placeholder="Add a comment on this section…"
+              placeholder={
+                suggestionsMode
+                  ? 'Describe the change needed for this section…'
+                  : 'Add a comment on this section…'
+              }
             />
             <Button type="submit" variant="secondary" size="sm" disabled={!commentBody.trim()}>
-              Add comment
+              {suggestionsMode ? 'Add suggestion' : 'Add comment'}
             </Button>
           </form>
         )}
@@ -163,9 +283,13 @@ export function ReviewerAnnotationRail({
           onClick={onOpenChat}
         >
           Co-reviewer chat
-          {chatUnread && (
+          {chatUnread && chatUnreadCount && chatUnreadCount > 0 ? (
+            <span className="absolute right-3 top-1/2 flex h-5 min-w-5 -translate-y-1/2 items-center justify-center rounded-full bg-accent px-1.5 text-xs text-accent-foreground">
+              {chatUnreadCount > 9 ? '9+' : chatUnreadCount}
+            </span>
+          ) : chatUnread ? (
             <span className="absolute right-3 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-accent" />
-          )}
+          ) : null}
         </Button>
       )}
     </aside>

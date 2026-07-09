@@ -1,6 +1,6 @@
 # Reviewer Module Redesign — Working Doc & Handoff
 
-> **Status:** Phase 0 complete, Phase 1 complete (ready for Phase 2 decision gate)
+> **Status:** Phase 0 complete, Phase 1 complete, **Phase 2 complete** (ready for Phase 3 polish)
 > **Branch:** `reviewer-redesign` (branched from `main` @ `01d5d3c`)
 > **Last commit:** `e33e7ee` — "Reviewer module Phase 0 (WIP): remove dead code, fix workspace bugs, rebuild company overview"
 > **Last updated:** 2026-07-09
@@ -154,22 +154,31 @@ a11y audit, reduced-motion, final screenshots, and a proper `<title>`.
 - **Visual verification complete:** captured screenshots under `docs/reviewer-screenshots/`:
   dashboard, company overview, inbox, conversations, workspace all six steps, submit dialog, and mobile sections rail.
 
-### ⛔ Left in Phase 0
-- No remaining Phase 0 blockers.
+### ✅ Done in Phase 1
+- Dashboard action queue, employees roster on Company Overview, conversations polish, shell/breadcrumb audit.
+- Screenshots: `docs/reviewer-screenshots/*-phase1.png`.
+
+### ✅ Done in Phase 2
+- **2.1 Suggestions:** `ReviewerAnnotationRail` reframes `needs_info` comments as suggested changes;
+  `updateReviewComment` / `deleteReviewComment` in `api.ts`; edit, resolve/reopen, delete on own comments.
+- **2.2 Discussions:** `reviewerDiscussions`, `resolveReviewDiscussion` in `api.ts`; threaded
+  reply/resolve UI (`ReviewDiscussionThreadList`) on transcript, findings, and report sections.
+- **2.3 Co-reviewer:** `reviewerReviewSync` lightweight poll (replaces full workspace reload);
+  chat unread badge shows count of unseen messages.
+
+### ⛔ Left
+- **Phase 3** — motion, a11y/contrast, per-route `<title>`, final screenshot pass.
 
 ---
 
-## 6. Product decisions for Phase 2
+## 6. Product decisions for Phase 2 *(confirmed 2026-07-09)*
 
-1. **Amend capability (backend reality check):** current reviewer backend supports section states,
-   comments, discussions, and submit (`ReviewWorkspaceController` + review endpoints), but does
-   **not** support direct report text edits. Phase 2 amend therefore requires new backend work.
-2. **Recommended amend model:** add **suggestions** (with platform acceptance) rather than direct
-   report snapshot edits, to preserve governance and auditability.
-3. **Employee follow-up placement:** keep transcript composer as primary path and also expose
-   anchored ask from findings/sections where context exists.
-4. **Co-reviewer depth:** ship Phase 2 with chat + activity + unread first; defer mentions/read
-   receipts unless product pushes collaboration depth further.
+1. **Amend model — Option A (suggestions):** section status `needs_info` + comments as change
+   requests; comment edit/delete/resolve wired in the annotation rail. No direct report-body edits.
+2. **Employee follow-up placement:** transcript composer **plus** anchored ask from findings and
+   report sections (via `EvidenceAskBubble` + discussion threads).
+3. **Co-reviewer depth:** chat + activity digest + unread counts + `review_sync` polling (no
+   @mentions in Phase 2).
 
 ---
 
@@ -211,6 +220,6 @@ docker compose run --rm --no-deps frontend sh -c "npm run lint"
 ---
 
 ## 9. Suggested next actions for Cursor (in order)
-1. Validate Phase 2 scope with product owner using §6 recommendations (do not start Phase 2 implementation until decided).
-2. If approved, start Phase 2 with discussion reply/resolve + amend model selected in §6.
-3. Keep this doc updated as Phase 2 and Phase 3 land.
+1. Phase 3 polish: motion (`PageTransition`, `AnimatedNumber`), skeleton consistency, a11y/contrast, per-route titles.
+2. Final screenshot pass (light + mobile) and update this doc when Phase 3 lands.
+3. Merge `reviewer-redesign` → `main` when product signs off (auto-deploys to production).

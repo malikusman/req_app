@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { Check, ChevronRight, FileText, MessageSquare } from 'lucide-react';
 import { api, type ReviewerReportWorkspacePayload } from '../../../lib/api';
-import { useReviewerToken } from '../../../lib/auth';
+import { useAuth, useReviewerToken } from '../../../lib/auth';
 import { Badge, Button, Card, ConfirmDialog, PageHeader, Skeleton, StatCard, Textarea } from '../../../components/ui';
 import { cn } from '../../../lib/cn';
 import { ReviewerAnnotationRail } from './ReviewerAnnotationRail';
@@ -12,6 +12,8 @@ import { ReviewerPdfDrawer } from './ReviewerPdfDrawer';
 import { ReviewerSectionContent } from './ReviewerSectionContent';
 import { ReviewerSharedFindingsPanel } from './ReviewerSharedFindingsPanel';
 import { ReviewerTranscriptPanel } from './ReviewerTranscriptPanel';
+import { EvidenceAskBubble } from './EvidenceAskBubble';
+import { ReviewDiscussionThreadList } from './ReviewDiscussionThreadList';
 import { coReviewerActivityLabel, coReviewerActivityVariant } from './coReviewerActivity';
 import {
   REPORT_SECTIONS,
@@ -36,6 +38,9 @@ function sectionsComplete(states: { section_key: string; status: string }[]) {
 export function ReviewerReportWorkspace() {
   const { companyId, reportId } = useParams();
   const token = useReviewerToken();
+  const { session } = useAuth();
+  const currentReviewerUserId =
+    session?.portal === 'reviewer' ? session.user.id : null;
   const [searchParams, setSearchParams] = useSearchParams();
 
   const activeStep = parseWorkspaceStep(searchParams.get('step'));
@@ -51,7 +56,9 @@ export function ReviewerReportWorkspace() {
   const [pdfOpen, setPdfOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatUnread, setChatUnread] = useState(false);
+  const [chatUnreadCount, setChatUnreadCount] = useState(0);
   const lastSeenChatMessageId = useRef<number | null>(null);
+  const lastSyncAt = useRef<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [sendingFollowup, setSendingFollowup] = useState(false);
   const [confirmSubmitOpen, setConfirmSubmitOpen] = useState(false);
@@ -116,12 +123,15 @@ export function ReviewerReportWorkspace() {
       api
         .reviewerChatMessages(token, Number(companyId))
         .then((data) => {
-          const latestId = data.messages.length > 0 ? data.messages[data.messages.length - 1].id : null;
-          const hasUnread =
-            latestId != null &&
-            (lastSeenChatMessageId.current == null || latestId > lastSeenChatMessageId.current) &&
-            data.messages.some((m) => !m.mine && m.id === latestId);
-          if (!chatOpen && hasUnread) setChatUnread(true);
+          const unseen = data.messages.filter(
+            (m) =>
+              !m.mine &&
+              (lastSeenChatMessageId.current == null || m.id > lastSeenChatMessageId.current)
+          );
+          if (!chatOpen && unseen.length > 0) {
+            setChatUnread(true);
+            setChatUnreadCount(unseen.length);
+          }
         })
         .catch(() => {});
     };
@@ -134,6 +144,7 @@ export function ReviewerReportWorkspace() {
     setChatOpen(open);
     if (open) {
       setChatUnread(false);
+      setChatUnreadCount(0);
     }
   };
 
@@ -141,17 +152,58 @@ export function ReviewerReportWorkspace() {
     if (chatOpen && latestId != null) {
       lastSeenChatMessageId.current = latestId;
       setChatUnread(false);
+      setChatUnreadCount(0);
     } else if (lastSeenChatMessageId.current == null && latestId != null) {
       lastSeenChatMessageId.current = latestId;
     }
   };
 
+  const syncCollaboration = useCallback(async () => {
+    if (!token || !companyId || !reportId) return;
+    const since = lastSyncAt.current ?? new Date(Date.now() - 60_000).toISOString();
+    try {
+      const [sync, discussionsRes] = await Promise.all([
+        api.reviewerReviewSync(token, Number(companyId), Number(reportId), since),
+        api.reviewerDiscussions(token, Number(companyId), Number(reportId)),
+      ]);
+      lastSyncAt.current = sync.synced_at;
+      setWorkspace((prev) => {
+        if (!prev) return prev;
+        const coReviews = prev.co_reviewer_reviews.map((cr) => {
+          const syncReview = sync.reviews.find((r) => r.reviewer_user_id === cr.reviewer_user_id);
+          const remoteComments = sync.comments.filter((c) => c.reviewer_user_id === cr.reviewer_user_id);
+          const remoteStates = sync.section_states.filter((s) => s.reviewer_user_id === cr.reviewer_user_id);
+          if (!syncReview && remoteComments.length === 0 && remoteStates.length === 0) return cr;
+          const commentsByKey = new Map(cr.comments.map((c) => [`${c.section_key}:${c.body}`, c]));
+          for (const c of remoteComments) {
+            commentsByKey.set(`${c.section_key}:${c.body}`, { section_key: c.section_key, body: c.body });
+          }
+          const statesByKey = new Map(cr.section_states.map((s) => [s.section_key, s]));
+          for (const s of remoteStates) {
+            statesByKey.set(s.section_key, { section_key: s.section_key, status: s.status });
+          }
+          return {
+            ...cr,
+            status: syncReview?.status ?? cr.status,
+            comments: Array.from(commentsByKey.values()),
+            section_states: Array.from(statesByKey.values()),
+          };
+        });
+        return { ...prev, co_reviewer_reviews: coReviews, discussions: discussionsRes.discussions };
+      });
+    } catch {
+      // ignore background sync errors
+    }
+  }, [token, companyId, reportId]);
+
   useEffect(() => {
+    if (!token || !companyId || !reportId) return;
+    lastSyncAt.current = new Date().toISOString();
     const interval = setInterval(() => {
-      void load();
+      void syncCollaboration();
     }, 15000);
     return () => clearInterval(interval);
-  }, [load]);
+  }, [token, companyId, reportId, syncCollaboration]);
 
   useEffect(() => {
     if (!token || !companyId || !reportId || !workspace?.report.storage_key) {
@@ -196,6 +248,36 @@ export function ReviewerReportWorkspace() {
       body: commentBody.trim(),
     });
     setCommentBody('');
+    await load();
+  };
+
+  const handleUpdateComment = async (commentId: number, body: string) => {
+    if (!token || !companyId || !reportId) return;
+    await api.updateReviewComment(token, Number(companyId), Number(reportId), commentId, { body });
+    await load();
+  };
+
+  const handleDeleteComment = async (commentId: number) => {
+    if (!token || !companyId || !reportId) return;
+    await api.deleteReviewComment(token, Number(companyId), Number(reportId), commentId);
+    await load();
+  };
+
+  const handleResolveComment = async (commentId: number, resolved: boolean) => {
+    if (!token || !companyId || !reportId) return;
+    await api.updateReviewComment(token, Number(companyId), Number(reportId), commentId, { resolved });
+    await load();
+  };
+
+  const handleReplyDiscussion = async (discussionId: number, body: string) => {
+    if (!token || !companyId || !reportId) return;
+    await api.replyReviewDiscussion(token, Number(companyId), Number(reportId), discussionId, body);
+    await load();
+  };
+
+  const handleResolveDiscussion = async (discussionId: number) => {
+    if (!token || !companyId || !reportId) return;
+    await api.resolveReviewDiscussion(token, Number(companyId), Number(reportId), discussionId);
     await load();
   };
 
@@ -266,22 +348,35 @@ export function ReviewerReportWorkspace() {
 
   const handleAskEmployee = async (
     body: string,
-    anchorType: 'message' | 'finding',
+    anchorType: 'message' | 'finding' | 'section',
     anchorId: string,
     messageId?: number,
     employeeId?: number,
     conversationId?: number
   ) => {
-    if (!token || !companyId || !reportId || !employeeId || !conversationId) return;
-    await api.createReviewDiscussion(token, Number(companyId), Number(reportId), {
-      target_type: 'employee',
-      employee_id: employeeId,
-      conversation_id: conversationId,
-      anchor_type: anchorType,
-      anchor_id: anchorId,
-      body,
-      message_id: messageId,
-    });
+    if (!token || !companyId || !reportId) return;
+    if (anchorType === 'section') {
+      await api.createReviewDiscussion(token, Number(companyId), Number(reportId), {
+        target_type: 'employee',
+        employee_id: employeeId,
+        conversation_id: conversationId,
+        anchor_type: 'section',
+        anchor_id: anchorId,
+        body,
+      });
+    } else if (!employeeId || !conversationId) {
+      return;
+    } else {
+      await api.createReviewDiscussion(token, Number(companyId), Number(reportId), {
+        target_type: 'employee',
+        employee_id: employeeId,
+        conversation_id: conversationId,
+        anchor_type: anchorType,
+        anchor_id: anchorId,
+        body,
+        message_id: messageId,
+      });
+    }
     await load();
   };
 
@@ -345,7 +440,13 @@ export function ReviewerReportWorkspace() {
                   className="relative"
                 >
                   Chat
-                  {chatUnread && <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-accent" />}
+                  {chatUnread && chatUnreadCount > 0 ? (
+                    <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1 text-xs text-accent-foreground">
+                      {chatUnreadCount > 9 ? '9+' : chatUnreadCount}
+                    </span>
+                  ) : chatUnread ? (
+                    <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-accent" />
+                  ) : null}
                 </Button>
               )}
               <Button variant="secondary" size="sm" onClick={() => setPdfOpen(true)} icon={<FileText className="h-4 w-4" />}>
@@ -502,6 +603,7 @@ export function ReviewerReportWorkspace() {
                 sendingFollowup={sendingFollowup}
                 discussions={workspace.discussions}
                 coReviewers={coReviewers}
+                currentReviewerUserId={currentReviewerUserId}
                 onAskReviewer={(targetId, body, anchorType, anchorId, messageId) =>
                   handleAskReviewer(
                     targetId,
@@ -523,6 +625,9 @@ export function ReviewerReportWorkspace() {
                     activeConversation.id
                   )
                 }
+                onReplyDiscussion={handleReplyDiscussion}
+                onResolveDiscussion={handleResolveDiscussion}
+                readOnly={submitted}
               />
             </div>
           )}
@@ -553,6 +658,7 @@ export function ReviewerReportWorkspace() {
                 coReviewers={coReviewers}
                 employeeId={activeConversation.employee_id}
                 conversationId={activeConversation.id}
+                currentReviewerUserId={currentReviewerUserId}
                 onAskReviewer={(targetId, body, anchorId) =>
                   handleAskReviewer(
                     targetId,
@@ -574,6 +680,9 @@ export function ReviewerReportWorkspace() {
                     activeConversation.id
                   )
                 }
+                onReplyDiscussion={handleReplyDiscussion}
+                onResolveDiscussion={handleResolveDiscussion}
+                readOnly={submitted}
               />
               {token && (
                 <ReviewerTranscriptPanel
@@ -590,6 +699,7 @@ export function ReviewerReportWorkspace() {
                   onHighlightMessage={setHighlightedMessageId}
                   discussions={workspace.discussions}
                   coReviewers={coReviewers}
+                  currentReviewerUserId={currentReviewerUserId}
                   onAskReviewer={(targetId, body, anchorType, anchorId, messageId) =>
                     handleAskReviewer(
                       targetId,
@@ -611,6 +721,9 @@ export function ReviewerReportWorkspace() {
                       activeConversation.id
                     )
                   }
+                  onReplyDiscussion={handleReplyDiscussion}
+                  onResolveDiscussion={handleResolveDiscussion}
+                  readOnly={submitted}
                 />
               )}
             </div>
@@ -618,7 +731,37 @@ export function ReviewerReportWorkspace() {
 
           {activeStep === 'sections' && (
             <div className="space-y-4">
-              <Card title={activeSection.replace(/_/g, ' ')}>
+              <Card
+                title={activeSection.replace(/_/g, ' ')}
+                action={
+                  !submitted && (hasCoReviewers || activeConversation) ? (
+                    <EvidenceAskBubble
+                      anchorType="section"
+                      anchorId={activeSection}
+                      coReviewers={coReviewers}
+                      employeeId={activeConversation?.employee_id}
+                      conversationId={activeConversation?.id}
+                      discussions={workspace.discussions}
+                      onAskReviewer={(targetId, body) =>
+                        handleAskReviewer(targetId, body, 'section', activeSection)
+                      }
+                      onAskEmployee={
+                        activeConversation
+                          ? (body) =>
+                              handleAskEmployee(
+                                body,
+                                'section',
+                                activeSection,
+                                undefined,
+                                activeConversation.employee_id,
+                                activeConversation.id
+                              )
+                          : undefined
+                      }
+                    />
+                  ) : undefined
+                }
+              >
                 <p className="mb-4 text-sm text-muted-foreground">
                   Cross-check this section against agent findings and the employee transcript.
                 </p>
@@ -626,6 +769,18 @@ export function ReviewerReportWorkspace() {
                   section={activeSection}
                   snapshot={snapshot}
                   onJumpToMessage={jumpToMessage}
+                />
+              </Card>
+              <Card title="Section discussions">
+                <ReviewDiscussionThreadList
+                  discussions={workspace.discussions.filter(
+                    (d) => d.anchor_type === 'section' && d.anchor_id === activeSection
+                  )}
+                  currentReviewerUserId={currentReviewerUserId}
+                  onReply={handleReplyDiscussion}
+                  onResolve={handleResolveDiscussion}
+                  disabled={submitted}
+                  emptyMessage="No questions on this section yet. Use + to ask a co-reviewer or employee."
                 />
               </Card>
               <div className="flex justify-between">
@@ -720,16 +875,21 @@ export function ReviewerReportWorkspace() {
               onSectionChange={setSection}
               sectionStates={workspace.review.section_states}
               sectionComments={workspace.review.comments}
+              currentReviewerUserId={currentReviewerUserId}
               coReviewerReviews={workspace.co_reviewer_reviews}
               submitted={submitted}
               commentBody={commentBody}
               onCommentBodyChange={setCommentBody}
               onAddComment={handleAddComment}
+              onUpdateComment={handleUpdateComment}
+              onDeleteComment={handleDeleteComment}
+              onResolveComment={handleResolveComment}
               onSectionStatusChange={handleSectionStatus}
               showSectionNav={activeStep === 'sections'}
               showChat={hasCoReviewers}
               onOpenChat={() => handleChatOpenChange(true)}
               chatUnread={chatUnread}
+              chatUnreadCount={chatUnreadCount}
             />
           </div>
         )}
