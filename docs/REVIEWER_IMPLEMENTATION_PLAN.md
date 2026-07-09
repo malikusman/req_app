@@ -76,31 +76,24 @@ companies via Pundit `policy_scope`; **max 2 reviewers/company**.
 
 ---
 
-## Phase 0 — Cleanup & correctness  *(DONE, committed `e33e7ee`; finish the two leftovers)*
+## Phase 0 — Cleanup & correctness  *(✅ COMPLETE)*
 
-Already implemented: dead code removed, workspace bugs fixed, Company Overview rebuilt, Card
-`action` slot. **Remaining sub-tasks:**
+All done and committed on `reviewer-redesign`:
+- **0a** dead code removed; **0c** workspace bugs fixed; Company Overview rebuilt; Card `action` slot.
+- **0b Token sweep — done.** No deprecated aliases remain in `frontend/src/portals/reviewer`
+  (verify: `grep -rnE "text-text-|bg-surface-muted|rounded-card|rounded-button|rounded-badge|emerald-" frontend/src/portals/reviewer` → empty).
+  > Note: the shared `components/ui/PageHeader.tsx` still uses `text-text-secondary` internally —
+  > out of scope for the reviewer sweep, but worth cleaning globally later.
+- **0e Empty/error/loading states — done** across reviewer pages (pattern: `Skeleton` loading →
+  `error` branch → `EmptyState`).
+- **Visual verification — done.** Screenshots in `docs/reviewer-screenshots/` (dashboard,
+  company overview, inbox, conversations, all six workspace steps, submit dialog, mobile sections rail).
 
-### 0b — Token sweep (cosmetic consistency)
-- **Files:** `ReviewerDashboard.tsx`, `ReviewerFollowups.tsx`, `ReviewerProfile.tsx`,
-  `ReviewerCoReviewerChatPanel.tsx`, `ReviewerConversationDetail.tsx`, `ReviewerEmployeeFollowup.tsx`.
-- **Do:** replace deprecated aliases per the table in §0. Replace any native `<select>` with the
-  shared `Select`. Grep to confirm zero remain:
-  `grep -rnE "text-text-|bg-surface-muted|rounded-card|rounded-button|rounded-badge|emerald-" frontend/src/portals/reviewer`
-- **Acceptance:** grep returns nothing; visuals unchanged; build green.
-
-### 0e — Empty / error / loading states
-- **Do:** each reviewer page must handle all three: `Skeleton` while loading, `EmptyState` when
-  no data, and an error branch (store `error` in state, render it — copy the pattern now in
-  `ReviewerCompanyOverview.tsx`). Audit `ReviewerConversations`, `ReviewerConversationDetail`,
-  `ReviewerEmployeeFollowup`, `ReviewerFollowups`, `ReviewerProfile`.
-- **Acceptance:** kill the API (or load a bad id) → every page shows a graceful message, never a blank/crash.
-
-### 0 — Visual verification (not yet done)
-- Get a preview (see `REVIEWER_REDESIGN.md` §7 — local `:3000` is taken by another app; either
-  stop it and run this stack, or temporarily point `frontend/vite.config.ts` proxy at
-  production and **revert after**). Screenshot: all 6 workspace steps, new Company Overview,
-  and a mobile width (≤640px) for the workspace section rail.
+**Local dev is now fixed** (was blocked by `:3000`): the frontend Vite proxy honors
+`VITE_PROXY_TARGET` (compose sets it to `http://rails:3000`), `vite.config.ts` has
+`allowedHosts: true`, and Rails `development.rb` allowlists Docker hostnames. Run:
+`docker compose up -d` → `docker compose run --rm rails bundle exec rails db:migrate db:seed` →
+dev at `http://localhost:5173`. Screenshot harness: `scripts/manual_test/capture_reviewer_screenshots.mjs`.
 
 ---
 
@@ -109,17 +102,18 @@ Already implemented: dead code removed, workspace bugs fixed, Company Overview r
 **Objective:** make the reviewer's job legible; one consistent shell; no dead space; employees
 and intelligence are first-class. No product decisions required. Mostly frontend; one small API add.
 
-### 1.1 Shared page shell / header
-- **Problem:** most pages use `PageHeader`, but `ReviewerReportWorkspace` uses a bespoke header;
-  spacing/breadcrumbs differ across pages.
-- **Do:** standardize. Every non-workspace reviewer page: `PageHeader` with `title`,
-  `description`, `breadcrumbs`. Keep the workspace's custom header (it's a full-bleed tool) but
-  align its type/spacing tokens to `PageHeader`. Ensure consistent page padding via
-  `ReviewerLayout`/`PortalShell`.
-- **Files:** `ReviewerLayout.tsx`, each `portals/reviewer/*.tsx`.
+**Progress so far (started):** workspace header now uses shared `PageHeader` + breadcrumbs (1.1);
+Company Overview intelligence preview is wired via `reviewerSignals`/`reviewerPatterns`/
+`reviewerRecommendations` (part of 1.3). **Still to do:** dashboard action queue (1.2), the
+**employees roster** half of 1.3 (needs the `reviewerEmployees` API — not yet added), and 1.4.
+
+### 1.1 Shared page shell / header  *(✅ workspace done; audit the rest)*
+- **Done:** `ReviewerReportWorkspace` now renders `PageHeader` (title/description/breadcrumbs/actions).
+- **Left:** confirm every other reviewer page uses `PageHeader` consistently and page padding is
+  uniform via `ReviewerLayout`/`PortalShell`.
 - **Acceptance:** every page has identical header rhythm + working breadcrumbs.
 
-### 1.2 Dashboard action queue
+### 1.2 Dashboard action queue  *(to do)*
 - **Problem:** dashboard shows KPIs but the "what needs me now" list is weak.
 - **Do:** add a ranked **Action queue** card at top of `ReviewerDashboard.tsx` derived from
   `reviewerDashboard` payload: pending reviews first, then employee follow-ups awaiting reply,
@@ -127,16 +121,16 @@ and intelligence are first-class. No product decisions required. Mostly frontend
   (report review / employee thread / chat). Use `Badge` for state, `Button`/`Link` for the action.
 - **Acceptance:** a reviewer can clear their queue without hunting through company pages.
 
-### 1.3 Company Overview — employees + intelligence  *(intelligence preview already partially wired)*
-- **Employees (first-class):**
+### 1.3 Company Overview — employees + intelligence  *(intelligence preview ✅; employees roster to do)*
+- **Intelligence preview — done:** signals/patterns/recommendations cards wired via
+  `reviewerSignals`/`reviewerPatterns`/`reviewerRecommendations` with an empty state.
+  *(Optional polish: add a "View report review" CTA on each block.)*
+- **Employees (first-class) — to do:**
   - Add `reviewerEmployees(token, companyId)` to `api.ts` → `GET /companies/:id/employees`.
   - Add an **Employees** card to `ReviewerCompanyOverview.tsx`: roster from that endpoint
     (name, department, participation_status badge), each row linking to
     `/reviewer/companies/:id/employees/:eid/followup` (ask this person) **and** to their
     transcript. Prefer this over deriving people from `conversations`.
-- **Intelligence preview:** finish the signals/patterns/recommendations cards
-  (`reviewerSignals`/`reviewerPatterns`/`reviewerRecommendations` already exist). Show top 3–5
-  each with a "View report review" CTA; empty states when none.
 - **Acceptance:** Company Overview is a genuine hub — report, employees, interviews,
   intelligence, collaboration — no dead space at 1280px or mobile.
 

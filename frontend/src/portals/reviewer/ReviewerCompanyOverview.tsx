@@ -9,7 +9,7 @@ import {
   ClipboardCheck,
   MessagesSquare,
 } from 'lucide-react';
-import { api, type ReviewerCompanyDetail } from '../../lib/api';
+import { api, type CompanyPattern, type CompanySignal, type Recommendation, type ReviewerCompanyDetail } from '../../lib/api';
 import { useReviewerToken } from '../../lib/auth';
 import { PageHeader, Card, StatCard, Button, Badge, Skeleton, EmptyState } from '../../components/ui';
 import { ReviewerChatDrawer } from './workspace/ReviewerChatDrawer';
@@ -31,6 +31,9 @@ export function ReviewerCompanyOverview() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [chatOpen, setChatOpen] = useState(false);
+  const [signals, setSignals] = useState<CompanySignal[]>([]);
+  const [patterns, setPatterns] = useState<CompanyPattern[]>([]);
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
 
   useEffect(() => {
     if (!token || !companyId) return;
@@ -39,10 +42,16 @@ export function ReviewerCompanyOverview() {
     Promise.all([
       api.reviewerCompany(token, Number(companyId)),
       api.reviewerConversations(token, Number(companyId)).catch(() => ({ conversations: [] })),
+      api.reviewerSignals(token, Number(companyId)).catch(() => ({ signals: [] })),
+      api.reviewerPatterns(token, Number(companyId)).catch(() => ({ patterns: [] })),
+      api.reviewerRecommendations(token, Number(companyId)).catch(() => ({ recommendations: [] })),
     ])
-      .then(([detail, convs]) => {
+      .then(([detail, convs, signalsData, patternsData, recommendationsData]) => {
         setCompany(detail.company);
         setConversations(convs.conversations);
+        setSignals(signalsData.signals);
+        setPatterns(patternsData.patterns);
+        setRecommendations(recommendationsData.recommendations);
       })
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load company'))
       .finally(() => setLoading(false));
@@ -179,6 +188,49 @@ export function ReviewerCompanyOverview() {
                   ))}
                 </ul>
               </>
+            )}
+          </Card>
+
+          <Card title="Intelligence preview">
+            {signals.length === 0 && patterns.length === 0 && recommendations.length === 0 ? (
+              <EmptyState
+                title="No intelligence yet"
+                description="Signals, patterns, and recommendations appear after enough interview evidence is available."
+              />
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <p className="mb-2 text-sm font-medium text-foreground">Top signals</p>
+                  {signals.slice(0, 2).map((signal) => (
+                    <div key={signal.id} className="mb-2 rounded-lg border border-border bg-muted px-3 py-2">
+                      <p className="m-0 text-sm font-medium text-foreground">{signal.label}</p>
+                      <p className="m-0 text-xs text-muted-foreground">
+                        Strength {signal.strength} · {signal.evidence_count} evidence items
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                <div>
+                  <p className="mb-2 text-sm font-medium text-foreground">Top patterns</p>
+                  {patterns.slice(0, 2).map((pattern) => (
+                    <div key={pattern.id} className="mb-2 rounded-lg border border-border bg-muted px-3 py-2">
+                      <p className="m-0 text-sm font-medium text-foreground">{pattern.title}</p>
+                      <p className="m-0 text-xs text-muted-foreground">{pattern.description}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div>
+                  <p className="mb-2 text-sm font-medium text-foreground">Priority recommendations</p>
+                  {recommendations.slice(0, 2).map((rec) => (
+                    <div key={rec.id} className="mb-2 rounded-lg border border-border bg-muted px-3 py-2">
+                      <p className="m-0 text-sm font-medium text-foreground">{rec.title}</p>
+                      <p className="m-0 text-xs text-muted-foreground">{rec.description}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </Card>
         </div>

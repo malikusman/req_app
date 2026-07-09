@@ -530,6 +530,15 @@ export const api = {
       token
     ),
 
+  reviewerSignals: (token: string, companyId: number) =>
+    request<{ signals: CompanySignal[] }>(`/api/v1/reviewer/companies/${companyId}/signals`, {}, token),
+
+  reviewerPatterns: (token: string, companyId: number) =>
+    request<{ patterns: CompanyPattern[] }>(`/api/v1/reviewer/companies/${companyId}/patterns`, {}, token),
+
+  reviewerRecommendations: (token: string, companyId: number) =>
+    request<{ recommendations: Recommendation[] }>(`/api/v1/reviewer/companies/${companyId}/recommendations`, {}, token),
+
   reviewerFollowups: (token: string) =>
     request<{ followups: ReviewerFollowupRow[] }>('/api/v1/reviewer/followups', {}, token),
 

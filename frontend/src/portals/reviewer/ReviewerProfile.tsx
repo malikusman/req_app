@@ -110,9 +110,7 @@ export function ReviewerProfile() {
     }
   };
 
-  if (loading) {
-    return <p className="text-sm text-text-secondary">Loading profile…</p>;
-  }
+  if (loading) return <p className="text-sm text-muted-foreground">Loading profile…</p>;
 
   const previewCard = profile
     ? {
@@ -139,13 +137,13 @@ export function ReviewerProfile() {
       />
 
       {profile && profile.profile_status === 'draft' && !profile.completeness.complete && (
-        <div className="rounded-button border border-status-warning/40 bg-status-warningBg px-4 py-3 text-sm text-text-primary">
+        <div className="rounded-lg border border-status-warning/40 bg-status-warningBg px-4 py-3 text-sm text-foreground">
           Profile {profile.completeness.percent}% complete — missing:{' '}
           {profile.completeness.missing.join(', ')}. Publish when ready for companies to see you.
         </div>
       )}
 
-      {error && <p className="text-sm text-status-error">{error}</p>}
+      {error && <p className="text-sm text-destructive">{error}</p>}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <form onSubmit={onSubmit} className="space-y-6">
@@ -154,7 +152,7 @@ export function ReviewerProfile() {
               {profile?.avatar_url ? (
                 <img src={profile.avatar_url} alt="" className="h-20 w-20 rounded-full object-cover" />
               ) : (
-                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-surface-muted text-2xl text-text-secondary">
+                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted text-2xl text-muted-foreground">
                   ?
                 </div>
               )}
@@ -231,7 +229,7 @@ export function ReviewerProfile() {
                 <button
                   key={tag}
                   type="button"
-                  className="inline-flex items-center gap-1 rounded-badge border border-border px-2 py-0.5 text-xs"
+                  className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs"
                   onClick={() => removeTag(tag)}
                 >
                   {tag} ×
@@ -260,7 +258,7 @@ export function ReviewerProfile() {
                   key={tag}
                   type="button"
                   onClick={() => addTag(tag)}
-                  className="rounded-badge bg-surface-muted px-2 py-0.5 text-xs text-text-secondary hover:bg-border"
+                  className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground hover:bg-border"
                 >
                   + {tag}
                 </button>
@@ -346,10 +344,10 @@ export function ReviewerProfile() {
         </form>
 
         <div className="space-y-4">
-          <h3 className="m-0 text-sm font-medium text-text-secondary">Preview — how you appear to clients</h3>
+          <h3 className="m-0 text-sm font-medium text-muted-foreground">Preview — how you appear to clients</h3>
           {previewCard && <ExpertReviewerCard reviewer={previewCard} />}
           {profile && (
-            <p className="text-xs text-text-secondary">
+            <p className="text-xs text-muted-foreground">
               Status:{' '}
               <Badge variant={profile.profile_status === 'published' ? 'success' : 'neutral'}>
                 {profile.profile_status}

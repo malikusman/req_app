@@ -36,7 +36,7 @@ export function ReviewerCoReviewerChatPanel({
           direction: m.mine ? 'outbound' : 'inbound',
           body: m.body,
           timestamp: m.created_at,
-          meta: <p className="text-xs text-text-secondary">{m.sender_name}</p>,
+          meta: <p className="text-xs text-muted-foreground">{m.sender_name}</p>,
         }))
       );
       onMessagesLoadedRef.current?.(latestId);

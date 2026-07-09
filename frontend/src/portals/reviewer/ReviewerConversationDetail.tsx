@@ -11,6 +11,7 @@ import {
   Button,
   Skeleton,
   DiscoveryProvenancePanel,
+  EmptyState,
 } from '../../components/ui';
 
 export function ReviewerConversationDetail() {
@@ -101,12 +102,20 @@ export function ReviewerConversationDetail() {
 
       <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
         <Card className="min-w-0">
-          <ChatMessageList
-            messages={messages}
-            className="max-h-[520px]"
-            showTyping={sending}
-            highlightedMessageId={highlightedMessageId}
-          />
+          {messages.length === 0 ? (
+            <EmptyState
+              title="No transcript yet"
+              description="Messages will appear here after the employee starts the interview."
+              className="py-10"
+            />
+          ) : (
+            <ChatMessageList
+              messages={messages}
+              className="max-h-[520px]"
+              showTyping={sending}
+              highlightedMessageId={highlightedMessageId}
+            />
+          )}
         </Card>
 
         <Card title="Discovery provenance" className="min-w-0 lg:sticky lg:top-6">

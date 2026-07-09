@@ -17,12 +17,16 @@ export function ReviewerConversations() {
   const token = useReviewerToken();
   const [conversations, setConversations] = useState<ConversationRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (!token || !companyId) return;
+    setLoading(true);
+    setError('');
     api
       .reviewerConversations(token, Number(companyId))
       .then((d) => setConversations(d.conversations))
+      .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load conversations'))
       .finally(() => setLoading(false));
   }, [token, companyId]);
 
@@ -67,7 +71,12 @@ export function ReviewerConversations() {
         ]}
         rows={conversations as ConversationRow[]}
         onRowClick={(c) => navigate(`/reviewer/companies/${companyId}/conversations/${c.id}`)}
-        emptyState={<EmptyState title="No conversations" />}
+        emptyState={
+          <EmptyState
+            title={error ? 'Unable to load conversations' : 'No conversations'}
+            description={error || 'Employee interview transcripts will appear here once interviews begin.'}
+          />
+        }
       />
     </div>
   );

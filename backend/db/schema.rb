@@ -662,10 +662,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_28_000001) do
     t.string "status", default: "draft", null: false
     t.string "meta_message_id"
     t.datetime "sent_at"
-    t.bigint "message_id"
-    t.bigint "review_discussion_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "message_id"
+    t.bigint "review_discussion_id"
     t.index ["company_id"], name: "index_reviewer_info_requests_on_company_id"
     t.index ["conversation_id"], name: "index_reviewer_info_requests_on_conversation_id"
     t.index ["employee_id", "status"], name: "index_reviewer_info_requests_awaiting_reply", where: "((status)::text = 'awaiting_reply'::text)"

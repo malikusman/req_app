@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, type AppNotification, type ReviewerFollowupRow } from '../../lib/api';
 import { useReviewerToken } from '../../lib/auth';
-import { PageHeader, Card, Badge, EmptyState, Button } from '../../components/ui';
+import { PageHeader, Card, Badge, EmptyState, Button, Skeleton } from '../../components/ui';
 import { cn } from '../../lib/cn';
 
 type InboxTab = 'followups' | 'notifications';
@@ -41,6 +41,8 @@ export function ReviewerFollowups() {
     return (
       <div className="space-y-6">
         <PageHeader title="Inbox" description="Loading…" />
+        <Skeleton variant="card" />
+        <Skeleton variant="card" />
       </div>
     );
   }
@@ -78,7 +80,7 @@ export function ReviewerFollowups() {
         ))}
       </div>
 
-      {error && <p className="text-sm text-status-error">{error}</p>}
+      {error && <p className="text-sm text-destructive">{error}</p>}
 
       {tab === 'followups' && (
         <>
@@ -90,17 +92,17 @@ export function ReviewerFollowups() {
                 <Card key={f.id}>
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <p className="m-0 text-sm text-text-secondary">{f.company_name}</p>
-                      <h3 className="m-0 font-medium text-text-primary">
+                      <p className="m-0 text-sm text-muted-foreground">{f.company_name}</p>
+                      <h3 className="m-0 font-medium text-foreground">
                         {f.employee_name || `Employee #${f.employee_id}`}
                       </h3>
-                      <p className="mt-2 text-sm text-text-secondary">{f.last_message}</p>
+                      <p className="mt-2 text-sm text-muted-foreground">{f.last_message}</p>
                     </div>
                     <div className="flex flex-col items-end gap-2">
                       <Badge variant={f.status === 'awaiting_reply' ? 'warning' : 'info'}>
                         {f.status.replace(/_/g, ' ')}
                       </Badge>
-                      <span className="text-xs text-text-secondary">{new Date(f.updated_at).toLocaleString()}</span>
+                      <span className="text-xs text-muted-foreground">{new Date(f.updated_at).toLocaleString()}</span>
                       <Link
                         to={`/reviewer/companies/${f.company_id}/employees/${f.employee_id}/followup`}
                         className="text-sm font-medium text-accent hover:underline"

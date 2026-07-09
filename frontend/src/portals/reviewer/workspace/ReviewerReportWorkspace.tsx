@@ -3,7 +3,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { Check, ChevronRight, FileText, MessageSquare } from 'lucide-react';
 import { api, type ReviewerReportWorkspacePayload } from '../../../lib/api';
 import { useReviewerToken } from '../../../lib/auth';
-import { Badge, Button, Card, ConfirmDialog, Skeleton, StatCard, Textarea } from '../../../components/ui';
+import { Badge, Button, Card, ConfirmDialog, PageHeader, Skeleton, StatCard, Textarea } from '../../../components/ui';
 import { cn } from '../../../lib/cn';
 import { ReviewerAnnotationRail } from './ReviewerAnnotationRail';
 import { ReviewerChatDrawer } from './ReviewerChatDrawer';
@@ -85,7 +85,7 @@ export function ReviewerReportWorkspace() {
       setNote(data.review.overall_note || '');
       noteSeeded.current = true;
     }
-  }, [token, companyId, reportId]);
+  }, [token, companyId, reportId, setNote]);
 
   useEffect(() => {
     if (!token || !companyId || !reportId) return;
@@ -324,42 +324,42 @@ export function ReviewerReportWorkspace() {
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
-      <header className="shrink-0 border-b border-border bg-card/80 px-4 py-3 backdrop-blur-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="m-0 text-xs font-medium uppercase tracking-wide text-muted-foreground">Report review workspace</p>
-            <h1 className="truncate text-lg font-semibold text-foreground">
-              {workspace.company.name} · v{workspace.report.version}
-            </h1>
-            <p className="m-0 text-sm text-muted-foreground">
-              Step {currentStepIndex + 1} of {WORKSPACE_STEPS.length} — {WORKSPACE_STEPS[currentStepIndex]?.label}
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={submitted ? 'success' : 'warning'}>{workspace.review.status}</Badge>
-            {hasCoReviewers && (
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => handleChatOpenChange(true)}
-                icon={<MessageSquare className="h-4 w-4" />}
-                className="relative"
-              >
-                Chat
-                {chatUnread && <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-accent" />}
+      <div className="shrink-0 border-b border-border bg-card/80 px-4 py-3 backdrop-blur-sm">
+        <PageHeader
+          title={`${workspace.company.name} · v${workspace.report.version}`}
+          description={`Step ${currentStepIndex + 1} of ${WORKSPACE_STEPS.length} — ${WORKSPACE_STEPS[currentStepIndex]?.label}`}
+          breadcrumbs={[
+            { label: 'Dashboard', href: '/reviewer/dashboard' },
+            { label: workspace.company.name, href: `/reviewer/companies/${companyId}` },
+            { label: 'Report workspace' },
+          ]}
+          actions={
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant={submitted ? 'success' : 'warning'}>{workspace.review.status}</Badge>
+              {hasCoReviewers && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => handleChatOpenChange(true)}
+                  icon={<MessageSquare className="h-4 w-4" />}
+                  className="relative"
+                >
+                  Chat
+                  {chatUnread && <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-accent" />}
+                </Button>
+              )}
+              <Button variant="secondary" size="sm" onClick={() => setPdfOpen(true)} icon={<FileText className="h-4 w-4" />}>
+                Client PDF
               </Button>
-            )}
-            <Button variant="secondary" size="sm" onClick={() => setPdfOpen(true)} icon={<FileText className="h-4 w-4" />}>
-              Client PDF
-            </Button>
-            {!submitted && activeStep === 'submit' && (
-              <Button size="sm" onClick={() => setConfirmSubmitOpen(true)}>
-                Submit review
-              </Button>
-            )}
-          </div>
-        </div>
-      </header>
+              {!submitted && activeStep === 'submit' && (
+                <Button size="sm" onClick={() => setConfirmSubmitOpen(true)}>
+                  Submit review
+                </Button>
+              )}
+            </div>
+          }
+        />
+      </div>
 
       <div
         className={cn(

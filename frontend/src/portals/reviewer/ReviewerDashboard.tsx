@@ -54,6 +54,15 @@ export function ReviewerDashboard() {
 
   const stats = data?.stats;
   const companies = data?.companies ?? [];
+  const actionQueue = [...(data?.attention_items ?? [])].sort((a, b) => {
+    const rank = (status: string | null) => {
+      if (!status || status === 'pending') return 0;
+      if (status === 'needs_info') return 1;
+      if (status === 'in_review') return 2;
+      return 3;
+    };
+    return rank(a.review_status) - rank(b.review_status);
+  });
 
   return (
     <DashboardShell
@@ -62,7 +71,7 @@ export function ReviewerDashboard() {
       loading={loading}
       banner={
         data && data.profile.profile_status !== 'published' && data.profile.profile_completeness_percent != null ? (
-          <div className="rounded-card border border-accent/30 bg-surface-muted px-4 py-3 text-sm text-text-primary">
+          <div className="rounded-lg border border-accent/30 bg-muted px-4 py-3 text-sm text-foreground">
             Your expert profile is {data.profile.profile_completeness_percent}% complete.{' '}
             <Link to="/reviewer/profile" className="font-medium text-accent hover:underline">
               Complete your profile →
@@ -90,18 +99,18 @@ export function ReviewerDashboard() {
       {data && (
         <>
           <div className="grid gap-4 lg:grid-cols-2">
-            <Card title="Needs your attention">
-              {data.attention_items.length === 0 ? (
+            <Card title={`Action queue (${actionQueue.length})`}>
+              {actionQueue.length === 0 ? (
                 <EmptyState title="All caught up" description="No report reviews waiting on you right now." />
               ) : (
                 <div className="space-y-3">
-                  {data.attention_items.map((item) => (
+                  {actionQueue.map((item) => (
                     <div
                       key={`${item.company_id}-${item.report_id}`}
-                      className="flex flex-wrap items-center justify-between gap-3 rounded-card border border-border bg-surface-muted px-4 py-3"
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted px-4 py-3"
                     >
                       <div>
-                        <p className="m-0 font-medium text-text-primary">{item.company_name}</p>
+                        <p className="m-0 font-medium text-foreground">{item.company_name}</p>
                         <div className="mt-2 flex flex-wrap gap-2">
                           <Badge variant="info">Report v{item.report_version}</Badge>
                           <Badge variant={reviewStatusVariant(item.review_status)}>
@@ -129,14 +138,14 @@ export function ReviewerDashboard() {
                   {data.recent_followups.map((f) => (
                     <div
                       key={f.id}
-                      className="flex flex-wrap items-start justify-between gap-3 rounded-card border border-border bg-surface-muted px-4 py-3"
+                      className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-border bg-muted px-4 py-3"
                     >
                       <div>
-                        <p className="m-0 text-sm text-text-secondary">{f.company_name}</p>
-                        <p className="m-0 font-medium text-text-primary">
+                        <p className="m-0 text-sm text-muted-foreground">{f.company_name}</p>
+                        <p className="m-0 font-medium text-foreground">
                           {f.employee_name || `Employee #${f.employee_id}`}
                         </p>
-                        <p className="mt-1 line-clamp-2 text-sm text-text-secondary">{f.last_message}</p>
+                        <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{f.last_message}</p>
                       </div>
                       <div className="flex flex-col items-end gap-2">
                         <Badge variant={f.status === 'awaiting_reply' ? 'warning' : 'info'}>
@@ -162,7 +171,7 @@ export function ReviewerDashboard() {
           </div>
 
           <section className="space-y-4">
-            <h2 className="m-0 text-lg font-medium text-text-primary">Assigned companies</h2>
+            <h2 className="m-0 text-lg font-medium text-foreground">Assigned companies</h2>
             {companies.length === 0 ? (
               <EmptyState
                 title="No companies assigned yet"
@@ -174,7 +183,7 @@ export function ReviewerDashboard() {
                   <Link key={c.id} to={`/reviewer/companies/${c.id}`} className="block no-underline">
                     <AnimatedCard>
                       <Card className="h-full transition-shadow hover:shadow-md">
-                        <h3 className="m-0 font-medium text-text-primary">{c.name}</h3>
+                        <h3 className="m-0 font-medium text-foreground">{c.name}</h3>
                         <div className="mt-3 flex flex-wrap gap-2">
                           <Badge variant="info">{c.report_readiness_score}% readiness</Badge>
                           <Badge variant="neutral">
@@ -192,7 +201,7 @@ export function ReviewerDashboard() {
                           )}
                         </div>
                         {c.co_reviewer_count > 0 && (
-                          <p className="mt-2 text-xs text-text-secondary">
+                          <p className="mt-2 text-xs text-muted-foreground">
                             {c.co_reviewer_count} co-reviewer{c.co_reviewer_count === 1 ? '' : 's'}
                           </p>
                         )}

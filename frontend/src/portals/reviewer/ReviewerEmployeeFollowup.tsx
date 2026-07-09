@@ -89,7 +89,7 @@ export function ReviewerEmployeeFollowup() {
         ]}
       />
 
-      {error && <p className="text-sm text-status-error">{error}</p>}
+      {error && <p className="text-sm text-destructive">{error}</p>}
 
       {threads.length === 0 ? (
         <EmptyState title="No thread yet" description="Send a follow-up message to start the conversation." />

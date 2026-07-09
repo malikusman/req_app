@@ -1,9 +1,9 @@
 # Reviewer Module Redesign — Working Doc & Handoff
 
-> **Status:** Phase 0 in progress (WIP committed & pushed)
+> **Status:** Phase 0 complete, Phase 1 started
 > **Branch:** `reviewer-redesign` (branched from `main` @ `01d5d3c`)
 > **Last commit:** `e33e7ee` — "Reviewer module Phase 0 (WIP): remove dead code, fix workspace bugs, rebuild company overview"
-> **Last updated:** 2026-07-08
+> **Last updated:** 2026-07-09
 > **Author of this pass:** Claude Code (handing off to Cursor)
 
 This doc is the single source of truth for the reviewer-portal overhaul. Read it top to
@@ -133,7 +133,7 @@ a11y audit, reduced-motion, final screenshots, and a proper `<title>`.
 
 ## 5. Status — done vs left
 
-### ✅ Done in Phase 0 (committed `e33e7ee`, builds clean: `tsc -b && vite build`)
+### ✅ Done in Phase 0
 - **0a Dead code removed:**
   - Deleted `ReviewerChat.tsx` + its route + import.
   - Deleted `ReviewerReportReview.tsx` shim; review route now renders `ReviewerReportWorkspace` directly.
@@ -147,33 +147,29 @@ a11y audit, reduced-motion, final screenshots, and a proper `<title>`.
 - **0e (partial):** Company Overview rebuilt into a hub (report card + interview roster linking
   to transcripts + quick actions + collaboration state) using existing `reviewerCompany` +
   `reviewerConversations` APIs; added optional `action` slot to shared `ui/Card`.
+- **0b Token unification complete:** replaced remaining reviewer-portal token aliases with
+  semantic Pulse tokens across dashboard, inbox, profile, co-reviewer chat, and follow-up pages.
+- **0e state pass complete:** added/normalized loading skeletons and empty/error states where
+  reviewer pages were thin.
+- **Visual verification complete:** captured screenshots under `docs/reviewer-screenshots/`:
+  dashboard, company overview, inbox, conversations, workspace all six steps, submit dialog, and mobile sections rail.
 
 ### ⛔ Left in Phase 0
-- **0b Token unification (light pass):** replace remaining `text-text-secondary` /
-  `text-text-primary` / `bg-surface-muted` / `rounded-card` / `rounded-button` / `rounded-badge`
-  aliases with Pulse semantic tokens across `ReviewerDashboard.tsx`, `ReviewerFollowups.tsx`,
-  `ReviewerProfile.tsx`, `ReviewerCoReviewerChatPanel.tsx`, `ReviewerConversationDetail.tsx`,
-  `ReviewerEmployeeFollowup.tsx`. Also sweep for any remaining `emerald-*`/hardcoded colors and
-  native `<select>` vs the shared `Select`. **These resolve correctly today — cosmetic/consistency only.**
-- **0e Finish empty/error states:** audit each reviewer page for a loading skeleton, a guiding
-  empty state, and an error state (several only handle loading).
-- **Visual verification (screenshots):** NOT yet done for the new changes — see §7 (local env
-  blocker). Build passes but the changes haven't been eyeballed running.
+- No remaining Phase 0 blockers.
 
 ---
 
-## 6. Open product decisions (BLOCK Phase 2 — get answers before building it)
+## 6. Product decisions for Phase 2
 
-1. **Can reviewers amend report content, or only comment/approve?** Verify backend support first
-   (look in `backend/app/controllers/api/v1/reviewer/review_workspace_controller.rb` and the
-   report/section models). If no edit capability exists, Phase 2 amend = new backend work.
-2. **Amend model if supported:** direct edit of the report snapshot vs *suggestions* the platform
-   accepts on approval? (Governance implication — recommend suggestions, not direct edits.)
-3. **Employee follow-up placement:** keep the follow-up composer inside the transcript
-   (`ReviewerTranscriptPanel`) as the single path, or also expose "ask this employee" from
-   findings/sections? (Backend `createReviewDiscussion` with `target_type: 'employee'` already supports anchored asks.)
-4. **Co-reviewer depth:** is chat + activity enough, or do we want @mentions / unread counts /
-   read receipts? (Affects notification + data model scope.)
+1. **Amend capability (backend reality check):** current reviewer backend supports section states,
+   comments, discussions, and submit (`ReviewWorkspaceController` + review endpoints), but does
+   **not** support direct report text edits. Phase 2 amend therefore requires new backend work.
+2. **Recommended amend model:** add **suggestions** (with platform acceptance) rather than direct
+   report snapshot edits, to preserve governance and auditability.
+3. **Employee follow-up placement:** keep transcript composer as primary path and also expose
+   anchored ask from findings/sections where context exists.
+4. **Co-reviewer depth:** ship Phase 2 with chat + activity + unread first; defer mentions/read
+   receipts unless product pushes collaboration depth further.
 
 ---
 
@@ -185,20 +181,17 @@ docker compose run --rm --no-deps frontend sh -c "npm run build"   # tsc -b && v
 docker compose run --rm --no-deps frontend sh -c "npm run lint"
 ```
 
-### Local dev preview — ⚠️ blocker
-- Port **3000 is occupied by another project (`helios-platform`)**, and this repo's Vite dev proxy
-  (`frontend/vite.config.ts`) targets `http://localhost:3000`, so the local frontend can't reach
-  this app's Rails. Our Rails container also isn't running locally.
-- **Options for Cursor:**
-  1. Stop `helios-platform`, bring up this stack (`docker compose up -d`), seed
-     (`docker compose run --rm rails bundle exec rails db:seed`), dev at `localhost:5173`.
-  2. Temporary, non-invasive: point the Vite proxy at production to eyeball UI against real data —
-     set `server.proxy['/api'].target` to `https://req.pebbleintelligentsolutions.com` (+ `secure:false`),
-     restart the frontend container, screenshot, then **revert**. (Read-only navigation only —
-     do NOT click submit/destructive actions against prod.)
-- **Screenshot harness** used this session lives in the scratchpad (`reviewer-shots.mjs`): a
-  dockerized `puppeteer-core` + Chromium script that logs in as `reviewer@reqapp.local` /
-  `password123` and captures each reviewer screen. Reuse/adapt it for before/after shots.
+### Local dev preview (working setup)
+- Bring stack up and seed:
+  `docker compose up -d`
+  `docker compose run --rm rails bundle exec rails db:migrate db:seed`
+- Dev at `http://localhost:5173`.
+- Vite now supports a configurable proxy target (`VITE_PROXY_TARGET`) and `allowedHosts: true`
+  for Dockerized screenshot/QA flows.
+- Rails development host allowlist includes Docker preview hostnames (`frontend`, `rails`,
+  `host.docker.internal`) so reviewer login works during containerized browser checks.
+- Screenshot harness: `scripts/manual_test/capture_reviewer_screenshots.mjs` (plus containerized
+  Playwright runner) with outputs in `docs/reviewer-screenshots/`.
 
 ### Seeded reviewer logins
 - `reviewer@reqapp.local` / `password123` — published profile, assigned to Acme + Beta (solo on each).
@@ -218,9 +211,6 @@ docker compose run --rm --no-deps frontend sh -c "npm run lint"
 ---
 
 ## 9. Suggested next actions for Cursor (in order)
-1. Get a working preview (see §7) and **screenshot the Phase 0 changes** — verify the workspace
-   (all 6 steps), the new Company Overview, and mobile widths actually look right.
-2. Finish **Phase 0b** (token sweep) and **Phase 0e** (empty/error states); rebuild; commit.
-3. Answer the **§6 decisions** with the product owner.
-4. Start **Phase 1** (dashboard action queue + Company Overview intelligence preview + shared page shell).
-5. Keep this doc updated — flip statuses as phases land.
+1. Continue **Phase 1** implementation and polish.
+2. Validate Phase 2 scope with product owner using §6 recommendations.
+3. Keep this doc updated as Phase 1 and Phase 2 land.
