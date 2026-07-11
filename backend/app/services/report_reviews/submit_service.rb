@@ -2,6 +2,8 @@
 
 module ReportReviews
   class SubmitService
+    class IncompleteReviewError < ArgumentError; end
+
     def self.call(report_review:)
       new(report_review: report_review).call
     end
@@ -15,7 +17,10 @@ module ReportReviews
     def call
       raise ArgumentError, "Review already submitted" if @report_review.submitted?
 
-      @report_review.submit!
+      validate_completeness!
+
+      status = needs_info? ? "needs_info" : "approved"
+      @report_review.update!(submitted_at: Time.current, status: status)
 
       NotificationService.notify_review_submitted(report: @report, reviewer: @report_review.reviewer_user)
 
@@ -24,6 +29,42 @@ module ReportReviews
     end
 
     private
+
+    def validate_completeness!
+      states = @report_review.report_review_section_states.index_by(&:section_key)
+      incomplete = ReportSections::KEYS.reject do |key|
+        state = states[key]
+        state && state.status.in?(%w[approved needs_info])
+      end
+      if incomplete.any?
+        raise IncompleteReviewError,
+              "All sections must be approved or needs_info before submit (pending: #{incomplete.join(', ')})"
+      end
+
+      if @report_review.overall_note.to_s.strip.blank?
+        raise IncompleteReviewError, "Overall conclusion is required before submit"
+      end
+
+      needs_info_keys = ReportSections::KEYS.select { |key| states[key]&.status == "needs_info" }
+      needs_info_keys.each do |key|
+        has_comment = @report_review.report_review_comments.where(section_key: key).exists?
+        next if has_comment
+
+        raise IncompleteReviewError,
+              "Section #{key} marked needs_info requires an explanatory comment"
+      end
+
+      return unless defined?(ReportReviewFinding) && ReportReviewFinding.table_exists?
+
+      findings = @report_review.report_review_findings
+      unless findings.where(finding_type: "executive_conclusion", publishable: true).exists?
+        raise IncompleteReviewError, "A publishable executive conclusion finding is required"
+      end
+    end
+
+    def needs_info?
+      @report_review.report_review_section_states.any? { |s| s.status == "needs_info" }
+    end
 
     def check_all_submitted!
       active_reviewer_ids = @company.reviewer_assignments.active.pluck(:reviewer_user_id)

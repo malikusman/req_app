@@ -197,6 +197,41 @@ class NotificationService
     )
   end
 
+  def self.notify_outreach_pending_admin(outreach:)
+    admins = outreach.company.company_users.where(role: "company_admin", status: "active")
+    reviewer_name = outreach.reviewer_user.name
+    notify(
+      type: :outreach_pending_admin,
+      company: outreach.company,
+      recipients: admins,
+      title: "Reviewer outreach awaiting approval",
+      body: "#{reviewer_name} requested to contact a #{outreach.recipient_type.tr('_', ' ')} via #{outreach.channel}.",
+      action_url: "#{app_host}/company/outreaches/#{outreach.id}",
+      metadata: {
+        outreach_id: outreach.id,
+        reviewer_user_id: outreach.reviewer_user_id,
+        purpose: outreach.purpose,
+        channel: outreach.channel
+      }
+    )
+  end
+
+  def self.notify_outreach_reply(outreach:, reply:)
+    notify(
+      type: :outreach_reply,
+      company: outreach.company,
+      recipients: outreach.reviewer_user,
+      title: "Reply to your outreach",
+      body: reply.body.to_s.truncate(200),
+      action_url: "#{app_host}/reviewer/companies/#{outreach.company_id}/outreaches/#{outreach.id}",
+      metadata: {
+        outreach_id: outreach.id,
+        reply_id: reply.id,
+        channel: reply.channel
+      }
+    )
+  end
+
   def self.notify_platform_admins(type:, company:, title:, body:, action_url: nil, metadata: {})
     recipients = PlatformUser.all
     notify(

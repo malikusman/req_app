@@ -2,3 +2,11 @@ mark_abandoned_conversations:
   cron: "0 * * * *"
   class: MarkAbandonedConversationsJob
   queue: default
+catalog_sync_all_sources:
+  cron: "0 */12 * * *"
+  class: CatalogSyncAllSourcesJob
+  queue: default
+generate_employee_value_digests:
+  cron: "0 9 1 * *"
+  class: GenerateEmployeeValueDigestsJob
+  queue: default

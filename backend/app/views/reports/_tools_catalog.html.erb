@@ -1,0 +1,36 @@
+<% company_name = snapshot.dig("company", "name") %>
+<% tools = Array(snapshot.dig("tools_catalog", "curated_matches")) %>
+<% docs = Array(snapshot["supporting_documents"]) %>
+<% if tools.any? || docs.any? %>
+<section class="page">
+  <div class="eyebrow">Capabilities & evidence</div>
+  <h1 style="font-size:28pt;margin:4mm 0 4mm;">Recommended capabilities</h1>
+  <% if tools.any? %>
+    <div class="card-grid-3">
+      <% tools.each do |tool| %>
+        <div class="rec-card">
+          <div class="match"><%= h tool["category"] %></div>
+          <h4><%= h tool["name"] %></h4>
+          <% if tool["vendor"].present? %><p><%= h tool["vendor"] %></p><% end %>
+          <% if tool["reason"].present? %><p><%= h tool["reason"] %></p><% end %>
+        </div>
+      <% end %>
+    </div>
+    <p class="method" style="margin-top:4mm;"><%= h snapshot.dig("tools_catalog", "disclaimer") %></p>
+  <% end %>
+
+  <% if docs.any? %>
+    <div class="eyebrow" style="margin-top:8mm;">Internal documents cited</div>
+    <div class="card-grid-3">
+      <% docs.each do |doc| %>
+        <div class="media-card">
+          <div class="k"><%= h doc["filename"] %></div>
+          <div class="c"><%= h [doc["document_type"], doc["department"]].compact.join(" · ") %></div>
+          <% if doc["summary"].present? %><p><%= h doc["summary"].to_s.truncate(180) %></p><% end %>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+  <%= render "reports/page_footer", company_name: company_name %>
+</section>
+<% end %>

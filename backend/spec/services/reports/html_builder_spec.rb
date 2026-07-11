@@ -51,7 +51,7 @@ RSpec.describe Reports::HtmlBuilder do
       ]
     )
 
-    expect(html).to include("Reviewer notes")
+    expect(html).to include("Expert validation").or include("Reviewer notes")
     expect(html).to include("Alex Expert")
     expect(html).to include("Clarify SAP pain with finance lead.")
     expect(html).to include("A4 landscape")

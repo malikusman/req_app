@@ -1,0 +1,26 @@
+<p>Hi <%= @employee.display_name || "there" %>,</p>
+<p><%= @content["greeting"] %></p>
+<h3>What we heard</h3>
+<ul>
+  <% Array(@content["heard"]).each do |item| %>
+    <li><%= item %></li>
+  <% end %>
+</ul>
+<h3>Practical tips</h3>
+<ul>
+  <% Array(@content["tips"]).each do |item| %>
+    <li><%= item %></li>
+  <% end %>
+</ul>
+<% if Array(@content["tools"]).any? %>
+  <h3>Tools that may help your role</h3>
+  <ul>
+    <% Array(@content["tools"]).each do |tool| %>
+      <li><strong><%= tool["name"] %></strong><% if tool["why"].present? %> — <%= tool["why"] %><% end %></li>
+    <% end %>
+  </ul>
+<% end %>
+<% if @content["team_theme"].present? %>
+  <p><%= @content["team_theme"] %></p>
+<% end %>
+<p>This digest is private to you and based on your own interview plus approved, aggregated themes.</p>

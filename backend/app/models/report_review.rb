@@ -7,6 +7,7 @@ class ReportReview < ApplicationRecord
 
   has_many :report_review_section_states, dependent: :destroy
   has_many :report_review_comments, dependent: :destroy
+  has_many :report_review_findings, dependent: :destroy
 
   STATUSES = %w[pending in_review needs_info approved rejected].freeze
 

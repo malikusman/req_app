@@ -176,6 +176,23 @@ module ReportsHelper
     "Source: Req discovery #{ver} · #{company_name}"
   end
 
+  SECTION_LABELS = {
+    "executive_summary" => "Executive summary",
+    "readiness" => "Readiness",
+    "participation" => "Participation",
+    "signals" => "Signals",
+    "patterns" => "Patterns",
+    "recommendations" => "Recommendations",
+    "supporting_media" => "Supporting media",
+    "methodology" => "Methodology",
+    "tools_catalog" => "Recommended capabilities"
+  }.freeze
+
+  def section_label(section_key)
+    SECTION_LABELS.fetch(section_key.to_s) { section_key.to_s.humanize }
+  end
+  module_function :section_label
+
   def report_priority_matrix_svg(recommendations)
     points = []
     Array(recommendations).each_with_index do |rec, i|

@@ -61,14 +61,27 @@
   <%= render "reports/recommendations", snapshot: snapshot, recommendations: recommendations, report_version: report_version %>
 <% end %>
 
+<% if Array(snapshot.dig("tools_catalog", "curated_matches")).any? || Array(snapshot["supporting_documents"]).any? %>
+  <%= render "reports/tools_catalog", snapshot: snapshot, report_version: report_version %>
+<% end %>
+
 <% if supporting_media.any? %>
   <%= render "reports/supporting_media", snapshot: snapshot, supporting_media: supporting_media, report_version: report_version %>
 <% end %>
 
 <%= render "reports/methodology", snapshot: snapshot, report_version: report_version %>
 
-<% if review_notes.present? %>
-  <%= render "reports/review_appendix", snapshot: snapshot, review_notes: review_notes, report_version: report_version %>
+<% review_overlay = local_assigns.fetch(:review_overlay, nil) %>
+<% structured_findings = local_assigns.fetch(:structured_findings) { Array(review_overlay&.dig("structured_findings")) } %>
+<% section_dispositions = local_assigns.fetch(:section_dispositions) { Array(review_overlay&.dig("section_dispositions")) } %>
+<% if review_notes.present? || structured_findings.any? || section_dispositions.any? %>
+  <%= render "reports/review_appendix",
+        snapshot: snapshot,
+        review_notes: review_notes,
+        review_overlay: review_overlay,
+        structured_findings: structured_findings,
+        section_dispositions: section_dispositions,
+        report_version: report_version %>
 <% end %>
 </body>
 </html>

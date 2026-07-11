@@ -8,7 +8,8 @@ RSpec.describe Reports::RegenerateWithReviewService do
   let(:report) { create(:report, :ready, company: company) }
 
   before do
-    review = create(:report_review, report: report, reviewer_user: reviewer, company: company, overall_note: "Looks solid.")
+    review = create(:report_review, report: report, reviewer_user: reviewer, company: company,
+                                    overall_note: "Looks solid.", submitted_at: Time.current, status: "approved")
     create(:report_review_comment, report_review: review, reviewer_user: reviewer, section_key: "signals",
                                    body: "Add more finance evidence.")
     allow(Storage::MinioClient).to receive(:new).and_return(instance_double(Storage::MinioClient, upload: true))

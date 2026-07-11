@@ -55,8 +55,11 @@ export function CompanyDocuments() {
             placeholder="operations"
           />
         </div>
-        <FileDropzone accept=".pdf,.txt,.md,.csv" onFile={onUpload} />
+        <FileDropzone accept=".pdf,.txt,.md,.csv,.docx,.xlsx,.pptx,.jpg,.jpeg,.png,.webp" onFile={onUpload} />
         {uploading && <p className="mt-2 text-sm text-text-secondary">Uploading…</p>}
+        <p className="mt-2 text-xs text-text-secondary">
+          Supported: PDF, TXT, MD, CSV, DOCX, XLSX, PPTX, and images (max 25MB).
+        </p>
       </Card>
 
       <DataTable

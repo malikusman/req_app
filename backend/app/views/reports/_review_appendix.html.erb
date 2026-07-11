@@ -1,21 +1,24 @@
 <% company_name = snapshot.dig("company", "name") %>
 <% overall = Array(review_notes).select { |n| n["section_key"].blank? } %>
 <% section_notes = Array(review_notes).select { |n| n["section_key"].present? } %>
-<% reviewers = overall.map { |n| n["reviewer"] }.uniq %>
+<% dispositions = local_assigns.fetch(:section_dispositions) { Array(local_assigns[:review_overlay]&.dig("section_dispositions")) } %>
+<% findings = local_assigns.fetch(:structured_findings) { Array(local_assigns[:review_overlay]&.dig("structured_findings")) } %>
+<% reviewers = (overall + findings).map { |n| n["reviewer"] }.uniq %>
 
 <%= render "reports/divider",
       accent_label: "Appendix",
       accent_bg: "var(--blue)",
       eyebrow: "Appendix — included on platform-approved reports only",
-      title: "Reviewer notes",
-      lead: "Overall notes and section-level comments from expert review, gathered at platform approval. Live discussions and interview follow-up threads are collaboration tooling and are intentionally excluded from this deliverable.",
+      title: "Expert validation",
+      lead: "Overall notes, section dispositions, and publishable structured findings from expert review. Live discussions and interview follow-up threads are collaboration tooling and are intentionally excluded from this deliverable.",
       highlights: [
-        "<strong>#{reviewers.size}</strong> reviewer#{'s' unless reviewers.size == 1} contributed notes.".html_safe,
-        "<strong>#{section_notes.size}</strong> section comment#{'s' unless section_notes.size == 1} included.".html_safe
+        "<strong>#{reviewers.size}</strong> reviewer#{'s' unless reviewers.size == 1} contributed.".html_safe,
+        "<strong>#{findings.size}</strong> publishable finding#{'s' unless findings.size == 1}.".html_safe,
+        "<strong>#{section_notes.size}</strong> section comment#{'s' unless section_notes.size == 1}.".html_safe
       ] %>
 
 <section class="page">
-  <div class="eyebrow">Appendix · Reviewer notes</div>
+  <div class="eyebrow">Appendix · Expert validation</div>
   <h1 style="font-size:26pt;margin:4mm 0 5mm;">Overall notes</h1>
   <% if overall.any? %>
     <div class="split" style="grid-template-columns:1fr 1fr;">
@@ -28,21 +31,66 @@
       <% end %>
     </div>
   <% else %>
-    <p class="lead">No overall notes were submitted with this review.</p>
+    <p class="muted">No overall notes were recorded for this review cycle.</p>
+  <% end %>
+
+  <% if dispositions.any? %>
+    <h2 style="font-size:16pt;margin:8mm 0 3mm;">Section dispositions</h2>
+    <table class="data">
+      <thead>
+        <tr>
+          <th>Section</th>
+          <th>Reviewer</th>
+          <th>Disposition</th>
+          <th>Comment</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% dispositions.each do |row| %>
+          <tr>
+            <td><%= h ReportsHelper.section_label(row["section_key"]) %></td>
+            <td><%= h row["reviewer"] %></td>
+            <td><%= h row["disposition"].to_s.humanize %></td>
+            <td><%= h row["comment"] %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+
+  <% if findings.any? %>
+    <h2 style="font-size:16pt;margin:8mm 0 3mm;">Structured findings</h2>
+    <% findings.each do |finding| %>
+      <div class="card" style="margin-bottom:3mm;">
+        <div class="muted" style="font-size:8pt;text-transform:uppercase;letter-spacing:0.04em;">
+          <%= h finding["kind"].to_s.humanize %> · <%= h finding["severity"].to_s.humanize %> · <%= h finding["reviewer"] %>
+        </div>
+        <div style="font-weight:600;margin:1mm 0;"><%= h finding["title"] %></div>
+        <p style="margin:0;"><%= h finding["body"] %></p>
+        <% if finding["recommendation"].present? %>
+          <p class="muted" style="margin:2mm 0 0;"><strong>Recommendation:</strong> <%= h finding["recommendation"] %></p>
+        <% end %>
+      </div>
+    <% end %>
   <% end %>
 
   <% if section_notes.any? %>
-    <div class="eyebrow" style="margin-top:9mm;">Section comments</div>
-    <div class="review-list">
-      <div class="review-row head"><span class="sec">Section</span><span>Reviewer</span><span>Comment</span></div>
-      <% section_notes.each do |note| %>
-        <div class="review-row">
-          <span class="sec"><%= h note["section_key"].to_s.tr("_", " ") %></span>
-          <span><%= h note["reviewer"] %></span>
-          <span class="cmt"><%= h note["body"] %></span>
-        </div>
-      <% end %>
-    </div>
+    <h2 style="font-size:16pt;margin:8mm 0 3mm;">Section comments</h2>
+    <% section_notes.group_by { |n| n["section_key"] }.each do |section_key, notes| %>
+      <div style="margin-bottom:4mm;">
+        <div style="font-weight:600;margin-bottom:1mm;"><%= h ReportsHelper.section_label(section_key) %></div>
+        <% notes.each do |note| %>
+          <div class="reviewer-note" style="margin-bottom:2mm;">
+            <div class="who"><%= h note["reviewer"] %></div>
+            <p><%= h note["body"] %></p>
+          </div>
+        <% end %>
+      </div>
+    <% end %>
   <% end %>
-  <%= render "reports/page_footer", company_name: company_name %>
+
+  <div class="footer">
+    <div>Req · <%= h company_name %> · Confidential</div>
+    <div>Expert validation</div>
+  </div>
 </section>

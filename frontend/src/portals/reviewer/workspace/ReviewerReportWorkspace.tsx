@@ -12,6 +12,7 @@ import { ReviewerEmployeeProfileCard } from './ReviewerEmployeeProfileCard';
 import { ReviewerPdfDrawer } from './ReviewerPdfDrawer';
 import { ReviewerSectionContent } from './ReviewerSectionContent';
 import { ReviewerSharedFindingsPanel } from './ReviewerSharedFindingsPanel';
+import { ReviewerStructuredFindingsPanel } from './ReviewerStructuredFindingsPanel';
 import { ReviewerTranscriptPanel } from './ReviewerTranscriptPanel';
 import { EvidenceAskBubble } from './EvidenceAskBubble';
 import { ReviewDiscussionThreadList } from './ReviewDiscussionThreadList';
@@ -852,10 +853,15 @@ export function ReviewerReportWorkspace() {
               <Card title="Submit checklist">
                 <ul className="space-y-2 text-sm">
                   <li>{sectionsComplete(workspace.review.section_states) ? '✓' : '○'} All sections marked reviewed or needs clarification</li>
-                  <li>{workspace.review.overall_note ? '✓' : '○'} Overall note saved (optional but recommended)</li>
+                  <li>{workspace.review.overall_note ? '✓' : '○'} Overall conclusion saved</li>
                   <li>{workspace.co_reviewer_reviews.every((cr) => cr.status === 'submitted') ? '✓' : '○'} Co-reviewers submitted</li>
                 </ul>
               </Card>
+              <ReviewerStructuredFindingsPanel
+                companyId={Number(companyId)}
+                reportId={Number(reportId)}
+                readOnly={submitted}
+              />
               <Card title="Overall note">
                 <Textarea rows={5} value={note} disabled={submitted} onChange={(e) => setNote(e.target.value)} />
                 {!submitted && (

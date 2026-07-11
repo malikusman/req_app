@@ -212,6 +212,94 @@ export const api = {
   companyDocuments: (token: string) =>
     request<{ documents: CompanyDocument[] }>('/api/v1/company/documents', {}, token),
 
+  companyOutreaches: (token: string) =>
+    request<{ outreaches: Array<Record<string, unknown>> }>('/api/v1/company/outreaches', {}, token),
+
+  approveOutreach: (token: string, id: number, payload: { note?: string; edited_body?: string; employee_id?: number } = {}) =>
+    request<{ outreach: Record<string, unknown> }>(
+      `/api/v1/company/outreaches/${id}/approve`,
+      { method: 'POST', body: JSON.stringify(payload) },
+      token
+    ),
+
+  declineOutreach: (token: string, id: number, payload: { note?: string } = {}) =>
+    request<{ outreach: Record<string, unknown> }>(
+      `/api/v1/company/outreaches/${id}/decline`,
+      { method: 'POST', body: JSON.stringify(payload) },
+      token
+    ),
+
+  reviewerEvidenceGraph: (token: string, companyId: number) =>
+    request<{ graph: { nodes: Array<Record<string, unknown>>; edges: Array<Record<string, unknown>>; coverage: Record<string, unknown> } }>(
+      `/api/v1/reviewer/companies/${companyId}/evidence_graph`,
+      {},
+      token
+    ),
+
+  reviewerReportFindings: (token: string, companyId: number, reportId: number) =>
+    request<{ findings: Array<Record<string, unknown>> }>(
+      `/api/v1/reviewer/companies/${companyId}/reports/${reportId}/review/findings`,
+      {},
+      token
+    ),
+
+  createReviewerReportFinding: (
+    token: string,
+    companyId: number,
+    reportId: number,
+    payload: Record<string, unknown>
+  ) =>
+    request<{ finding: Record<string, unknown> }>(
+      `/api/v1/reviewer/companies/${companyId}/reports/${reportId}/review/findings`,
+      { method: 'POST', body: JSON.stringify({ finding: payload }) },
+      token
+    ),
+
+  companyMeetingRequests: (token: string) =>
+    request<{ meeting_requests: Array<Record<string, unknown>> }>('/api/v1/company/meeting_requests', {}, token),
+
+  approveMeetingRequest: (token: string, id: number, payload: { admin_note?: string; scheduled_at?: string; meeting_link?: string } = {}) =>
+    request<{ meeting_request: Record<string, unknown> }>(
+      `/api/v1/company/meeting_requests/${id}/approve`,
+      { method: 'POST', body: JSON.stringify(payload) },
+      token
+    ),
+
+  declineMeetingRequest: (token: string, id: number, payload: { admin_note?: string } = {}) =>
+    request<{ meeting_request: Record<string, unknown> }>(
+      `/api/v1/company/meeting_requests/${id}/decline`,
+      { method: 'POST', body: JSON.stringify(payload) },
+      token
+    ),
+
+  createReviewerMeetingRequest: (token: string, companyId: number, payload: Record<string, unknown>) =>
+    request<{ meeting_request: Record<string, unknown> }>(
+      `/api/v1/reviewer/companies/${companyId}/meeting_requests`,
+      { method: 'POST', body: JSON.stringify(payload) },
+      token
+    ),
+
+  platformCatalogCandidates: (token: string, reviewStatus?: string) =>
+    request<{ catalog_candidates: Array<Record<string, unknown>> }>(
+      `/api/v1/platform/catalog/candidates${reviewStatus ? `?review_status=${encodeURIComponent(reviewStatus)}` : ''}`,
+      {},
+      token
+    ),
+
+  approveCatalogCandidate: (token: string, id: number, payload: { review_note?: string; attributes?: Record<string, unknown> } = {}) =>
+    request<{ catalog_candidate: Record<string, unknown> }>(
+      `/api/v1/platform/catalog/candidates/${id}/approve`,
+      { method: 'POST', body: JSON.stringify(payload) },
+      token
+    ),
+
+  rejectCatalogCandidate: (token: string, id: number, payload: { review_note?: string } = {}) =>
+    request<{ catalog_candidate: Record<string, unknown> }>(
+      `/api/v1/platform/catalog/candidates/${id}/reject`,
+      { method: 'POST', body: JSON.stringify(payload) },
+      token
+    ),
+
   uploadDocument: async (token: string, file: File, department?: string) => {
     const form = new FormData();
     form.append('file', file);
@@ -1133,6 +1221,9 @@ export interface SolutionCatalogEntry {
   match_keywords: string[];
   active: boolean;
   partnership_tier: string;
+  entity_type?: string;
+  slug?: string | null;
+  published_at?: string | null;
 }
 
 export interface CompanyDocument {

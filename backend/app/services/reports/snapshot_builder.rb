@@ -51,7 +51,9 @@ module Reports
         "delta_from_previous" => @delta,
         "executive_summary" => executive_summary,
         "sections" => ReportSections::DEFINITIONS,
-        "supporting_media" => supporting_media_json
+        "supporting_media" => supporting_media_json,
+        "supporting_documents" => supporting_documents_json,
+        "tools_catalog" => tools_catalog_json
       }
     end
 
@@ -89,6 +91,86 @@ module Reports
           "confidence" => attachment.confidence
         }
       end
+    end
+
+    def supporting_documents_json
+      @company.documents.ready.order(created_at: :desc).limit(12).map do |doc|
+        {
+          "id" => doc.id,
+          "filename" => doc.filename,
+          "department" => doc.department,
+          "document_type" => doc.try(:document_type),
+          "sensitivity" => doc.try(:sensitivity),
+          "source" => doc.source,
+          "summary" => doc.insights_preview.is_a?(Hash) ? doc.insights_preview["summary"] : nil,
+          "chunk_count" => doc.insights_preview.is_a?(Hash) ? doc.insights_preview["chunk_count"] : nil
+        }
+      end
+    end
+
+    def tools_catalog_json
+      curated = []
+
+      if defined?(CompanyCatalogMatch) && CompanyCatalogMatch.table_exists?
+        curated = CompanyCatalogMatch
+          .where(company_id: @company.id)
+          .includes(:solution_catalog_entry)
+          .order(score: :desc)
+          .limit(12)
+          .map do |match|
+            entry = match.solution_catalog_entry
+            {
+              "solution_id" => entry.id,
+              "name" => entry.name,
+              "vendor" => entry.vendor,
+              "category" => entry.category,
+              "url" => entry.website_url,
+              "partnership_tier" => entry.partnership_tier,
+              "reason" => match.why_it_fits,
+              "score" => match.score,
+              "matched_at" => match.matched_at
+            }
+          end
+      end
+
+      if curated.empty?
+        matches = @company.recommendations.published.flat_map { |r| Array(r.catalog_matches) }
+        curated = matches.filter_map do |m|
+          next unless m.is_a?(Hash)
+
+          {
+            "solution_id" => m["solution_id"] || m[:solution_id],
+            "name" => m["name"] || m[:name],
+            "vendor" => m["vendor"] || m[:vendor],
+            "category" => m["category"] || m[:category],
+            "url" => m["url"] || m[:url],
+            "partnership_tier" => m["partnership_tier"] || m[:partnership_tier],
+            "reason" => m["reason"] || m[:reason]
+          }
+        end.uniq { |m| m["solution_id"] || m["name"] }
+      end
+
+      endorsements = []
+      if defined?(CatalogEndorsement) && CatalogEndorsement.table_exists?
+        endorsements = CatalogEndorsement
+          .where(company_id: @company.id, publishable: true)
+          .order(created_at: :desc)
+          .limit(20)
+          .map do |e|
+            {
+              "disposition" => e.disposition,
+              "rationale" => e.rationale,
+              "solution_catalog_entry_id" => e.solution_catalog_entry_id,
+              "reviewer_user_id" => e.reviewer_user_id
+            }
+          end
+      end
+
+      {
+        "curated_matches" => curated.first(8),
+        "endorsements" => endorsements,
+        "disclaimer" => "Catalog suggestions are advisory. Reviewer-validated picks are marked in the expert appendix."
+      }
     end
   end
 end

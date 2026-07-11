@@ -1,0 +1,19 @@
+Hi <%= @employee.display_name.presence || "there" %>,
+
+<%= @content["intro"].presence || "Here is your private workflow digest." %>
+
+<% Array(@content["insights"]).first(5).each do |insight| %>
+- <%= insight["summary"].presence || insight["type"] %>
+<% end %>
+
+<% if Array(@content["suggested_tools"]).any? %>
+Suggested tools for your role:
+<% Array(@content["suggested_tools"]).each do |tool| %>
+- <%= tool["name"] %><%= tool["why_it_fits"].present? ? " — #{tool["why_it_fits"]}" : "" %>
+<% end %>
+<% end %>
+
+<%= @content["privacy_note"].presence || "This digest never includes other employees' data." %>
+
+Thank you,
+<%= @company.display_name || @company.name %> via Req

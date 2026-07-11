@@ -8,6 +8,7 @@ import {
   ChevronRight,
   ClipboardCheck,
   MessagesSquare,
+  Network,
 } from 'lucide-react';
 import {
   api,
@@ -168,6 +169,26 @@ export function ReviewerCompanyOverview() {
                 description="A report will appear here once this company reaches readiness and one is generated."
               />
             )}
+          </Card>
+
+          <Card title="Evidence explorer">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <p className="m-0 text-sm text-muted-foreground">
+                Explore how interviews, documents, signals, and recommendations connect.
+              </p>
+              <Link to={`/reviewer/companies/${companyId}/evidence-graph`}>
+                <Button variant="secondary" icon={<Network className="h-4 w-4" />}>
+                  Open evidence graph
+                </Button>
+              </Link>
+            </div>
+          </Card>
+
+          <Card title="Request a meeting">
+            <p className="mb-3 text-sm text-muted-foreground">
+              Submit a call request for company-admin approval. Employees are contacted only after approval.
+            </p>
+            <MeetingRequestForm companyId={Number(companyId)} reportId={reportId} />
           </Card>
 
           <Card
@@ -353,6 +374,49 @@ export function ReviewerCompanyOverview() {
       </div>
 
       <ReviewerChatDrawer companyId={Number(companyId)} open={chatOpen} onOpenChange={setChatOpen} />
+    </div>
+  );
+}
+
+function MeetingRequestForm({ companyId, reportId }: { companyId: number; reportId?: number }) {
+  const token = useReviewerToken();
+  const [purpose, setPurpose] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
+
+  const submit = async () => {
+    if (!token || !purpose.trim()) return;
+    setSaving(true);
+    setMessage('');
+    try {
+      await api.createReviewerMeetingRequest(token, companyId, {
+        purpose: purpose.trim(),
+        report_id: reportId,
+        duration_minutes: 30,
+        urgency: 'normal',
+      });
+      setPurpose('');
+      setMessage('Meeting request submitted for company admin approval.');
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Failed to submit meeting request');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <textarea
+        className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+        rows={3}
+        value={purpose}
+        onChange={(e) => setPurpose(e.target.value)}
+        placeholder="Purpose, desired roles, and evidence gap to resolve…"
+      />
+      <Button size="sm" loading={saving} disabled={!purpose.trim()} onClick={submit}>
+        Request meeting
+      </Button>
+      {message && <p className="m-0 text-xs text-muted-foreground">{message}</p>}
     </div>
   );
 }

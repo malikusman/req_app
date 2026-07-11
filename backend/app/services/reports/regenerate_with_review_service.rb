@@ -16,10 +16,14 @@ module Reports
       raise ArgumentError, "Report not ready" unless @report.status == "ready"
       raise ArgumentError, "Report snapshot missing" if @report.report_snapshot.blank?
 
-      review_notes = ReviewNotesCollector.call(report: @report)
+      collector = ReviewNotesCollector.new(report: @report)
+      overlay = collector.respond_to?(:overlay) ? collector.overlay : nil
+      review_notes = overlay ? overlay["notes"] : collector.call
+
       html = HtmlBuilder.call(
         snapshot: @report.report_snapshot,
         review_notes: review_notes,
+        review_overlay: overlay,
         report_version: @report.version
       )
       upload_artifact!(html)

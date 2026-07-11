@@ -3,26 +3,22 @@
 module Intelligence
   class CatalogMatcher
     def self.call(signal:)
-      new(signal: signal).call
-    end
-
-    def initialize(signal:)
-      @signal = signal
-    end
-
-    def call
-      SolutionCatalogEntry.active.select do |entry|
-        tag_match = (entry.tags & [@signal.signal_type, *@signal.departments]).any?
-        keyword_match = entry.match_keywords.any? { |kw| @signal.label.downcase.include?(kw.downcase) }
-        tag_match || keyword_match
-      end.first(2).map do |entry|
+      Catalog::HybridMatcher.call(
+        query: signal.label.to_s,
+        tags: [signal.signal_type, *Array(signal.departments)],
+        keywords: signal.label.to_s.downcase.split(/\W+/).reject(&:blank?).first(6),
+        limit: 2
+      ).map do |match|
         {
-          solution_id: entry.id,
-          name: entry.name,
-          vendor: entry.vendor,
-          url: entry.website_url,
-          partnership_tier: entry.partnership_tier,
-          category: entry.category
+          solution_id: match[:solution_catalog_entry_id] || match[:solution_id] || match[:id],
+          name: match[:name],
+          vendor: match[:vendor],
+          url: match[:url] || match[:website_url],
+          partnership_tier: match[:partnership_tier],
+          category: match[:category],
+          score: match[:score],
+          reason: match[:reason],
+          matched_at: Time.current.iso8601
         }
       end
     end

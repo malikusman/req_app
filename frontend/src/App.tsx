@@ -43,6 +43,10 @@ import { ReviewerConversationDetail } from './portals/reviewer/ReviewerConversat
 import { ReviewerEmployeeFollowup } from './portals/reviewer/ReviewerEmployeeFollowup';
 import { ReviewerProfile } from './portals/reviewer/ReviewerProfile';
 import { DevUiShowcase } from './dev/DevUiShowcase';
+import { CompanyOutreaches } from './portals/company/CompanyOutreaches';
+import { CompanyMeetingRequests } from './portals/company/CompanyMeetingRequests';
+import { ReviewerEvidenceGraph } from './portals/reviewer/ReviewerEvidenceGraph';
+import { PlatformCatalogCandidates } from './portals/platform/PlatformCatalogCandidates';
 import { DiscoverLanding } from './employee/DiscoverLanding';
 import { DiscoverChat } from './employee/DiscoverChat';
 
@@ -110,6 +114,7 @@ export default function App() {
               <Route path="trials" element={<PlatformTrials />} />
               <Route path="playbooks" element={<PlatformPlaybooks />} />
               <Route path="solutions" element={<PlatformSolutions />} />
+              <Route path="catalog/candidates" element={<PlatformCatalogCandidates />} />
               <Route path="system" element={<PlatformSystem />} />
               <Route path="monitoring" element={<PlatformMonitoringPage />} />
               <Route path="reviewers" element={<PlatformReviewers />} />
@@ -132,6 +137,7 @@ export default function App() {
               <Route path="companies/:companyId/conversations" element={<ReviewerConversations />} />
               <Route path="companies/:companyId/conversations/:conversationId" element={<ReviewerConversationDetail />} />
               <Route path="companies/:companyId/employees/:employeeId/followup" element={<ReviewerEmployeeFollowup />} />
+              <Route path="companies/:companyId/evidence-graph" element={<ReviewerEvidenceGraph />} />
             </Route>
             <Route
               path="/company"
@@ -150,6 +156,8 @@ export default function App() {
               <Route path="intelligence/signals" element={<CompanySignals />} />
               <Route path="intelligence/patterns" element={<CompanyPatterns />} />
               <Route path="documents" element={<CompanyDocuments />} />
+              <Route path="outreaches" element={<CompanyOutreaches />} />
+              <Route path="meeting-requests" element={<CompanyMeetingRequests />} />
               <Route path="media" element={<CompanyMediaLibrary />} />
               <Route path="intelligence/timeline" element={<CompanyTimeline />} />
               <Route path="discovery-questions" element={<CompanyDiscoveryQuestions />} />
