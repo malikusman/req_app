@@ -39,7 +39,7 @@ export function ReviewerEvidenceGraph() {
     setLoading(true);
     api
       .reviewerEvidenceGraph(token, Number(companyId))
-      .then((d) => setGraph(d.graph))
+      .then((d) => setGraph(d.graph as GraphPayload))
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load graph'))
       .finally(() => setLoading(false));
   }, [token, companyId]);

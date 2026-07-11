@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { api } from '../../lib/api';
-import { useReviewerToken } from '../../lib/auth';
-import { Card, Button, Textarea, Select, Badge } from '../../components/ui';
+import { api } from '../../../lib/api';
+import { useReviewerToken } from '../../../lib/auth';
+import { Card, Button, Textarea, Select, Badge } from '../../../components/ui';
 
 type Finding = {
   id: number;

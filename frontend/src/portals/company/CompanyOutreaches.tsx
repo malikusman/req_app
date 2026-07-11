@@ -26,7 +26,7 @@ export function CompanyOutreaches() {
     if (!token) return;
     api
       .companyOutreaches(token)
-      .then((d) => setOutreaches(d.outreaches))
+      .then((d) => setOutreaches(d.outreaches as Outreach[]))
       .finally(() => setLoading(false));
   };
 
