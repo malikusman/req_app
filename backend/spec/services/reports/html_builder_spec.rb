@@ -51,8 +51,15 @@ RSpec.describe Reports::HtmlBuilder do
       ]
     )
 
-    expect(html).to include("Expert review notes")
+    expect(html).to include("Reviewer notes")
     expect(html).to include("Alex Expert")
     expect(html).to include("Clarify SAP pain with finance lead.")
+    expect(html).to include("A4 landscape")
+  end
+
+  it "passes report version onto the cover when provided" do
+    html = described_class.call(snapshot: snapshot, report_version: 3)
+
+    expect(html).to include("Version 3")
   end
 end

@@ -1,0 +1,18 @@
+<% company_name = snapshot.dig("company", "name") %>
+<% subtitle = snapshot["executive_summary"].to_s.split(".").first.presence %>
+<section class="page bleed cover">
+  <div class="art-panel"><%= render "reports/cover_art" %></div>
+  <div class="meta-panel">
+    <div class="logo">Req<span>Workflow Discovery</span></div>
+    <div>
+      <span class="tag">Discovery Report</span>
+      <h1><%= h company_name %></h1>
+      <% if subtitle.present? %>
+        <div class="sub"><%= h subtitle.truncate(120) %></div>
+      <% end %>
+      <div class="sub" style="font-size:11pt;margin-top:8mm;">
+        <% if report_version.present? %>Version <%= report_version %> · <% end %><%= generated_label %>
+      </div>
+    </div>
+  </div>
+</section>

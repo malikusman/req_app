@@ -1,23 +1,32 @@
-<% if participation.blank? %>
-  <p class="meta"><em>No participation data.</em></p>
-<% else %>
-  <table>
-    <thead>
-      <tr><th>Metric</th><th>Value</th></tr>
-    </thead>
-    <tbody>
-      <% participation.each do |key, value| %>
-        <tr>
-          <td><%= h key.to_s.tr('_', ' ').capitalize %></td>
-          <td>
-            <% if value.is_a?(Numeric) && value < 1 && key.to_s.include?('rate') %>
-              <%= (value.to_f * 100).round %>%
-            <% else %>
-              <%= value %>
-            <% end %>
-          </td>
-        </tr>
-      <% end %>
-    </tbody>
-  </table>
-<% end %>
+<% company_name = snapshot.dig("company", "name") %>
+<% participation = snapshot["participation"] || {} %>
+<% invited = participation["invited"].to_i %>
+<% started = participation["started"].to_i %>
+<% completed = participation["completed"].to_i %>
+<% rate = participation["completion_rate"] %>
+<% rate_pct = rate.nil? ? (invited.positive? ? ((completed.to_f / invited) * 100).round : 0) : report_pct(rate) %>
+<section class="page">
+  <div class="eyebrow">03 — Participation</div>
+  <h1 style="font-size:28pt;margin:4mm 0 3mm;">Who took part</h1>
+  <div class="split">
+    <div>
+      <p class="lead">
+        <%= completed %> of <%= invited %> invited employees completed the discovery interview<%= invited.positive? ? ", a #{rate_pct}% completion rate" : "" %>.
+      </p>
+      <p>Participation underpins readiness. Broader department coverage and completed interviews produce a clearer, more actionable picture of how work really happens.</p>
+    </div>
+    <div class="exhibit">
+      <div class="exlabel">Exhibit 2 · Interview participation</div>
+      <h3>Completion by stage.</h3>
+      <div class="funnel">
+        <div class="step"><div class="v"><%= invited %></div><div class="l">Invited</div></div>
+        <div class="step"><div class="v"><%= started %></div><div class="l">Started</div></div>
+        <div class="step"><div class="v"><%= completed %></div><div class="l">Completed</div></div>
+        <div class="step"><div class="v"><%= rate_pct %>%</div><div class="l">Completion</div></div>
+      </div>
+      <div class="caption"><%= h report_source_caption(company_name, version: report_version) %></div>
+      <div class="mark">Req</div>
+    </div>
+  </div>
+  <%= render "reports/page_footer", company_name: company_name %>
+</section>

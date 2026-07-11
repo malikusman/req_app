@@ -17,7 +17,11 @@ module Reports
       raise ArgumentError, "Report snapshot missing" if @report.report_snapshot.blank?
 
       review_notes = ReviewNotesCollector.call(report: @report)
-      html = HtmlBuilder.call(snapshot: @report.report_snapshot, review_notes: review_notes)
+      html = HtmlBuilder.call(
+        snapshot: @report.report_snapshot,
+        review_notes: review_notes,
+        report_version: @report.version
+      )
       upload_artifact!(html)
       @report
     end

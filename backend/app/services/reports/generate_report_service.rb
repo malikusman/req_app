@@ -17,7 +17,7 @@ module Reports
       previous = @report.previous_report
       delta = DeltaCalculator.call(company: @company, previous_report: previous)
       snapshot = SnapshotBuilder.call(company: @company, delta: delta)
-      html = HtmlBuilder.call(snapshot: snapshot)
+      html = HtmlBuilder.call(snapshot: snapshot, report_version: @report.version)
       pdf_bytes = PdfGenerator.call(html: html)
 
       content_type = pdf_bytes == html ? "text/html" : "application/pdf"

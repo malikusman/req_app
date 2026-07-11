@@ -1,0 +1,451 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Req — Discovery Report (landscape reference)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,800;1,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+ --ink:#051C2C;--blue:#1F40FF;--blue2:#5A7BFF;--cyan:#00A9F4;--teal:#14B8A6;--magenta:#E6338A;
+ --paper:#FFFFFF;--paper-soft:#F5F7FA;--hair:#D6DEE6;--muted:#5A6B78;
+ --cat-process:var(--blue);--cat-tooling:var(--cyan);--cat-people:var(--magenta);--cat-data:var(--teal);
+ --serif:"Playfair Display",Georgia,serif;--sans:"Inter","Helvetica Neue",Arial,sans-serif;
+ --pw:210mm;--ph:297mm;--pad:18mm;}
+@page{size:A4 portrait;margin:0;}
+*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+html,body{margin:0;padding:0;background:#e9edf1;color:var(--ink);font-family:var(--sans);}
+.refbar{background:#111;color:#fff;font-family:var(--sans);font-size:12px;padding:10px 16px;text-align:center;line-height:1.4;}
+.refbar b{color:#FFD34E;}
+@media print{.refbar{display:none;}}
+.page{position:relative;width:var(--pw);min-height:var(--ph);padding:var(--pad);margin:0 auto 10mm;background:var(--paper);overflow:hidden;page-break-after:always;break-after:page;}
+.page:last-child{page-break-after:auto;}
+.page.dark{background:var(--ink);color:#fff;}
+.page.bleed{padding:0;}
+.exhibit,.stat,.signal-card,.pattern-card,.rec-card,.highlight-box,figure,.lolli{break-inside:avoid;page-break-inside:avoid;}
+.footer{position:absolute;left:var(--pad);right:var(--pad);bottom:10mm;display:flex;justify-content:space-between;align-items:center;font-size:8pt;letter-spacing:.02em;color:var(--muted);border-top:1px solid var(--hair);padding-top:4mm;}
+.footer .brand{font-weight:600;color:var(--ink);}
+.dark .footer{color:rgba(255,255,255,.6);border-color:rgba(255,255,255,.18);}
+.dark .footer .brand{color:#fff;}
+h1,h2,h3,h4{font-family:var(--serif);font-weight:700;line-height:1.05;margin:0;}
+.eyebrow{font-family:var(--sans);font-weight:600;font-size:8.5pt;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);}
+p{font-size:9.5pt;line-height:1.5;margin:0 0 3mm;color:#20303c;}
+.lead{font-size:11pt;line-height:1.55;color:var(--ink);}
+strong{font-weight:600;}
+.serif-accent{color:var(--blue);}
+.cols-2{column-count:2;column-gap:10mm;}
+.cols-2 p:first-child{margin-top:0;}
+.dropcap::first-letter{font-family:var(--serif);font-weight:800;float:left;font-size:34pt;line-height:.8;padding:2pt 4pt 0 0;color:var(--ink);}
+/* cover */
+.cover{position:relative;height:var(--ph);background:var(--ink);color:#fff;}
+.cover svg{position:absolute;inset:0;width:100%;height:100%;}
+.cover .layer{position:absolute;inset:0;padding:18mm;display:flex;flex-direction:column;justify-content:space-between;}
+.cover .logo{font-family:var(--serif);font-size:16pt;font-weight:700;}
+.cover .logo span{display:block;font-size:9pt;font-family:var(--sans);font-weight:500;color:rgba(255,255,255,.65);letter-spacing:.02em;margin-top:1mm;}
+.cover .title-block{background:linear-gradient(to top,rgba(5,28,44,.96) 60%,transparent);padding-top:30mm;margin:-18mm;padding:30mm 18mm 18mm;}
+.cover .tag{display:inline-block;font-family:var(--sans);font-weight:600;font-size:8.5pt;letter-spacing:.12em;text-transform:uppercase;color:#fff;background:var(--blue);padding:2mm 4mm;border-radius:2px;}
+.cover h1{font-size:52pt;line-height:.98;margin-top:6mm;}
+.cover .sub{font-size:14pt;color:rgba(255,255,255,.8);font-family:var(--sans);font-weight:500;margin-top:4mm;}
+/* contents */
+.toc{display:grid;grid-template-columns:1fr 1fr;gap:0 14mm;margin-top:8mm;}
+.toc h2{font-size:34pt;grid-column:1/-1;margin-bottom:6mm;}
+.toc-item{display:grid;grid-template-columns:auto 1fr;gap:5mm;align-items:baseline;padding:4mm 0;border-top:2px solid var(--ink);}
+.toc-item .n{font-family:var(--serif);font-weight:700;font-size:14pt;}
+.toc-item .t{font-family:var(--sans);font-weight:600;font-size:10.5pt;}
+.toc-item .d{grid-column:2;font-size:8.5pt;color:var(--muted);margin-top:1mm;}
+.toc-item.rule-blue{border-top-color:var(--blue);}.toc-item.rule-teal{border-top-color:var(--teal);}.toc-item.rule-magenta{border-top-color:var(--magenta);}
+/* divider */
+.divider{display:grid;grid-template-rows:1fr auto;height:var(--ph);}
+.divider .hero{position:relative;overflow:hidden;}
+.divider .hero .cat{position:absolute;top:0;left:0;padding:3mm 6mm;font-family:var(--sans);font-weight:600;font-size:8.5pt;letter-spacing:.12em;text-transform:uppercase;color:#fff;z-index:2;}
+.divider .hero svg{position:absolute;inset:0;width:100%;height:100%;}
+.divider .body{padding:12mm 18mm 16mm;}
+.divider h1{font-size:38pt;}
+.divider .lead{margin-top:5mm;max-width:150mm;}
+.highlight-box{margin-top:8mm;display:grid;grid-template-columns:1fr 1fr;gap:6mm 10mm;}
+.highlight{border-left:3px solid var(--blue);padding-left:5mm;}
+.highlight p{font-size:9pt;margin:0;}
+/* stats */
+.stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10mm;margin:6mm 0;}
+.stat .num{font-family:var(--serif);font-weight:800;font-size:40pt;line-height:1;color:var(--blue);}
+.stat .num.cat-people{color:var(--magenta);}.stat .num.cat-data{color:var(--teal);}
+.stat .lab{font-size:8.5pt;color:var(--muted);margin-top:2mm;line-height:1.35;}
+/* exhibits */
+.exhibit{border:1px solid var(--hair);padding:8mm;margin:6mm 0;}
+.exhibit .exlabel{font-size:8pt;color:var(--muted);border-left:3px solid var(--blue);padding-left:3mm;}
+.exhibit h3{font-family:var(--sans);font-weight:600;font-size:11pt;line-height:1.3;margin:2mm 0 5mm;}
+.exhibit .caption{font-size:8.5pt;color:var(--muted);margin-top:5mm;}
+.exhibit .mark{font-weight:600;font-size:8.5pt;margin-top:3mm;}
+.bars{display:flex;flex-direction:column;gap:3mm;}
+.bar-row{display:grid;grid-template-columns:48mm 1fr auto;gap:4mm;align-items:center;font-size:8.5pt;}
+.bar-track{height:6mm;background:var(--paper-soft);position:relative;}
+.bar-fill{height:100%;background:var(--blue);}.bar-fill.cat-tooling{background:var(--cyan);}.bar-fill.cat-people{background:var(--magenta);}.bar-fill.cat-data{background:var(--teal);}
+.bar-val{font-weight:600;}
+.gauge{display:flex;gap:8mm;align-items:center;}
+.funnel{display:grid;grid-template-columns:repeat(4,1fr);gap:4mm;text-align:center;}
+.funnel .step{background:var(--paper-soft);padding:5mm 3mm;border-top:3px solid var(--blue);}
+.funnel .step .v{font-family:var(--serif);font-weight:800;font-size:20pt;color:var(--ink);}
+.funnel .step .l{font-size:8pt;color:var(--muted);margin-top:1mm;}
+/* lollipop */
+.lolli{display:grid;grid-template-columns:60mm 1fr auto;gap:4mm;align-items:center;font-size:8.5pt;margin:2mm 0;}
+.lolli .track{position:relative;height:10px;}
+.lolli .line{position:absolute;top:4px;left:0;height:2px;background:var(--blue);}
+.lolli .line.cat-tooling{background:var(--cyan);}.lolli .line.cat-people{background:var(--magenta);}.lolli .line.cat-data{background:var(--teal);}
+.lolli .dot{position:absolute;top:0;width:10px;height:10px;border-radius:50%;background:var(--blue);transform:translateX(-50%);}
+.lolli .dot.cat-tooling{background:var(--cyan);}.lolli .dot.cat-people{background:var(--magenta);}.lolli .dot.cat-data{background:var(--teal);}
+.lolli .val{font-weight:600;}
+/* cards */
+.card-grid{display:grid;grid-template-columns:1fr 1fr;gap:6mm;margin-top:5mm;}
+.signal-card{border-top:3px solid var(--cat-process);padding-top:4mm;}
+.signal-card.cat-tooling{border-top-color:var(--cat-tooling);}.signal-card.cat-people{border-top-color:var(--cat-people);}.signal-card.cat-data{border-top-color:var(--cat-data);}
+.signal-card .st{font-family:var(--sans);font-weight:700;font-size:10.5pt;margin-bottom:2mm;}
+.signal-card .meta{font-size:8pt;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
+.signal-card p{font-size:8.8pt;margin:2mm 0;}
+.strength{height:4mm;background:var(--paper-soft);margin:3mm 0 2mm;}
+.strength>i{display:block;height:100%;background:var(--cat-process);}
+.signal-card.cat-tooling .strength>i{background:var(--cat-tooling);}.signal-card.cat-people .strength>i{background:var(--cat-people);}.signal-card.cat-data .strength>i{background:var(--cat-data);}
+.evidence{font-size:8pt;font-style:italic;color:var(--muted);border-left:2px solid var(--hair);padding-left:3mm;}
+.pattern-card{display:grid;grid-template-columns:auto 1fr;gap:5mm;align-items:start;border-top:1px solid var(--hair);padding:5mm 0;}
+.pattern-card .st{font-family:var(--sans);font-weight:700;font-size:11pt;}
+.pattern-card .meta{font-size:8pt;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:1mm 0 2mm;}
+.pattern-card p{font-size:8.8pt;margin:0;}
+.rec-card{border:1px solid var(--hair);padding:5mm;}
+.rec-card .pill{display:inline-block;font-size:7.5pt;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:1mm 3mm;border-radius:20px;color:#fff;}
+.pill.high{background:var(--magenta);}.pill.med{background:var(--cyan);}.pill.low{background:var(--muted);}
+.rec-card h4{font-family:var(--sans);font-weight:700;font-size:10.5pt;margin:3mm 0 2mm;}
+.rec-card p{font-size:8.8pt;margin:0;}
+.rec-card .match{font-size:8pt;color:var(--blue);font-weight:600;margin-top:3mm;}
+/* pull quote */
+.pullquote{display:flex;align-items:center;}
+.pullquote blockquote{font-family:var(--serif);font-weight:600;font-size:30pt;line-height:1.12;margin:0;}
+.pullquote .accent{color:var(--cyan);}
+.pullquote cite{display:block;font-family:var(--sans);font-style:normal;font-weight:600;font-size:9pt;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.7);margin-top:8mm;}
+/* delta + table */
+.delta{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5mm;margin-top:5mm;}
+.delta .col h4{font-family:var(--sans);font-weight:700;font-size:9.5pt;padding-bottom:2mm;border-bottom:2px solid var(--ink);}
+.delta .col.add h4{border-color:var(--teal);}.delta .col.chg h4{border-color:var(--cyan);}.delta .col.rem h4{border-color:var(--muted);}
+.delta li{font-size:8.8pt;margin:2mm 0;list-style:none;}
+.delta ul{padding:0;margin:3mm 0 0;}
+table.data{width:100%;border-collapse:collapse;font-size:9pt;margin-top:3mm;}
+table.data th{text-align:left;font-family:var(--sans);font-weight:600;font-size:8pt;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);border-bottom:2px solid var(--ink);padding:2mm;}
+table.data td{padding:2mm;border-bottom:1px solid var(--hair);}
+.media-card{border-top:3px solid var(--teal);padding-top:4mm;}
+.media-card .k{font-family:var(--sans);font-weight:700;font-size:10pt;}
+.media-card .c{font-size:8pt;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:1mm 0;}
+.media-card p{font-size:8.8pt;}
+.method{font-size:9pt;line-height:1.6;}
+.method dt{font-family:var(--sans);font-weight:700;margin-top:3mm;}
+
+/* ===== LANDSCAPE OVERRIDES (297x210) ===== */
+:root{ --pw:297mm; --ph:210mm; --pad:15mm; }
+@page{ size:A4 landscape; margin:0; }
+
+.cols-3{ column-count:3; column-gap:9mm; }
+.cols-3 p:first-child{ margin-top:0; }
+.card-grid-3{ display:grid; grid-template-columns:repeat(3,1fr); gap:6mm; margin-top:5mm; }
+.split{ display:grid; grid-template-columns:0.92fr 1.28fr; gap:12mm; align-items:start; margin-top:4mm; }
+.split .exhibit{ margin-top:0; }
+
+/* Cover: art left, dark meta right (McKinsey's real cover) */
+.cover{ display:grid; grid-template-columns:1.15fr 1fr; grid-template-rows:none; height:var(--ph); background:var(--ink); }
+.cover .art-panel{ position:relative; overflow:hidden; }
+.cover .art-panel svg{ position:absolute; inset:0; width:100%; height:100%; }
+.cover .meta-panel{ padding:16mm; display:flex; flex-direction:column; justify-content:space-between; color:#fff; }
+.cover .logo{ color:#fff; }
+.cover .logo span{ color:rgba(255,255,255,.65); }
+.cover h1{ font-size:44pt; line-height:.98; margin-top:6mm; }
+.cover .sub{ color:rgba(255,255,255,.8); }
+
+/* Contents: big title left, two TOC columns right */
+.contents-land{ display:grid; grid-template-columns:0.7fr 1.5fr; gap:0 14mm; align-items:start; margin-top:6mm; }
+.contents-land h2{ font-size:42pt; }
+.contents-land .cols{ display:grid; grid-template-columns:1fr 1fr; gap:0 12mm; }
+
+/* Divider: tall hero left, text right, vertically centred */
+.divider{ display:grid; grid-template-columns:120mm 1fr; grid-template-rows:none; height:var(--ph); }
+.divider .hero{ height:var(--ph); }
+.divider .hero svg{ position:absolute; inset:0; width:100%; height:100%; }
+.divider .body{ padding:16mm; align-self:center; }
+.divider h1{ font-size:34pt; }
+.divider .highlight-box{ grid-template-columns:1fr 1fr; }
+
+/* Exec summary stat row a touch smaller to fit width */
+.stat .num{ font-size:36pt; }
+
+/* Patterns as three columns in landscape */
+.patterns-3{ display:grid; grid-template-columns:repeat(3,1fr); gap:8mm; margin-top:6mm; }
+.patterns-3 .pattern-card{ display:block; border-top:3px solid var(--hair); padding-top:5mm; }
+.patterns-3 .pattern-card svg{ margin-bottom:3mm; }
+
+/* ===== REVIEWER-NOTES APPENDIX ===== */
+.status{ display:inline-block; font-size:7.5pt; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:1mm 3mm; border-radius:20px; color:#fff; white-space:nowrap; }
+.status.reviewed{ background:var(--teal); }
+.status.clarify{ background:#E8862A; }
+.reviewer-note{ border-left:3px solid var(--blue); padding-left:5mm; }
+.reviewer-note .who{ font-family:var(--sans); font-weight:700; font-size:10.5pt; }
+.reviewer-note .role{ font-size:8pt; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin:1mm 0 3mm; }
+.reviewer-note p{ font-size:9pt; }
+.review-list{ margin-top:4mm; }
+.review-row{ display:grid; grid-template-columns:46mm 34mm 1fr; gap:6mm; align-items:start; padding:3mm 0; border-top:1px solid var(--hair); font-size:8.8pt; break-inside:avoid; }
+.review-row.head{ border-top:none; color:var(--muted); font-size:7.5pt; text-transform:uppercase; letter-spacing:.06em; }
+.review-row .sec{ font-family:var(--sans); font-weight:600; }
+.review-row .cmt{ color:#20303c; }
+</style></head><body>
+
+<div class="refbar">📐 <b>REFERENCE TEMPLATE — landscape / widescreen variant.</b> Same design system as the portrait file, laid out in McKinsey's real 16:9-style format.
+Add, remove, or reorder sections to fit each company's snapshot. (This bar does not print.)</div>
+
+<!-- COVER (art left, title right) -->
+<section class="page bleed cover">
+  <div class="art-panel"><svg viewBox="0 0 800 1000" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg"><rect width="800" height="1000" fill="#051C2C"/><circle cx="280" cy="102" r="1.5" fill="#FFFFFF" opacity="0.80"/><circle cx="124" cy="223" r="2" fill="#8B5CF6" opacity="0.37"/><circle cx="355" cy="80" r="3" fill="#FFFFFF" opacity="0.38"/><circle cx="445" cy="325" r="1.5" fill="#8B5CF6" opacity="0.67"/><circle cx="330" cy="333" r="2" fill="#FFFFFF" opacity="0.51"/><circle cx="158" cy="93" r="2" fill="#E6338A" opacity="0.41"/><circle cx="448" cy="113" r="1.5" fill="#FFFFFF" opacity="0.66"/><circle cx="481" cy="199" r="3" fill="#8B5CF6" opacity="0.78"/><circle cx="377" cy="319" r="2.5" fill="#E6338A" opacity="0.49"/><circle cx="182" cy="278" r="2.5" fill="#FFFFFF" opacity="0.64"/><circle cx="655" cy="264" r="1.5" fill="#E6338A" opacity="0.41"/><circle cx="344" cy="272" r="3" fill="#00A9F4" opacity="0.58"/><circle cx="714" cy="82" r="2.5" fill="#8B5CF6" opacity="0.54"/><circle cx="298" cy="199" r="1.5" fill="#14B8A6" opacity="0.81"/><circle cx="702" cy="193" r="1.5" fill="#FFFFFF" opacity="0.75"/><circle cx="271" cy="222" r="2.5" fill="#14B8A6" opacity="0.74"/><circle cx="663" cy="157" r="2.5" fill="#14B8A6" opacity="0.44"/><circle cx="140" cy="77" r="2" fill="#E6338A" opacity="0.76"/><circle cx="331" cy="317" r="1.5" fill="#14B8A6" opacity="0.44"/><circle cx="333" cy="138" r="3" fill="#00A9F4" opacity="0.83"/><circle cx="249" cy="176" r="3" fill="#E6338A" opacity="0.88"/><circle cx="163" cy="109" r="2" fill="#00A9F4" opacity="0.36"/><circle cx="625" cy="111" r="1.5" fill="#E6338A" opacity="0.43"/><circle cx="424" cy="231" r="2" fill="#E6338A" opacity="0.73"/><circle cx="411" cy="233" r="3" fill="#FFFFFF" opacity="0.84"/><circle cx="590" cy="305" r="3" fill="#8B5CF6" opacity="0.57"/><circle cx="328" cy="195" r="1.5" fill="#14B8A6" opacity="0.45"/><circle cx="730" cy="183" r="2.5" fill="#FFFFFF" opacity="0.68"/><circle cx="130" cy="219" r="1.5" fill="#8B5CF6" opacity="0.87"/><circle cx="477" cy="80" r="3" fill="#00A9F4" opacity="0.43"/><circle cx="232" cy="157" r="3" fill="#E6338A" opacity="0.42"/><circle cx="637" cy="338" r="3" fill="#14B8A6" opacity="0.62"/><circle cx="118" cy="89" r="2.5" fill="#E6338A" opacity="0.61"/><circle cx="531" cy="205" r="2.5" fill="#00A9F4" opacity="0.43"/><circle cx="429" cy="68" r="2.5" fill="#8B5CF6" opacity="0.89"/><circle cx="647" cy="255" r="2.5" fill="#E6338A" opacity="0.85"/><circle cx="302" cy="122" r="2.5" fill="#8B5CF6" opacity="0.70"/><circle cx="477" cy="281" r="2" fill="#00A9F4" opacity="0.80"/><circle cx="563" cy="123" r="3" fill="#8B5CF6" opacity="0.55"/><circle cx="80" cy="68" r="3" fill="#E6338A" opacity="0.49"/><circle cx="531" cy="328" r="2.5" fill="#14B8A6" opacity="0.88"/><circle cx="308" cy="122" r="3" fill="#00A9F4" opacity="0.46"/><circle cx="199" cy="235" r="1.5" fill="#8B5CF6" opacity="0.61"/><circle cx="504" cy="284" r="1.5" fill="#FFFFFF" opacity="0.85"/><circle cx="592" cy="270" r="2" fill="#14B8A6" opacity="0.59"/><circle cx="492" cy="84" r="3" fill="#14B8A6" opacity="0.57"/><circle cx="704" cy="263" r="2" fill="#00A9F4" opacity="0.37"/><circle cx="462" cy="190" r="3" fill="#00A9F4" opacity="0.71"/><circle cx="298" cy="214" r="1.5" fill="#00A9F4" opacity="0.36"/><circle cx="720" cy="242" r="2" fill="#8B5CF6" opacity="0.59"/><circle cx="653" cy="291" r="1.5" fill="#00A9F4" opacity="0.49"/><circle cx="259" cy="127" r="2.5" fill="#8B5CF6" opacity="0.49"/><circle cx="345" cy="97" r="3" fill="#E6338A" opacity="0.71"/><circle cx="614" cy="205" r="2" fill="#8B5CF6" opacity="0.64"/><circle cx="416" cy="65" r="2" fill="#14B8A6" opacity="0.68"/><circle cx="588" cy="102" r="3" fill="#00A9F4" opacity="0.69"/><circle cx="142" cy="77" r="3" fill="#8B5CF6" opacity="0.78"/><circle cx="132" cy="217" r="2" fill="#00A9F4" opacity="0.50"/><circle cx="585" cy="202" r="1.5" fill="#8B5CF6" opacity="0.77"/><circle cx="680" cy="184" r="2" fill="#8B5CF6" opacity="0.73"/><circle cx="368" cy="209" r="2" fill="#14B8A6" opacity="0.73"/><circle cx="656" cy="324" r="2" fill="#E6338A" opacity="0.81"/><circle cx="153" cy="94" r="2.5" fill="#14B8A6" opacity="0.39"/><circle cx="224" cy="80" r="1.5" fill="#E6338A" opacity="0.84"/><circle cx="165" cy="261" r="2" fill="#E6338A" opacity="0.49"/><circle cx="153" cy="191" r="3" fill="#FFFFFF" opacity="0.84"/><circle cx="171" cy="247" r="2" fill="#00A9F4" opacity="0.74"/><circle cx="736" cy="173" r="2" fill="#14B8A6" opacity="0.55"/><circle cx="123" cy="162" r="3" fill="#E6338A" opacity="0.59"/><circle cx="72" cy="153" r="2.5" fill="#8B5CF6" opacity="0.63"/><path d="M118.1 502.6 A300 300 0 0 1 106.6 462.4 L170.1 448.9 A235 235 0 0 0 179.2 480.4 Z" fill="#1F40FF" opacity="0.9"/><path d="M104.6 452.1 A300 300 0 0 1 100.2 410.5 L165.1 408.2 A235 235 0 0 0 168.6 440.8 Z" fill="#00A9F4" opacity="0.9"/><path d="M100.0 400.0 A300 300 0 0 1 102.9 358.2 L167.3 367.3 A235 235 0 0 0 165.0 400.0 Z" fill="#14B8A6" opacity="0.9"/><path d="M104.6 347.9 A300 300 0 0 1 114.7 307.3 L176.5 327.4 A235 235 0 0 0 168.6 359.2 Z" fill="#E6338A" opacity="0.9"/><path d="M118.1 297.4 A300 300 0 0 1 135.1 259.2 L192.5 289.7 A235 235 0 0 0 179.2 319.6 Z" fill="#8B5CF6" opacity="0.9"/><path d="M140.2 250.0 A300 300 0 0 1 163.6 215.3 L214.8 255.3 A235 235 0 0 0 196.5 282.5 Z" fill="#5A7BFF" opacity="0.9"/><path d="M170.2 207.2 A300 300 0 0 1 199.3 177.1 L242.8 225.4 A235 235 0 0 0 220.0 248.9 Z" fill="#1F40FF" opacity="0.9"/><path d="M207.2 170.2 A300 300 0 0 1 241.0 145.6 L275.5 200.7 A235 235 0 0 0 248.9 220.0 Z" fill="#00A9F4" opacity="0.9"/><path d="M250.0 140.2 A300 300 0 0 1 287.6 121.8 L312.0 182.1 A235 235 0 0 0 282.5 196.5 Z" fill="#14B8A6" opacity="0.9"/><path d="M297.4 118.1 A300 300 0 0 1 337.6 106.6 L351.1 170.1 A235 235 0 0 0 319.6 179.2 Z" fill="#E6338A" opacity="0.9"/><path d="M347.9 104.6 A300 300 0 0 1 389.5 100.2 L391.8 165.1 A235 235 0 0 0 359.2 168.6 Z" fill="#8B5CF6" opacity="0.9"/><path d="M400.0 100.0 A300 300 0 0 1 441.8 102.9 L432.7 167.3 A235 235 0 0 0 400.0 165.0 Z" fill="#5A7BFF" opacity="0.9"/><path d="M452.1 104.6 A300 300 0 0 1 492.7 114.7 L472.6 176.5 A235 235 0 0 0 440.8 168.6 Z" fill="#1F40FF" opacity="0.9"/><path d="M502.6 118.1 A300 300 0 0 1 540.8 135.1 L510.3 192.5 A235 235 0 0 0 480.4 179.2 Z" fill="#00A9F4" opacity="0.9"/><path d="M550.0 140.2 A300 300 0 0 1 584.7 163.6 L544.7 214.8 A235 235 0 0 0 517.5 196.5 Z" fill="#14B8A6" opacity="0.9"/><path d="M592.8 170.2 A300 300 0 0 1 622.9 199.3 L574.6 242.8 A235 235 0 0 0 551.1 220.0 Z" fill="#E6338A" opacity="0.9"/><path d="M629.8 207.2 A300 300 0 0 1 654.4 241.0 L599.3 275.5 A235 235 0 0 0 580.0 248.9 Z" fill="#8B5CF6" opacity="0.9"/><path d="M659.8 250.0 A300 300 0 0 1 678.2 287.6 L617.9 312.0 A235 235 0 0 0 603.5 282.5 Z" fill="#5A7BFF" opacity="0.9"/><path d="M681.9 297.4 A300 300 0 0 1 693.4 337.6 L629.9 351.1 A235 235 0 0 0 620.8 319.6 Z" fill="#1F40FF" opacity="0.9"/><path d="M695.4 347.9 A300 300 0 0 1 699.8 389.5 L634.9 391.8 A235 235 0 0 0 631.4 359.2 Z" fill="#00A9F4" opacity="0.9"/><path d="M700.0 400.0 A300 300 0 0 1 697.1 441.8 L632.7 432.7 A235 235 0 0 0 635.0 400.0 Z" fill="#14B8A6" opacity="0.9"/><path d="M695.4 452.1 A300 300 0 0 1 685.3 492.7 L623.5 472.6 A235 235 0 0 0 631.4 440.8 Z" fill="#E6338A" opacity="0.9"/><path d="M681.9 502.6 A300 300 0 0 1 664.9 540.8 L607.5 510.3 A235 235 0 0 0 620.8 480.4 Z" fill="#8B5CF6" opacity="0.9"/><path d="M150 400 Q400 250 650 400 Q400 550 150 400 Z" fill="#1F40FF" opacity=".18"/><path d="M210 400 Q400 300 590 400 Q400 500 210 400 Z" fill="#00A9F4" opacity=".14"/><circle cx="400" cy="400" r="150" fill="none" stroke="None" stroke-width="2" opacity="0"/><circle cx="400" cy="400" r="150" fill="none" stroke="#5A7BFF" stroke-width="2" opacity="0.6"/><circle cx="400" cy="400" r="120" fill="none" stroke="#00A9F4" stroke-width="2" opacity="0.7"/><circle cx="400" cy="400" r="95" fill="#1F40FF" opacity="0.95"/><circle cx="400" cy="400" r="62" fill="#00A9F4" opacity="1"/><circle cx="400" cy="400" r="30" fill="#051C2C" opacity="1"/><circle cx="400" cy="400" r="14" fill="#00A9F4" opacity="1"/><circle cx="400" cy="400" r="150" fill="none" stroke="#14B8A6" stroke-width="2" opacity=".5"/><circle cx="70" cy="400" r="3" fill="#E6338A"/><circle cx="85" cy="392" r="3" fill="#E6338A"/><circle cx="85" cy="408" r="3" fill="#E6338A"/><circle cx="100" cy="385" r="3" fill="#E6338A"/><circle cx="100" cy="400" r="3" fill="#E6338A"/><circle cx="100" cy="415" r="3" fill="#E6338A"/><circle cx="115" cy="378" r="3" fill="#E6338A"/><circle cx="115" cy="392" r="3" fill="#E6338A"/><circle cx="115" cy="408" r="3" fill="#E6338A"/><circle cx="115" cy="422" r="3" fill="#E6338A"/><circle cx="130" cy="370" r="3" fill="#E6338A"/><circle cx="130" cy="385" r="3" fill="#E6338A"/><circle cx="130" cy="400" r="3" fill="#E6338A"/><circle cx="130" cy="415" r="3" fill="#E6338A"/><circle cx="130" cy="430" r="3" fill="#E6338A"/><circle cx="145" cy="362" r="3" fill="#E6338A"/><circle cx="145" cy="378" r="3" fill="#E6338A"/><circle cx="145" cy="392" r="3" fill="#E6338A"/><circle cx="145" cy="408" r="3" fill="#E6338A"/><circle cx="145" cy="422" r="3" fill="#E6338A"/><circle cx="145" cy="438" r="3" fill="#E6338A"/><circle cx="160" cy="355" r="3" fill="#E6338A"/><circle cx="160" cy="370" r="3" fill="#E6338A"/><circle cx="160" cy="385" r="3" fill="#E6338A"/><circle cx="160" cy="400" r="3" fill="#E6338A"/><circle cx="160" cy="415" r="3" fill="#E6338A"/><circle cx="160" cy="430" r="3" fill="#E6338A"/><circle cx="160" cy="445" r="3" fill="#E6338A"/><rect x="600" y="330" width="14" height="14" fill="#1F40FF"/><rect x="630" y="330" width="14" height="14" fill="#1F40FF"/><rect x="660" y="330" width="14" height="14" fill="#1F40FF"/><rect x="615" y="345" width="14" height="14" fill="#1F40FF"/><rect x="645" y="345" width="14" height="14" fill="#1F40FF"/><rect x="675" y="345" width="14" height="14" fill="#1F40FF"/><rect x="600" y="360" width="14" height="14" fill="#1F40FF"/><rect x="630" y="360" width="14" height="14" fill="#1F40FF"/><rect x="660" y="360" width="14" height="14" fill="#1F40FF"/><rect x="615" y="375" width="14" height="14" fill="#1F40FF"/><rect x="645" y="375" width="14" height="14" fill="#1F40FF"/><rect x="675" y="375" width="14" height="14" fill="#1F40FF"/><rect x="600" y="390" width="14" height="14" fill="#1F40FF"/><rect x="630" y="390" width="14" height="14" fill="#1F40FF"/><rect x="660" y="390" width="14" height="14" fill="#1F40FF"/><rect x="615" y="405" width="14" height="14" fill="#1F40FF"/><rect x="645" y="405" width="14" height="14" fill="#1F40FF"/><rect x="675" y="405" width="14" height="14" fill="#1F40FF"/><rect x="600" y="420" width="14" height="14" fill="#1F40FF"/><rect x="630" y="420" width="14" height="14" fill="#1F40FF"/><rect x="660" y="420" width="14" height="14" fill="#1F40FF"/><rect x="615" y="435" width="14" height="14" fill="#1F40FF"/><rect x="645" y="435" width="14" height="14" fill="#1F40FF"/><rect x="675" y="435" width="14" height="14" fill="#1F40FF"/><rect x="600" y="450" width="14" height="14" fill="#1F40FF"/><rect x="630" y="450" width="14" height="14" fill="#1F40FF"/><rect x="660" y="450" width="14" height="14" fill="#1F40FF"/><rect x="615" y="465" width="14" height="14" fill="#1F40FF"/><rect x="645" y="465" width="14" height="14" fill="#1F40FF"/><rect x="675" y="465" width="14" height="14" fill="#1F40FF"/><rect x="615" y="330" width="14" height="14" fill="#00A9F4"/><rect x="645" y="330" width="14" height="14" fill="#00A9F4"/><rect x="675" y="330" width="14" height="14" fill="#00A9F4"/><rect x="600" y="345" width="14" height="14" fill="#00A9F4"/><rect x="630" y="345" width="14" height="14" fill="#00A9F4"/><rect x="660" y="345" width="14" height="14" fill="#00A9F4"/><rect x="615" y="360" width="14" height="14" fill="#00A9F4"/><rect x="645" y="360" width="14" height="14" fill="#00A9F4"/><rect x="675" y="360" width="14" height="14" fill="#00A9F4"/><rect x="600" y="375" width="14" height="14" fill="#00A9F4"/><rect x="630" y="375" width="14" height="14" fill="#00A9F4"/><rect x="660" y="375" width="14" height="14" fill="#00A9F4"/><rect x="615" y="390" width="14" height="14" fill="#00A9F4"/><rect x="645" y="390" width="14" height="14" fill="#00A9F4"/><rect x="675" y="390" width="14" height="14" fill="#00A9F4"/><rect x="600" y="405" width="14" height="14" fill="#00A9F4"/><rect x="630" y="405" width="14" height="14" fill="#00A9F4"/><rect x="660" y="405" width="14" height="14" fill="#00A9F4"/><rect x="615" y="420" width="14" height="14" fill="#00A9F4"/><rect x="645" y="420" width="14" height="14" fill="#00A9F4"/><rect x="675" y="420" width="14" height="14" fill="#00A9F4"/><rect x="600" y="435" width="14" height="14" fill="#00A9F4"/><rect x="630" y="435" width="14" height="14" fill="#00A9F4"/><rect x="660" y="435" width="14" height="14" fill="#00A9F4"/><rect x="615" y="450" width="14" height="14" fill="#00A9F4"/><rect x="645" y="450" width="14" height="14" fill="#00A9F4"/><rect x="675" y="450" width="14" height="14" fill="#00A9F4"/><rect x="600" y="465" width="14" height="14" fill="#00A9F4"/><rect x="630" y="465" width="14" height="14" fill="#00A9F4"/><rect x="660" y="465" width="14" height="14" fill="#00A9F4"/><path d="M120.0 190.0 A70 70 0 0 1 50.0 120.0 L120.0 120.0 A0 0 0 0 0 120.0 120.0 Z" fill="#8B5CF6" opacity="0.85"/><path d="M750.0 120.0 A70 70 0 0 1 680.0 190.0 L680.0 120.0 A0 0 0 0 0 680.0 120.0 Z" fill="#14B8A6" opacity="0.85"/><circle cx="120" cy="120" r="22" fill="none" stroke="#E6338A" stroke-width="6"/><circle cx="680" cy="120" r="22" fill="none" stroke="#00A9F4" stroke-width="6"/><line x1="447.3" y1="601.9" x2="569.4" y2="697.4" stroke="#FFFFFF" stroke-width="1" opacity=".55"/><circle cx="569.4" cy="697.4" r="4" fill="#E6338A"/><line x1="443.3" y1="606.5" x2="555.2" y2="713.8" stroke="#FFFFFF" stroke-width="1" opacity=".55"/><circle cx="555.2" cy="713.8" r="4" fill="#00A9F4"/><line x1="438.9" y1="610.7" x2="539.5" y2="728.6" stroke="#FFFFFF" stroke-width="1" opacity=".55"/><circle cx="539.5" cy="728.6" r="4" fill="#14B8A6"/><line x1="434.1" y1="614.3" x2="522.3" y2="741.8" stroke="#FFFFFF" stroke-width="1" opacity=".55"/><circle cx="522.3" cy="741.8" r="4" fill="#8B5CF6"/><line x1="429.0" y1="617.5" x2="503.9" y2="753.2" stroke="#FFFFFF" stroke-width="1" opacity=".55"/><circle cx="503.9" cy="753.2" r="4" fill="#E6338A"/><line x1="423.6" y1="620.2" x2="484.4" y2="762.7" stroke="#FFFFFF" stroke-width="1" opacity=".55"/><circle cx="484.4" cy="762.7" r="4" fill="#00A9F4"/><line x1="417.9" y1="622.3" x2="464.1" y2="770.2" stroke="#FFFFFF" stroke-width="1" opacity=".55"/><circle cx="464.1" cy="770.2" r="4" fill="#14B8A6"/><line x1="412.0" y1="623.8" x2="443.1" y2="775.6" stroke="#FFFFFF" stroke-width="1" opacity=".55"/><circle cx="443.1" cy="775.6" r="4" fill="#8B5CF6"/><line x1="406.0" y1="624.7" x2="421.6" y2="778.9" stroke="#FFFFFF" stroke-width="1" opacity=".55"/><circle cx="421.6" cy="778.9" r="4" fill="#E6338A"/><line x1="400.0" y1="625.0" x2="400.0" y2="780.0" stroke="#FFFFFF" stroke-width="1" opacity=".55"/><circle cx="400.0" cy="780.0" r="4" fill="#00A9F4"/><line x1="394.0" y1="624.7" x2="378.4" y2="778.9" stroke="#FFFFFF" stroke-width="1" opacity=".55"/><circle cx="378.4" cy="778.9" r="4" fill="#14B8A6"/><line x1="388.0" y1="623.8" x2="356.9" y2="775.6" stroke="#FFFFFF" stroke-width="1" opacity=".55"/><circle cx="356.9" cy="775.6" r="4" fill="#8B5CF6"/><line x1="382.1" y1="622.3" x2="335.9" y2="770.2" stroke="#FFFFFF" stroke-width="1" opacity=".55"/><circle cx="335.9" cy="770.2" r="4" fill="#E6338A"/><line x1="376.4" y1="620.2" x2="315.6" y2="762.7" stroke="#FFFFFF" stroke-width="1" opacity=".55"/><circle cx="315.6" cy="762.7" r="4" fill="#00A9F4"/><line x1="371.0" y1="617.5" x2="296.1" y2="753.2" stroke="#FFFFFF" stroke-width="1" opacity=".55"/><circle cx="296.1" cy="753.2" r="4" fill="#14B8A6"/><line x1="365.9" y1="614.3" x2="277.7" y2="741.8" stroke="#FFFFFF" stroke-width="1" opacity=".55"/><circle cx="277.7" cy="741.8" r="4" fill="#8B5CF6"/><line x1="361.1" y1="610.7" x2="260.5" y2="728.6" stroke="#FFFFFF" stroke-width="1" opacity=".55"/><circle cx="260.5" cy="728.6" r="4" fill="#E6338A"/><line x1="356.7" y1="606.5" x2="244.8" y2="713.8" stroke="#FFFFFF" stroke-width="1" opacity=".55"/><circle cx="244.8" cy="713.8" r="4" fill="#00A9F4"/><line x1="352.7" y1="601.9" x2="230.6" y2="697.4" stroke="#FFFFFF" stroke-width="1" opacity=".55"/><circle cx="230.6" cy="697.4" r="4" fill="#14B8A6"/><g opacity=".7"><line x1="431.8" y1="615.9" x2="484.8" y2="700.7" stroke="#00A9F4" stroke-width="1" opacity=".55"/><circle cx="484.8" cy="700.7" r="3" fill="#14B8A6"/><line x1="424.4" y1="619.8" x2="465.1" y2="711.2" stroke="#00A9F4" stroke-width="1" opacity=".55"/><circle cx="465.1" cy="711.2" r="3" fill="#14B8A6"/><line x1="416.5" y1="622.7" x2="444.1" y2="718.8" stroke="#00A9F4" stroke-width="1" opacity=".55"/><circle cx="444.1" cy="718.8" r="3" fill="#14B8A6"/><line x1="408.4" y1="624.4" x2="422.3" y2="723.4" stroke="#00A9F4" stroke-width="1" opacity=".55"/><circle cx="422.3" cy="723.4" r="3" fill="#14B8A6"/><line x1="400.0" y1="625.0" x2="400.0" y2="725.0" stroke="#00A9F4" stroke-width="1" opacity=".55"/><circle cx="400.0" cy="725.0" r="3" fill="#14B8A6"/><line x1="391.6" y1="624.4" x2="377.7" y2="723.4" stroke="#00A9F4" stroke-width="1" opacity=".55"/><circle cx="377.7" cy="723.4" r="3" fill="#14B8A6"/><line x1="383.5" y1="622.7" x2="355.9" y2="718.8" stroke="#00A9F4" stroke-width="1" opacity=".55"/><circle cx="355.9" cy="718.8" r="3" fill="#14B8A6"/><line x1="375.6" y1="619.8" x2="334.9" y2="711.2" stroke="#00A9F4" stroke-width="1" opacity=".55"/><circle cx="334.9" cy="711.2" r="3" fill="#14B8A6"/><line x1="368.2" y1="615.9" x2="315.2" y2="700.7" stroke="#00A9F4" stroke-width="1" opacity=".55"/><circle cx="315.2" cy="700.7" r="3" fill="#14B8A6"/></g></svg></div>
+  <div class="meta-panel">
+    <div class="logo">Req<span>Workflow Discovery</span></div>
+    <div>
+      <span class="tag">Discovery Report</span>
+      <h1>Acme Corp</h1>
+      <div class="sub">How work really happens across Finance &amp; Operations</div>
+      <div class="sub" style="font-size:11pt;margin-top:8mm;">Version 1 · February 2026 · Platform-approved</div>
+    </div>
+  </div>
+</section>
+
+<!-- CONTENTS -->
+<section class="page">
+  <div class="eyebrow">Report contents</div>
+  <div class="contents-land">
+    <h2>Contents</h2>
+    <div class="cols">
+      <div>
+        <div class="toc-item rule-blue"><span class="n">01</span><span class="t">Executive summary</span><span class="d">The headline story in one read</span></div>
+        <div class="toc-item rule-blue"><span class="n">02</span><span class="t">Readiness</span><span class="d">Score and its weighted breakdown</span></div>
+        <div class="toc-item rule-teal"><span class="n">03</span><span class="t">Participation</span><span class="d">Invited, started, completed, by department</span></div>
+        <div class="toc-item rule-teal"><span class="n">04</span><span class="t">What changed</span><span class="d">Delta versus the previous version</span></div>
+      </div>
+      <div>
+        <div class="toc-item rule-magenta"><span class="n">05</span><span class="t">Signals</span><span class="d">Recurring pain points with evidence</span></div>
+        <div class="toc-item rule-magenta"><span class="n">06</span><span class="t">Patterns</span><span class="d">Cross-team themes and confidence</span></div>
+        <div class="toc-item rule-blue"><span class="n">07</span><span class="t">Recommendations</span><span class="d">Prioritized actions, catalog-matched</span></div>
+        <div class="toc-item rule-teal"><span class="n">08</span><span class="t">Supporting media &amp; method</span><span class="d">Evidence base and how we measured</span></div>
+      </div>
+    </div>
+  </div><div class="footer"><span class="brand">Req · Acme Corp Discovery Report</span><span>02</span></div>
+</section>
+
+<!-- EXEC SUMMARY -->
+<section class="page">
+  <div class="eyebrow">01 — Executive summary</div>
+  <h1 style="font-size:32pt;margin:4mm 0 6mm;">The story <span class="serif-accent">in one read</span></h1>
+  <div class="cols-3">
+    <p class="dropcap">With three of four invited employees completing a discovery interview, Acme Corp reached a readiness score of 75 — high enough to surface a clear, actionable picture of how work really happens across Finance and Operations.</p>
+    <p>The strongest recurring theme is manual, spreadsheet-bound process work in Finance, echoed by tool-dependency and duplicate-entry signals in Operations. These cluster into three cross-team patterns with concrete, catalog-matched fixes.</p>
+    <p>This report is the versioned source of truth for those findings. Every figure below is drawn from the discovery snapshot and has passed expert review before delivery.</p>
+  </div>
+  <div class="stat-row" style="margin-top:10mm;">
+    <div class="stat"><div class="num">75</div><div class="lab">Readiness score, out of 100</div></div>
+    <div class="stat"><div class="num cat-data">3/4</div><div class="lab">Employees completed the interview</div></div>
+    <div class="stat"><div class="num cat-people">3</div><div class="lab">Cross-team patterns identified</div></div>
+    <div class="stat"><div class="num">6</div><div class="lab">Recommendations, catalog-matched</div></div>
+  </div><div class="footer"><span class="brand">Req · Acme Corp Discovery Report</span><span>03</span></div>
+</section>
+
+<!-- READINESS (split: text | exhibit) -->
+<section class="page">
+  <div class="eyebrow">02 — Readiness</div>
+  <h1 style="font-size:28pt;margin:4mm 0 3mm;">A readiness score of <span class="serif-accent">75</span></h1>
+  <div class="split">
+    <div class="cols-1">
+      <p class="lead">Readiness gates report generation. It is a weighted score across employee coverage, department spread, pattern confidence, and multimodal evidence.</p>
+      <p>Acme Corp scores well on employee coverage and pattern confidence; department spread is the main drag, since Sales did not participate this round. Closing that gap is the fastest route to a higher score next version.</p>
+    </div>
+    <div class="exhibit"><div class="exlabel">Exhibit 1 · Readiness breakdown</div>
+      <h3>Weighted across employees, departments, patterns, and multimodal evidence.</h3>
+      <div class="gauge"><svg width="64" height="64" viewBox="0 0 42 42"><circle cx="21" cy="21" r="15.9" fill="none" stroke="#EFF3F7" stroke-width="5"/><circle cx="21" cy="21" r="15.9" fill="none" stroke="#1F40FF" stroke-width="5" stroke-dasharray="75 25" stroke-dashoffset="25" transform="rotate(-90 21 21)" stroke-linecap="round"/><text x="21" y="24" text-anchor="middle" font-size="9" font-weight="700" fill="#051C2C" font-family="Inter">75</text></svg>
+        <div class="bars" style="flex:1;">
+          <div class="bar-row"><span>Employee coverage</span><span class="bar-track"><span class="bar-fill" style="width:80%"></span></span><span class="bar-val">80</span></div>
+          <div class="bar-row"><span>Department spread</span><span class="bar-track"><span class="bar-fill cat-tooling" style="width:70%"></span></span><span class="bar-val">70</span></div>
+          <div class="bar-row"><span>Pattern confidence</span><span class="bar-track"><span class="bar-fill cat-people" style="width:72%"></span></span><span class="bar-val">72</span></div>
+          <div class="bar-row"><span>Multimodal evidence</span><span class="bar-track"><span class="bar-fill cat-data" style="width:65%"></span></span><span class="bar-val">65</span></div>
+        </div></div>
+      <div class="caption">Source: Req discovery snapshot v1 · Acme Corp</div><div class="mark">Req</div></div>
+  </div><div class="footer"><span class="brand">Req · Acme Corp Discovery Report</span><span>04</span></div>
+</section>
+
+<!-- PARTICIPATION (split) -->
+<section class="page">
+  <div class="eyebrow">03 — Participation</div>
+  <h1 style="font-size:28pt;margin:4mm 0 3mm;">Who took part</h1>
+  <div class="split">
+    <div>
+      <p class="lead">Three of four invited employees completed the full discovery interview, a 75% completion rate.</p>
+      <p>Finance participated fully; Operations completed one of two. Sales was invited in a later wave and has not yet started — reflected in the department-spread component of the readiness score.</p>
+    </div>
+    <div class="exhibit"><div class="exlabel">Exhibit 2 · Interview participation</div>
+      <h3>Completion by stage and department.</h3>
+      <div class="funnel"><div class="step"><div class="v">4</div><div class="l">Invited</div></div>
+        <div class="step"><div class="v">4</div><div class="l">Started</div></div>
+        <div class="step"><div class="v">3</div><div class="l">Completed</div></div>
+        <div class="step"><div class="v">75%</div><div class="l">Completion</div></div></div>
+      <table class="data"><thead><tr><th>Department</th><th>Invited</th><th>Started</th><th>Completed</th></tr></thead>
+        <tbody><tr><td>Finance</td><td>2</td><td>2</td><td>2</td></tr><tr><td>Operations</td><td>2</td><td>2</td><td>1</td></tr><tr><td>Sales</td><td>0</td><td>0</td><td>0</td></tr></tbody></table>
+      <div class="caption">Source: Req discovery snapshot v1 · Acme Corp</div><div class="mark">Req</div></div>
+  </div><div class="footer"><span class="brand">Req · Acme Corp Discovery Report</span><span>05</span></div>
+</section>
+
+<!-- SIGNALS DIVIDER (tall hero left) -->
+<section class="page bleed divider">
+  <div class="hero"><div class="cat" style="background:var(--magenta);">Signals &amp; Patterns</div><svg viewBox="0 0 440 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg"><rect width="440" height="900" fill="#051C2C"/><circle cx="202" cy="495" r="3" fill="#14B8A6" opacity="0.63"/><circle cx="253" cy="183" r="3" fill="#8B5CF6" opacity="0.70"/><circle cx="331" cy="108" r="2" fill="#E6338A" opacity="0.40"/><circle cx="338" cy="606" r="3" fill="#FFFFFF" opacity="0.88"/><circle cx="278" cy="541" r="1.5" fill="#00A9F4" opacity="0.81"/><circle cx="54" cy="60" r="1.5" fill="#00A9F4" opacity="0.78"/><circle cx="154" cy="520" r="2" fill="#00A9F4" opacity="0.70"/><circle cx="220" cy="580" r="2.5" fill="#14B8A6" opacity="0.57"/><circle cx="239" cy="803" r="2.5" fill="#FFFFFF" opacity="0.52"/><circle cx="117" cy="270" r="1.5" fill="#FFFFFF" opacity="0.57"/><circle cx="352" cy="351" r="1.5" fill="#FFFFFF" opacity="0.47"/><circle cx="382" cy="73" r="3" fill="#14B8A6" opacity="0.58"/><circle cx="245" cy="195" r="2.5" fill="#E6338A" opacity="0.40"/><circle cx="156" cy="830" r="2" fill="#FFFFFF" opacity="0.49"/><circle cx="68" cy="80" r="2" fill="#14B8A6" opacity="0.73"/><circle cx="102" cy="452" r="3" fill="#00A9F4" opacity="0.70"/><circle cx="74" cy="379" r="1.5" fill="#00A9F4" opacity="0.50"/><circle cx="399" cy="697" r="1.5" fill="#E6338A" opacity="0.47"/><circle cx="180" cy="739" r="1.5" fill="#8B5CF6" opacity="0.37"/><circle cx="86" cy="396" r="2.5" fill="#FFFFFF" opacity="0.81"/><circle cx="177" cy="92" r="2" fill="#00A9F4" opacity="0.36"/><circle cx="170" cy="546" r="3" fill="#00A9F4" opacity="0.81"/><circle cx="82" cy="350" r="2.5" fill="#00A9F4" opacity="0.85"/><circle cx="341" cy="237" r="2" fill="#00A9F4" opacity="0.76"/><circle cx="387" cy="193" r="3" fill="#14B8A6" opacity="0.68"/><circle cx="190" cy="116" r="2.5" fill="#FFFFFF" opacity="0.48"/><circle cx="298" cy="243" r="3" fill="#8B5CF6" opacity="0.51"/><circle cx="97" cy="628" r="2" fill="#FFFFFF" opacity="0.48"/><circle cx="243" cy="737" r="1.5" fill="#8B5CF6" opacity="0.50"/><circle cx="379" cy="199" r="1.5" fill="#FFFFFF" opacity="0.50"/><circle cx="199" cy="80" r="2.5" fill="#00A9F4" opacity="0.55"/><circle cx="247" cy="139" r="2" fill="#E6338A" opacity="0.84"/><circle cx="403" cy="575" r="2" fill="#8B5CF6" opacity="0.67"/><circle cx="381" cy="424" r="2.5" fill="#E6338A" opacity="0.88"/><circle cx="38" cy="558" r="1.5" fill="#14B8A6" opacity="0.75"/><circle cx="151" cy="859" r="3" fill="#FFFFFF" opacity="0.65"/><circle cx="310" cy="777" r="2.5" fill="#00A9F4" opacity="0.54"/><circle cx="290" cy="778" r="1.5" fill="#14B8A6" opacity="0.82"/><circle cx="248" cy="549" r="3" fill="#14B8A6" opacity="0.67"/><circle cx="261" cy="97" r="2.5" fill="#FFFFFF" opacity="0.83"/><circle cx="307" cy="352" r="3" fill="#8B5CF6" opacity="0.59"/><circle cx="349" cy="100" r="1.5" fill="#8B5CF6" opacity="0.52"/><circle cx="63" cy="49" r="3" fill="#FFFFFF" opacity="0.78"/><circle cx="281" cy="434" r="2.5" fill="#FFFFFF" opacity="0.52"/><circle cx="288" cy="198" r="2.5" fill="#00A9F4" opacity="0.71"/><circle cx="198" cy="770" r="3" fill="#E6338A" opacity="0.72"/><circle cx="105" cy="388" r="2" fill="#00A9F4" opacity="0.56"/><circle cx="252" cy="293" r="2" fill="#00A9F4" opacity="0.62"/><circle cx="348" cy="734" r="2.5" fill="#FFFFFF" opacity="0.80"/><circle cx="73" cy="421" r="3" fill="#00A9F4" opacity="0.56"/><circle cx="228" cy="588" r="3" fill="#8B5CF6" opacity="0.53"/><circle cx="345" cy="261" r="1.5" fill="#8B5CF6" opacity="0.72"/><circle cx="137" cy="324" r="1.5" fill="#8B5CF6" opacity="0.70"/><circle cx="184" cy="188" r="2" fill="#E6338A" opacity="0.78"/><circle cx="333" cy="847" r="3" fill="#FFFFFF" opacity="0.41"/><polyline points="70,0 77,20 83,40 89,60 94,80 98,100 100,120 102,140 102,160 100,180 98,200 94,220 88,240 83,260 76,280 69,300 63,320 56,340 51,360 46,380 42,400 39,420 38,440 38,460 40,480 43,500 47,520 52,540 58,560 64,580 71,600 78,620 84,640 90,660 95,680 98,700 101,720 102,740 102,760 100,780 97,800 93,820 88,840 82,860 75,880 68,900" fill="none" stroke="#E6338A" stroke-width="1.4" opacity="0.22"/><polyline points="172,0 176,20 178,40 178,60 177,80 174,100 169,120 164,140 157,160 149,180 141,200 133,220 126,240 119,260 113,280 108,300 104,320 102,340 102,360 104,380 107,400 111,420 117,440 124,460 131,480 139,500 147,520 155,540 162,560 168,580 173,600 176,620 178,640 178,660 176,680 173,700 168,720 163,740 156,760 148,780 140,800 132,820 125,840 118,860 112,880 107,900" fill="none" stroke="#E6338A" stroke-width="1.4" opacity="0.34"/><polyline points="250,0 245,20 239,40 231,60 223,80 214,100 205,120 196,140 187,160 180,180 174,200 169,220 167,240 166,260 167,280 170,300 175,320 182,340 189,360 198,380 207,400 216,420 225,440 233,460 241,480 247,500 251,520 253,540 254,560 253,580 249,600 244,620 238,640 230,660 222,680 212,700 203,720 194,740 186,760 179,780 173,800 169,820 167,840 166,860 168,880 171,900" fill="none" stroke="#E6338A" stroke-width="1.4" opacity="0.46"/><polyline points="287,0 277,20 266,40 256,60 248,80 240,100 235,120 231,140 230,160 231,180 234,200 239,220 246,240 254,260 264,280 274,300 284,320 295,340 304,360 313,380 320,400 325,420 329,440 330,460 329,480 326,500 321,520 314,540 305,560 296,580 285,600 275,620 265,640 255,660 247,680 240,700 234,720 231,740 230,760 231,780 234,800 240,820 247,840 255,860 265,880 275,900" fill="none" stroke="#E6338A" stroke-width="1.4" opacity="0.58"/><polyline points="308,0 301,20 296,40 294,60 294,80 297,100 302,120 309,140 318,160 329,180 340,200 352,220 363,240 375,260 385,280 393,300 400,320 404,340 406,360 405,380 402,400 397,420 390,440 381,460 370,480 359,500 347,520 336,540 325,560 315,580 306,600 300,620 296,640 294,660 295,680 298,700 303,720 311,740 320,760 330,780 342,800 354,820 365,840 376,860 386,880 394,900" fill="none" stroke="#E6338A" stroke-width="1.4" opacity="0.70"/><circle cx="94" cy="600" r="6" fill="#FFFFFF"/><circle cx="361" cy="281" r="5" fill="#E6338A"/><circle cx="295" cy="567" r="5" fill="#E6338A"/><circle cx="279" cy="374" r="5" fill="#00A9F4"/><circle cx="131" cy="747" r="5" fill="#E6338A"/><circle cx="175" cy="548" r="4" fill="#FFFFFF"/><circle cx="112" cy="572" r="4" fill="#E6338A"/><circle cx="63" cy="132" r="5" fill="#FFFFFF"/><circle cx="69" cy="283" r="5" fill="#E6338A"/><circle cx="247" cy="771" r="4" fill="#FFFFFF"/><circle cx="230" cy="300" r="78" fill="none" stroke="#E6338A" stroke-width="2" opacity="0.5"/><circle cx="230" cy="300" r="50" fill="none" stroke="#00A9F4" stroke-width="2" opacity="0.6"/><circle cx="230" cy="300" r="22" fill="#E6338A" opacity="0.9"/><circle cx="200" cy="640" r="46" fill="none" stroke="#00A9F4" stroke-width="2" opacity="0.5"/><circle cx="200" cy="640" r="20" fill="#E6338A" opacity="0.85"/></svg></div>
+  <div class="body"><div class="eyebrow">05 &amp; 06 — Signals and patterns</div>
+    <h1 style="margin-top:4mm;">What the interviews revealed</h1>
+    <p class="lead">Signals are recurring pain points drawn directly from employee interviews. Patterns are the themes that connect them across departments. Together they explain the readiness score and drive every recommendation.</p>
+    <div class="highlight-box">
+      <div class="highlight"><p><strong>6 signals</strong> surfaced, led by manual reconciliation in Finance at 0.82 strength.</p></div>
+      <div class="highlight"><p><strong>3 patterns</strong> connect these signals across teams, all matched to catalog solutions.</p></div>
+    </div></div>
+</section>
+
+<!-- SIGNALS (wide lollipop + 3-col cards) -->
+<section class="page">
+  <div class="eyebrow">05 — Signals</div>
+  <h1 style="font-size:28pt;margin:4mm 0 3mm;">Recurring pain points</h1>
+  <div class="exhibit"><div class="exlabel">Exhibit 3 · Signals ranked by strength</div>
+    <h3>Colour encodes category: process, tooling, people, data.</h3><div class="lolli"><span class="lab">Manual reconciliation in spreadsheets</span>
+          <span class="track"><span class="line " style="width:82%"></span>
+          <span class="dot " style="left:82%"></span></span>
+          <span class="val">0.82</span></div><div class="lolli"><span class="lab">Tool dependency on a single admin</span>
+          <span class="track"><span class="line cat-tooling" style="width:68%"></span>
+          <span class="dot cat-tooling" style="left:68%"></span></span>
+          <span class="val">0.68</span></div><div class="lolli"><span class="lab">Approval bottlenecks</span>
+          <span class="track"><span class="line cat-people" style="width:61%"></span>
+          <span class="dot cat-people" style="left:61%"></span></span>
+          <span class="val">0.61</span></div><div class="lolli"><span class="lab">Duplicate data entry across systems</span>
+          <span class="track"><span class="line " style="width:58%"></span>
+          <span class="dot " style="left:58%"></span></span>
+          <span class="val">0.58</span></div><div class="lolli"><span class="lab">Inconsistent metric definitions</span>
+          <span class="track"><span class="line cat-data" style="width:55%"></span>
+          <span class="dot cat-data" style="left:55%"></span></span>
+          <span class="val">0.55</span></div><div class="lolli"><span class="lab">Undocumented tribal knowledge</span>
+          <span class="track"><span class="line cat-people" style="width:49%"></span>
+          <span class="dot cat-people" style="left:49%"></span></span>
+          <span class="val">0.49</span></div>
+    <div class="caption">Source: Req discovery snapshot v1 · Acme Corp</div><div class="mark">Req</div></div>
+  <div class="card-grid-3"><div class="signal-card cat-process">
+          <div class="meta">Process · Finance</div><div class="st">Manual reconciliation in spreadsheets</div>
+          <div class="strength"><i style="width:82%"></i></div>
+          <div class="meta">Strength 0.82</div>
+          <p>Month-end close depends on hand-built spreadsheets passed between three analysts, creating rework, version conflicts, and multi-day delays.</p><div class="evidence">“I rebuild the same sheet every month from scratch.” — Finance analyst</div></div><div class="signal-card cat-tooling">
+          <div class="meta">Tooling · Operations</div><div class="st">Tool dependency on a single admin</div>
+          <div class="strength"><i style="width:68%"></i></div>
+          <div class="meta">Strength 0.68</div>
+          <p>Only one person can configure the scheduling tool, so the whole ops calendar stalls whenever they are unavailable.</p><div class="evidence">“If Sam's out, scheduling just waits.” — Operations lead</div></div><div class="signal-card cat-people">
+          <div class="meta">People · Finance</div><div class="st">Approval bottlenecks</div>
+          <div class="strength"><i style="width:61%"></i></div>
+          <div class="meta">Strength 0.61</div>
+          <p>Routine, low-value approvals route through a single director and sit for days, slowing the entire request queue.</p><div class="evidence">“Small approvals sit for a week.” — Team member</div></div><div class="signal-card cat-process">
+          <div class="meta">Process · Operations</div><div class="st">Duplicate data entry across systems</div>
+          <div class="strength"><i style="width:58%"></i></div>
+          <div class="meta">Strength 0.58</div>
+          <p>The same order details are re-keyed into three systems, introducing errors and consuming hours of avoidable effort each week.</p><div class="evidence">“I type the same order three times.” — Ops coordinator</div></div><div class="signal-card cat-data">
+          <div class="meta">Data · Cross-team</div><div class="st">Inconsistent metric definitions</div>
+          <div class="strength"><i style="width:55%"></i></div>
+          <div class="meta">Strength 0.55</div>
+          <p>Finance and Operations report the same KPI with different definitions, so dashboards disagree and trust in the numbers erodes.</p><div class="evidence">“Our dashboards never quite agree.” — Ops analyst</div></div><div class="signal-card cat-people">
+          <div class="meta">People · Cross-team</div><div class="st">Undocumented tribal knowledge</div>
+          <div class="strength"><i style="width:49%"></i></div>
+          <div class="meta">Strength 0.49</div>
+          <p>Critical steps live only in a few people's heads, making onboarding slow and creating risk when they leave.</p><div class="evidence">“New joiners take months to get productive.” — Manager</div></div></div><div class="footer"><span class="brand">Req · Acme Corp Discovery Report</span><span>06</span></div>
+</section>
+
+<!-- PULL QUOTE -->
+<section class="page dark pullquote">
+  <blockquote style="font-size:34pt;max-width:230mm;">The strongest signal isn't a tool problem — it's <span class="accent">manual work</span> that quietly repeats across every close cycle.
+    <cite>Key finding · Acme Corp discovery</cite></blockquote><div class="footer"><span class="brand">Req · Acme Corp Discovery Report</span><span>07</span></div>
+</section>
+
+<!-- PATTERNS (3 columns) -->
+<section class="page">
+  <div class="eyebrow">06 — Patterns</div>
+  <h1 style="font-size:28pt;margin:4mm 0 3mm;">Cross-team themes</h1>
+  <p class="lead" style="max-width:200mm;">Each pattern connects several signals across departments. Confidence reflects how consistently the theme appeared across interviews and evidence.</p>
+  <div class="patterns-3"><div class="pattern-card"><svg width="64" height="64" viewBox="0 0 42 42"><circle cx="21" cy="21" r="15.9" fill="none" stroke="#EFF3F7" stroke-width="5"/><circle cx="21" cy="21" r="15.9" fill="none" stroke="#1F40FF" stroke-width="5" stroke-dasharray="74 26" stroke-dashoffset="25" transform="rotate(-90 21 21)" stroke-linecap="round"/><text x="21" y="24" text-anchor="middle" font-size="9" font-weight="700" fill="#051C2C" font-family="Inter">74</text></svg>
+          <div><div class="st">Manual work compounds at month-end</div><div class="meta">Confidence 0.74</div><p>Reconciliation, duplicate entry, and slow approvals stack up during the close, turning routine work into a recurring crunch across Finance and Operations.</p></div></div><div class="pattern-card"><svg width="64" height="64" viewBox="0 0 42 42"><circle cx="21" cy="21" r="15.9" fill="none" stroke="#EFF3F7" stroke-width="5"/><circle cx="21" cy="21" r="15.9" fill="none" stroke="#00A9F4" stroke-width="5" stroke-dasharray="66 34" stroke-dashoffset="25" transform="rotate(-90 21 21)" stroke-linecap="round"/><text x="21" y="24" text-anchor="middle" font-size="9" font-weight="700" fill="#051C2C" font-family="Inter">66</text></svg>
+          <div><div class="st">Single points of failure in tooling and knowledge</div><div class="meta">Confidence 0.66</div><p>Tool configuration and critical know-how concentrate in a handful of people, leaving the organization exposed whenever they are unavailable.</p></div></div><div class="pattern-card"><svg width="64" height="64" viewBox="0 0 42 42"><circle cx="21" cy="21" r="15.9" fill="none" stroke="#EFF3F7" stroke-width="5"/><circle cx="21" cy="21" r="15.9" fill="none" stroke="#14B8A6" stroke-width="5" stroke-dasharray="57 43" stroke-dashoffset="25" transform="rotate(-90 21 21)" stroke-linecap="round"/><text x="21" y="24" text-anchor="middle" font-size="9" font-weight="700" fill="#051C2C" font-family="Inter">57</text></svg>
+          <div><div class="st">Fragmented data erodes trust in reporting</div><div class="meta">Confidence 0.58</div><p>Divergent metric definitions and re-keyed data mean teams cannot agree on a single source of truth, weakening decision-making.</p></div></div></div><div class="footer"><span class="brand">Req · Acme Corp Discovery Report</span><span>08</span></div>
+</section>
+
+<!-- RECOMMENDATIONS (3-col cards) -->
+<section class="page">
+  <div class="eyebrow">07 — Recommendations</div>
+  <h1 style="font-size:28pt;margin:4mm 0 4mm;">Suggested actions</h1>
+  <div class="card-grid-3"><div class="rec-card"><span class="pill high">High priority</span>
+          <h4>Automate month-end reconciliation</h4><p>Replace hand-built close spreadsheets with a templated, validated workflow.</p><div class="match">Catalog match: Finance Close Automation</div></div><div class="rec-card"><span class="pill high">High priority</span>
+          <h4>Cross-train ops tooling ownership</h4><p>Document and share scheduling-tool configuration beyond a single admin.</p><div class="match">Catalog match: Ops Resilience Playbook</div></div><div class="rec-card"><span class="pill med">Medium priority</span>
+          <h4>Consolidate duplicate data entry</h4><p>Integrate the three order systems so details are entered once.</p><div class="match">Catalog match: Systems Integration Assessment</div></div><div class="rec-card"><span class="pill med">Medium priority</span>
+          <h4>Delegate routine approvals</h4><p>Auto-route approvals below a set threshold to team leads.</p><div class="match">Catalog match: Approval Policy Redesign</div></div><div class="rec-card"><span class="pill med">Medium priority</span>
+          <h4>Standardize KPI definitions</h4><p>Agree one shared definition per metric across teams.</p><div class="match">Catalog match: Metric Governance Kit</div></div><div class="rec-card"><span class="pill low">Low priority</span>
+          <h4>Capture tribal knowledge</h4><p>Build a living knowledge base for critical, undocumented steps.</p><div class="match">Catalog match: Knowledge Base Rollout</div></div></div><div class="footer"><span class="brand">Req · Acme Corp Discovery Report</span><span>09</span></div>
+</section>
+
+<!-- MATRIX + DELTA (split) -->
+<section class="page">
+  <div class="eyebrow">07 — Prioritization · 04 — What changed</div>
+  <h1 style="font-size:26pt;margin:4mm 0 4mm;">Where to start, and what moved</h1>
+  <div class="split">
+    <div class="exhibit"><div class="exlabel">Exhibit 4 · Impact vs feasibility</div>
+      <h3>Prioritize high-impact, high-feasibility moves first.</h3><svg viewBox="0 0 420 330" xmlns="http://www.w3.org/2000/svg" width="100%"><line x1="40" y1="300" x2="380" y2="300" stroke="#051C2C" stroke-width="1"/><line x1="40" y1="20" x2="40" y2="300" stroke="#051C2C" stroke-width="1"/><line x1="210" y1="20" x2="210" y2="300" stroke="#D6DEE6" stroke-dasharray="3 3"/><line x1="40" y1="160" x2="380" y2="160" stroke="#D6DEE6" stroke-dasharray="3 3"/><text x="210" y="322" text-anchor="middle" font-size="8" fill="#5A6B78" font-family="Inter">Feasibility →</text><text x="18" y="160" text-anchor="middle" font-size="8" fill="#5A6B78" font-family="Inter" transform="rotate(-90 18 160)">Impact →</text><circle cx="270" cy="97" r="7" fill="#E6338A"/><text x="281" y="100" font-size="8" fill="#051C2C" font-family="Inter">Automate month-end</text><circle cx="296" cy="118" r="7" fill="#E6338A"/><text x="307" y="121" font-size="8" fill="#051C2C" font-family="Inter">Cross-train ops</text><circle cx="184" cy="131" r="7" fill="#00A9F4"/><text x="195" y="134" font-size="8" fill="#051C2C" font-family="Inter">Consolidate duplicate</text><circle cx="312" cy="157" r="7" fill="#00A9F4"/><text x="323" y="160" font-size="8" fill="#051C2C" font-family="Inter">Delegate routine</text><circle cx="264" cy="144" r="7" fill="#00A9F4"/><text x="275" y="147" font-size="8" fill="#051C2C" font-family="Inter">Standardize KPI</text><circle cx="216" cy="183" r="7" fill="#8896A2"/><text x="227" y="186" font-size="8" fill="#051C2C" font-family="Inter">Capture tribal</text></svg>
+      <div class="caption">Source: Req discovery snapshot v1 · Acme Corp</div><div class="mark">Req</div></div>
+    <div>
+      <div class="eyebrow">04 — Delta from v0</div>
+      <div class="delta" style="margin-top:4mm;">
+        <div class="col add"><h4>New</h4><ul><li>Signal: inconsistent metric definitions</li><li>Signal: undocumented tribal knowledge</li><li>Pattern: fragmented data erodes trust</li></ul></div>
+        <div class="col chg"><h4>Changed</h4><ul><li>Manual reconciliation 0.70 → 0.82</li><li>Completion 50% → 75%</li><li>Readiness 61 → 75</li></ul></div>
+        <div class="col rem"><h4>Resolved</h4><ul><li>Onboarding delay signal cleared</li></ul></div>
+      </div>
+      <p style="font-size:8.5pt;color:var(--muted);margin-top:5mm;">This version expanded discovery with a second completed cohort: two new findings, several strengthened, one resolved.</p>
+    </div>
+  </div><div class="footer"><span class="brand">Req · Acme Corp Discovery Report</span><span>10</span></div>
+</section>
+
+<!-- MEDIA + METHOD -->
+<section class="page">
+  <div class="eyebrow">08 — Supporting media &amp; methodology</div>
+  <h1 style="font-size:28pt;margin:4mm 0 4mm;">Evidence base</h1>
+  <div class="card-grid-3">
+    <div class="media-card"><div class="c">Voice</div><div class="k">12 voice notes</div><p>Employees described close-cycle frustration in their own words; sentiment analysis flagged 'rework' and 'waiting' as dominant themes.</p></div><div class="media-card"><div class="c">Image</div><div class="k">5 screenshots</div><p>Uploaded spreadsheet screenshots confirmed the manual reconciliation signal and revealed three parallel versions of the same workbook.</p></div><div class="media-card"><div class="c">Document</div><div class="k">2 process docs</div><p>An outdated SOP and an onboarding checklist corroborated the undocumented-knowledge signal.</p></div>
+  </div>
+  <div class="split" style="margin-top:8mm;">
+    <div>
+      <div class="eyebrow">Methodology</div>
+      <p class="method" style="margin-top:3mm;">Findings draw on structured interviews conducted over WhatsApp and web chat between June 2025 and February 2026. Four employees across Finance and Operations participated; three completed the full discovery flow.</p>
+    </div>
+    <div class="method" style="align-self:center;">
+      <dl><dt>Readiness weighting</dt><dd style="font-size:9pt;color:var(--muted);">Employee coverage (30%), department spread (25%), pattern confidence (25%), multimodal evidence (20%).</dd>
+      <dt>Review</dt><dd style="font-size:9pt;color:var(--muted);">Reviewed by one external expert and approved by the Req platform team before delivery. Reviewer notes appear in the appendix on approved reports.</dd></dl>
+    </div>
+  </div><div class="footer"><span class="brand">Req · Acme Corp Discovery Report</span><span>11</span></div>
+</section>
+
+<!-- APPENDIX DIVIDER: reviewer notes (approval regenerate path only) -->
+<section class="page bleed divider">
+  <div class="hero"><div class="cat" style="background:var(--blue);">Appendix</div><svg viewBox="0 0 440 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg"><rect width="440" height="900" fill="#051C2C"/><circle cx="381" cy="817" r="1.5" fill="#FFFFFF" opacity="0.68"/><circle cx="191" cy="470" r="2" fill="#00A9F4" opacity="0.50"/><circle cx="35" cy="545" r="1.5" fill="#FFFFFF" opacity="0.40"/><circle cx="300" cy="380" r="3" fill="#8B5CF6" opacity="0.55"/><circle cx="52" cy="680" r="2.5" fill="#8B5CF6" opacity="0.71"/><circle cx="266" cy="836" r="2.5" fill="#E6338A" opacity="0.88"/><circle cx="137" cy="839" r="1.5" fill="#8B5CF6" opacity="0.80"/><circle cx="98" cy="431" r="2" fill="#14B8A6" opacity="0.45"/><circle cx="98" cy="298" r="2" fill="#8B5CF6" opacity="0.67"/><circle cx="61" cy="384" r="2.5" fill="#8B5CF6" opacity="0.87"/><circle cx="137" cy="520" r="2.5" fill="#FFFFFF" opacity="0.85"/><circle cx="236" cy="772" r="2" fill="#14B8A6" opacity="0.49"/><circle cx="71" cy="681" r="2" fill="#14B8A6" opacity="0.53"/><circle cx="84" cy="649" r="3" fill="#FFFFFF" opacity="0.44"/><circle cx="401" cy="76" r="3" fill="#14B8A6" opacity="0.36"/><circle cx="338" cy="600" r="1.5" fill="#00A9F4" opacity="0.65"/><circle cx="406" cy="652" r="1.5" fill="#E6338A" opacity="0.89"/><circle cx="173" cy="190" r="2.5" fill="#FFFFFF" opacity="0.61"/><circle cx="105" cy="805" r="2" fill="#E6338A" opacity="0.40"/><circle cx="241" cy="569" r="2" fill="#8B5CF6" opacity="0.49"/><circle cx="190" cy="778" r="2.5" fill="#14B8A6" opacity="0.71"/><circle cx="187" cy="167" r="3" fill="#8B5CF6" opacity="0.39"/><circle cx="395" cy="775" r="2.5" fill="#00A9F4" opacity="0.58"/><circle cx="144" cy="744" r="1.5" fill="#8B5CF6" opacity="0.80"/><circle cx="71" cy="554" r="3" fill="#E6338A" opacity="0.49"/><circle cx="392" cy="95" r="1.5" fill="#8B5CF6" opacity="0.48"/><circle cx="243" cy="421" r="2.5" fill="#14B8A6" opacity="0.35"/><circle cx="173" cy="682" r="3" fill="#00A9F4" opacity="0.46"/><circle cx="289" cy="174" r="3" fill="#14B8A6" opacity="0.88"/><circle cx="190" cy="260" r="2" fill="#8B5CF6" opacity="0.64"/><circle cx="143" cy="776" r="2" fill="#FFFFFF" opacity="0.83"/><circle cx="358" cy="443" r="3" fill="#FFFFFF" opacity="0.68"/><circle cx="141" cy="295" r="2.5" fill="#E6338A" opacity="0.50"/><circle cx="383" cy="163" r="3" fill="#FFFFFF" opacity="0.84"/><circle cx="284" cy="657" r="2.5" fill="#E6338A" opacity="0.73"/><circle cx="176" cy="771" r="2.5" fill="#00A9F4" opacity="0.41"/><circle cx="206" cy="130" r="3" fill="#8B5CF6" opacity="0.35"/><circle cx="44" cy="680" r="2" fill="#FFFFFF" opacity="0.77"/><circle cx="244" cy="420" r="1.5" fill="#14B8A6" opacity="0.50"/><circle cx="168" cy="152" r="2" fill="#FFFFFF" opacity="0.76"/><circle cx="180" cy="594" r="1.5" fill="#E6338A" opacity="0.69"/><circle cx="295" cy="532" r="1.5" fill="#FFFFFF" opacity="0.85"/><circle cx="99" cy="46" r="2" fill="#8B5CF6" opacity="0.86"/><circle cx="142" cy="774" r="1.5" fill="#E6338A" opacity="0.80"/><circle cx="259" cy="521" r="1.5" fill="#E6338A" opacity="0.42"/><circle cx="65" cy="741" r="3" fill="#00A9F4" opacity="0.90"/><circle cx="318" cy="215" r="3" fill="#8B5CF6" opacity="0.71"/><circle cx="232" cy="212" r="2.5" fill="#8B5CF6" opacity="0.60"/><circle cx="281" cy="823" r="2.5" fill="#00A9F4" opacity="0.56"/><circle cx="324" cy="720" r="3" fill="#FFFFFF" opacity="0.57"/><circle cx="305" cy="659" r="2" fill="#8B5CF6" opacity="0.47"/><circle cx="185" cy="79" r="3" fill="#E6338A" opacity="0.61"/><circle cx="91" cy="803" r="2" fill="#E6338A" opacity="0.88"/><circle cx="43" cy="276" r="3" fill="#00A9F4" opacity="0.80"/><circle cx="249" cy="833" r="3" fill="#8B5CF6" opacity="0.80"/><polyline points="70,0 77,20 83,40 89,60 94,80 98,100 100,120 102,140 102,160 100,180 98,200 94,220 88,240 83,260 76,280 69,300 63,320 56,340 51,360 46,380 42,400 39,420 38,440 38,460 40,480 43,500 47,520 52,540 58,560 64,580 71,600 78,620 84,640 90,660 95,680 98,700 101,720 102,740 102,760 100,780 97,800 93,820 88,840 82,860 75,880 68,900" fill="none" stroke="#1F40FF" stroke-width="1.4" opacity="0.22"/><polyline points="172,0 176,20 178,40 178,60 177,80 174,100 169,120 164,140 157,160 149,180 141,200 133,220 126,240 119,260 113,280 108,300 104,320 102,340 102,360 104,380 107,400 111,420 117,440 124,460 131,480 139,500 147,520 155,540 162,560 168,580 173,600 176,620 178,640 178,660 176,680 173,700 168,720 163,740 156,760 148,780 140,800 132,820 125,840 118,860 112,880 107,900" fill="none" stroke="#1F40FF" stroke-width="1.4" opacity="0.34"/><polyline points="250,0 245,20 239,40 231,60 223,80 214,100 205,120 196,140 187,160 180,180 174,200 169,220 167,240 166,260 167,280 170,300 175,320 182,340 189,360 198,380 207,400 216,420 225,440 233,460 241,480 247,500 251,520 253,540 254,560 253,580 249,600 244,620 238,640 230,660 222,680 212,700 203,720 194,740 186,760 179,780 173,800 169,820 167,840 166,860 168,880 171,900" fill="none" stroke="#1F40FF" stroke-width="1.4" opacity="0.46"/><polyline points="287,0 277,20 266,40 256,60 248,80 240,100 235,120 231,140 230,160 231,180 234,200 239,220 246,240 254,260 264,280 274,300 284,320 295,340 304,360 313,380 320,400 325,420 329,440 330,460 329,480 326,500 321,520 314,540 305,560 296,580 285,600 275,620 265,640 255,660 247,680 240,700 234,720 231,740 230,760 231,780 234,800 240,820 247,840 255,860 265,880 275,900" fill="none" stroke="#1F40FF" stroke-width="1.4" opacity="0.58"/><polyline points="308,0 301,20 296,40 294,60 294,80 297,100 302,120 309,140 318,160 329,180 340,200 352,220 363,240 375,260 385,280 393,300 400,320 404,340 406,360 405,380 402,400 397,420 390,440 381,460 370,480 359,500 347,520 336,540 325,560 315,580 306,600 300,620 296,640 294,660 295,680 298,700 303,720 311,740 320,760 330,780 342,800 354,820 365,840 376,860 386,880 394,900" fill="none" stroke="#1F40FF" stroke-width="1.4" opacity="0.70"/><circle cx="299" cy="230" r="5" fill="#00A9F4"/><circle cx="252" cy="122" r="4" fill="#1F40FF"/><circle cx="294" cy="541" r="6" fill="#00A9F4"/><circle cx="197" cy="259" r="5" fill="#FFFFFF"/><circle cx="290" cy="229" r="4" fill="#FFFFFF"/><circle cx="273" cy="712" r="4" fill="#00A9F4"/><circle cx="129" cy="438" r="5" fill="#1F40FF"/><circle cx="138" cy="512" r="6" fill="#00A9F4"/><circle cx="154" cy="482" r="6" fill="#00A9F4"/><circle cx="74" cy="86" r="6" fill="#FFFFFF"/><circle cx="230" cy="300" r="78" fill="none" stroke="#1F40FF" stroke-width="2" opacity="0.5"/><circle cx="230" cy="300" r="50" fill="none" stroke="#00A9F4" stroke-width="2" opacity="0.6"/><circle cx="230" cy="300" r="22" fill="#1F40FF" opacity="0.9"/><circle cx="200" cy="640" r="46" fill="none" stroke="#00A9F4" stroke-width="2" opacity="0.5"/><circle cx="200" cy="640" r="20" fill="#E6338A" opacity="0.85"/></svg></div>
+  <div class="body">
+    <div class="eyebrow">Appendix — included on platform-approved reports only</div>
+    <h1 style="margin-top:4mm;">Reviewer notes</h1>
+    <p class="lead">Overall notes and section-level comments from expert review, gathered at platform approval. Live discussions and interview follow-up threads are collaboration tooling and are intentionally excluded from this deliverable.</p>
+    <div class="highlight-box">
+      <div class="highlight"><p><strong>2 reviewers</strong> completed review before approval.</p></div>
+      <div class="highlight"><p><strong>5 of 7</strong> sections marked reviewed; 2 flagged for clarification.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- APPENDIX CONTENT: overall notes + section-by-section review -->
+<section class="page">
+  <div class="eyebrow">Appendix · Reviewer notes</div>
+  <h1 style="font-size:26pt;margin:4mm 0 5mm;">Overall notes</h1>
+  <div class="split" style="grid-template-columns:1fr 1fr;"><div class="reviewer-note"><div class="who">Dr. Elena Ruiz</div><div class="role">External expert · Operations</div><p>A strong, well-evidenced discovery overall. The manual-work findings are convincing and well supported by the voice notes. Before I'd rank the metric-definition signal above the approval bottleneck, I'd like clarification on how its strength was scored.</p></div><div class="reviewer-note"><div class="who">Marcus Blake</div><div class="role">Co-reviewer · Finance transformation</div><p>Agree with the recommendations and their priority order — month-end automation is the clear first move. Minor: the Sales non-participation should be flagged more prominently in the readiness narrative.</p></div></div>
+  <div class="eyebrow" style="margin-top:9mm;">Section-by-section review</div>
+  <div class="review-list">
+    <div class="review-row head"><span class="sec">Section</span><span>Status</span><span>Comment</span></div>
+    <div class="review-row"><span class="sec">Executive summary</span><span class="status reviewed">Reviewed</span><span class="cmt">Clear and accurate. No changes.</span></div><div class="review-row"><span class="sec">Readiness</span><span class="status clarify">Needs clarification</span><span class="cmt">Clarify the weighting rationale for department spread, given Sales did not participate this round.</span></div><div class="review-row"><span class="sec">Participation</span><span class="status reviewed">Reviewed</span><span class="cmt">Matches the underlying interview records.</span></div><div class="review-row"><span class="sec">Delta</span><span class="status reviewed">Reviewed</span><span class="cmt">Delta summary is fair and complete.</span></div><div class="review-row"><span class="sec">Signals</span><span class="status clarify">Needs clarification</span><span class="cmt">Metric-definition signal strength (0.55) may be understated relative to the volume of supporting evidence.</span></div><div class="review-row"><span class="sec">Patterns</span><span class="status reviewed">Reviewed</span><span class="cmt">Cross-team framing is well justified.</span></div><div class="review-row"><span class="sec">Recommendations</span><span class="status reviewed">Reviewed</span><span class="cmt">Priority order endorsed; catalog matches are appropriate.</span></div>
+  </div>
+  <div class="footer"><span class="brand">Req · Acme Corp Discovery Report</span><span>12</span></div>
+</section>
+
+</body></html>

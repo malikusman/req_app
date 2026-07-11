@@ -1,0 +1,29 @@
+<% company_name = snapshot.dig("company", "name") %>
+<section class="page">
+  <div class="eyebrow">Report contents</div>
+  <div class="contents-land">
+    <h2>Contents</h2>
+    <div class="cols">
+      <% left, right = toc_entries.each_slice((toc_entries.size / 2.0).ceil).to_a %>
+      <div>
+        <% Array(left).each do |entry| %>
+          <div class="toc-item <%= entry[:rule] %>">
+            <span class="n"><%= entry[:n] %></span>
+            <span class="t"><%= h entry[:title] %></span>
+            <span class="d"><%= h entry[:description] %></span>
+          </div>
+        <% end %>
+      </div>
+      <div>
+        <% Array(right).each do |entry| %>
+          <div class="toc-item <%= entry[:rule] %>">
+            <span class="n"><%= entry[:n] %></span>
+            <span class="t"><%= h entry[:title] %></span>
+            <span class="d"><%= h entry[:description] %></span>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+  <%= render "reports/page_footer", company_name: company_name %>
+</section>

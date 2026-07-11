@@ -48,10 +48,18 @@ module Reports
       parts << "Content-Type: text/html\r\n\r\n"
       parts << @html
       parts << "\r\n"
-      %w[marginTop marginBottom marginLeft marginRight].each do |field|
+      # A4 landscape in inches (297mm × 210mm). Pages own their margins via .page padding.
+      {
+        "paperWidth" => "11.69",
+        "paperHeight" => "8.27",
+        "marginTop" => "0",
+        "marginBottom" => "0",
+        "marginLeft" => "0",
+        "marginRight" => "0"
+      }.each do |field, value|
         parts << "--#{boundary}\r\n"
         parts << "Content-Disposition: form-data; name=\"#{field}\"\r\n\r\n"
-        parts << "0.7\r\n"
+        parts << "#{value}\r\n"
       end
       parts << "--#{boundary}--\r\n"
       parts.join
