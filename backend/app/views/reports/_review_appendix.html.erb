@@ -60,15 +60,34 @@
 
   <% if findings.any? %>
     <h2 style="font-size:16pt;margin:8mm 0 3mm;">Structured findings</h2>
-    <% findings.each do |finding| %>
-      <div class="card" style="margin-bottom:3mm;">
-        <div class="muted" style="font-size:8pt;text-transform:uppercase;letter-spacing:0.04em;">
-          <%= h finding["kind"].to_s.humanize %> · <%= h finding["severity"].to_s.humanize %> · <%= h finding["reviewer"] %>
+    <% findings.each do |finding|
+         sev = finding["severity"].to_s.presence || "info"
+         refs = Array(finding["evidence_refs"]).map(&:to_s).reject(&:blank?)
+    %>
+      <div class="finding-card sev-<%= h sev %>" style="margin-bottom:3mm;">
+        <div class="finding-meta">
+          <span><%= h finding["kind"].to_s.humanize %></span>
+          <span class="status sev-<%= h sev %>"><%= h sev.humanize %></span>
+          <% if finding["disposition"].present? %>
+            <span class="status disposition"><%= h finding["disposition"].to_s.humanize %></span>
+          <% end %>
+          <span class="muted"><%= h finding["reviewer"] %></span>
+          <% if finding["section_key"].present? %>
+            <span class="muted">· <%= h ReportsHelper.section_label(finding["section_key"]) %></span>
+          <% end %>
         </div>
-        <div style="font-weight:600;margin:1mm 0;"><%= h finding["title"] %></div>
+        <div class="finding-title"><%= h finding["title"] %></div>
         <p style="margin:0;"><%= h finding["body"] %></p>
         <% if finding["recommendation"].present? %>
           <p class="muted" style="margin:2mm 0 0;"><strong>Recommendation:</strong> <%= h finding["recommendation"] %></p>
+        <% end %>
+        <% if refs.any? %>
+          <div class="evidence-refs">
+            <span class="lab">Evidence</span>
+            <% refs.each do |ref| %>
+              <code><%= h ref %></code>
+            <% end %>
+          </div>
         <% end %>
       </div>
     <% end %>

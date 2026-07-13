@@ -6,7 +6,10 @@ module Api
       class CatalogSourcesController < BaseController
         def index
           sources = CatalogSource.order(:name)
-          render json: { catalog_sources: sources.map { |s| source_json(s) } }
+          render json: {
+            catalog_sources: sources.map { |s| source_json(s) },
+            sync_interval_hours: defined?(CatalogSyncSchedule) ? CatalogSyncSchedule.interval_hours : 12
+          }
         end
 
         def create
@@ -18,6 +21,29 @@ module Api
           source = CatalogSource.find(params[:id])
           source.update!(source_params)
           render json: { catalog_source: source_json(source) }
+        end
+
+        def destroy
+          source = CatalogSource.find(params[:id])
+          source.destroy!
+          head :no_content
+        end
+
+        def sync
+          source = CatalogSource.find(params[:id])
+          run = Catalog::SyncSourceService.call(catalog_source: source)
+          render json: {
+            catalog_source: source_json(source.reload),
+            catalog_sync_run: {
+              id: run.id,
+              status: run.status,
+              records_fetched: run.records_fetched,
+              candidates_created: run.candidates_created,
+              errors: run.error_details
+            }
+          }
+        rescue StandardError => e
+          render json: { error: e.message }, status: :unprocessable_entity
         end
 
         private

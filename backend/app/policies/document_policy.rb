@@ -16,6 +16,10 @@ class DocumentPolicy < ApplicationPolicy
     company_admin?
   end
 
+  def update?
+    company_admin?
+  end
+
   def download?
     show?
   end

@@ -104,6 +104,45 @@ export const api = {
   companyEmployees: (token: string) =>
     request<{ employees: Employee[] }>('/api/v1/company/employees', {}, token),
 
+  employeeValuePreference: (token: string, employeeId: number) =>
+    request<{
+      employee_value_preference: EmployeeValuePreference;
+      latest_digest: EmployeeValueDigest | null;
+    }>(`/api/v1/company/employees/${employeeId}/value_preference`, {}, token),
+
+  updateEmployeeValuePreference: (
+    token: string,
+    employeeId: number,
+    payload: {
+      email_opt_in?: boolean;
+      frequency?: string;
+      locale?: string;
+      interests?: string[];
+    }
+  ) =>
+    request<{
+      employee_value_preference: EmployeeValuePreference;
+      latest_digest: EmployeeValueDigest | null;
+    }>(
+      `/api/v1/company/employees/${employeeId}/value_preference`,
+      { method: 'PATCH', body: JSON.stringify({ employee_value_preference: payload }) },
+      token
+    ),
+
+  generateEmployeeValueDigest: (token: string, employeeId: number, periodKey?: string) =>
+    request<{ digest: EmployeeValueDigest }>(
+      `/api/v1/company/employees/${employeeId}/value_preference/generate_digest`,
+      { method: 'POST', body: JSON.stringify(periodKey ? { period_key: periodKey } : {}) },
+      token
+    ),
+
+  sendEmployeeValueDigest: (token: string, employeeId: number, periodKey?: string) =>
+    request<{ digest: EmployeeValueDigest; message?: string }>(
+      `/api/v1/company/employees/${employeeId}/value_preference/send_digest`,
+      { method: 'POST', body: JSON.stringify(periodKey ? { period_key: periodKey } : {}) },
+      token
+    ),
+
   inviteEmployee: (
     token: string,
     phone_e164: string,
@@ -212,6 +251,37 @@ export const api = {
   companyDocuments: (token: string) =>
     request<{ documents: CompanyDocument[] }>('/api/v1/company/documents', {}, token),
 
+  updateCompanyDocument: (
+    token: string,
+    id: number,
+    payload: { reviewer_visible?: boolean; department?: string | null }
+  ) =>
+    request<{ document: CompanyDocument }>(
+      `/api/v1/company/documents/${id}`,
+      { method: 'PATCH', body: JSON.stringify(payload) },
+      token
+    ),
+
+  reviewerDocuments: (token: string, companyId: number) =>
+    request<{ documents: CompanyDocument[] }>(`/api/v1/reviewer/companies/${companyId}/documents`, {}, token),
+
+  reviewerDocument: (token: string, companyId: number, id: number) =>
+    request<{ document: CompanyDocument }>(`/api/v1/reviewer/companies/${companyId}/documents/${id}`, {}, token),
+
+  downloadReviewerDocument: async (token: string, companyId: number, id: number, filename: string) => {
+    const res = await fetch(`${API_URL}/api/v1/reviewer/companies/${companyId}/documents/${id}/download`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error('Download failed');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
+
   companyOutreaches: (token: string) =>
     request<{ outreaches: Array<Record<string, unknown>> }>('/api/v1/company/outreaches', {}, token),
 
@@ -225,6 +295,13 @@ export const api = {
   declineOutreach: (token: string, id: number, payload: { note?: string } = {}) =>
     request<{ outreach: Record<string, unknown> }>(
       `/api/v1/company/outreaches/${id}/decline`,
+      { method: 'POST', body: JSON.stringify(payload) },
+      token
+    ),
+
+  answerOutreach: (token: string, id: number, payload: { body: string; channel?: string }) =>
+    request<{ outreach: Record<string, unknown>; reply: Record<string, unknown> }>(
+      `/api/v1/company/outreaches/${id}/answer`,
       { method: 'POST', body: JSON.stringify(payload) },
       token
     ),
@@ -258,7 +335,16 @@ export const api = {
   companyMeetingRequests: (token: string) =>
     request<{ meeting_requests: Array<Record<string, unknown>> }>('/api/v1/company/meeting_requests', {}, token),
 
-  approveMeetingRequest: (token: string, id: number, payload: { admin_note?: string; scheduled_at?: string; meeting_link?: string } = {}) =>
+  approveMeetingRequest: (
+    token: string,
+    id: number,
+    payload: {
+      admin_note?: string;
+      scheduled_at?: string;
+      meeting_link?: string;
+      selected_participant_ids?: number[];
+    } = {}
+  ) =>
     request<{ meeting_request: Record<string, unknown> }>(
       `/api/v1/company/meeting_requests/${id}/approve`,
       { method: 'POST', body: JSON.stringify(payload) },
@@ -269,6 +355,13 @@ export const api = {
     request<{ meeting_request: Record<string, unknown> }>(
       `/api/v1/company/meeting_requests/${id}/decline`,
       { method: 'POST', body: JSON.stringify(payload) },
+      token
+    ),
+
+  reviewerMeetingRequests: (token: string, companyId: number) =>
+    request<{ meeting_requests: Array<Record<string, unknown>> }>(
+      `/api/v1/reviewer/companies/${companyId}/meeting_requests`,
+      {},
       token
     ),
 
@@ -286,6 +379,56 @@ export const api = {
       token
     ),
 
+  platformCatalogSources: (token: string) =>
+    request<{ catalog_sources: Array<Record<string, unknown>>; sync_interval_hours?: number }>(
+      '/api/v1/platform/catalog/sources',
+      {},
+      token
+    ),
+
+  createPlatformCatalogSource: (token: string, payload: Record<string, unknown>) =>
+    request<{ catalog_source: Record<string, unknown> }>(
+      '/api/v1/platform/catalog/sources',
+      { method: 'POST', body: JSON.stringify({ catalog_source: payload }) },
+      token
+    ),
+
+  updatePlatformCatalogSource: (token: string, id: number, payload: Record<string, unknown>) =>
+    request<{ catalog_source: Record<string, unknown> }>(
+      `/api/v1/platform/catalog/sources/${id}`,
+      { method: 'PATCH', body: JSON.stringify({ catalog_source: payload }) },
+      token
+    ),
+
+  syncPlatformCatalogSource: (token: string, id: number) =>
+    request<{ catalog_source: Record<string, unknown>; catalog_sync_run: Record<string, unknown> }>(
+      `/api/v1/platform/catalog/sources/${id}/sync`,
+      { method: 'POST' },
+      token
+    ),
+
+  syncAllCatalogSources: (token: string) =>
+    request<{ status: string }>('/api/v1/platform/catalog/sync', { method: 'POST' }, token),
+
+  reviewerCatalog: (token: string, companyId: number) =>
+    request<{ matches: Array<Record<string, unknown>>; endorsements: Array<Record<string, unknown>> }>(
+      `/api/v1/reviewer/companies/${companyId}/catalog`,
+      {},
+      token
+    ),
+
+  endorseReviewerCatalogMatch: (
+    token: string,
+    companyId: number,
+    matchId: number,
+    payload: { disposition: string; rationale?: string; report_id?: number; publishable?: boolean; source_url?: string }
+  ) =>
+    request<{ endorsement: Record<string, unknown> }>(
+      `/api/v1/reviewer/companies/${companyId}/catalog/${matchId}/endorse`,
+      { method: 'POST', body: JSON.stringify(payload) },
+      token
+    ),
+
   approveCatalogCandidate: (token: string, id: number, payload: { review_note?: string; attributes?: Record<string, unknown> } = {}) =>
     request<{ catalog_candidate: Record<string, unknown> }>(
       `/api/v1/platform/catalog/candidates/${id}/approve`,
@@ -300,10 +443,11 @@ export const api = {
       token
     ),
 
-  uploadDocument: async (token: string, file: File, department?: string) => {
+  uploadDocument: async (token: string, file: File, opts?: { department?: string; reviewer_visible?: boolean }) => {
     const form = new FormData();
     form.append('file', file);
-    if (department) form.append('department', department);
+    if (opts?.department) form.append('department', opts.department);
+    if (opts?.reviewer_visible === false) form.append('reviewer_visible', 'false');
 
     const res = await fetch(`${API_URL}/api/v1/company/documents`, {
       method: 'POST',
@@ -1230,6 +1374,9 @@ export interface CompanyDocument {
   id: number;
   filename: string;
   department: string | null;
+  document_type?: string | null;
+  sensitivity?: string | null;
+  reviewer_visible?: boolean;
   source: string;
   status: string;
   content_type: string | null;
@@ -1289,6 +1436,28 @@ export interface EmployeeNudge {
   email_status: string | null;
   error_message: string | null;
   sent_at: string;
+}
+
+export interface EmployeeValuePreference {
+  employee_id: number;
+  email_opt_in: boolean;
+  frequency: string;
+  locale: string;
+  interests: string[];
+  unsubscribed_at: string | null;
+  subscribed: boolean;
+}
+
+export interface EmployeeValueDigest {
+  id: number;
+  employee_id: number;
+  period_key: string;
+  status: string;
+  delivery_status?: string | null;
+  generated_at?: string | null;
+  sent_at?: string | null;
+  headline?: string | null;
+  content?: Record<string, unknown>;
 }
 
 export interface Employee {

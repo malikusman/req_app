@@ -47,20 +47,22 @@ module Api
         def answer
           outreach = find_outreach!
           authorize outreach, :answer?
-          body = params.require(:body)
-
-          reply = nil
-          ActiveRecord::Base.transaction do
-            reply = ReviewerOutreachReply.create!(
-              reviewer_outreach: outreach,
-              channel: params[:channel].presence || "portal",
-              body: body,
-              company_user: current_company_user,
-              received_at: Time.current
-            )
-            outreach.update!(status: "closed")
-            outreach.append_audit!("answered", actor: current_company_user, note: "Closed via portal answer")
+          unless outreach.status.in?(%w[sent replied approved queued])
+            return render json: { error: "Outreach cannot be answered in status #{outreach.status}" },
+                           status: :unprocessable_entity
           end
+
+          body = params.require(:body).to_s.strip
+          return render json: { error: "Answer body is required" }, status: :unprocessable_entity if body.blank?
+
+          reply = Outreaches::RecordReplyService.call(
+            outreach: outreach,
+            body: body,
+            channel: params[:channel].presence || "portal",
+            company_user: current_company_user
+          )
+          outreach.update!(status: "closed")
+          outreach.append_audit!("answered", actor: current_company_user, note: "Closed via portal answer")
 
           render json: {
             outreach: outreach_json(outreach.reload),

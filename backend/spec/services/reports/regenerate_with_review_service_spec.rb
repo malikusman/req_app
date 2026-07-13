@@ -12,6 +12,15 @@ RSpec.describe Reports::RegenerateWithReviewService do
                                     overall_note: "Looks solid.", submitted_at: Time.current, status: "approved")
     create(:report_review_comment, report_review: review, reviewer_user: reviewer, section_key: "signals",
                                    body: "Add more finance evidence.")
+    review.report_review_findings.create!(
+      reviewer_user: reviewer,
+      finding_type: "executive_conclusion",
+      severity: "info",
+      disposition: "endorse",
+      body: "Ready for platform approval.",
+      evidence_refs: %w[signal:finance-1],
+      publishable: true
+    )
     allow(Storage::MinioClient).to receive(:new).and_return(instance_double(Storage::MinioClient, upload: true))
     allow(Reports::PdfGenerator).to receive(:call).and_return("%PDF-1.4 test")
   end
@@ -23,6 +32,15 @@ RSpec.describe Reports::RegenerateWithReviewService do
         review_notes: array_including(
           hash_including("reviewer" => "Alex Expert", "body" => "Looks solid."),
           hash_including("section_key" => "signals", "body" => "Add more finance evidence.")
+        ),
+        review_overlay: hash_including(
+          "structured_findings" => array_including(
+            hash_including(
+              "body" => "Ready for platform approval.",
+              "disposition" => "endorse",
+              "evidence_refs" => %w[signal:finance-1]
+            )
+          )
         )
       )
     ).and_return("<html></html>")

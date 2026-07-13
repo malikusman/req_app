@@ -60,6 +60,20 @@ module Api
           render json: { document: document_json(document) }, status: :created
         end
 
+        def update
+          document = policy_scope(Document).find(params[:id])
+          authorize document, :update?
+
+          attrs = {}
+          if params.key?(:reviewer_visible)
+            attrs[:reviewer_visible] = ActiveModel::Type::Boolean.new.cast(params[:reviewer_visible])
+          end
+          attrs[:department] = params[:department].presence if params.key?(:department)
+
+          document.update!(attrs) if attrs.any?
+          render json: { document: document_json(document) }
+        end
+
         def download
           document = policy_scope(Document).find(params[:id])
           authorize document, :download?

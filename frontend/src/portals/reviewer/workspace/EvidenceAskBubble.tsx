@@ -85,7 +85,7 @@ export function EvidenceAskBubble({
       </button>
 
       {open && (
-        <div className="absolute z-20 mt-2 w-72 rounded-lg border border-border bg-card p-3 shadow-lg">
+        <div className="absolute right-0 z-20 mt-2 w-[min(18rem,calc(100vw-2rem))] rounded-lg border border-border bg-card p-3 shadow-lg">
           <p className="m-0 mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Ask on this</p>
           <Textarea rows={3} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Your question…" />
           {coReviewers.length > 0 && (

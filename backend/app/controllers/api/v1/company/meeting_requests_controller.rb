@@ -23,9 +23,9 @@ module Api
           MeetingRequests::ApproveService.call(
             meeting_request: meeting,
             company_user: current_company_user,
-            selected_participant_ids: params[:selected_participant_ids] || [],
-            scheduled_at: params[:scheduled_at],
-            meeting_link: params[:meeting_link],
+            selected_participant_ids: Array(params[:selected_participant_ids]).map(&:to_i).reject(&:zero?),
+            scheduled_at: parse_scheduled_at(params[:scheduled_at]),
+            meeting_link: params[:meeting_link].presence,
             admin_note: params[:admin_note] || params[:note]
           )
           render json: { meeting_request: meeting_json(meeting.reload) }
@@ -57,11 +57,20 @@ module Api
           render json: { error: "Forbidden" }, status: :forbidden
         end
 
+        def parse_scheduled_at(value)
+          return nil if value.blank?
+
+          Time.zone.parse(value.to_s)
+        rescue ArgumentError, TypeError
+          raise ArgumentError, "Invalid scheduled_at"
+        end
+
         def meeting_json(m)
           {
             id: m.id,
             report_id: m.report_id,
             reviewer_user_id: m.reviewer_user_id,
+            reviewer_name: m.reviewer_user&.name,
             reviewer_outreach_id: m.reviewer_outreach_id,
             purpose: m.purpose,
             desired_roles: m.desired_roles,

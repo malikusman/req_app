@@ -28,4 +28,35 @@ RSpec.describe Reports::ReviewNotesCollector do
     expect(bodies).to include("Ready to share.", "Open comment")
     expect(bodies).not_to include("Not ready", "Resolved comment")
   end
+
+  it "overlays publishable findings with disposition and evidence refs" do
+    submitted.report_review_findings.create!(
+      reviewer_user: reviewer,
+      finding_type: "executive_conclusion",
+      severity: "material",
+      disposition: "endorse",
+      body: "Evidence supports the readiness claim.",
+      evidence_refs: %w[signal:1 pattern:2],
+      publishable: true
+    )
+    submitted.report_review_findings.create!(
+      reviewer_user: reviewer,
+      finding_type: "risk",
+      severity: "info",
+      body: "Draft-only note",
+      publishable: false
+    )
+
+    overlay = described_class.new(report: report).overlay
+    findings = overlay["structured_findings"]
+
+    expect(findings.size).to eq(1)
+    expect(findings.first).to include(
+      "reviewer" => "Alex Expert",
+      "disposition" => "endorse",
+      "severity" => "material",
+      "body" => "Evidence supports the readiness claim.",
+      "evidence_refs" => %w[signal:1 pattern:2]
+    )
+  end
 end

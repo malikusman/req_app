@@ -11,6 +11,9 @@ module Outreaches
     end
 
     def call
+      # Idempotent: deferred Sidekiq jobs must not fail after a successful send/reply.
+      return @outreach if @outreach.status.in?(%w[sent replied])
+
       raise ArgumentError, "Outreach not approved" unless @outreach.status.in?(%w[approved queued])
 
       @outreach.update!(status: "queued")
@@ -29,6 +32,12 @@ module Outreaches
 
       @outreach.append_audit!("sent", actor: @outreach.approved_by_company_user || @outreach.reviewer_user)
       @outreach
+    rescue ArgumentError => e
+      raise if e.message == "Outreach not approved"
+
+      @outreach.update!(status: "failed")
+      @outreach.append_audit!("failed", actor: @outreach.reviewer_user, note: e.message)
+      raise
     rescue StandardError => e
       @outreach.update!(status: "failed")
       @outreach.append_audit!("failed", actor: @outreach.reviewer_user, note: e.message)
@@ -88,7 +97,7 @@ module Outreaches
         status: "sent",
         sent_at: Time.current
       )
-      OutreachMailer.request_email(@outreach, raw_token, body).deliver_later
+      OutreachMailer.request_email(@outreach, raw_token).deliver_later
     end
   end
 end

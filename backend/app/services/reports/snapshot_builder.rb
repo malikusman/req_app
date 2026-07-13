@@ -154,22 +154,35 @@ module Reports
       if defined?(CatalogEndorsement) && CatalogEndorsement.table_exists?
         endorsements = CatalogEndorsement
           .where(company_id: @company.id, publishable: true)
+          .includes(:solution_catalog_entry, :reviewer_user)
           .order(created_at: :desc)
           .limit(20)
           .map do |e|
+            entry = e.solution_catalog_entry
             {
               "disposition" => e.disposition,
               "rationale" => e.rationale,
+              "source_url" => e.source_url,
               "solution_catalog_entry_id" => e.solution_catalog_entry_id,
-              "reviewer_user_id" => e.reviewer_user_id
+              "solution_name" => entry&.name,
+              "solution_vendor" => entry&.vendor,
+              "reviewer_user_id" => e.reviewer_user_id,
+              "reviewer_name" => e.reviewer_user&.name,
+              "created_at" => e.created_at&.iso8601
             }
           end
+      end
+
+      # Attach publishable endorsements onto matching curated tools when possible.
+      curated = curated.map do |tool|
+        related = endorsements.select { |e| e["solution_catalog_entry_id"].to_i == tool["solution_id"].to_i }
+        tool.merge("endorsements" => related)
       end
 
       {
         "curated_matches" => curated.first(8),
         "endorsements" => endorsements,
-        "disclaimer" => "Catalog suggestions are advisory. Reviewer-validated picks are marked in the expert appendix."
+        "disclaimer" => "Catalog suggestions are advisory. Reviewer-validated picks appear with endorsement notes below."
       }
     end
   end

@@ -61,7 +61,7 @@
   <%= render "reports/recommendations", snapshot: snapshot, recommendations: recommendations, report_version: report_version %>
 <% end %>
 
-<% if Array(snapshot.dig("tools_catalog", "curated_matches")).any? || Array(snapshot["supporting_documents"]).any? %>
+<% if Array(snapshot.dig("tools_catalog", "curated_matches")).any? || Array(snapshot.dig("tools_catalog", "endorsements")).any? || Array(snapshot["supporting_documents"]).any? %>
   <%= render "reports/tools_catalog", snapshot: snapshot, report_version: report_version %>
 <% end %>
 

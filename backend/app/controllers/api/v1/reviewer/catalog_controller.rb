@@ -11,7 +11,13 @@ module Api
             .order(score: :desc, matched_at: :desc)
 
           render json: {
-            matches: matches.map { |m| match_json(m) }
+            matches: matches.map { |m| match_json(m) },
+            endorsements: CatalogEndorsement
+              .where(company_id: company.id)
+              .includes(:solution_catalog_entry, :reviewer_user)
+              .order(created_at: :desc)
+              .limit(50)
+              .map { |e| endorsement_json(e) }
           }
         end
 
@@ -71,12 +77,16 @@ module Api
         end
 
         def endorsement_json(e)
+          entry = e.solution_catalog_entry
           {
             id: e.id,
             company_id: e.company_id,
             report_id: e.report_id,
             reviewer_user_id: e.reviewer_user_id,
+            reviewer_name: e.reviewer_user&.name,
             solution_catalog_entry_id: e.solution_catalog_entry_id,
+            solution_name: entry&.name,
+            solution_vendor: entry&.vendor,
             disposition: e.disposition,
             rationale: e.rationale,
             source_url: e.source_url,

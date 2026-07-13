@@ -38,6 +38,8 @@ Rails.application.routes.draw do
         get "catalog/sources", to: "catalog_sources#index"
         post "catalog/sources", to: "catalog_sources#create"
         patch "catalog/sources/:id", to: "catalog_sources#update"
+        delete "catalog/sources/:id", to: "catalog_sources#destroy"
+        post "catalog/sources/:id/sync", to: "catalog_sources#sync"
         get "catalog/candidates", to: "catalog_candidates#index"
         post "catalog/candidates/:id/approve", to: "catalog_candidates#approve"
         post "catalog/candidates/:id/reject", to: "catalog_candidates#reject"
@@ -127,7 +129,7 @@ Rails.application.routes.draw do
         get "onboarding", to: "onboarding#show"
         patch "onboarding/profile", to: "onboarding#update_profile"
         post "onboarding/complete", to: "onboarding#complete"
-        resources :documents, only: %i[index show create destroy] do
+        resources :documents, only: %i[index show create update destroy] do
           member do
             get :download
           end
@@ -181,7 +183,10 @@ Rails.application.routes.draw do
           collection do
             post :bulk_create
           end
-          resource :value_preference, only: %i[show update], controller: "employee_value_preferences"
+          resource :value_preference, only: %i[show update], controller: "employee_value_preferences" do
+            post :generate_digest
+            post :send_digest
+          end
         end
         resources :conversations, only: %i[index show]
         get "media_attachments", to: "media_attachments#index"

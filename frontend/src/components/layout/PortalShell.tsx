@@ -44,7 +44,7 @@ export function PortalShell({
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-surface-muted">
+    <div className={cn('bg-surface-muted', fullBleed ? 'h-dvh overflow-hidden' : 'min-h-dvh')}>
       <Sidebar
         logo={resolvedLogo}
         items={navItems}
@@ -53,20 +53,34 @@ export function PortalShell({
         mobileOpen={sidebarOpen}
         onMobileClose={() => setSidebarOpen(false)}
       />
-      <div className={cn('flex min-h-screen flex-col', 'md:pl-sidebar')}>
+      <div
+        className={cn(
+          'flex flex-col md:pl-sidebar',
+          fullBleed ? 'h-full min-h-0' : 'min-h-dvh'
+        )}
+      >
         <TopBar
           title={title}
           subtitle={subtitle}
           actions={topBarActions}
           onMenuClick={() => setSidebarOpen(true)}
         />
-        <main className={cn('flex-1 overflow-y-auto', fullBleed && 'overflow-hidden')}>
+        <main
+          className={cn(
+            'min-h-0 flex-1',
+            fullBleed ? 'overflow-hidden' : 'overflow-y-auto overflow-x-hidden'
+          )}
+        >
           <div
             className={cn(
-              fullBleed ? 'h-full' : 'mx-auto max-w-content bg-surface-muted p-4 md:p-8'
+              fullBleed
+                ? 'flex h-full min-h-0 flex-col'
+                : 'mx-auto max-w-content bg-surface-muted p-4 md:p-8'
             )}
           >
-            <PageTransition>{children ?? <Outlet />}</PageTransition>
+            <PageTransition className={fullBleed ? 'flex min-h-0 flex-1 flex-col' : undefined}>
+              {children ?? <Outlet />}
+            </PageTransition>
           </div>
         </main>
       </div>

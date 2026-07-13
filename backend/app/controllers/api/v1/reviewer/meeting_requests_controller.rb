@@ -53,6 +53,7 @@ module Api
             company_id: m.company_id,
             report_id: m.report_id,
             reviewer_user_id: m.reviewer_user_id,
+            reviewer_name: m.reviewer_user&.name,
             reviewer_outreach_id: m.reviewer_outreach_id,
             purpose: m.purpose,
             desired_roles: m.desired_roles,

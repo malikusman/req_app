@@ -427,6 +427,7 @@ export function ReviewerReportWorkspace() {
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <div className="shrink-0 border-b border-border bg-card/80 px-4 py-3 backdrop-blur-sm">
         <PageHeader
+          className="mb-0"
           title={`${workspace.company.name} · v${workspace.report.version}`}
           description={`Step ${currentStepIndex + 1} of ${WORKSPACE_STEPS.length} — ${WORKSPACE_STEPS[currentStepIndex]?.label}`}
           breadcrumbs={[
@@ -436,7 +437,9 @@ export function ReviewerReportWorkspace() {
           ]}
           actions={
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant={submitted ? 'success' : 'warning'}>{workspace.review.status}</Badge>
+              <Badge variant={submitted ? 'success' : 'warning'} className="hidden sm:inline-flex">
+                {workspace.review.status}
+              </Badge>
               {hasCoReviewers && (
                 <Button
                   variant="secondary"
@@ -446,7 +449,7 @@ export function ReviewerReportWorkspace() {
                   className="relative"
                   aria-label={chatUnread ? `Open co-reviewer chat, ${chatUnreadCount} unread` : 'Open co-reviewer chat'}
                 >
-                  Chat
+                  <span className="hidden sm:inline">Chat</span>
                   {chatUnread && chatUnreadCount > 0 ? (
                     <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1 text-xs text-accent-foreground">
                       {chatUnreadCount > 9 ? '9+' : chatUnreadCount}
@@ -456,12 +459,17 @@ export function ReviewerReportWorkspace() {
                   ) : null}
                 </Button>
               )}
-              <Button variant="secondary" size="sm" onClick={() => setPdfOpen(true)} icon={<FileText className="h-4 w-4" />}>
-                Client PDF
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setPdfOpen(true)}
+                icon={<FileText className="h-4 w-4" />}
+              >
+                <span className="hidden sm:inline">Client PDF</span>
               </Button>
               {!submitted && activeStep === 'submit' && (
                 <Button size="sm" onClick={() => setConfirmSubmitOpen(true)}>
-                  Submit review
+                  Submit
                 </Button>
               )}
             </div>

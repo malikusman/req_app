@@ -29,6 +29,14 @@ class ReviewerOutreach < ApplicationRecord
   scope :pending_admin, -> { where(status: "pending_admin_approval") }
   scope :approved, -> { where(status: "approved") }
   scope :sent, -> { where(status: "sent") }
+  scope :awaiting_reply, -> { where(status: %w[sent replied]) }
+
+  def self.open_whatsapp_for_employee(employee_id)
+    awaiting_reply
+      .where(employee_id: employee_id, channel: "whatsapp", recipient_type: "employee")
+      .order(Arel.sql("sent_at DESC NULLS LAST"), created_at: :desc)
+      .first
+  end
 
   def pending_admin?
     status == "pending_admin_approval"

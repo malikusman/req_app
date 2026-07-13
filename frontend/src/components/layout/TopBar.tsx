@@ -32,7 +32,7 @@ export function TopBar({ title, subtitle, actions, onMenuClick }: TopBarProps) {
           </Button>
         )}
         <div className="min-w-0">
-          <h1 className="truncate text-page-title text-foreground">{title}</h1>
+          <h1 className="truncate text-base font-semibold text-foreground md:text-page-title">{title}</h1>
           {subtitle ? (
             <p className="truncate text-sm text-muted-foreground">{subtitle}</p>
           ) : null}

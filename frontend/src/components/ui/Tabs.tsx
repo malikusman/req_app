@@ -16,7 +16,7 @@ export function Tabs({
 }) {
   return (
     <div className={cn('border-b border-border', className)} role="tablist">
-      <motion.div className="flex gap-1">
+      <motion.div className="flex gap-1 overflow-x-auto">
         {tabs.map((tab) => {
           const active = tab.value === value;
           return (
@@ -27,7 +27,7 @@ export function Tabs({
               aria-selected={active}
               onClick={() => onChange(tab.value)}
               className={cn(
-                'relative px-4 py-2.5 text-sm font-medium transition-colors',
+                'relative shrink-0 px-4 py-2.5 text-sm font-medium transition-colors',
                 active ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
               )}
             >

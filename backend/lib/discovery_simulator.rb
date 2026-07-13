@@ -79,6 +79,35 @@ class DiscoverySimulator
         "A single intake system connected to IT ticketing would change everything",
         "That's the full picture of how onboarding works here"
       ]
+    },
+    "scenario_finance_ic" => {
+      phone: "+14155558001",
+      name: "Jordan Scenario",
+      profiling: {
+        role_title: "Accounts Payable Specialist",
+        department: "Finance",
+        seniority: "I'm an individual contributor",
+        responsibilities: "I reconcile vendor invoices in Excel and chase approvals before SAP entry",
+        team_size: nil,
+        tools: "SAP, Excel and Outlook"
+      },
+      expected_agents: %w[domain_finance process technical],
+      unexpected_agents: %w[strategic],
+      answers: [
+        "It starts when a vendor emails an invoice and ends when SAP shows it as paid, usually 8 days later",
+        "Matching invoices to purchase orders goes wrong the most — about 1 in 5 needs rework",
+        "During close we hit SCENARIO_GOLDEN_PHRASE_MONTH_END_FREEZE and stop non-critical posts",
+        "Approvals require SCENARIO_GOLDEN_PHRASE_TRIPLE_APPROVAL across manager, finance lead, and controller",
+        "We keep a SCENARIO_GOLDEN_PHRASE_SAP_SHADOW_LEDGER in Excel because SAP reporting is rigid",
+        "Invoices sit in managers' inboxes for 2-3 days before anyone acts on them",
+        "Handoffs go through email with the invoice attached, no shared tracker",
+        "SAP and Excel don't talk to each other at all, I re-enter everything by hand",
+        "At quarter end the approval step breaks first, the backlog doubles",
+        "I copy invoice numbers, amounts and vendor codes between Excel and SAP daily",
+        "A perfect version would auto-match POs and route approvals with reminders",
+        "Honestly the weekly status email I compile could probably go away entirely",
+        "That covers pretty much everything about my work"
+      ]
     }
   }.freeze
 

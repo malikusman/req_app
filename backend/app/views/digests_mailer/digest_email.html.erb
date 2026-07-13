@@ -1,26 +1,45 @@
-<p>Hi <%= @employee.display_name || "there" %>,</p>
-<p><%= @content["greeting"] %></p>
-<h3>What we heard</h3>
-<ul>
-  <% Array(@content["heard"]).each do |item| %>
-    <li><%= item %></li>
-  <% end %>
-</ul>
-<h3>Practical tips</h3>
-<ul>
-  <% Array(@content["tips"]).each do |item| %>
-    <li><%= item %></li>
-  <% end %>
-</ul>
-<% if Array(@content["tools"]).any? %>
-  <h3>Tools that may help your role</h3>
+<p>Hi <%= @employee.display_name.presence || "there" %>,</p>
+<p><%= @content["greeting"].presence || @content["intro"] %></p>
+
+<% heard = Array(@content["heard"])
+   heard = Array(@content["insights"]).map { |i| i["summary"] } if heard.empty? %>
+<% if heard.any? %>
+  <h3>What we heard from you</h3>
   <ul>
-    <% Array(@content["tools"]).each do |tool| %>
-      <li><strong><%= tool["name"] %></strong><% if tool["why"].present? %> — <%= tool["why"] %><% end %></li>
+    <% heard.first(5).each do |item| %>
+      <li><%= item %></li>
     <% end %>
   </ul>
 <% end %>
+
+<% tips = Array(@content["tips"]) %>
+<% if tips.any? %>
+  <h3>Practical tips</h3>
+  <ul>
+    <% tips.each do |item| %>
+      <li><%= item %></li>
+    <% end %>
+  </ul>
+<% end %>
+
+<% tools = Array(@content["tools"])
+   tools = Array(@content["suggested_tools"]).map { |t| { "name" => t["name"], "why" => t["why_it_fits"] } } if tools.empty? %>
+<% if tools.any? %>
+  <h3>Tools that may help your role</h3>
+  <ul>
+    <% tools.each do |tool| %>
+      <li>
+        <strong><%= tool["name"] %></strong>
+        <% if tool["why"].present? || tool["why_it_fits"].present? %>
+          — <%= tool["why"].presence || tool["why_it_fits"] %>
+        <% end %>
+      </li>
+    <% end %>
+  </ul>
+<% end %>
+
 <% if @content["team_theme"].present? %>
   <p><%= @content["team_theme"] %></p>
 <% end %>
-<p>This digest is private to you and based on your own interview plus approved, aggregated themes.</p>
+
+<p><%= @content["privacy_note"].presence || "This digest is private to you and based on your own interview plus approved, aggregated themes." %></p>

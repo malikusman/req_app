@@ -26,6 +26,7 @@ import { CompanyConversationDetail } from './portals/company/CompanyConversation
 import { CompanySignals } from './portals/company/CompanySignals';
 import { CompanyPatterns } from './portals/company/CompanyPatterns';
 import { CompanyDocuments } from './portals/company/CompanyDocuments';
+import { ReviewerDocuments } from './portals/reviewer/ReviewerDocuments';
 import { CompanyMediaLibrary } from './portals/company/CompanyMediaLibrary';
 import { CompanyTimeline } from './portals/company/CompanyTimeline';
 import { CompanyDiscoveryQuestions } from './portals/company/CompanyDiscoveryQuestions';
@@ -47,6 +48,9 @@ import { CompanyOutreaches } from './portals/company/CompanyOutreaches';
 import { CompanyMeetingRequests } from './portals/company/CompanyMeetingRequests';
 import { ReviewerEvidenceGraph } from './portals/reviewer/ReviewerEvidenceGraph';
 import { PlatformCatalogCandidates } from './portals/platform/PlatformCatalogCandidates';
+import { PlatformCatalogSources } from './portals/platform/PlatformCatalogSources';
+import { OutreachReplyPage } from './portals/public/OutreachReplyPage';
+import { ReviewerCatalog } from './portals/reviewer/ReviewerCatalog';
 import { DiscoverLanding } from './employee/DiscoverLanding';
 import { DiscoverChat } from './employee/DiscoverChat';
 
@@ -114,6 +118,7 @@ export default function App() {
               <Route path="trials" element={<PlatformTrials />} />
               <Route path="playbooks" element={<PlatformPlaybooks />} />
               <Route path="solutions" element={<PlatformSolutions />} />
+              <Route path="catalog/sources" element={<PlatformCatalogSources />} />
               <Route path="catalog/candidates" element={<PlatformCatalogCandidates />} />
               <Route path="system" element={<PlatformSystem />} />
               <Route path="monitoring" element={<PlatformMonitoringPage />} />
@@ -138,6 +143,8 @@ export default function App() {
               <Route path="companies/:companyId/conversations/:conversationId" element={<ReviewerConversationDetail />} />
               <Route path="companies/:companyId/employees/:employeeId/followup" element={<ReviewerEmployeeFollowup />} />
               <Route path="companies/:companyId/evidence-graph" element={<ReviewerEvidenceGraph />} />
+              <Route path="companies/:companyId/documents" element={<ReviewerDocuments />} />
+              <Route path="companies/:companyId/catalog" element={<ReviewerCatalog />} />
             </Route>
             <Route
               path="/company"
@@ -168,6 +175,7 @@ export default function App() {
             </Route>
             <Route path="/discover/:token" element={<DiscoverLanding />} />
             <Route path="/discover/:token/chat" element={<DiscoverChat />} />
+            <Route path="/outreach/reply/:token" element={<OutreachReplyPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>

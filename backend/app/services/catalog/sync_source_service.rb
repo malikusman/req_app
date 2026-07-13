@@ -15,6 +15,7 @@ module Catalog
     def initialize(catalog_source:)
       @source = catalog_source
       @budget = ENV.fetch("AI_CATALOG_MAX_CANDIDATES_PER_RUN", DEFAULT_BUDGET.to_s).to_i
+      @budget = DEFAULT_BUDGET if @budget <= 0
     end
 
     def call
@@ -64,7 +65,8 @@ module Catalog
               "catalog_source_id" => @source.id,
               "catalog_sync_run_id" => run.id,
               "fingerprint" => fingerprint,
-              "fetched_at" => Time.current.iso8601
+              "fetched_at" => Time.current.iso8601,
+              "stub" => item[:raw].is_a?(Hash) && item[:raw]["stub"] == true
             }
           )
           created += 1
@@ -85,12 +87,12 @@ module Catalog
         finished_at: Time.current,
         status: status,
         candidates_created: created,
-        errors: errors
+        error_details: errors
       )
       @source.update!(last_sync_at: Time.current, last_sync_status: status)
       run
     rescue StandardError => e
-      run&.update!(finished_at: Time.current, status: "failed", errors: [{ "error" => e.message }])
+      run&.update!(finished_at: Time.current, status: "failed", error_details: [{ "error" => e.message }])
       @source.update!(last_sync_at: Time.current, last_sync_status: "failed")
       raise
     end
@@ -107,47 +109,117 @@ module Catalog
 
     def fetch_from_endpoint
       uri = URI(@source.endpoint_url)
-      response = Net::HTTP.get_response(uri)
+      raise "Unsupported URL scheme" unless uri.is_a?(URI::HTTP)
+
+      response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: uri.scheme == "https", open_timeout: 10, read_timeout: 20) do |http|
+        req = Net::HTTP::Get.new(uri)
+        req["User-Agent"] = "ReqCatalogSync/1.0"
+        req["Accept"] = "application/rss+xml, application/atom+xml, application/xml, text/xml, */*"
+        http.request(req)
+      end
       raise "HTTP #{response.code}" unless response.is_a?(Net::HTTPSuccess)
 
-      body = response.body.to_s
-      parse_feed(body)
-    rescue StandardError => e
-      Rails.logger.warn("[Catalog::SyncSourceService] fetch failed for source=#{@source.id}: #{e.message}")
-      stub_items
+      parse_feed(response.body.to_s)
     end
 
     def parse_feed(body)
-      # Lightweight RSS-like stub: treat each <item> or newline-delimited JSON object.
-      items = []
-      body.scan(%r{<item>(.*?)</item>}m).each_with_index do |(chunk), index|
-        title = chunk[%r{<title>(.*?)</title>}m, 1].to_s.strip
-        link = chunk[%r{<link>(.*?)</link>}m, 1].to_s.strip
-        description = chunk[%r{<description>(.*?)</description>}m, 1].to_s.strip
-        items << {
-          external_id: Digest::SHA256.hexdigest("#{link}-#{title}")[0, 24],
-          title: title.presence || "Feed item #{index + 1}",
-          url: link.presence,
-          description: description,
-          content: chunk,
-          raw: { "title" => title, "link" => link, "description" => description },
-          confidence: 0.45
-        }
-      end
+      items = parse_rss_items(body)
+      items = parse_atom_entries(body) if items.empty?
       return items if items.any?
 
-      # Fallback: hash entire body as one candidate seed
+      # No structured feed items — seed one low-confidence candidate from body preview.
       [
         {
           external_id: Digest::SHA256.hexdigest(body)[0, 24],
           title: @source.name,
           url: @source.endpoint_url,
-          description: body.truncate(500),
+          description: strip_html(body).truncate(500),
           content: body,
-          raw: { "body_preview" => body.truncate(1000) },
-          confidence: 0.3
+          raw: { "body_preview" => body.truncate(1000), "unstructured" => true },
+          confidence: 0.25
         }
       ]
+    end
+
+    def parse_rss_items(body)
+      items = []
+      body.scan(%r{<item\b[^>]*>(.*?)</item>}mi).each_with_index do |(chunk), index|
+        title = extract_tag(chunk, "title")
+        link = extract_tag(chunk, "link").presence || extract_attr_link(chunk)
+        description = extract_tag(chunk, "description").presence || extract_tag(chunk, "content:encoded")
+        description = strip_html(description)
+        items << candidate_hash(
+          title: title.presence || "Feed item #{index + 1}",
+          link: link,
+          description: description,
+          content: chunk,
+          confidence: 0.5
+        )
+      end
+      items
+    end
+
+    def parse_atom_entries(body)
+      items = []
+      body.scan(%r{<entry\b[^>]*>(.*?)</entry>}mi).each_with_index do |(chunk), index|
+        title = extract_tag(chunk, "title")
+        link = extract_atom_link(chunk)
+        description = extract_tag(chunk, "summary").presence || extract_tag(chunk, "content")
+        description = strip_html(description)
+        items << candidate_hash(
+          title: title.presence || "Atom entry #{index + 1}",
+          link: link,
+          description: description,
+          content: chunk,
+          confidence: 0.5
+        )
+      end
+      items
+    end
+
+    def candidate_hash(title:, link:, description:, content:, confidence:)
+      {
+        external_id: Digest::SHA256.hexdigest("#{link}-#{title}")[0, 24],
+        title: title,
+        url: link.presence,
+        description: description,
+        content: content,
+        raw: { "title" => title, "link" => link, "description" => description },
+        confidence: confidence
+      }
+    end
+
+    def extract_tag(chunk, tag)
+      raw = chunk[%r{<#{Regexp.escape(tag)}\b[^>]*>(.*?)</#{Regexp.escape(tag)}>}mi, 1].to_s
+      unwrap_cdata(raw).strip
+    end
+
+    def extract_attr_link(chunk)
+      chunk[%r{<link[^>]*href=["']([^"']+)["']}i, 1].to_s.strip
+    end
+
+    def extract_atom_link(chunk)
+      # Prefer rel=alternate, else first href
+      alt = chunk[%r{<link[^>]*rel=["']alternate["'][^>]*href=["']([^"']+)["']}i, 1]
+      alt.presence || chunk[%r{<link[^>]*href=["']([^"']+)["']}i, 1].to_s.strip
+    end
+
+    def unwrap_cdata(text)
+      text.gsub(/\A<!\[CDATA\[(.*)\]\]>\z/m, '\1')
+    end
+
+    def strip_html(text)
+      unwrap_cdata(text.to_s)
+        .gsub(%r{<br\s*/?>}i, "\n")
+        .gsub(%r{</p>}i, "\n")
+        .gsub(/<[^>]+>/, " ")
+        .gsub(/&nbsp;/, " ")
+        .gsub(/&amp;/, "&")
+        .gsub(/&lt;/, "<")
+        .gsub(/&gt;/, ">")
+        .gsub(/&quot;/, '"')
+        .gsub(/\s+/, " ")
+        .strip
     end
 
     def stub_items
@@ -157,7 +229,7 @@ module Catalog
           external_id: "stub-#{@source.id}-#{stamp}",
           title: "#{@source.name} discovery #{stamp}",
           url: @source.endpoint_url,
-          description: "Stub candidate from catalog sync for #{@source.name}",
+          description: "Stub candidate from catalog sync for #{@source.name} (no endpoint_url configured)",
           content: "stub-#{@source.id}-#{stamp}",
           vendor: nil,
           entity_type: "tool",
