@@ -8,6 +8,9 @@ import {
   ChevronRight,
   ClipboardCheck,
   MessagesSquare,
+  Network,
+  FileText,
+  Package,
 } from 'lucide-react';
 import {
   api,
@@ -168,6 +171,38 @@ export function ReviewerCompanyOverview() {
                 description="A report will appear here once this company reaches readiness and one is generated."
               />
             )}
+          </Card>
+
+          <Card title="Evidence explorer">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <p className="m-0 text-sm text-muted-foreground">
+                Explore how interviews, documents, signals, and recommendations connect.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Link to={`/reviewer/companies/${companyId}/documents`}>
+                  <Button variant="secondary" icon={<FileText className="h-4 w-4" />}>
+                    Documents
+                  </Button>
+                </Link>
+                <Link to={`/reviewer/companies/${companyId}/catalog`}>
+                  <Button variant="secondary" icon={<Package className="h-4 w-4" />}>
+                    Catalog
+                  </Button>
+                </Link>
+                <Link to={`/reviewer/companies/${companyId}/evidence-graph`}>
+                  <Button variant="secondary" icon={<Network className="h-4 w-4" />}>
+                    Open evidence graph
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </Card>
+
+          <Card title="Meetings">
+            <p className="mb-3 text-sm text-muted-foreground">
+              Submit a call request for company-admin approval. Approved meetings show schedule and link here.
+            </p>
+            <MeetingRequestsPanel companyId={Number(companyId)} reportId={reportId} />
           </Card>
 
           <Card
@@ -353,6 +388,119 @@ export function ReviewerCompanyOverview() {
       </div>
 
       <ReviewerChatDrawer companyId={Number(companyId)} open={chatOpen} onOpenChange={setChatOpen} />
+    </div>
+  );
+}
+
+function MeetingRequestsPanel({ companyId, reportId }: { companyId: number; reportId?: number }) {
+  const token = useReviewerToken();
+  const [purpose, setPurpose] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
+  const [meetings, setMeetings] = useState<
+    Array<{
+      id: number;
+      purpose: string;
+      status: string;
+      scheduled_at?: string | null;
+      meeting_link?: string | null;
+      admin_note?: string | null;
+      duration_minutes?: number;
+    }>
+  >([]);
+
+  const load = () => {
+    if (!token) return;
+    api
+      .reviewerMeetingRequests(token, companyId)
+      .then((d) => setMeetings(d.meeting_requests as typeof meetings))
+      .catch(() => setMeetings([]));
+  };
+
+  useEffect(() => {
+    load();
+  }, [token, companyId]);
+
+  const submit = async () => {
+    if (!token || !purpose.trim()) return;
+    setSaving(true);
+    setMessage('');
+    try {
+      await api.createReviewerMeetingRequest(token, companyId, {
+        purpose: purpose.trim(),
+        report_id: reportId,
+        duration_minutes: 30,
+        urgency: 'normal',
+      });
+      setPurpose('');
+      setMessage('Meeting request submitted for company admin approval.');
+      load();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Failed to submit meeting request');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {meetings.length > 0 && (
+        <ul className="space-y-2">
+          {meetings.slice(0, 8).map((m) => (
+            <li key={m.id} className="rounded-md border border-border px-3 py-2 text-sm">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge
+                  variant={
+                    m.status === 'pending_admin'
+                      ? 'info'
+                      : m.status === 'declined'
+                        ? 'error'
+                        : m.status === 'scheduled' || m.status === 'approved'
+                          ? 'success'
+                          : 'neutral'
+                  }
+                >
+                  {m.status}
+                </Badge>
+                {m.duration_minutes ? (
+                  <span className="text-xs text-muted-foreground">{m.duration_minutes} min</span>
+                ) : null}
+              </div>
+              <p className="mt-1 m-0 text-sm">{m.purpose}</p>
+              {m.scheduled_at && (
+                <p className="mt-1 m-0 text-xs text-muted-foreground">
+                  Scheduled: {new Date(m.scheduled_at).toLocaleString()}
+                </p>
+              )}
+              {m.meeting_link && (
+                <a
+                  className="mt-1 inline-block text-xs text-primary hover:underline"
+                  href={m.meeting_link}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Join link
+                </a>
+              )}
+              {m.admin_note && <p className="mt-1 m-0 text-xs text-muted-foreground">Note: {m.admin_note}</p>}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="space-y-3 border-t border-border pt-3">
+        <textarea
+          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+          rows={3}
+          value={purpose}
+          onChange={(e) => setPurpose(e.target.value)}
+          placeholder="Purpose, desired roles, and evidence gap to resolve…"
+        />
+        <Button size="sm" loading={saving} disabled={!purpose.trim()} onClick={submit}>
+          Request meeting
+        </Button>
+        {message && <p className="m-0 text-xs text-muted-foreground">{message}</p>}
+      </div>
     </div>
   );
 }

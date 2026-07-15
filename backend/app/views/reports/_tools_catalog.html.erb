@@ -1,0 +1,63 @@
+<% company_name = snapshot.dig("company", "name") %>
+<% tools = Array(snapshot.dig("tools_catalog", "curated_matches")) %>
+<% endorsements = Array(snapshot.dig("tools_catalog", "endorsements")) %>
+<% docs = Array(snapshot["supporting_documents"]) %>
+<% if tools.any? || docs.any? || endorsements.any? %>
+<section class="page">
+  <div class="eyebrow">Capabilities & evidence</div>
+  <h1 style="font-size:28pt;margin:4mm 0 4mm;">Recommended capabilities</h1>
+  <% if tools.any? %>
+    <div class="card-grid-3">
+      <% tools.each do |tool|
+        tool_endorsements = Array(tool["endorsements"])
+      %>
+        <div class="rec-card">
+          <div class="match"><%= h tool["category"] %></div>
+          <h4><%= h tool["name"] %></h4>
+          <% if tool["vendor"].present? %><p><%= h tool["vendor"] %></p><% end %>
+          <% if tool["reason"].present? %><p><%= h tool["reason"] %></p><% end %>
+          <% if tool_endorsements.any? %>
+            <% tool_endorsements.first(2).each do |en| %>
+              <div class="endorsement-chip"><%= h en["disposition"].to_s.titleize %></div>
+              <p style="margin-top:1mm;font-size:8pt;">
+                <% if en["reviewer_name"].present? %><%= h en["reviewer_name"] %><% end %>
+                <% if en["rationale"].present? %><% if en["reviewer_name"].present? %> · <% end %><%= h en["rationale"].to_s.truncate(160) %><% end %>
+              </p>
+            <% end %>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+    <p class="method" style="margin-top:4mm;"><%= h snapshot.dig("tools_catalog", "disclaimer") %></p>
+  <% end %>
+
+  <% orphan_endorsements = endorsements.reject { |e| tools.any? { |t| t["solution_id"].to_i == e["solution_catalog_entry_id"].to_i } } %>
+  <% if orphan_endorsements.any? %>
+    <div class="eyebrow" style="margin-top:8mm;">Reviewer catalog notes</div>
+    <div class="card-grid-3">
+      <% orphan_endorsements.first(6).each do |en| %>
+        <div class="rec-card">
+          <div class="match"><%= h en["disposition"].to_s.titleize %></div>
+          <h4><%= h en["solution_name"].presence || "Catalog entry" %></h4>
+          <% if en["reviewer_name"].present? %><p><%= h en["reviewer_name"] %></p><% end %>
+          <% if en["rationale"].present? %><p><%= h en["rationale"].to_s.truncate(180) %></p><% end %>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+
+  <% if docs.any? %>
+    <div class="eyebrow" style="margin-top:8mm;">Internal documents cited</div>
+    <div class="card-grid-3">
+      <% docs.each do |doc| %>
+        <div class="media-card">
+          <div class="k"><%= h doc["filename"] %></div>
+          <div class="c"><%= h [doc["document_type"], doc["department"]].compact.join(" · ") %></div>
+          <% if doc["summary"].present? %><p><%= h doc["summary"].to_s.truncate(180) %></p><% end %>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+  <%= render "reports/page_footer", company_name: company_name %>
+</section>
+<% end %>

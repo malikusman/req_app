@@ -52,8 +52,12 @@
     @apply border-border;
   }
 
+  html {
+    @apply overflow-x-clip;
+  }
+
   body {
-    @apply m-0 bg-background font-sans text-foreground antialiased;
+    @apply m-0 overflow-x-clip bg-background font-sans text-foreground antialiased;
     font-feature-settings: 'rlig' 1, 'calt' 1, 'tnum' 1;
   }
 

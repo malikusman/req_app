@@ -40,8 +40,8 @@ function SidebarNav({
 
   return (
     <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
-      <div className="flex h-topbar shrink-0 items-center border-b border-sidebar-border px-5">
-        <span className="text-sm font-semibold tracking-tight text-foreground">{logo}</span>
+      <div className="flex h-topbar shrink-0 items-center border-b border-sidebar-border px-5 pr-12 md:pr-5">
+        <span className="truncate text-sm font-semibold tracking-tight text-foreground">{logo}</span>
       </div>
 
       <ScrollArea className="flex-1 px-3 py-4">

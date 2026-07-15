@@ -11,6 +11,8 @@ import {
   Radio,
   Settings,
   Shapes,
+  ShieldCheck,
+  CalendarClock,
   Users,
   Wrench,
 } from 'lucide-react';
@@ -20,6 +22,8 @@ export const navItems: SidebarItem[] = [
   { to: '/company/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/company/employees', label: 'Employees', icon: Users },
   { to: '/company/conversations', label: 'Conversations', icon: MessageSquare },
+  { to: '/company/outreaches', label: 'Clarifications', icon: ShieldCheck },
+  { to: '/company/meeting-requests', label: 'Meetings', icon: CalendarClock },
   { to: '/company/media', label: 'WhatsApp media', icon: Image },
   { to: '/company/intelligence/signals', label: 'Signals', icon: Radio },
   { to: '/company/intelligence/patterns', label: 'Patterns', icon: Shapes },

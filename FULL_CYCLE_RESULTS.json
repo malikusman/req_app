@@ -1,0 +1,510 @@
+{
+  "slug": "scenario-corp",
+  "started_at": "2026-07-11T19:54:58Z",
+  "openai_present": true,
+  "phases": {
+    "provision": {
+      "company_id": 3,
+      "admin_email": "admin@scenario.local",
+      "reviewer_ids": [
+        1,
+        2
+      ],
+      "openai_present": true
+    },
+    "documents": {
+      "document_ids": [
+        12,
+        13,
+        14
+      ],
+      "statuses": [
+        {
+          "id": 12,
+          "filename": "invoice-approval-policy.md",
+          "status": "ready",
+          "error": null
+        },
+        {
+          "id": 13,
+          "filename": "month-end-close-sop.md",
+          "status": "ready",
+          "error": null
+        },
+        {
+          "id": 14,
+          "filename": "sap-handoff-notes.txt",
+          "status": "ready",
+          "error": null
+        }
+      ],
+      "chunk_count": 4,
+      "embedded_chunk_count": 4,
+      "golden_phrase_hits": 3,
+      "vector_probe": {
+        "ok": true,
+        "phrase": "SCENARIO_GOLDEN_PHRASE_MONTH_END_FREEZE",
+        "chunk_id": 14,
+        "lexical_id": 14,
+        "ranked_ids": [
+          14,
+          13,
+          16,
+          15
+        ],
+        "preview": "# Month-end close SOP — Scenario Corp Finance\n\n## Purpose\n\nThis SOP governs the last five business days of each month for Accounts Payable.\n\n## Freeze window..."
+      }
+    },
+    "discovery": {
+      "employee_id": 9,
+      "conversation_id": 7,
+      "conversation_status": "completed",
+      "participation_status": "completed",
+      "memory_facts": 10,
+      "insights": 11,
+      "rag_enabled": true,
+      "golden_in_answers": 3,
+      "golden_in_memory_or_insights": 0,
+      "discovery_checks": [
+        {
+          "label": "Profiling flag enabled",
+          "ok": true
+        },
+        {
+          "label": "Multi-agent flag enabled",
+          "ok": true
+        },
+        {
+          "label": "Active consent text exists",
+          "ok": true
+        },
+        {
+          "label": "Active default playbook exists",
+          "ok": true
+        },
+        {
+          "label": "Agent service reachable",
+          "ok": true
+        },
+        {
+          "label": "Access code verified",
+          "ok": true
+        },
+        {
+          "label": "Consent recorded",
+          "ok": true
+        },
+        {
+          "label": "Entered profiling",
+          "ok": true
+        },
+        {
+          "label": "Profile card complete",
+          "ok": true
+        },
+        {
+          "label": "Role title captured",
+          "ok": true
+        },
+        {
+          "label": "Seniority parsed",
+          "ok": true
+        },
+        {
+          "label": "Tools parsed (3)",
+          "ok": true
+        },
+        {
+          "label": "Transitioned to discovery",
+          "ok": true
+        },
+        {
+          "label": "Agent queue built (domain_finance, process, technical)",
+          "ok": true
+        },
+        {
+          "label": "  expected agent routed: domain_finance",
+          "ok": true
+        },
+        {
+          "label": "  expected agent routed: process",
+          "ok": true
+        },
+        {
+          "label": "  expected agent routed: technical",
+          "ok": true
+        },
+        {
+          "label": "  agent correctly skipped: strategic",
+          "ok": true
+        },
+        {
+          "label": "First discovery question delivered",
+          "ok": true
+        },
+        {
+          "label": "Interview completed",
+          "ok": true
+        },
+        {
+          "label": "Completed within question target (11/12)",
+          "ok": true
+        },
+        {
+          "label": "Closing message sent",
+          "ok": true
+        },
+        {
+          "label": "Multiple agents participated (process, technical, domain_finance)",
+          "ok": true
+        },
+        {
+          "label": "All agents respected budgets",
+          "ok": true
+        },
+        {
+          "label": "Follow-up depth limit respected (max 2)",
+          "ok": true
+        },
+        {
+          "label": "Coverage tracked (5/5: daily_workflow, tools, pain_points, approvals, handoffs)",
+          "ok": true
+        },
+        {
+          "label": "Findings shared on blackboard (10)",
+          "ok": true
+        },
+        {
+          "label": "Rolling summary maintained",
+          "ok": true
+        },
+        {
+          "label": "Insights persisted (11)",
+          "ok": true
+        },
+        {
+          "label": "Employee marked completed",
+          "ok": true
+        },
+        {
+          "label": "Facts promoted to company memory (10)",
+          "ok": true
+        },
+        {
+          "label": "Promotion is idempotent",
+          "ok": true
+        }
+      ]
+    },
+    "intelligence_report": {
+      "signals": 6,
+      "patterns": 1,
+      "recommendations": 1,
+      "report_id": 9,
+      "report_status": "ready",
+      "supporting_documents": 3,
+      "tools_catalog_matches": 1,
+      "review_count": 2
+    },
+    "reviewer_eta": {
+      "review_a_id": 16,
+      "review_b_id": 17,
+      "outreach_id": 3,
+      "outreach_status": "replied",
+      "meeting_id": 3,
+      "meeting_status": "approved",
+      "graph_nodes": 61,
+      "graph_edges": 42,
+      "overlay_findings": 3,
+      "submit_blocked_without_finding": true
+    }
+  },
+  "finished_at": "2026-07-11T19:55:54Z",
+  "passed": true,
+  "checks": [
+    {
+      "label": "OPENAI_API_KEY present in process",
+      "ok": true
+    },
+    {
+      "label": "Company provisioned",
+      "ok": true
+    },
+    {
+      "label": "Admin provisioned",
+      "ok": true
+    },
+    {
+      "label": "Two active reviewers assigned (2)",
+      "ok": true
+    },
+    {
+      "label": "Documents uploaded (3)",
+      "ok": true
+    },
+    {
+      "label": "Documents ready (3/3)",
+      "ok": true
+    },
+    {
+      "label": "Document chunks created (4)",
+      "ok": true
+    },
+    {
+      "label": "Document chunks embedded (4/4)",
+      "ok": true
+    },
+    {
+      "label": "Golden phrases present in chunks (3/3)",
+      "ok": true
+    },
+    {
+      "label": "Vector retrieval returns golden-phrase chunk",
+      "ok": true
+    },
+    {
+      "label": "Prior scenario employee purged",
+      "ok": true
+    },
+    {
+      "label": "[discovery] Profiling flag enabled",
+      "ok": true
+    },
+    {
+      "label": "[discovery] Multi-agent flag enabled",
+      "ok": true
+    },
+    {
+      "label": "[discovery] Active consent text exists",
+      "ok": true
+    },
+    {
+      "label": "[discovery] Active default playbook exists",
+      "ok": true
+    },
+    {
+      "label": "[discovery] Agent service reachable",
+      "ok": true
+    },
+    {
+      "label": "[discovery] Access code verified",
+      "ok": true
+    },
+    {
+      "label": "[discovery] Consent recorded",
+      "ok": true
+    },
+    {
+      "label": "[discovery] Entered profiling",
+      "ok": true
+    },
+    {
+      "label": "[discovery] Profile card complete",
+      "ok": true
+    },
+    {
+      "label": "[discovery] Role title captured",
+      "ok": true
+    },
+    {
+      "label": "[discovery] Seniority parsed",
+      "ok": true
+    },
+    {
+      "label": "[discovery] Tools parsed (3)",
+      "ok": true
+    },
+    {
+      "label": "[discovery] Transitioned to discovery",
+      "ok": true
+    },
+    {
+      "label": "[discovery] Agent queue built (domain_finance, process, technical)",
+      "ok": true
+    },
+    {
+      "label": "[discovery]   expected agent routed: domain_finance",
+      "ok": true
+    },
+    {
+      "label": "[discovery]   expected agent routed: process",
+      "ok": true
+    },
+    {
+      "label": "[discovery]   expected agent routed: technical",
+      "ok": true
+    },
+    {
+      "label": "[discovery]   agent correctly skipped: strategic",
+      "ok": true
+    },
+    {
+      "label": "[discovery] First discovery question delivered",
+      "ok": true
+    },
+    {
+      "label": "[discovery] Interview completed",
+      "ok": true
+    },
+    {
+      "label": "[discovery] Completed within question target (11/12)",
+      "ok": true
+    },
+    {
+      "label": "[discovery] Closing message sent",
+      "ok": true
+    },
+    {
+      "label": "[discovery] Multiple agents participated (process, technical, domain_finance)",
+      "ok": true
+    },
+    {
+      "label": "[discovery] All agents respected budgets",
+      "ok": true
+    },
+    {
+      "label": "[discovery] Follow-up depth limit respected (max 2)",
+      "ok": true
+    },
+    {
+      "label": "[discovery] Coverage tracked (5/5: daily_workflow, tools, pain_points, approvals, handoffs)",
+      "ok": true
+    },
+    {
+      "label": "[discovery] Findings shared on blackboard (10)",
+      "ok": true
+    },
+    {
+      "label": "[discovery] Rolling summary maintained",
+      "ok": true
+    },
+    {
+      "label": "[discovery] Insights persisted (11)",
+      "ok": true
+    },
+    {
+      "label": "[discovery] Employee marked completed",
+      "ok": true
+    },
+    {
+      "label": "[discovery] Facts promoted to company memory (10)",
+      "ok": true
+    },
+    {
+      "label": "[discovery] Promotion is idempotent",
+      "ok": true
+    },
+    {
+      "label": "Employee created",
+      "ok": true
+    },
+    {
+      "label": "Conversation present",
+      "ok": true
+    },
+    {
+      "label": "RAG enabled (memory retrieval + OpenAI)",
+      "ok": true
+    },
+    {
+      "label": "Memory facts and/or insights (facts=10 insights=11)",
+      "ok": true
+    },
+    {
+      "label": "Golden phrases present in inbound answers (3/3)",
+      "ok": true
+    },
+    {
+      "label": "Memory/insights capture related workflow terms (7/7)",
+      "ok": true
+    },
+    {
+      "label": "Exact golden tokens in memory (informational 0/3)",
+      "ok": true
+    },
+    {
+      "label": "Signals extracted (6)",
+      "ok": true
+    },
+    {
+      "label": "Patterns detected (1)",
+      "ok": true
+    },
+    {
+      "label": "Recommendations synthesized (1)",
+      "ok": true
+    },
+    {
+      "label": "Report ready",
+      "ok": true
+    },
+    {
+      "label": "Report snapshot present",
+      "ok": true
+    },
+    {
+      "label": "Supporting documents in snapshot (3)",
+      "ok": true
+    },
+    {
+      "label": "Reviewer reviews bootstrapped (2)",
+      "ok": true
+    },
+    {
+      "label": "Submit blocked without executive finding",
+      "ok": true
+    },
+    {
+      "label": "Reviewer A submitted after findings",
+      "ok": true
+    },
+    {
+      "label": "Outreach pending admin approval",
+      "ok": true
+    },
+    {
+      "label": "Outreach not sent yet",
+      "ok": true
+    },
+    {
+      "label": "Outreach left pending_admin after approve",
+      "ok": true
+    },
+    {
+      "label": "Outreach delivered or portal-sent",
+      "ok": true
+    },
+    {
+      "label": "Outreach replied",
+      "ok": true
+    },
+    {
+      "label": "Reviewer B submitted needs_info review",
+      "ok": true
+    },
+    {
+      "label": "Meeting request approved",
+      "ok": true
+    },
+    {
+      "label": "Evidence graph has nodes (61)",
+      "ok": true
+    },
+    {
+      "label": "Evidence graph has employee node",
+      "ok": true
+    },
+    {
+      "label": "Evidence graph has document node",
+      "ok": true
+    },
+    {
+      "label": "Overlay includes structured findings (3)",
+      "ok": true
+    },
+    {
+      "label": "Regenerate-with-review succeeded",
+      "ok": true
+    }
+  ]
+}

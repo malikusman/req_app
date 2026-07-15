@@ -26,7 +26,14 @@ module Multimodal
           chunk_index: index,
           content: content,
           embedding: embedding,
-          metadata: { "char_count" => content.length }
+          metadata: {
+            "char_count" => content.length,
+            "document_id" => @document.id,
+            "filename" => @document.filename,
+            "source" => @document.source,
+            "department" => @document.department,
+            "chunk_index" => index
+          }
         )
       end
 

@@ -55,7 +55,7 @@ export function WhatYouDiscoverSection() {
           <p className="mt-3 max-w-3xl text-lg text-marketing-muted">{discover.subtitle}</p>
         </ScrollReveal>
         <motion.div
-          className="mt-12 grid auto-rows-[minmax(160px,auto)] grid-cols-2 gap-4 lg:grid-cols-3"
+          className="mt-12 grid auto-rows-[minmax(160px,auto)] grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
           initial={reduced ? false : 'hidden'}
           whileInView={reduced ? undefined : 'visible'}
           viewport={{ once: true, margin: '-48px' }}

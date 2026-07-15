@@ -11,6 +11,8 @@ class Employee < ApplicationRecord
   has_many :conversation_insights, dependent: :destroy
   has_many :media_attachments, dependent: :destroy
   has_many :documents, dependent: :nullify
+  has_one :employee_value_preference, dependent: :destroy
+  has_many :employee_value_digests, dependent: :destroy
 
   PARTICIPATION_STATUSES = %w[invited started completed declined].freeze
   ONBOARDING_STEPS = %w[awaiting_name awaiting_company awaiting_access_code awaiting_consent verified].freeze

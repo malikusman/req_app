@@ -74,7 +74,7 @@ export function NotificationBell() {
         type="button"
         variant="ghost"
         size="sm"
-        className="relative text-white hover:bg-white/10"
+        className="relative text-foreground hover:bg-muted"
         onClick={() => setOpen(!open)}
         aria-label="Notifications"
         icon={<Bell className="h-4 w-4" />}
@@ -88,7 +88,7 @@ export function NotificationBell() {
       </Button>
 
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-[360px] max-h-[420px] overflow-hidden rounded-card border border-border bg-surface shadow-card">
+        <div className="absolute right-0 top-full z-50 mt-2 w-[min(360px,calc(100vw-1.5rem))] max-h-[min(420px,70dvh)] overflow-hidden rounded-card border border-border bg-surface shadow-card">
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <strong className="text-sm text-text-primary">Notifications</strong>
             {unreadCount > 0 && (

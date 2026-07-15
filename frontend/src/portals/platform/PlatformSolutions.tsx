@@ -9,6 +9,7 @@ export function PlatformSolutions() {
   const [name, setName] = useState('');
   const [vendor, setVendor] = useState('');
   const [category, setCategory] = useState('automation');
+  const [entityType, setEntityType] = useState('tool');
   const [keywords, setKeywords] = useState('');
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -34,9 +35,11 @@ export function PlatformSolutions() {
       name,
       vendor,
       category,
+      entity_type: entityType,
       match_keywords: keywords.split(',').map((k) => k.trim()).filter(Boolean),
       tags: [category],
       active: true,
+      published_at: new Date().toISOString(),
     });
     setName('');
     setVendor('');
@@ -83,6 +86,19 @@ export function PlatformSolutions() {
               { value: 'saas', label: 'saas' },
             ]}
           />
+          <Select
+            label="Entity type"
+            value={entityType}
+            onChange={(e) => setEntityType(e.target.value)}
+            options={[
+              { value: 'tool', label: 'tool' },
+              { value: 'app', label: 'app' },
+              { value: 'model', label: 'model' },
+              { value: 'agent', label: 'agent' },
+              { value: 'integration', label: 'integration' },
+              { value: 'service', label: 'service' },
+            ]}
+          />
           <Input
             label="Match keywords (comma-separated)"
             value={keywords}
@@ -109,6 +125,11 @@ export function PlatformSolutions() {
             ),
           },
           { key: 'category', header: 'Category' },
+          {
+            key: 'entity_type',
+            header: 'Type',
+            render: (s) => <span className="text-xs">{(s as { entity_type?: string }).entity_type || 'tool'}</span>,
+          },
           {
             key: 'keywords',
             header: 'Keywords',

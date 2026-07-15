@@ -155,6 +155,15 @@ module Whatsapp
     end
 
     def route_inbound_text(employee:, conversation:, text:, external_id:)
+      handled = Whatsapp::OutreachReplyHandler.new(
+        employee: employee,
+        conversation: conversation,
+        text: text,
+        external_id: external_id,
+        client: @client
+      ).handle
+      return if handled
+
       if ReviewerInfoRequest.open_for_employee(employee.id)
         handled = Whatsapp::ReviewerFollowupHandler.new(
           employee: employee,

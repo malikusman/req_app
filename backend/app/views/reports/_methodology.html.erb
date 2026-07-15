@@ -1,0 +1,26 @@
+<% company_name = snapshot.dig("company", "name") %>
+<% participation = snapshot["participation"] || {} %>
+<section class="page">
+  <div class="eyebrow">08 — Methodology</div>
+  <h1 style="font-size:28pt;margin:4mm 0 4mm;">How we measured</h1>
+  <div class="split">
+    <div>
+      <p class="method" style="margin-top:0;">
+        Findings draw on structured discovery interviews conducted over WhatsApp and web chat for <%= h company_name %>.
+        <% if participation["invited"].to_i.positive? %>
+          <%= participation["completed"].to_i %> of <%= participation["invited"].to_i %> invited employees completed the full discovery flow.
+        <% end %>
+        Signals, patterns, and recommendations are derived from interview evidence and supporting media, then reviewed before client delivery.
+      </p>
+    </div>
+    <div class="method" style="align-self:center;">
+      <dl>
+        <dt>Readiness weighting</dt>
+        <dd style="font-size:9pt;color:var(--muted);">Employee coverage (30%), department spread (30%), pattern confidence (25%), multimodal evidence (15%).</dd>
+        <dt>Review</dt>
+        <dd style="font-size:9pt;color:var(--muted);">When reviewers are assigned, overall notes and section comments are merged into an appendix at platform approval. Live discussions and WhatsApp follow-up threads are collaboration tooling and are intentionally excluded from this deliverable.</dd>
+      </dl>
+    </div>
+  </div>
+  <%= render "reports/page_footer", company_name: company_name %>
+</section>

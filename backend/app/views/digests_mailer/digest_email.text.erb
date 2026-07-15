@@ -1,0 +1,36 @@
+Hi <%= @employee.display_name.presence || "there" %>,
+
+<%= @content["greeting"].presence || @content["intro"].presence || "Here is your private workflow digest." %>
+
+What we heard from you:
+<% heard = Array(@content["heard"])
+   heard = Array(@content["insights"]).map { |i| i["summary"] } if heard.empty? %>
+<% heard.first(5).each do |item| %>
+- <%= item %>
+<% end %>
+
+<% tips = Array(@content["tips"]) %>
+<% if tips.any? %>
+Practical tips:
+<% tips.each do |item| %>
+- <%= item %>
+<% end %>
+<% end %>
+
+<% tools = Array(@content["tools"])
+   tools = Array(@content["suggested_tools"]).map { |t| { "name" => t["name"], "why" => t["why_it_fits"] } } if tools.empty? %>
+<% if tools.any? %>
+Tools that may help your role:
+<% tools.each do |tool| %>
+- <%= tool["name"] %><%= (tool["why"].presence || tool["why_it_fits"]).present? ? " — #{tool["why"].presence || tool["why_it_fits"]}" : "" %>
+<% end %>
+<% end %>
+
+<% if @content["team_theme"].present? %>
+<%= @content["team_theme"] %>
+<% end %>
+
+<%= @content["privacy_note"].presence || "This digest never includes other employees' data." %>
+
+Thank you,
+<%= @company.display_name || @company.name %> via Req

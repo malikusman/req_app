@@ -114,7 +114,7 @@ export function HeroSection() {
             </Button>
           </div>
 
-          <dl className="mt-12 grid max-w-xl grid-cols-3 gap-6 border-t border-marketing-border pt-8">
+          <dl className="mt-12 grid max-w-xl grid-cols-1 gap-4 border-t border-marketing-border pt-8 sm:grid-cols-3 sm:gap-6">
             {hero.stats.map((stat) => (
               <div key={stat.label}>
                 <dt className="sr-only">{stat.label}</dt>

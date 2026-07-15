@@ -12,6 +12,7 @@ import {
   EmptyState,
   Modal,
 } from '../../components/ui';
+import { EmployeeDigestModal } from './EmployeeDigestModal';
 
 function participationBadge(status: string) {
   if (status === 'completed') return 'success' as const;
@@ -52,6 +53,7 @@ export function CompanyEmployees() {
   const [editingPhoneId, setEditingPhoneId] = useState<number | null>(null);
   const [editPhone, setEditPhone] = useState('');
   const [savingPhone, setSavingPhone] = useState(false);
+  const [digestEmployee, setDigestEmployee] = useState<Employee | null>(null);
 
   const load = () => {
     if (!token) return;
@@ -156,7 +158,7 @@ export function CompanyEmployees() {
     <div className="space-y-8">
       <PageHeader
         title="Employees"
-        description="Invite employees via WhatsApp, browser, or both. Email is required for browser invites."
+        description="Invite employees, nudge stalled interviews, and manage private value digests."
       />
 
       <Card title="Invite employee">
@@ -302,19 +304,25 @@ export function CompanyEmployees() {
           {
             key: 'actions',
             header: '',
-            render: (e) =>
-              e.can_nudge ? (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  loading={nudgingId === e.id}
-                  onClick={() => setNudgeConfirmEmployee(e)}
-                >
-                  Nudge
+            render: (e) => (
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" variant="secondary" onClick={() => setDigestEmployee(e)}>
+                  Digest
                 </Button>
-              ) : e.participation_status === 'started' && e.last_nudged_at ? (
-                <span className="text-xs text-text-secondary">Cooldown (24h)</span>
-              ) : null,
+                {e.can_nudge ? (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    loading={nudgingId === e.id}
+                    onClick={() => setNudgeConfirmEmployee(e)}
+                  >
+                    Nudge
+                  </Button>
+                ) : e.participation_status === 'started' && e.last_nudged_at ? (
+                  <span className="text-xs text-text-secondary">Cooldown (24h)</span>
+                ) : null}
+              </div>
+            ),
           },
         ]}
         rows={employees as Employee[]}
@@ -355,6 +363,12 @@ export function CompanyEmployees() {
           </div>
         )}
       </Modal>
+
+      <EmployeeDigestModal
+        employee={digestEmployee}
+        open={digestEmployee != null}
+        onClose={() => setDigestEmployee(null)}
+      />
     </div>
   );
 }

@@ -298,8 +298,9 @@ class DemoSeeder
     previous = @company.reports.ready.order(version: :desc).first
     delta = Reports::DeltaCalculator.call(company: @company, previous_report: previous)
     snapshot = Reports::SnapshotBuilder.call(company: @company, delta: delta)
-    html = Reports::HtmlBuilder.call(snapshot: snapshot)
-    storage_key = "reports/#{@company.id}/v#{(@company.reports.maximum(:version) || 0) + 1}/report.html"
+    version = (@company.reports.maximum(:version) || 0) + 1
+    html = Reports::HtmlBuilder.call(snapshot: snapshot, report_version: version)
+    storage_key = "reports/#{@company.id}/v#{version}/report.html"
 
     begin
       Storage::MinioClient.new.upload(key: storage_key, body: html, content_type: "text/html")
@@ -308,7 +309,7 @@ class DemoSeeder
     end
 
     report = @company.reports.create!(
-      version: (@company.reports.maximum(:version) || 0) + 1,
+      version: version,
       status: "ready",
       visibility: "internal_only",
       storage_key: storage_key,
@@ -550,8 +551,8 @@ class BetaDemoSeeder
     previous = @company.reports.ready.order(version: :desc).first
     delta = Reports::DeltaCalculator.call(company: @company, previous_report: previous)
     snapshot = Reports::SnapshotBuilder.call(company: @company, delta: delta)
-    html = Reports::HtmlBuilder.call(snapshot: snapshot)
     version = (@company.reports.maximum(:version) || 0) + 1
+    html = Reports::HtmlBuilder.call(snapshot: snapshot, report_version: version)
     storage_key = "reports/#{@company.id}/v#{version}/report.html"
 
     begin

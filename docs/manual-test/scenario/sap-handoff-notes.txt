@@ -1,0 +1,12 @@
+SAP handoff notes — Scenario Corp AP
+
+When SAP reporting cannot answer a close question, AP maintains
+SCENARIO_GOLDEN_PHRASE_SAP_SHADOW_LEDGER in Excel.
+
+The shadow ledger columns are: vendor, invoice number, amount, PO,
+approval status, SAP document number, and close-period flag.
+
+Rules:
+- Update the shadow ledger daily during the last week of the month.
+- Never post to SAP from the shadow ledger without a second person check.
+- After SAP recovers or reporting is fixed, reconcile and archive that week's sheet.

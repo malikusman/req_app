@@ -1,0 +1,36 @@
+<% company_name = snapshot.dig("company", "name") %>
+<% delta = snapshot["delta_from_previous"] || {} %>
+<section class="page">
+  <div class="eyebrow">04 — What changed</div>
+  <h1 style="font-size:28pt;margin:4mm 0 4mm;">Delta from the previous version</h1>
+  <p class="lead" style="max-width:200mm;"><%= h delta["summary"] %></p>
+  <div class="delta" style="margin-top:6mm;">
+    <div class="col add">
+      <h4>New</h4>
+      <ul>
+        <% Array(delta["new_signals"]).each do |s| %><li>Signal: <%= h s["label"] %></li><% end %>
+        <% Array(delta["new_patterns"]).each do |p| %><li>Pattern: <%= h p["title"] %></li><% end %>
+        <% Array(delta["new_recommendations"]).each do |r| %><li>Recommendation: <%= h r["title"] %></li><% end %>
+        <% if Array(delta["new_signals"]).empty? && Array(delta["new_patterns"]).empty? && Array(delta["new_recommendations"]).empty? %>
+          <li>No new items</li>
+        <% end %>
+      </ul>
+    </div>
+    <div class="col chg">
+      <h4>Changed</h4>
+      <ul>
+        <% Array(delta["strengthened_signals"]).each do |s| %>
+          <li><%= h s["label"] %> → <%= format("%.2f", s["strength"].to_f) %></li>
+        <% end %>
+        <% if Array(delta["strengthened_signals"]).empty? %>
+          <li>No strengthened signals</li>
+        <% end %>
+      </ul>
+    </div>
+    <div class="col rem">
+      <h4>Notes</h4>
+      <ul><li>Resolved items appear when a prior signal is cleared in a later discovery cycle.</li></ul>
+    </div>
+  </div>
+  <%= render "reports/page_footer", company_name: company_name %>
+</section>

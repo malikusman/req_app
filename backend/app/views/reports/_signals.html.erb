@@ -1,26 +1,45 @@
-<% if signals.empty? %>
-  <p class="meta"><em>No signals detected yet.</em></p>
-<% else %>
-  <table>
-    <thead>
-      <tr><th>Signal</th><th>Strength</th><th>Departments</th><th>Evidence</th></tr>
-    </thead>
-    <tbody>
-      <% signals.each do |signal| %>
-        <% pct = (signal['strength'].to_f * 100).round %>
-        <% media = Array(signal['multimodal_evidence']) %>
-        <% evidence = "#{signal['evidence_count'].to_i} mentions" %>
-        <% evidence += "; #{media.size} media item#{'s' unless media.size == 1}" if media.any? %>
-        <tr>
-          <td>
-            <%= h signal['label'] %>
-            <div class="bar" style="margin-top: 6px;"><div class="bar-fill" style="width: <%= pct %>%"></div></div>
-          </td>
-          <td><%= pct %>%</td>
-          <td><%= h Array(signal['departments']).join(', ') %></td>
-          <td><%= h evidence %></td>
-        </tr>
-      <% end %>
-    </tbody>
-  </table>
-<% end %>
+<% company_name = snapshot.dig("company", "name") %>
+<% ranked = Array(signals).sort_by { |s| -(s["strength"].to_f) } %>
+<section class="page">
+  <div class="eyebrow">05 — Signals</div>
+  <h1 style="font-size:28pt;margin:4mm 0 3mm;">Recurring pain points</h1>
+  <div class="exhibit">
+    <div class="exlabel">Exhibit 3 · Signals ranked by strength</div>
+    <h3>Colour encodes category: process, tooling, people, data.</h3>
+    <% ranked.each do |signal| %>
+      <% cat = report_category_class(signal["signal_type"]) %>
+      <% pct = report_pct(signal["strength"]) %>
+      <div class="lolli">
+        <span class="lab"><%= h signal["label"] %></span>
+        <span class="track">
+          <span class="line <%= cat %>" style="width:<%= pct %>%"></span>
+          <span class="dot <%= cat %>" style="left:<%= pct %>%"></span>
+        </span>
+        <span class="val"><%= format("%.2f", signal["strength"].to_f) %></span>
+      </div>
+    <% end %>
+    <div class="caption"><%= h report_source_caption(company_name, version: report_version) %></div>
+    <div class="mark">Req</div>
+  </div>
+  <div class="card-grid-3">
+    <% ranked.each do |signal| %>
+      <% cat = report_category_class(signal["signal_type"]) %>
+      <% pct = report_pct(signal["strength"]) %>
+      <% depts = Array(signal["departments"]).reject(&:blank?) %>
+      <% excerpt = report_signal_excerpt(signal) %>
+      <div class="signal-card <%= cat %>">
+        <div class="meta"><%= h report_category_label(cat) %><% if depts.any? %> · <%= h depts.join(", ") %><% end %></div>
+        <div class="st"><%= h signal["label"] %></div>
+        <div class="strength"><i style="width:<%= pct %>%"></i></div>
+        <div class="meta">Strength <%= format("%.2f", signal["strength"].to_f) %></div>
+        <% if signal["evidence_count"].to_i.positive? %>
+          <p><%= signal["evidence_count"] %> supporting evidence item<%= "s" unless signal["evidence_count"].to_i == 1 %> across interviews and media.</p>
+        <% end %>
+        <% if excerpt.present? %>
+          <div class="evidence"><%= h excerpt.truncate(160) %></div>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+  <%= render "reports/page_footer", company_name: company_name %>
+</section>

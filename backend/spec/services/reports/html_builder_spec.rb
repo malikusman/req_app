@@ -51,8 +51,62 @@ RSpec.describe Reports::HtmlBuilder do
       ]
     )
 
-    expect(html).to include("Expert review notes")
+    expect(html).to include("Expert validation").or include("Reviewer notes")
     expect(html).to include("Alex Expert")
     expect(html).to include("Clarify SAP pain with finance lead.")
+    expect(html).to include("A4 landscape")
+  end
+
+  it "renders structured findings with disposition and evidence refs in the appendix" do
+    html = described_class.call(
+      snapshot: snapshot.merge(
+        "tools_catalog" => {
+          "curated_matches" => [
+            {
+              "name" => "DocFlow",
+              "category" => "Document AI",
+              "vendor" => "Acme",
+              "reason" => "Fits invoice intake",
+              "solution_id" => 1,
+              "endorsements" => [
+                { "disposition" => "endorse", "reviewer_name" => "Alex Expert", "rationale" => "Strong fit" }
+              ]
+            }
+          ],
+          "endorsements" => [],
+          "disclaimer" => "Catalog matches are illustrative."
+        }
+      ),
+      review_notes: [],
+      review_overlay: {
+        "notes" => [],
+        "section_dispositions" => [],
+        "structured_findings" => [
+          {
+            "reviewer" => "Alex Expert",
+            "kind" => "executive_conclusion",
+            "title" => "Executive conclusion",
+            "disposition" => "endorse",
+            "severity" => "material",
+            "body" => "Readiness score is well supported.",
+            "evidence_refs" => %w[signal:1 pattern:2]
+          }
+        ]
+      }
+    )
+
+    expect(html).to include("Structured findings")
+    expect(html).to include("Readiness score is well supported.")
+    expect(html).to include("Endorse")
+    expect(html).to include("signal:1")
+    expect(html).to include("pattern:2")
+    expect(html).to include("DocFlow")
+    expect(html).to include("endorsement-chip")
+  end
+
+  it "passes report version onto the cover when provided" do
+    html = described_class.call(snapshot: snapshot, report_version: 3)
+
+    expect(html).to include("Version 3")
   end
 end

@@ -96,7 +96,7 @@ export function CompanyConversationDetail() {
       />
 
       <div className="grid min-w-0 gap-6 lg:grid-cols-[240px_minmax(0,1fr)_300px]">
-        <div className="space-y-6">
+        <div className="order-2 space-y-6 lg:order-1">
           <Card title="Details">
             <dl className="space-y-3 text-sm">
               <div>
@@ -131,7 +131,7 @@ export function CompanyConversationDetail() {
           </Card>
         </div>
 
-        <Card title="Transcript" className="min-w-0">
+        <Card title="Transcript" className="order-1 min-w-0 lg:order-2">
           {chatMessages.length === 0 ? (
             <EmptyState title="No messages yet" description="Messages appear once the interview starts." />
           ) : (
@@ -143,7 +143,7 @@ export function CompanyConversationDetail() {
           )}
         </Card>
 
-        <Card title="Discovery provenance" className="min-w-0 lg:sticky lg:top-6">
+        <Card title="Discovery provenance" className="order-3 min-w-0 lg:sticky lg:top-6 lg:order-3">
           <DiscoveryProvenancePanel
             state={conversation.discovery_state}
             provenance={discoveryProvenance}

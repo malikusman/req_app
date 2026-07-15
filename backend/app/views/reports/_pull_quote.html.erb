@@ -1,0 +1,14 @@
+<% company_name = snapshot.dig("company", "name") %>
+<% quote = local_assigns[:quote].presence || "Discovery interviews surface the friction that quietly repeats across teams." %>
+<% accent_phrase = local_assigns[:accent_phrase] %>
+<section class="page dark pullquote">
+  <blockquote style="font-size:34pt;max-width:230mm;">
+    <% if accent_phrase.present? && quote.include?(accent_phrase) %>
+      <%= raw h(quote).sub(h(accent_phrase), %(<span class="accent">#{h(accent_phrase)}</span>)) %>
+    <% else %>
+      <%= h quote %>
+    <% end %>
+    <cite>Key finding · <%= h company_name %> discovery</cite>
+  </blockquote>
+  <%= render "reports/page_footer", company_name: company_name %>
+</section>

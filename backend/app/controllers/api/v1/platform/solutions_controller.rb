@@ -25,7 +25,10 @@ module Api
         def solution_params
           params.require(:solution).permit(
             :name, :vendor, :category, :description, :website_url, :active, :partnership_tier,
-            tags: [], match_keywords: []
+            :entity_type, :slug, :deployment_model, :maturity, :pricing_summary, :limitations,
+            :ownership, :published_at, :last_verified_at,
+            tags: [], match_keywords: [], use_cases: [], capabilities: [], required_systems: [],
+            industries: [], departments: [], role_relevance: [], security_compliance: [], evidence_urls: []
           )
         end
 
@@ -41,6 +44,15 @@ module Api
             match_keywords: solution.match_keywords,
             active: solution.active,
             partnership_tier: solution.partnership_tier,
+            entity_type: solution.try(:entity_type),
+            slug: solution.try(:slug),
+            use_cases: solution.try(:use_cases),
+            capabilities: solution.try(:capabilities),
+            deployment_model: solution.try(:deployment_model),
+            maturity: solution.try(:maturity),
+            pricing_summary: solution.try(:pricing_summary),
+            published_at: solution.try(:published_at),
+            last_verified_at: solution.try(:last_verified_at),
             created_at: solution.created_at,
             updated_at: solution.updated_at
           }

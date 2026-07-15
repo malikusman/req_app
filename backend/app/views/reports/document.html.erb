@@ -3,54 +3,85 @@
 <head>
   <meta charset="utf-8"/>
   <title>Workflow Discovery Report — <%= h snapshot.dig('company', 'name') %></title>
-  <%= render "reports/print_styles" %>
+  <%= render "reports/styles" %>
 </head>
 <body>
-  <section class="cover">
-    <p class="meta">Confidential · Workflow discovery</p>
-    <h1>Workflow Discovery Report</h1>
-    <p class="subtitle"><%= h snapshot.dig('company', 'name') %> · Generated <%= generated_label %></p>
-    <p class="score">Readiness score: <strong><%= snapshot.dig('readiness', 'score') %>%</strong></p>
-    <% if snapshot['executive_summary'].present? %>
-      <p style="margin-top: 1.5rem; max-width: 36rem;"><%= h snapshot['executive_summary'] %></p>
-    <% end %>
-  </section>
+<% report_reset_page! %>
+<% company_name = snapshot.dig("company", "name") %>
+<% signals = Array(snapshot["signals"]) %>
+<% patterns = Array(snapshot["patterns"]) %>
+<% recommendations = Array(snapshot["recommendations"]) %>
+<% supporting_media = Array(snapshot["supporting_media"]) %>
+<% delta = snapshot["delta_from_previous"] || {} %>
+<% toc_entries = report_toc_entries(snapshot) %>
 
-  <% delta = snapshot['delta_from_previous'] || {} %>
-  <% if delta['summary'].present? && delta['summary'] != 'Initial discovery report' %>
-    <div class="delta-box section-block">
-      <strong>What's changed since the last report</strong>
-      <p><%= h delta['summary'] %></p>
-    </div>
-  <% end %>
+<%= render "reports/cover", snapshot: snapshot, generated_label: generated_label, report_version: report_version %>
+<%= render "reports/contents", snapshot: snapshot, toc_entries: toc_entries %>
 
-  <h2>Readiness breakdown</h2>
-  <%= render "reports/readiness", readiness: snapshot['readiness'] || {} %>
+<% if snapshot["executive_summary"].present? %>
+  <%= render "reports/executive_summary", snapshot: snapshot, report_version: report_version %>
+<% end %>
 
-  <h2>Participation</h2>
-  <%= render "reports/participation", participation: snapshot['participation'] || {} %>
+<% if snapshot.dig("readiness", "score").present? %>
+  <%= render "reports/readiness", snapshot: snapshot, report_version: report_version %>
+<% end %>
 
-  <h2>Top pain points</h2>
-  <%= render "reports/signals", signals: snapshot['signals'] || [] %>
+<% participation = snapshot["participation"] || {} %>
+<% if participation["invited"].to_i.positive? || participation["completed"].to_i.positive? %>
+  <%= render "reports/participation", snapshot: snapshot, report_version: report_version %>
+<% end %>
 
-  <h2>Cross-team patterns</h2>
-  <%= render "reports/patterns", patterns: snapshot['patterns'] || [] %>
+<% if report_has_delta?(delta) && recommendations.empty? %>
+  <%= render "reports/delta", snapshot: snapshot, report_version: report_version %>
+<% end %>
 
-  <h2>Recommendations</h2>
-  <%= render "reports/recommendations", recommendations: snapshot['recommendations'] || [] %>
+<% if signals.any? %>
+  <%= render "reports/divider",
+        accent_label: "Signals & Patterns",
+        accent_bg: "var(--magenta)",
+        eyebrow: "05 & 06 — Signals and patterns",
+        title: "What the interviews revealed",
+        lead: "Signals are recurring pain points drawn directly from employee interviews. Patterns are the themes that connect them across departments.",
+        highlights: [
+          "<strong>#{signals.size}</strong> signal#{'s' unless signals.size == 1} surfaced from discovery interviews.".html_safe,
+          "<strong>#{patterns.size}</strong> cross-team pattern#{'s' unless patterns.size == 1} identified.".html_safe
+        ] %>
+  <%= render "reports/signals", snapshot: snapshot, signals: signals, report_version: report_version %>
+  <% top = signals.max_by { |s| s["strength"].to_f } %>
+  <% excerpt = top && report_signal_excerpt(top) %>
+  <% quote = excerpt.presence || "The strongest recurring theme is #{top&.dig('label') || 'operational friction'} across teams." %>
+  <%= render "reports/pull_quote", snapshot: snapshot, quote: quote, accent_phrase: top&.dig("label") %>
+<% end %>
 
-  <h2>Supporting media</h2>
-  <%= render "reports/supporting_media", supporting_media: snapshot['supporting_media'] || [] %>
+<% if patterns.any? %>
+  <%= render "reports/patterns", snapshot: snapshot, patterns: patterns, report_version: report_version %>
+<% end %>
 
-  <% if review_notes.present? %>
-    <div class="page-break"></div>
-    <h2>Expert review notes</h2>
-    <%= render "reports/review_appendix", review_notes: review_notes %>
-  <% end %>
+<% if recommendations.any? %>
+  <%= render "reports/recommendations", snapshot: snapshot, recommendations: recommendations, report_version: report_version %>
+<% end %>
 
-  <p class="meta footer">
-    Confidential — prepared for authorized stakeholders. Employee responses and media are summarized;
-    raw chat logs and original attachments are not included.
-  </p>
+<% if Array(snapshot.dig("tools_catalog", "curated_matches")).any? || Array(snapshot.dig("tools_catalog", "endorsements")).any? || Array(snapshot["supporting_documents"]).any? %>
+  <%= render "reports/tools_catalog", snapshot: snapshot, report_version: report_version %>
+<% end %>
+
+<% if supporting_media.any? %>
+  <%= render "reports/supporting_media", snapshot: snapshot, supporting_media: supporting_media, report_version: report_version %>
+<% end %>
+
+<%= render "reports/methodology", snapshot: snapshot, report_version: report_version %>
+
+<% review_overlay = local_assigns.fetch(:review_overlay, nil) %>
+<% structured_findings = local_assigns.fetch(:structured_findings) { Array(review_overlay&.dig("structured_findings")) } %>
+<% section_dispositions = local_assigns.fetch(:section_dispositions) { Array(review_overlay&.dig("section_dispositions")) } %>
+<% if review_notes.present? || structured_findings.any? || section_dispositions.any? %>
+  <%= render "reports/review_appendix",
+        snapshot: snapshot,
+        review_notes: review_notes,
+        review_overlay: review_overlay,
+        structured_findings: structured_findings,
+        section_dispositions: section_dispositions,
+        report_version: report_version %>
+<% end %>
 </body>
 </html>

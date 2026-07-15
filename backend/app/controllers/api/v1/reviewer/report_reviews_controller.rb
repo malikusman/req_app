@@ -22,6 +22,8 @@ module Api
           authorize @review, :submit?
           ReportReviews::SubmitService.call(report_review: @review)
           render json: review_payload(@review.reload)
+        rescue ReportReviews::SubmitService::IncompleteReviewError => e
+          render json: { error: e.message }, status: :unprocessable_entity
         end
 
         private

@@ -1,11 +1,21 @@
-<% if patterns.empty? %>
-  <p class="meta"><em>No patterns detected yet.</em></p>
-<% else %>
-  <% patterns.each do |pattern| %>
-    <div class="section-block">
-      <h3><%= h pattern['title'] %></h3>
-      <p><%= h pattern['description'].to_s %></p>
-      <p class="meta">Confidence: <%= (pattern['confidence'].to_f * 100).round %>%</p>
-    </div>
-  <% end %>
-<% end %>
+<% company_name = snapshot.dig("company", "name") %>
+<section class="page">
+  <div class="eyebrow">06 — Patterns</div>
+  <h1 style="font-size:28pt;margin:4mm 0 3mm;">Cross-team themes</h1>
+  <p class="lead" style="max-width:200mm;">Each pattern connects several signals across departments. Confidence reflects how consistently the theme appeared across interviews and evidence.</p>
+  <div class="patterns-3">
+    <% Array(patterns).each do |pattern| %>
+      <% cat = report_pattern_category_class(pattern["title"]) %>
+      <% conf = report_pct(pattern["confidence"]) %>
+      <div class="pattern-card">
+        <%= report_donut_svg(conf, report_category_color(cat)) %>
+        <div>
+          <div class="st"><%= h pattern["title"] %></div>
+          <div class="meta">Confidence <%= format("%.2f", pattern["confidence"].to_f) %></div>
+          <p><%= h pattern["description"] %></p>
+        </div>
+      </div>
+    <% end %>
+  </div>
+  <%= render "reports/page_footer", company_name: company_name %>
+</section>

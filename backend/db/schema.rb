@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_06_28_000001) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_13_180000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -28,6 +28,114 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_28_000001) do
     t.index ["company_id", "created_at"], name: "idx_on_company_id_created_at_a49b557fa4"
     t.index ["company_id"], name: "index_access_code_verification_attempts_on_company_id"
     t.index ["employee_id"], name: "index_access_code_verification_attempts_on_employee_id"
+  end
+
+  create_table "catalog_candidates", force: :cascade do |t|
+    t.bigint "catalog_source_record_id"
+    t.string "name", null: false
+    t.string "vendor"
+    t.string "entity_type", default: "tool", null: false
+    t.text "description"
+    t.string "website_url"
+    t.float "confidence", default: 0.0, null: false
+    t.string "review_status", default: "pending", null: false
+    t.bigint "suggested_catalog_entry_id"
+    t.bigint "reviewed_by_platform_user_id"
+    t.datetime "reviewed_at"
+    t.text "review_note"
+    t.jsonb "provenance", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["catalog_source_record_id"], name: "index_catalog_candidates_on_catalog_source_record_id"
+    t.index ["review_status"], name: "index_catalog_candidates_on_review_status"
+  end
+
+  create_table "catalog_endorsements", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "report_id"
+    t.bigint "reviewer_user_id", null: false
+    t.bigint "solution_catalog_entry_id"
+    t.string "disposition", null: false
+    t.text "rationale"
+    t.string "source_url"
+    t.boolean "publishable", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_catalog_endorsements_on_company_id"
+    t.index ["report_id"], name: "index_catalog_endorsements_on_report_id"
+    t.index ["reviewer_user_id"], name: "index_catalog_endorsements_on_reviewer_user_id"
+    t.index ["solution_catalog_entry_id"], name: "index_catalog_endorsements_on_solution_catalog_entry_id"
+  end
+
+  create_table "catalog_entry_aliases", force: :cascade do |t|
+    t.bigint "solution_catalog_entry_id", null: false
+    t.string "alias_text", null: false
+    t.string "normalized_alias", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["normalized_alias"], name: "index_catalog_entry_aliases_on_normalized_alias"
+    t.index ["solution_catalog_entry_id"], name: "index_catalog_entry_aliases_on_solution_catalog_entry_id"
+  end
+
+  create_table "catalog_pricing_snapshots", force: :cascade do |t|
+    t.bigint "solution_catalog_entry_id", null: false
+    t.string "pricing_model"
+    t.string "currency"
+    t.string "unit"
+    t.decimal "amount", precision: 12, scale: 2
+    t.datetime "effective_at"
+    t.string "source_url"
+    t.text "raw_text"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["solution_catalog_entry_id"], name: "index_catalog_pricing_snapshots_on_solution_catalog_entry_id"
+  end
+
+  create_table "catalog_source_records", force: :cascade do |t|
+    t.bigint "catalog_source_id", null: false
+    t.bigint "catalog_sync_run_id"
+    t.string "external_id", null: false
+    t.string "fingerprint", null: false
+    t.string "title"
+    t.string "url"
+    t.jsonb "raw_payload", default: {}, null: false
+    t.datetime "fetched_at", null: false
+    t.string "parse_status", default: "pending", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["catalog_source_id", "external_id"], name: "idx_catalog_source_records_unique_external", unique: true
+    t.index ["catalog_source_id"], name: "index_catalog_source_records_on_catalog_source_id"
+    t.index ["catalog_sync_run_id"], name: "index_catalog_source_records_on_catalog_sync_run_id"
+  end
+
+  create_table "catalog_sources", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "source_type", null: false
+    t.string "endpoint_url"
+    t.string "sync_cron"
+    t.datetime "last_sync_at"
+    t.string "last_sync_status"
+    t.integer "trust_score", default: 50, null: false
+    t.boolean "active", default: true, null: false
+    t.jsonb "config", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "catalog_sync_runs", force: :cascade do |t|
+    t.bigint "catalog_source_id", null: false
+    t.datetime "started_at", null: false
+    t.datetime "finished_at"
+    t.string "status", default: "running", null: false
+    t.integer "records_fetched", default: 0, null: false
+    t.integer "candidates_created", default: 0, null: false
+    t.integer "embedding_calls", default: 0, null: false
+    t.integer "llm_tokens", default: 0, null: false
+    t.jsonb "error_details", default: [], null: false
+    t.jsonb "budget", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["catalog_source_id"], name: "index_catalog_sync_runs_on_catalog_source_id"
   end
 
   create_table "companies", force: :cascade do |t|
@@ -50,6 +158,27 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_28_000001) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["slug"], name: "index_companies_on_slug", unique: true
+  end
+
+  create_table "company_catalog_matches", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "solution_catalog_entry_id", null: false
+    t.bigint "recommendation_id"
+    t.float "score", default: 0.0, null: false
+    t.text "why_it_fits"
+    t.jsonb "evidence_used", default: [], null: false
+    t.jsonb "assumptions", default: [], null: false
+    t.jsonb "risks", default: [], null: false
+    t.string "estimated_effort"
+    t.text "validate_next"
+    t.string "catalog_version"
+    t.datetime "matched_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id", "solution_catalog_entry_id"], name: "idx_company_catalog_matches_unique", unique: true
+    t.index ["company_id"], name: "index_company_catalog_matches_on_company_id"
+    t.index ["recommendation_id"], name: "index_company_catalog_matches_on_recommendation_id"
+    t.index ["solution_catalog_entry_id"], name: "index_company_catalog_matches_on_solution_catalog_entry_id"
   end
 
   create_table "company_memory_facts", force: :cascade do |t|
@@ -217,6 +346,13 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_28_000001) do
     t.jsonb "metadata", default: {}, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "document_type"
+    t.string "sensitivity", default: "internal"
+    t.boolean "reviewer_visible", default: true, null: false
+    t.date "effective_date"
+    t.integer "version_number", default: 1, null: false
+    t.datetime "retained_until"
+    t.datetime "purged_at"
     t.index ["company_id", "status"], name: "index_documents_on_company_id_and_status"
     t.index ["company_id"], name: "index_documents_on_company_id"
     t.index ["conversation_id"], name: "index_documents_on_conversation_id"
@@ -276,6 +412,40 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_28_000001) do
     t.index ["company_user_id"], name: "index_employee_nudges_on_company_user_id"
     t.index ["conversation_id"], name: "index_employee_nudges_on_conversation_id"
     t.index ["employee_id"], name: "index_employee_nudges_on_employee_id"
+  end
+
+  create_table "employee_value_digests", force: :cascade do |t|
+    t.bigint "employee_id", null: false
+    t.bigint "company_id", null: false
+    t.string "status", default: "draft", null: false
+    t.string "period_key", null: false
+    t.jsonb "content", default: {}, null: false
+    t.jsonb "source_refs", default: [], null: false
+    t.string "model_version"
+    t.string "prompt_version"
+    t.datetime "generated_at"
+    t.datetime "reviewed_at"
+    t.datetime "sent_at"
+    t.datetime "opened_at"
+    t.string "delivery_status"
+    t.jsonb "feedback", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_employee_value_digests_on_company_id"
+    t.index ["employee_id", "period_key"], name: "index_employee_value_digests_on_employee_id_and_period_key", unique: true
+    t.index ["employee_id"], name: "index_employee_value_digests_on_employee_id"
+  end
+
+  create_table "employee_value_preferences", force: :cascade do |t|
+    t.bigint "employee_id", null: false
+    t.boolean "email_opt_in", default: false, null: false
+    t.string "frequency", default: "monthly", null: false
+    t.string "locale", default: "en"
+    t.string "interests", default: [], array: true
+    t.datetime "unsubscribed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["employee_id"], name: "index_employee_value_preferences_on_employee_id", unique: true
   end
 
   create_table "employee_web_sessions", force: :cascade do |t|
@@ -382,6 +552,32 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_28_000001) do
     t.index ["employee_id"], name: "index_media_attachments_on_employee_id"
     t.index ["message_id"], name: "index_media_attachments_on_message_id"
     t.index ["meta_media_id"], name: "index_media_attachments_on_meta_media_id", unique: true, where: "(meta_media_id IS NOT NULL)"
+  end
+
+  create_table "meeting_requests", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "report_id"
+    t.bigint "reviewer_user_id", null: false
+    t.bigint "reviewer_outreach_id"
+    t.text "purpose", null: false
+    t.string "desired_roles", default: [], array: true
+    t.integer "duration_minutes", default: 30
+    t.string "urgency", default: "normal"
+    t.jsonb "proposed_windows", default: [], null: false
+    t.string "status", default: "pending_admin", null: false
+    t.bigint "approved_by_company_user_id"
+    t.jsonb "selected_participant_ids", default: [], null: false
+    t.datetime "scheduled_at"
+    t.string "meeting_link"
+    t.text "admin_note"
+    t.text "outcome_note"
+    t.jsonb "audit_trail", default: [], null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_meeting_requests_on_company_id"
+    t.index ["report_id"], name: "index_meeting_requests_on_report_id"
+    t.index ["reviewer_outreach_id"], name: "index_meeting_requests_on_reviewer_outreach_id"
+    t.index ["reviewer_user_id"], name: "index_meeting_requests_on_reviewer_user_id"
   end
 
   create_table "messages", force: :cascade do |t|
@@ -508,6 +704,26 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_28_000001) do
     t.index ["report_review_id", "section_key"], name: "index_report_review_comments_on_review_and_section"
     t.index ["report_review_id"], name: "index_report_review_comments_on_report_review_id"
     t.index ["reviewer_user_id"], name: "index_report_review_comments_on_reviewer_user_id"
+  end
+
+  create_table "report_review_findings", force: :cascade do |t|
+    t.bigint "report_review_id", null: false
+    t.bigint "reviewer_user_id", null: false
+    t.string "finding_type", null: false
+    t.string "section_key"
+    t.string "target_type"
+    t.bigint "target_id"
+    t.string "disposition"
+    t.string "severity", default: "info", null: false
+    t.text "body", null: false
+    t.jsonb "evidence_refs", default: [], null: false
+    t.boolean "publishable", default: true, null: false
+    t.string "resolution_status", default: "open", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["report_review_id", "finding_type"], name: "idx_on_report_review_id_finding_type_37d951f5e0"
+    t.index ["report_review_id"], name: "index_report_review_findings_on_report_review_id"
+    t.index ["reviewer_user_id"], name: "index_report_review_findings_on_reviewer_user_id"
   end
 
   create_table "report_review_section_states", force: :cascade do |t|
@@ -676,6 +892,57 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_28_000001) do
     t.index ["reviewer_user_id"], name: "index_reviewer_info_requests_on_reviewer_user_id"
   end
 
+  create_table "reviewer_outreach_replies", force: :cascade do |t|
+    t.bigint "reviewer_outreach_id", null: false
+    t.string "channel", null: false
+    t.text "body", null: false
+    t.bigint "message_id"
+    t.bigint "company_user_id"
+    t.datetime "received_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["reviewer_outreach_id"], name: "index_reviewer_outreach_replies_on_reviewer_outreach_id"
+  end
+
+  create_table "reviewer_outreaches", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "report_id"
+    t.bigint "reviewer_user_id", null: false
+    t.string "recipient_type", null: false
+    t.bigint "recipient_id"
+    t.bigint "employee_id"
+    t.bigint "conversation_id"
+    t.string "purpose", default: "clarification", null: false
+    t.string "channel", default: "whatsapp", null: false
+    t.string "status", default: "draft", null: false
+    t.text "body", null: false
+    t.text "reason"
+    t.string "section_key"
+    t.string "anchor_type"
+    t.string "anchor_id"
+    t.datetime "requested_deadline_at"
+    t.bigint "approved_by_company_user_id"
+    t.datetime "approved_at"
+    t.datetime "declined_at"
+    t.text "admin_note"
+    t.text "edited_body"
+    t.string "reply_token_digest"
+    t.datetime "sent_at"
+    t.string "meta_message_id"
+    t.bigint "message_id"
+    t.bigint "reviewer_info_request_id"
+    t.jsonb "audit_trail", default: [], null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_reviewer_outreaches_on_company_id"
+    t.index ["conversation_id"], name: "index_reviewer_outreaches_on_conversation_id"
+    t.index ["employee_id"], name: "index_reviewer_outreaches_on_employee_id"
+    t.index ["reply_token_digest"], name: "index_reviewer_outreaches_on_reply_token_digest", unique: true, where: "(reply_token_digest IS NOT NULL)"
+    t.index ["report_id"], name: "index_reviewer_outreaches_on_report_id"
+    t.index ["reviewer_user_id"], name: "index_reviewer_outreaches_on_reviewer_user_id"
+    t.index ["status"], name: "index_reviewer_outreaches_on_status"
+  end
+
   create_table "reviewer_users", force: :cascade do |t|
     t.string "email", null: false
     t.string "password_digest", null: false
@@ -716,6 +983,27 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_28_000001) do
     t.string "partnership_tier", default: "none"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "slug"
+    t.string "entity_type", default: "tool"
+    t.string "use_cases", default: [], array: true
+    t.string "capabilities", default: [], array: true
+    t.string "required_systems", default: [], array: true
+    t.string "deployment_model"
+    t.string "industries", default: [], array: true
+    t.string "departments", default: [], array: true
+    t.string "role_relevance", default: [], array: true
+    t.string "maturity"
+    t.string "security_notes"
+    t.text "pricing_summary"
+    t.text "limitations"
+    t.string "evidence_urls", default: [], array: true
+    t.bigint "owned_by_platform_user_id"
+    t.datetime "published_at"
+    t.datetime "last_verified_at"
+    t.jsonb "match_profile", default: {}, null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.vector "embedding", limit: 1536
+    t.index ["slug"], name: "index_solution_catalog_on_slug", unique: true, where: "(slug IS NOT NULL)"
   end
 
   create_table "subscriptions", force: :cascade do |t|
@@ -757,6 +1045,20 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_28_000001) do
 
   add_foreign_key "access_code_verification_attempts", "companies"
   add_foreign_key "access_code_verification_attempts", "employees"
+  add_foreign_key "catalog_candidates", "catalog_source_records"
+  add_foreign_key "catalog_candidates", "solution_catalog", column: "suggested_catalog_entry_id"
+  add_foreign_key "catalog_endorsements", "companies"
+  add_foreign_key "catalog_endorsements", "reports"
+  add_foreign_key "catalog_endorsements", "reviewer_users"
+  add_foreign_key "catalog_endorsements", "solution_catalog", column: "solution_catalog_entry_id"
+  add_foreign_key "catalog_entry_aliases", "solution_catalog", column: "solution_catalog_entry_id"
+  add_foreign_key "catalog_pricing_snapshots", "solution_catalog", column: "solution_catalog_entry_id"
+  add_foreign_key "catalog_source_records", "catalog_sources"
+  add_foreign_key "catalog_source_records", "catalog_sync_runs"
+  add_foreign_key "catalog_sync_runs", "catalog_sources"
+  add_foreign_key "company_catalog_matches", "companies"
+  add_foreign_key "company_catalog_matches", "recommendations"
+  add_foreign_key "company_catalog_matches", "solution_catalog", column: "solution_catalog_entry_id"
   add_foreign_key "company_memory_facts", "companies"
   add_foreign_key "company_memory_facts", "conversations"
   add_foreign_key "company_memory_facts", "employees"
@@ -787,6 +1089,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_28_000001) do
   add_foreign_key "employee_nudges", "company_users"
   add_foreign_key "employee_nudges", "conversations"
   add_foreign_key "employee_nudges", "employees"
+  add_foreign_key "employee_value_digests", "companies"
+  add_foreign_key "employee_value_digests", "employees"
+  add_foreign_key "employee_value_preferences", "employees"
   add_foreign_key "employee_web_sessions", "companies"
   add_foreign_key "employee_web_sessions", "employees"
   add_foreign_key "employees", "companies"
@@ -800,6 +1105,11 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_28_000001) do
   add_foreign_key "media_attachments", "documents"
   add_foreign_key "media_attachments", "employees"
   add_foreign_key "media_attachments", "messages"
+  add_foreign_key "meeting_requests", "companies"
+  add_foreign_key "meeting_requests", "company_users", column: "approved_by_company_user_id"
+  add_foreign_key "meeting_requests", "reports"
+  add_foreign_key "meeting_requests", "reviewer_outreaches"
+  add_foreign_key "meeting_requests", "reviewer_users"
   add_foreign_key "messages", "conversations"
   add_foreign_key "notifications", "companies"
   add_foreign_key "patterns", "companies"
@@ -810,6 +1120,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_28_000001) do
   add_foreign_key "recommendations", "company_users", column: "company_feedback_by_id"
   add_foreign_key "report_review_comments", "report_reviews"
   add_foreign_key "report_review_comments", "reviewer_users"
+  add_foreign_key "report_review_findings", "report_reviews"
+  add_foreign_key "report_review_findings", "reviewer_users"
   add_foreign_key "report_review_section_states", "report_reviews"
   add_foreign_key "report_reviews", "companies"
   add_foreign_key "report_reviews", "reports"
@@ -840,5 +1152,12 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_28_000001) do
   add_foreign_key "reviewer_info_requests", "reports"
   add_foreign_key "reviewer_info_requests", "review_discussions"
   add_foreign_key "reviewer_info_requests", "reviewer_users"
+  add_foreign_key "reviewer_outreach_replies", "reviewer_outreaches"
+  add_foreign_key "reviewer_outreaches", "companies"
+  add_foreign_key "reviewer_outreaches", "company_users", column: "approved_by_company_user_id"
+  add_foreign_key "reviewer_outreaches", "conversations"
+  add_foreign_key "reviewer_outreaches", "employees"
+  add_foreign_key "reviewer_outreaches", "reports"
+  add_foreign_key "reviewer_outreaches", "reviewer_users"
   add_foreign_key "subscriptions", "companies"
 end

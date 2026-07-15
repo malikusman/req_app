@@ -29,7 +29,10 @@ export function PageHeader({
       className={cn('mb-8', className)}
     >
       {breadcrumbs && breadcrumbs.length > 0 && (
-        <nav aria-label="Breadcrumb" className="mb-3 flex flex-wrap items-center gap-1 text-sm">
+        <nav
+          aria-label="Breadcrumb"
+          className="mb-3 hidden flex-wrap items-center gap-1 text-sm sm:flex"
+        >
           {breadcrumbs.map((crumb, i) => (
             <span key={crumb.label} className="flex items-center gap-1">
               {i > 0 && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}

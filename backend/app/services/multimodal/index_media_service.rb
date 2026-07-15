@@ -100,7 +100,7 @@ module Multimodal
       {
         "summary" => structured["summary"].presence || text.truncate(500),
         "chunk_count" => chunk_count,
-        "source" => "whatsapp_upload",
+        "source" => (@message.channel == "web" ? "web_upload" : "whatsapp_upload"),
         "media_type" => @attachment.attachment_type,
         "confidence" => @attachment.confidence,
         "tools" => structured["tools_visible"] || structured["tools_mentioned"],

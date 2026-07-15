@@ -35,6 +35,16 @@ Rails.application.routes.draw do
         post "trials/:company_id/extend", to: "trials#extend"
         get "system", to: "system#show"
         resources :solutions, only: %i[index create update]
+        get "catalog/sources", to: "catalog_sources#index"
+        post "catalog/sources", to: "catalog_sources#create"
+        patch "catalog/sources/:id", to: "catalog_sources#update"
+        delete "catalog/sources/:id", to: "catalog_sources#destroy"
+        post "catalog/sources/:id/sync", to: "catalog_sources#sync"
+        get "catalog/candidates", to: "catalog_candidates#index"
+        post "catalog/candidates/:id/approve", to: "catalog_candidates#approve"
+        post "catalog/candidates/:id/reject", to: "catalog_candidates#reject"
+        post "catalog/candidates/:id/merge", to: "catalog_candidates#merge"
+        post "catalog/sync", to: "catalog_sync#create"
         get "companies/:company_id/question_feedback", to: "question_feedback#index"
         get "companies/:company_id/reports", to: "reports#index"
         get "companies/:company_id/conversations", to: "conversations#index"
@@ -91,6 +101,7 @@ Rails.application.routes.draw do
             resource :review, only: %i[show update], controller: "report_reviews" do
               post :submit, on: :member
               resources :comments, only: %i[index create update destroy], controller: "report_review_comments"
+              resources :findings, only: %i[index create update destroy], controller: "report_review_findings"
               patch "section_states/:section_key", to: "report_review_section_states#update"
             end
           end
@@ -100,6 +111,14 @@ Rails.application.routes.draw do
           resources :chat_messages, only: %i[index create], controller: "chat_messages"
           get "media_attachments", to: "media_attachments#index"
           get "media_attachments/:id/download", to: "media_attachments#download"
+          get "documents", to: "documents#index"
+          get "documents/:id", to: "documents#show"
+          get "documents/:id/download", to: "documents#download"
+          get "evidence_graph", to: "evidence_graph#show"
+          resources :outreaches, only: %i[index create show], controller: "outreaches"
+          resources :meeting_requests, only: %i[index create show], controller: "meeting_requests"
+          get "catalog", to: "catalog#index"
+          post "catalog/:id/endorse", to: "catalog#endorse"
         end
       end
 
@@ -110,7 +129,24 @@ Rails.application.routes.draw do
         get "onboarding", to: "onboarding#show"
         patch "onboarding/profile", to: "onboarding#update_profile"
         post "onboarding/complete", to: "onboarding#complete"
-        resources :documents, only: %i[index create]
+        resources :documents, only: %i[index show create update destroy] do
+          member do
+            get :download
+          end
+        end
+        resources :outreaches, only: %i[index show], controller: "outreaches" do
+          member do
+            post :approve
+            post :decline
+            post :answer
+          end
+        end
+        resources :meeting_requests, only: %i[index show], controller: "meeting_requests" do
+          member do
+            post :approve
+            post :decline
+          end
+        end
         get "intelligence/snapshot", to: "intelligence#snapshot"
         get "intelligence/signals", to: "intelligence#signals"
         get "intelligence/patterns", to: "intelligence#patterns"
@@ -147,6 +183,10 @@ Rails.application.routes.draw do
           collection do
             post :bulk_create
           end
+          resource :value_preference, only: %i[show update], controller: "employee_value_preferences" do
+            post :generate_digest
+            post :send_digest
+          end
         end
         resources :conversations, only: %i[index show]
         get "media_attachments", to: "media_attachments#index"
@@ -160,6 +200,8 @@ Rails.application.routes.draw do
         get "discover/messages", to: "discover_messages#index"
         post "discover/messages", to: "discover_messages#create"
         post "discover/attachments", to: "discover_attachments#create"
+        get "outreach/:token", to: "outreach_replies#show"
+        post "outreach/:token/reply", to: "outreach_replies#create"
       end
     end
   end

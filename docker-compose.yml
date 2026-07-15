@@ -86,6 +86,8 @@ services:
       MINIO_SECRET_KEY: minioadmin
       MINIO_BUCKET: req-app
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      AI_CATALOG_SYNC_INTERVAL_HOURS: ${AI_CATALOG_SYNC_INTERVAL_HOURS:-12}
+      AI_CATALOG_MAX_CANDIDATES_PER_RUN: ${AI_CATALOG_MAX_CANDIDATES_PER_RUN:-25}
       GOTENBERG_URL: http://gotenberg:3000
       API_PUBLIC_HOST: http://localhost:3000
       RAILS_ENV: development
@@ -117,6 +119,8 @@ services:
       MINIO_SECRET_KEY: minioadmin
       MINIO_BUCKET: req-app
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      AI_CATALOG_SYNC_INTERVAL_HOURS: ${AI_CATALOG_SYNC_INTERVAL_HOURS:-12}
+      AI_CATALOG_MAX_CANDIDATES_PER_RUN: ${AI_CATALOG_MAX_CANDIDATES_PER_RUN:-25}
       GOTENBERG_URL: http://gotenberg:3000
     depends_on:
       - postgres
