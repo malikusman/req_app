@@ -4,6 +4,8 @@ module Api
   module V1
     module Platform
       class CatalogCandidatesController < BaseController
+        PER_PAGE = 30
+
         def index
           candidates = CatalogCandidate.includes(:catalog_source_record).order(created_at: :desc)
           candidates = candidates.where(review_status: params[:review_status]) if params[:review_status].present?
@@ -13,7 +15,20 @@ module Api
             candidates = candidates.joins(:catalog_source_record)
                                    .where(catalog_source_records: { catalog_source_id: params[:catalog_source_id] })
           end
-          render json: { catalog_candidates: candidates.limit(200).map { |c| candidate_json(c) } }
+
+          page = [params[:page].to_i, 1].max
+          per_page = if params[:per_page].present?
+                       params[:per_page].to_i.clamp(1, 100)
+                     else
+                       PER_PAGE
+                     end
+          total = candidates.count
+          records = candidates.offset((page - 1) * per_page).limit(per_page)
+
+          render json: {
+            catalog_candidates: records.map { |c| candidate_json(c) },
+            pagination: { page: page, per_page: per_page, total: total }
+          }
         end
 
         def show

@@ -418,19 +418,27 @@ export const api = {
 
   platformCatalogCandidates: (
     token: string,
-    opts?: { reviewStatus?: string; analysisStatus?: string; entityType?: string; catalogSourceId?: number }
+    opts?: {
+      reviewStatus?: string;
+      analysisStatus?: string;
+      entityType?: string;
+      catalogSourceId?: number;
+      page?: number;
+      perPage?: number;
+    }
   ) => {
     const params = new URLSearchParams();
     if (opts?.reviewStatus) params.set('review_status', opts.reviewStatus);
     if (opts?.analysisStatus) params.set('analysis_status', opts.analysisStatus);
     if (opts?.entityType) params.set('entity_type', opts.entityType);
     if (opts?.catalogSourceId) params.set('catalog_source_id', String(opts.catalogSourceId));
+    if (opts?.page) params.set('page', String(opts.page));
+    if (opts?.perPage) params.set('per_page', String(opts.perPage));
     const qs = params.toString();
-    return request<{ catalog_candidates: Array<Record<string, unknown>> }>(
-      `/api/v1/platform/catalog/candidates${qs ? `?${qs}` : ''}`,
-      {},
-      token
-    );
+    return request<{
+      catalog_candidates: Array<Record<string, unknown>>;
+      pagination: { page: number; per_page: number; total: number };
+    }>(`/api/v1/platform/catalog/candidates${qs ? `?${qs}` : ''}`, {}, token);
   },
 
   platformCatalogCandidate: (token: string, id: number) =>

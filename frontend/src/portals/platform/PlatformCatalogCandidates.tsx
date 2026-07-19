@@ -19,7 +19,10 @@ type Candidate = {
   topics?: string[];
   industries?: string[];
   provenance?: Record<string, unknown>;
+  created_at?: string;
 };
+
+const PER_PAGE = 30;
 
 const reviewOptions = [
   { value: 'pending', label: 'Pending review' },
@@ -58,6 +61,12 @@ function analysisBadgeVariant(status?: string): 'info' | 'success' | 'warning' |
   }
 }
 
+function confidenceLabel(confidence?: number): string {
+  if (typeof confidence !== 'number' || Number.isNaN(confidence)) return '—';
+  const pct = Math.round((confidence <= 1 ? confidence : confidence / 100) * 100);
+  return `${pct}%`;
+}
+
 export function PlatformCatalogCandidates() {
   const token = usePlatformToken();
   const [candidates, setCandidates] = useState<Candidate[]>([]);
@@ -68,23 +77,41 @@ export function PlatformCatalogCandidates() {
   const [reviewStatus, setReviewStatus] = useState('pending');
   const [analysisStatus, setAnalysisStatus] = useState('');
   const [entityType, setEntityType] = useState('');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [error, setError] = useState('');
 
   const load = () => {
     if (!token) return;
     setLoading(true);
+    setError('');
     api
       .platformCatalogCandidates(token, {
         reviewStatus: reviewStatus || undefined,
         analysisStatus: analysisStatus || undefined,
         entityType: entityType || undefined,
+        page,
+        perPage: PER_PAGE,
       })
-      .then((d) => setCandidates(d.catalog_candidates as Candidate[]))
+      .then((d) => {
+        setCandidates(d.catalog_candidates as Candidate[]);
+        setTotal(d.pagination?.total ?? 0);
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load candidates'))
       .finally(() => setLoading(false));
   };
 
   useEffect(() => {
     load();
-  }, [token, reviewStatus, analysisStatus, entityType]);
+  }, [token, reviewStatus, analysisStatus, entityType, page]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [reviewStatus, analysisStatus, entityType]);
+
+  const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
+  const rangeStart = total === 0 ? 0 : (page - 1) * PER_PAGE + 1;
+  const rangeEnd = Math.min(page * PER_PAGE, total);
 
   const openDetail = async (id: number) => {
     if (!token) return;
@@ -114,7 +141,7 @@ export function PlatformCatalogCandidates() {
     <div className="space-y-6">
       <PageHeader
         title="Market candidates"
-        description="Approve discovered catalog entries before they become matchable recommendations. Analyzed non-stub items can also power employee market alerts."
+        description="Approve discovered catalog entries before they become matchable recommendations. Confidence is how sure analysis is about the item’s type and relevance (0–100%), not employee fit. Sorted newest first."
       />
 
       <Card title="Filters">
@@ -144,16 +171,26 @@ export function PlatformCatalogCandidates() {
         <Textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Curation note for the audit trail" />
       </Card>
 
+      {error && (
+        <p className="m-0 text-sm text-status-error">
+          {error}{' '}
+          <button type="button" className="underline" onClick={load}>
+            Retry
+          </button>
+        </p>
+      )}
+
       <DataTable
         loading={loading}
         columns={[
           {
             key: 'name',
             header: 'Candidate',
+            className: 'min-w-[12rem] max-w-[16rem] overflow-hidden',
             render: (c: Candidate) => (
-              <button type="button" className="text-left" onClick={() => openDetail(c.id)}>
-                <div className="font-medium text-accent hover:underline">{c.name}</div>
-                <div className="text-xs text-text-secondary">
+              <button type="button" className="max-w-full text-left" onClick={() => openDetail(c.id)}>
+                <div className="truncate font-medium text-accent hover:underline">{c.name}</div>
+                <div className="truncate text-xs text-text-secondary">
                   {[c.vendor, c.entity_type, c.catalog_source_name].filter(Boolean).join(' · ') || '—'}
                 </div>
               </button>
@@ -162,6 +199,7 @@ export function PlatformCatalogCandidates() {
           {
             key: 'analysis',
             header: 'Analysis',
+            className: 'whitespace-nowrap',
             render: (c: Candidate) => (
               <Badge variant={analysisBadgeVariant(c.analysis_status)}>{c.analysis_status || '—'}</Badge>
             ),
@@ -169,11 +207,12 @@ export function PlatformCatalogCandidates() {
           {
             key: 'provenance',
             header: 'Source',
+            className: 'max-w-[14rem] overflow-hidden',
             render: (c: Candidate) => {
               const url = c.source_url || c.website_url;
               const stub = c.provenance?.stub === true;
               return (
-                <div className="max-w-[220px]">
+                <div className="min-w-0 max-w-full overflow-hidden">
                   {stub ? (
                     <Badge variant="warning">stub</Badge>
                   ) : url ? (
@@ -181,10 +220,11 @@ export function PlatformCatalogCandidates() {
                       href={url}
                       target="_blank"
                       rel="noreferrer"
-                      className="truncate text-xs text-accent hover:underline"
+                      title={url}
+                      className="block truncate text-xs text-accent hover:underline"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      {url}
+                      {url.replace(/^https?:\/\//, '')}
                     </a>
                   ) : (
                     <span className="text-xs text-text-secondary">—</span>
@@ -196,16 +236,24 @@ export function PlatformCatalogCandidates() {
           {
             key: 'confidence',
             header: 'Confidence',
-            render: (c: Candidate) => (typeof c.confidence === 'number' ? c.confidence.toFixed(2) : '—'),
+            className: 'w-[5.5rem] whitespace-nowrap tabular-nums',
+            render: (c: Candidate) => (
+              <span className="text-sm text-foreground" title="Analysis confidence that this item is correctly typed and relevant">
+                {confidenceLabel(c.confidence)}
+              </span>
+            ),
           },
           {
             key: 'status',
             header: 'Review',
+            className: 'whitespace-nowrap',
             render: (c: Candidate) => <Badge variant="info">{c.review_status}</Badge>,
           },
           {
             key: 'actions',
             header: '',
+            className: 'whitespace-nowrap',
+            hideOnMobile: false,
             render: (c: Candidate) =>
               c.review_status === 'pending' ? (
                 <div className="flex gap-2">
@@ -222,6 +270,28 @@ export function PlatformCatalogCandidates() {
         rows={candidates}
         emptyState={<EmptyState title="No candidates" description="Adjust filters or sync catalog sources to discover market items." />}
       />
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="m-0 text-sm text-muted-foreground">
+          {total === 0 ? 'No results' : `Showing ${rangeStart}–${rangeEnd} of ${total} · newest first`}
+        </p>
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" size="sm" disabled={page <= 1 || loading} onClick={() => setPage((p) => p - 1)}>
+            Previous
+          </Button>
+          <span className="text-sm text-muted-foreground">
+            Page {page} of {totalPages}
+          </span>
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={page >= totalPages || loading}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            Next
+          </Button>
+        </div>
+      </div>
 
       <Modal
         open={!!selected}
@@ -240,10 +310,11 @@ export function PlatformCatalogCandidates() {
               <Badge variant="info">{selected.review_status}</Badge>
               {selected.entity_type && <Badge variant="neutral">{selected.entity_type}</Badge>}
               {selected.provenance?.stub === true && <Badge variant="warning">stub (not emailable)</Badge>}
+              <Badge variant="neutral">Confidence {confidenceLabel(selected.confidence)}</Badge>
             </div>
             <p className="text-text-secondary">{selected.summary || selected.description || 'No summary yet.'}</p>
             {(selected.source_url || selected.website_url) && (
-              <p>
+              <p className="break-all">
                 <span className="text-text-secondary">Provenance: </span>
                 <a
                   href={selected.source_url || selected.website_url}
