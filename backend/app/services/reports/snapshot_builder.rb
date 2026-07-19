@@ -12,8 +12,11 @@ module Reports
     end
 
     def call
+      docs_first = @company.docs_first_phase?
       {
         "generated_at" => Time.current.iso8601,
+        "report_kind" => docs_first ? "baseline" : "discovery",
+        "docs_first_phase" => docs_first,
         "company" => {
           "name" => @company.display_name || @company.name,
           "locale" => @company.locale
@@ -60,10 +63,42 @@ module Reports
     private
 
     def executive_summary
+      if @company.docs_first_phase?
+        docs_executive_summary
+      else
+        interview_executive_summary
+      end
+    end
+
+    def docs_executive_summary
+      ready_docs = @company.documents.where(status: "ready")
+      count = ready_docs.count
+      depts = ready_docs.where.not(department: [nil, ""]).distinct.pluck(:department).compact
+      parts = [
+        "Baseline discovery from #{count} internal #{'document'.pluralize(count)}" \
+        "#{depts.any? ? " across #{depts.join(', ')}" : ""}."
+      ]
+
+      top_signals = @company.company_signals.order(strength: :desc).limit(3).pluck(:label)
+      parts << "Document analysis highlights #{top_signals.join(', ')}." if top_signals.any?
+
+      pattern_count = @company.patterns.count
+      if pattern_count.positive?
+        parts << "#{pattern_count} cross-cutting #{'pattern'.pluralize(pattern_count)} inform the recommendations below."
+      end
+
+      parts << "Employee interviews can be added later to strengthen this baseline with live evidence."
+      parts.join(" ")
+    end
+
+    def interview_executive_summary
       participation = Intelligence::SnapshotBuilder.call(company: @company)["participation"] || {}
       invited = participation["invited"].to_i
       completed = participation["completed"].to_i
       parts = ["#{completed} of #{invited} employees completed discovery interviews."]
+
+      doc_count = @company.documents.where(status: "ready").count
+      parts << "Findings are reinforced by #{doc_count} internal #{'document'.pluralize(doc_count)}." if doc_count.positive?
 
       top_signals = @company.company_signals.order(strength: :desc).limit(3).pluck(:label)
       parts << "Top friction areas include #{top_signals.join(', ')}." if top_signals.any?

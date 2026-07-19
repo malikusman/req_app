@@ -29,7 +29,7 @@
       <h3>Prioritize high-impact, high-feasibility moves first.</h3>
       <%= report_priority_matrix_svg(recommendations) %>
       <div class="caption"><%= h report_source_caption(company_name, version: report_version) %></div>
-      <div class="mark">Req</div>
+      <div class="mark">Worktruth</div>
     </div>
     <% if report_has_delta?(snapshot["delta_from_previous"]) %>
       <% delta = snapshot["delta_from_previous"] || {} %>

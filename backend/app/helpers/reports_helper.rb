@@ -31,7 +31,9 @@ module ReportsHelper
     "departments_represented" => { label: "Department spread", cat: "cat-tooling", target: 2 },
     "confirmed_patterns" => { label: "Pattern confidence", cat: "cat-people", target: 1 },
     "multimodal_contributions" => { label: "Multimodal evidence", cat: "cat-data", target: 1 },
-    "insights_count" => { label: "Insights captured", cat: "cat-process", target: 10 }
+    "insights_count" => { label: "Insights captured", cat: "cat-process", target: 10 },
+    "ready_documents" => { label: "Ready documents", cat: "cat-process", target: 3 },
+    "document_departments" => { label: "Document departments", cat: "cat-tooling", target: 1 }
   }.freeze
 
   def report_reset_page!
@@ -61,7 +63,7 @@ module ReportsHelper
   end
 
   def report_brand_footer(company_name)
-    "Req · #{company_name} Discovery Report"
+    "Worktruth · #{company_name} Discovery Report"
   end
 
   def report_pct(value)
@@ -107,9 +109,18 @@ module ReportsHelper
     SVG
   end
 
-  def report_readiness_bars(breakdown)
-    (breakdown || {}).filter_map do |key, raw|
-      meta = READINESS_BAR_META[key.to_s]
+  def report_readiness_bars(breakdown, docs_first: false)
+    preferred = if docs_first
+                  %w[ready_documents document_departments confirmed_patterns multimodal_contributions]
+                else
+                  %w[employees_interviewed departments_represented confirmed_patterns multimodal_contributions ready_documents document_departments]
+                end
+
+    preferred.filter_map do |key|
+      raw = (breakdown || {})[key]
+      next if raw.nil?
+
+      meta = READINESS_BAR_META[key]
       next unless meta
 
       target = meta[:target].to_f
@@ -173,7 +184,7 @@ module ReportsHelper
 
   def report_source_caption(company_name, version: nil)
     ver = version.present? ? "v#{version}" : "snapshot"
-    "Source: Req discovery #{ver} · #{company_name}"
+    "Source: Worktruth discovery #{ver} · #{company_name}"
   end
 
   SECTION_LABELS = {

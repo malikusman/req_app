@@ -11,7 +11,7 @@ export function PlatformLogin() {
     <LoginForm
       portal="platform"
       portalName="Platform Admin"
-      tagline="Manage companies, trials, and system health across your Req deployment."
+      tagline="Manage companies, trials, and system health across your Worktruth deployment."
       defaultEmail="admin@reqapp.local"
       footer={
         <>

@@ -85,16 +85,19 @@ export const api = {
     request<CompanyDashboardPayload>('/api/v1/company/dashboard', {}, token),
 
   companyOnboarding: (token: string) =>
-    request<{ step: number; company: { display_name: string; locale: string }; invited_count: number }>(
-      '/api/v1/company/onboarding',
-      {},
-      token
-    ),
+    request<{
+      step: number;
+      company: { display_name: string; locale: string; engagement_mode?: string };
+      invited_count: number;
+    }>('/api/v1/company/onboarding', {}, token),
 
-  updateOnboardingProfile: (token: string, display_name: string, locale: string) =>
-    request<{ ok: boolean; step: number }>(
+  updateOnboardingProfile: (token: string, display_name: string, locale: string, engagement_mode?: string) =>
+    request<{ ok: boolean; step: number; engagement_mode?: string }>(
       '/api/v1/company/onboarding/profile',
-      { method: 'PATCH', body: JSON.stringify({ display_name, locale }) },
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ display_name, locale, engagement_mode }),
+      },
       token
     ),
 
@@ -372,9 +375,26 @@ export const api = {
       token
     ),
 
-  platformCatalogCandidates: (token: string, reviewStatus?: string) =>
-    request<{ catalog_candidates: Array<Record<string, unknown>> }>(
-      `/api/v1/platform/catalog/candidates${reviewStatus ? `?review_status=${encodeURIComponent(reviewStatus)}` : ''}`,
+  platformCatalogCandidates: (
+    token: string,
+    opts?: { reviewStatus?: string; analysisStatus?: string; entityType?: string; catalogSourceId?: number }
+  ) => {
+    const params = new URLSearchParams();
+    if (opts?.reviewStatus) params.set('review_status', opts.reviewStatus);
+    if (opts?.analysisStatus) params.set('analysis_status', opts.analysisStatus);
+    if (opts?.entityType) params.set('entity_type', opts.entityType);
+    if (opts?.catalogSourceId) params.set('catalog_source_id', String(opts.catalogSourceId));
+    const qs = params.toString();
+    return request<{ catalog_candidates: Array<Record<string, unknown>> }>(
+      `/api/v1/platform/catalog/candidates${qs ? `?${qs}` : ''}`,
+      {},
+      token
+    );
+  },
+
+  platformCatalogCandidate: (token: string, id: number) =>
+    request<{ catalog_candidate: Record<string, unknown> }>(
+      `/api/v1/platform/catalog/candidates/${id}`,
       {},
       token
     ),
@@ -409,6 +429,13 @@ export const api = {
 
   syncAllCatalogSources: (token: string) =>
     request<{ status: string }>('/api/v1/platform/catalog/sync', { method: 'POST' }, token),
+
+  seedRecommendedCatalogSources: (token: string) =>
+    request<{ catalog_sources: Array<Record<string, unknown>>; created_or_updated: number }>(
+      '/api/v1/platform/catalog/sources/seed_recommended',
+      { method: 'POST' },
+      token
+    ),
 
   reviewerCatalog: (token: string, companyId: number) =>
     request<{ matches: Array<Record<string, unknown>>; endorsements: Array<Record<string, unknown>> }>(
@@ -608,8 +635,20 @@ export const api = {
       token
     ),
 
-  updateCompanySettings: (token: string, payload: { display_name?: string; locale?: string; department_targets?: Record<string, number> }) =>
-    request<{ ok: boolean }>('/api/v1/company/settings/organization', { method: 'PATCH', body: JSON.stringify(payload) }, token),
+  updateCompanySettings: (
+    token: string,
+    payload: {
+      display_name?: string;
+      locale?: string;
+      engagement_mode?: string;
+      department_targets?: Record<string, number>;
+    }
+  ) =>
+    request<{ ok: boolean; settings?: Record<string, unknown> }>(
+      '/api/v1/company/settings/organization',
+      { method: 'PATCH', body: JSON.stringify(payload) },
+      token
+    ),
 
   companySettingsSecurity: (token: string) =>
     request<{ security_snapshot: Record<string, unknown>; active_access_codes: number; pin_rotated_at: string | null }>(
@@ -1181,10 +1220,14 @@ export interface CompanyDashboardPayload {
     completed_count: number;
     invited_count: number;
     onboarding_complete: boolean;
+    engagement_mode?: string;
+    docs_first_phase?: boolean;
   };
   snapshot: IntelligenceSnapshot;
   report_readiness_score: number;
   report_readiness_breakdown: Record<string, number>;
+  engagement_mode?: string;
+  docs_first_phase?: boolean;
   usage: { conversations_used: number; conversation_limit: number | null; remaining: number | null; limit_reached: boolean };
   latest_report: Report | null;
   employees_summary: {
@@ -1201,6 +1244,12 @@ export interface CompanyDashboardPayload {
   };
   impersonating: boolean;
   impersonation_expires_at: string | null;
+  integrations?: {
+    openai_configured: boolean;
+    stripe_configured: boolean;
+    gotenberg_ok: boolean;
+    mocks_allowed: boolean;
+  };
 }
 
 export interface ReviewerDashboardPayload {

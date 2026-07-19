@@ -4,6 +4,7 @@ import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
 import { Button } from '@/components/shadcn/button';
 import { useToast } from '../components/ui/ToastProvider';
+import { BRAND_NAME, SALES_EMAIL } from './content';
 
 type Props = { open: boolean; onClose: () => void };
 
@@ -13,17 +14,17 @@ export function RequestAccessModal({ open, onClose }: Props) {
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    const subject = encodeURIComponent(`Req access request — ${form.company}`);
+    const subject = encodeURIComponent(`${BRAND_NAME} demo request — ${form.company}`);
     const body = encodeURIComponent(
       `Name: ${form.name}\nEmail: ${form.email}\nCompany: ${form.company}\nRole: ${form.role}`
     );
-    window.location.href = `mailto:sales@reqapp.local?subject=${subject}&body=${body}`;
+    window.location.href = `mailto:${SALES_EMAIL}?subject=${subject}&body=${body}`;
     toast({ variant: 'success', title: 'Request prepared', description: 'Your email client should open with a pre-filled message.' });
     onClose();
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="Request access" footer={
+    <Modal open={open} onClose={onClose} title="Request a demo" footer={
       <>
         <Button variant="ghost" onClick={onClose}>
           Cancel

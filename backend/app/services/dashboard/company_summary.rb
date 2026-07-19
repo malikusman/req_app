@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "net/http"
+
 module Dashboard
   class CompanySummary
     def self.call(company:, company_user:, impersonating: false, impersonation_session: nil)
@@ -35,15 +37,38 @@ module Dashboard
         snapshot: @company.intelligence_snapshot,
         report_readiness_score: @company.report_readiness_score,
         report_readiness_breakdown: @company.report_readiness_breakdown,
+        engagement_mode: @company.engagement_mode,
+        docs_first_phase: @company.docs_first_phase?,
         usage: enforcer.usage_summary,
         latest_report: latest_report_json(latest_report),
         employees_summary: employees_summary,
+        integrations: integrations_status,
         impersonating: @impersonating,
         impersonation_expires_at: @impersonation_session&.expires_at
       }
     end
 
     private
+
+    def integrations_status
+      {
+        openai_configured: ENV["OPENAI_API_KEY"].present?,
+        stripe_configured: ENV["STRIPE_SECRET_KEY"].present?,
+        gotenberg_ok: gotenberg_healthy?,
+        mocks_allowed: MocksAllowed.allowed?
+      }
+    end
+
+    def gotenberg_healthy?
+      uri = URI("#{ENV.fetch('GOTENBERG_URL', 'http://gotenberg:3000')}/health")
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.open_timeout = 2
+      http.read_timeout = 2
+      response = http.request(Net::HTTP::Get.new(uri))
+      response.is_a?(Net::HTTPSuccess)
+    rescue StandardError
+      false
+    end
 
     def ensure_snapshot!
       return if @company.intelligence_snapshot.present?
@@ -62,7 +87,9 @@ module Dashboard
         report_readiness_score: @company.report_readiness_score,
         completed_count: @company.completed_count,
         invited_count: @company.invited_count,
-        onboarding_complete: @company.onboarding_complete?
+        onboarding_complete: @company.onboarding_complete?,
+        engagement_mode: @company.engagement_mode,
+        docs_first_phase: @company.docs_first_phase?
       }
     end
 

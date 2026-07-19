@@ -14,6 +14,7 @@ module Openai
     end
 
     def transcribe_audio(file_path:, language: "en")
+      ensure_configured_or_mock!("OpenAI")
       return mock_transcript(language) unless configured?
 
       uri = URI("#{API_BASE}/audio/transcriptions")
@@ -26,6 +27,7 @@ module Openai
     end
 
     def describe_image(file_path:, language: "en")
+      ensure_configured_or_mock!("OpenAI")
       return mock_image_description(language) unless configured?
 
       data = Base64.strict_encode64(File.binread(file_path))
@@ -45,6 +47,7 @@ module Openai
     end
 
     def embedding(text)
+      ensure_configured_or_mock!("OpenAI")
       return Array.new(1536, 0.0) unless configured?
 
       body = {
@@ -55,6 +58,7 @@ module Openai
     end
 
     def summarize_document(text, language: "en")
+      ensure_configured_or_mock!("OpenAI")
       return mock_document_summary(text, language) unless configured?
 
       body = {
@@ -77,6 +81,7 @@ module Openai
     end
 
     def understand_image_structured(file_path:, language: "en", caption: nil, department: nil)
+      ensure_configured_or_mock!("OpenAI")
       return mock_image_structured(language, caption) unless configured?
 
       data = Base64.strict_encode64(File.binread(file_path))
@@ -117,6 +122,7 @@ module Openai
     end
 
     def understand_document_structured(text:, language: "en")
+      ensure_configured_or_mock!("OpenAI")
       return mock_document_structured(text, language) unless configured?
 
       body = {
@@ -146,6 +152,7 @@ module Openai
     end
 
     def ocr_scanned_pdf(file_path:, language: "en")
+      ensure_configured_or_mock!("OpenAI")
       return mock_scanned_pdf_text(language) unless configured?
 
       data = Base64.strict_encode64(File.binread(file_path))
@@ -169,6 +176,12 @@ module Openai
     end
 
     private
+
+    def ensure_configured_or_mock!(service_name)
+      return if configured?
+
+      MocksAllowed.require!(service_name)
+    end
 
     def api_key
       ENV["OPENAI_API_KEY"].presence

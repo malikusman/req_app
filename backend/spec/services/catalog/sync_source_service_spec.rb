@@ -21,6 +21,7 @@ RSpec.describe Catalog::SyncSourceService do
           <title><![CDATA[Acme Invoice AI]]></title>
           <link>https://example.com/acme</link>
           <description><![CDATA[<p>AP automation for SAP</p>]]></description>
+          <pubDate>Mon, 01 Jun 2026 12:00:00 GMT</pubDate>
         </item>
         <item>
           <title>Beta Close Copilot</title>
@@ -38,14 +39,22 @@ RSpec.describe Catalog::SyncSourceService do
     expect(run.candidates_created).to eq(2)
     names = CatalogCandidate.order(:id).pluck(:name)
     expect(names).to include("Acme Invoice AI", "Beta Close Copilot")
-    expect(CatalogCandidate.find_by(name: "Acme Invoice AI").description).to include("AP automation")
+    acme = CatalogCandidate.find_by(name: "Acme Invoice AI")
+    expect(acme.description).to include("AP automation")
+    expect(acme.provenance["source_url"]).to eq("https://example.com/acme")
+    expect(acme.provenance["stub"]).to eq(false)
+    expect(acme.analysis_status).to eq("pending")
+    expect(AnalyzeCatalogCandidateJob).to have_been_enqueued.with(acme.id)
   end
 
   it "uses stub candidates when no endpoint is configured" do
     source.update!(endpoint_url: nil)
     run = described_class.call(catalog_source: source)
     expect(run.candidates_created).to eq(1)
-    expect(CatalogCandidate.last.provenance["stub"]).to eq(true)
+    stub = CatalogCandidate.last
+    expect(stub.provenance["stub"]).to eq(true)
+    expect(stub).to be_stub
+    expect(CatalogCandidate.emailable).not_to include(stub)
   end
 end
 

@@ -1,16 +1,25 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api, type Report } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
 import { PageHeader, Card, Button, DataTable, Badge, EmptyState } from '../../components/ui';
 import { CompanyExpertReviewers } from './CompanyExpertReviewers';
+import { useToast } from '../../components/ui/ToastProvider';
 
 export function CompanyReports() {
   const token = useCompanyToken();
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const [reports, setReports] = useState<Report[]>([]);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
   const [shareMsg, setShareMsg] = useState('');
   const [loading, setLoading] = useState(true);
+  const [readiness, setReadiness] = useState<{ score: number; docsFirst: boolean; breakdown: Record<string, number> }>({
+    score: 0,
+    docsFirst: false,
+    breakdown: {},
+  });
 
   const load = () => {
     if (!token) return;
@@ -24,6 +33,17 @@ export function CompanyReports() {
     load();
     const interval = setInterval(load, 5000);
     return () => clearInterval(interval);
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) return;
+    api.companyDashboard(token).then((d) => {
+      setReadiness({
+        score: Math.round(d.report_readiness_score ?? 0),
+        docsFirst: Boolean(d.docs_first_phase ?? d.company.docs_first_phase),
+        breakdown: d.report_readiness_breakdown ?? {},
+      });
+    });
   }, [token]);
 
   const generate = async () => {
@@ -45,7 +65,14 @@ export function CompanyReports() {
     setShareMsg('');
     try {
       const res = await api.shareReport(token, id, 30);
-      setShareMsg(`Share link created (expires ${new Date(res.expires_at).toLocaleDateString()}): ${res.share_url}`);
+      const msg = `Share link created (expires ${new Date(res.expires_at).toLocaleDateString()}): ${res.share_url}`;
+      setShareMsg(msg);
+      try {
+        await navigator.clipboard.writeText(res.share_url);
+        toast({ variant: 'success', title: 'Link copied', description: 'Share URL copied to clipboard.' });
+      } catch {
+        toast({ variant: 'success', title: 'Share link ready', description: res.share_url });
+      }
       load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Share failed');
@@ -84,11 +111,27 @@ export function CompanyReports() {
       <CompanyExpertReviewers />
 
       <Card>
+        <p className="mb-3 text-sm text-text-secondary">
+          Current readiness: <span className="font-medium text-text-primary">{readiness.score}%</span>
+          {readiness.docsFirst
+            ? ' (document baseline — need ready docs, department tags, and patterns).'
+            : ' (blended document + interview dimensions).'}
+          {readiness.score < 100 && readiness.docsFirst && (
+            <>
+              {' '}
+              Ready docs: {readiness.breakdown.ready_documents ?? 0}, departments:{' '}
+              {readiness.breakdown.document_departments ?? 0}, patterns:{' '}
+              {readiness.breakdown.confirmed_patterns ?? 0}.
+            </>
+          )}
+        </p>
         <Button onClick={generate} loading={generating} disabled={generating}>
           {generating ? 'Generating…' : 'Generate new report'}
         </Button>
         <p className="mt-2 text-sm text-text-secondary">
-          Requires readiness score of 100% (or allow_early_report in dev).
+          {readiness.score >= 100
+            ? 'Ready to generate — report will use your current document and interview evidence.'
+            : 'Generation unlocks at 100% readiness. Keep uploading tagged documents or completing interviews.'}
         </p>
       </Card>
 
@@ -157,7 +200,24 @@ export function CompanyReports() {
           },
         ]}
         rows={reports as Report[]}
-        emptyState={<EmptyState title="No reports" description="Generate your first discovery report when ready." />}
+        emptyState={
+          <EmptyState
+            title="No reports yet"
+            description={
+              readiness.score >= 100
+                ? 'Generate your first discovery or baseline report.'
+                : 'Reach 100% readiness, then generate a versioned report.'
+            }
+            action={
+              readiness.score >= 100
+                ? { label: 'Generate report', onClick: () => void generate() }
+                : {
+                    label: readiness.docsFirst ? 'Upload documents' : 'Check dashboard',
+                    onClick: () => navigate(readiness.docsFirst ? '/company/documents' : '/company/dashboard'),
+                  }
+            }
+          />
+        }
       />
     </div>
   );

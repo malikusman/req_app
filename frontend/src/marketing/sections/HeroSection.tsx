@@ -54,7 +54,7 @@ function HeroChatCard() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 px-5 py-6" aria-label="Example Req interview on WhatsApp">
+        <div className="flex flex-col gap-3 px-5 py-6" aria-label="Example Worktruth interview on WhatsApp">
           {chat.messages.map((message, i) => (
             <HeroChatBubble key={message.text} message={message} index={i} />
           ))}

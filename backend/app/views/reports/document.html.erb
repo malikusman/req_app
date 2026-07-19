@@ -35,15 +35,20 @@
   <%= render "reports/delta", snapshot: snapshot, report_version: report_version %>
 <% end %>
 
+<% docs_first = snapshot["docs_first_phase"] == true || snapshot["report_kind"].to_s == "baseline" %>
 <% if signals.any? %>
   <%= render "reports/divider",
         accent_label: "Signals & Patterns",
         accent_bg: "var(--magenta)",
         eyebrow: "05 & 06 — Signals and patterns",
-        title: "What the interviews revealed",
-        lead: "Signals are recurring pain points drawn directly from employee interviews. Patterns are the themes that connect them across departments.",
+        title: docs_first ? "What the documents revealed" : "What the interviews revealed",
+        lead: docs_first ?
+          "Signals are recurring friction themes drawn from internal documents. Patterns connect those themes across departments and file types." :
+          "Signals are recurring pain points drawn directly from employee interviews. Patterns are the themes that connect them across departments.",
         highlights: [
-          "<strong>#{signals.size}</strong> signal#{'s' unless signals.size == 1} surfaced from discovery interviews.".html_safe,
+          docs_first ?
+            "<strong>#{signals.size}</strong> signal#{'s' unless signals.size == 1} surfaced from document analysis.".html_safe :
+            "<strong>#{signals.size}</strong> signal#{'s' unless signals.size == 1} surfaced from discovery interviews.".html_safe,
           "<strong>#{patterns.size}</strong> cross-team pattern#{'s' unless patterns.size == 1} identified.".html_safe
         ] %>
   <%= render "reports/signals", snapshot: snapshot, signals: signals, report_version: report_version %>

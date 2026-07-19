@@ -2,13 +2,21 @@ mark_abandoned_conversations:
   cron: "0 * * * *"
   class: MarkAbandonedConversationsJob
   queue: default
+  active_job: true
 # Interval note: cron expression is overwritten at Sidekiq startup from
 # AI_CATALOG_SYNC_INTERVAL_HOURS (default 12). Keep a sensible default here.
 catalog_sync_all_sources:
   cron: "0 */12 * * *"
   class: CatalogSyncAllSourcesJob
   queue: default
+  active_job: true
+market_intel_match_and_notify:
+  cron: "0 */6 * * *"
+  class: MarketIntelMatchAndNotifyJob
+  queue: default
+  active_job: true
 generate_employee_value_digests:
   cron: "0 9 1 * *"
   class: GenerateEmployeeValueDigestsJob
   queue: default
+  active_job: true

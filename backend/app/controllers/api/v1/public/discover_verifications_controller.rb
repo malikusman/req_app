@@ -13,6 +13,8 @@ module Api
           render json: result
         rescue EmployeeWebSessions::VerifyService::RateLimited
           render json: { error: "Too many attempts. Please try again later." }, status: :too_many_requests
+        rescue EmployeeWebSessions::VerifyService::LimitReached => e
+          render json: { error: e.message }, status: :payment_required
         rescue EmployeeWebSessions::VerifyService::InvalidSession, EmployeeWebSessions::VerifyService::InvalidCode
           render json: { error: "Invalid link or access code" }, status: :unauthorized
         end

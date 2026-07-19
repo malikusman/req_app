@@ -2,7 +2,11 @@
  * Marketing site copy — single source of truth for the public homepage.
  * Edit here when positioning, pricing, or product capabilities change.
  * Voice: warm, plain, confident — the product interviews people, so the site talks like a person.
+ * Brand: Worktruth
  */
+
+export const BRAND_NAME = 'Worktruth';
+export const SALES_EMAIL = 'sales@worktruth.com';
 
 export const marketingContent = {
   nav: {
@@ -13,19 +17,19 @@ export const marketingContent = {
       { label: 'FAQ', href: '#faq' },
     ],
     signInLabel: 'Sign in',
-    ctaLabel: 'Get started',
+    ctaLabel: 'Request a demo',
   },
 
   hero: {
-    eyebrow: 'Workflow discovery on WhatsApp',
+    eyebrow: 'Operational discovery — documents and conversations',
     headline: 'Your team already knows what’s broken.',
     headlineAccent: 'Just ask.',
     subhead:
-      'Req chats with every employee on WhatsApp — text, voice notes, photos, documents — and turns what they say into signals, patterns, and a board-ready automation roadmap. No new apps. No six-month discovery project.',
-    primaryCta: 'Get started',
+      'Worktruth builds operational truth from the evidence you already have: upload SOPs and exports for a baseline, then interview people on WhatsApp or web chat. Same intelligence graph. Versioned reports your leadership can defend.',
+    primaryCta: 'Request a demo',
     secondaryCta: 'See how it works',
     chat: {
-      contactName: 'Req',
+      contactName: 'Worktruth',
       contactStatus: 'online · WhatsApp',
       messages: [
         {
@@ -51,15 +55,16 @@ export const marketingContent = {
       },
     },
     stats: [
-      { value: '3–5 wks', label: 'to first executive report' },
-      { value: '85%+', label: 'employee participation on WhatsApp' },
-      { value: '100%', label: 'of findings traceable to real quotes' },
+      { value: 'Docs or people', label: 'Start with a document baseline — or invite employees first' },
+      { value: 'One graph', label: 'Signals strengthen as interviews add live evidence' },
+      { value: 'Governed PDF', label: 'Versioned reports with reviewer gate before leadership' },
     ],
-    statsDisclaimer: 'Early enterprise programs; timelines vary with cohort size.',
+    statsDisclaimer:
+      'Early enterprise programs. Document baselines cite internal files; quote-level interview evidence appears once conversations complete.',
   },
 
   logos: {
-    eyebrow: 'Trusted by transformation teams across',
+    eyebrow: 'Built for transformation teams in',
     industries: [
       'Global manufacturers',
       'Financial services',
@@ -73,7 +78,7 @@ export const marketingContent = {
     eyebrow: 'The problem',
     title: 'Your org chart is not your operating model',
     subtitle:
-      'Transformation stalls when discovery is slow, shallow, or filtered through three layers of management. Req goes straight to the people doing the work.',
+      'Transformation stalls when discovery is slow, shallow, or filtered through three layers of management. Worktruth goes straight to the evidence — documents and the people doing the work.',
     pains: [
       {
         title: 'Surveys measure mood, not workflow',
@@ -83,7 +88,7 @@ export const marketingContent = {
       {
         title: 'Consulting discovery is expensive and episodic',
         description:
-          'A six-week interview blitz produces a deck, then the map goes stale. Req keeps discovery running: invite more people, refresh intelligence, regenerate the report.',
+          'A six-week interview blitz produces a deck, then the map goes stale. Worktruth keeps discovery running: upload more docs, invite more people, refresh intelligence, regenerate the report.',
       },
       {
         title: 'IT assessments miss the front line',
@@ -93,44 +98,44 @@ export const marketingContent = {
       {
         title: 'AI pilots fail without operational truth',
         description:
-          'You can’t prioritise automation until you know which processes are manual, duplicated, and politically entrenched. Req surfaces the evidence — quotes included.',
+          'You can’t prioritise automation until you know which processes are manual, duplicated, and politically entrenched. Worktruth surfaces structured evidence you can defend.',
       },
     ],
   },
 
   howItWorks: {
     eyebrow: 'How it works',
-    title: 'From a WhatsApp “hi” to a board-ready roadmap',
-    subtitle: 'Three layers: conversation, intelligence, and governed delivery.',
+    title: 'Two ways in. One governed report out.',
+    subtitle: 'Start with documents, start with people, or run both — intelligence accumulates on the same graph.',
     steps: [
       {
-        title: 'Employees chat. That’s it.',
+        title: 'Upload a document baseline',
         description:
-          'Invite your team with per-person access codes. Req says hello on WhatsApp, gets consent in their language, and interviews them the way a great consultant would — adapting questions by role, department, and what they said last.',
+          'Drop in SOPs, policies, org charts, and finance exports. Worktruth parses text, extracts structured signals, and can produce a baseline report with zero employees invited.',
         details: [
-          'No login, no app, no training',
-          'Voice notes transcribed, photos and PDFs understood',
-          'Specialist AI interviewers for domain, process, technical and strategy questions',
+          'SOPs, policies, CSVs, and common office formats',
+          'Department tagging for coverage and readiness',
+          'Baseline PDF when readiness hits the docs-phase bar',
         ],
       },
       {
-        title: 'Conversations become intelligence',
+        title: 'Interview the people who do the work',
         description:
-          'Every answer is distilled into signals — pain points, tools, time sinks. Signals cluster into patterns: recurring bottlenecks, shadow processes, cross-team dependencies. Your dashboard fills in live as interviews complete.',
+          'Invite employees with per-person access codes. They answer on WhatsApp or web chat — text, voice, photos, documents. Specialist interviewers adapt by role and department when advanced discovery is enabled.',
         details: [
-          'Readiness score and department coverage at a glance',
-          'Pattern detection across teams and systems',
-          'Company memory: every interview makes the next one smarter',
+          'WhatsApp-primary; web chat when WhatsApp isn’t practical',
+          'Consent capture and adaptive follow-ups',
+          'Live quotes strengthen the same signals from your docs',
         ],
       },
       {
         title: 'A report you can defend',
         description:
-          'Req generates versioned reports with deltas against the last run. Expert reviewers annotate section by section and follow up with employees on WhatsApp before anything reaches your leadership. Recommendations map to real tools.',
+          'Worktruth generates versioned reports with deltas against the last run. Expert reviewers annotate section by section before anything reaches leadership. Recommendations map to your solution catalog with evidence links.',
         details: [
           'Versioned PDF & share links with access logging',
           'Independent expert review before delivery',
-          'Ranked automation opportunities with evidence',
+          'Ranked opportunities grounded in signals and patterns',
         ],
       },
     ],
@@ -140,7 +145,7 @@ export const marketingContent = {
     eyebrow: 'Intelligence',
     title: 'What you discover',
     subtitle:
-      'Every interview feeds a structured model of how work really happens — not how the process wiki says it should.',
+      'Documents and interviews feed a structured model of how work really happens — not how the process wiki says it should.',
     cards: [
       {
         title: 'Bottlenecks',
@@ -168,7 +173,7 @@ export const marketingContent = {
       {
         title: 'AI opportunities',
         description:
-          'High-impact candidates for automation or copilots — mapped to your solution catalog with evidence from conversations.',
+          'High-impact candidates for automation or copilots — mapped to your solution catalog with evidence from documents and conversations.',
         span: '' as const,
       },
       {
@@ -190,7 +195,7 @@ export const marketingContent = {
         title: 'Company portal',
         for: 'Transformation leads & operations',
         features: [
-          'Onboarding wizard: profile, employee invites, WhatsApp setup',
+          'Onboarding: profile, documents-first or hybrid mode, employee invites',
           'Live dashboard: participation, readiness, department heatmap',
           'Signals, patterns, timeline, and discovery-question feedback',
           'Document upload feeding the same intelligence graph',
@@ -203,13 +208,13 @@ export const marketingContent = {
         features: [
           'Assigned companies only — up to two reviewers per client',
           'Section-by-section report review and approval workflow',
-          'WhatsApp follow-ups with employees, invisible to the company',
+          'WhatsApp follow-ups with employees for clarification',
           'Co-reviewer chat for coordination on complex accounts',
         ],
       },
       {
         title: 'Platform console',
-        for: 'Req operators & partners',
+        for: 'Worktruth operators & partners',
         features: [
           'Company and trial management, audit log, support impersonation',
           'Discovery playbooks by department and solution catalog',
@@ -224,11 +229,11 @@ export const marketingContent = {
     eyebrow: 'Who it’s for',
     title: 'Built for teams who own change',
     subtitle:
-      'Run discovery in-house or as a partner — Req compresses time-to-insight without sacrificing depth.',
+      'Run discovery in-house or as a partner — Worktruth compresses time-to-insight without sacrificing depth.',
     items: [
       {
         title: 'COO & transformation offices',
-        body: 'A single source of operational truth before a reorg, ERP cutover, or AI rollout — grounded in frontline interviews, not workshop stickies.',
+        body: 'A single source of operational truth before a reorg, ERP cutover, or AI rollout — grounded in documents and frontline interviews, not workshop stickies.',
       },
       {
         title: 'Operations & process excellence',
@@ -240,16 +245,16 @@ export const marketingContent = {
       },
       {
         title: 'Consultancies & BPO partners',
-        body: 'Repeatable discovery engagements with governed reviewer workflows, client-ready PDFs, and WhatsApp-level participation rates.',
+        body: 'Repeatable discovery engagements with governed reviewer workflows, client-ready PDFs, and high participation without new apps.',
       },
     ],
   },
 
   testimonial: {
     quote: {
-      text: 'We finally had a shared picture of how work actually flows — not how the org chart says it should. The WhatsApp channel got us answers from people who would never join a workshop.',
-      attribution: 'VP Operations',
-      company: 'Fortune 500 industrial group',
+      text: 'Start with the files that already describe how work should happen — then interview the people who know where it actually breaks. Worktruth keeps both on one evidence graph so the report gets stronger over time, not rewritten from scratch.',
+      attribution: 'Product methodology',
+      company: 'Worktruth',
     },
   },
 
@@ -258,47 +263,59 @@ export const marketingContent = {
     items: [
       {
         q: 'Do employees need to install an app?',
-        a: 'No. Interviews happen in WhatsApp after a one-time consent flow. They can reply with text, voice notes, images, or documents — whatever matches how they already work.',
+        a: 'No. Interviews happen in WhatsApp after a one-time consent flow, or in a browser chat when WhatsApp isn’t the right channel. They can reply with text, voice notes, images, or documents.',
       },
       {
         q: 'How is this different from an employee survey?',
-        a: 'Surveys aggregate opinions. Req conducts adaptive interviews: the AI asks follow-ups, clarifies tools and steps, and extracts structured signals and patterns tied to real workflow evidence.',
+        a: 'Surveys aggregate opinions. Worktruth runs adaptive interviews and structured extraction from documents: follow-ups clarify tools and steps, then signals and patterns are tied to workflow evidence — quotes from interviews, excerpts from files.',
       },
       {
         q: 'What languages are supported?',
-        a: 'Discovery adapts to the language employees use in WhatsApp. Playbooks can be scoped by department; platform operators manage active playbook versions.',
+        a: 'Discovery adapts to the language employees use in chat. Playbooks can be scoped by department; platform operators manage active playbook versions.',
       },
       {
         q: 'How do you handle privacy and access?',
-        a: 'Per-employee access codes, consent capture, JWT-scoped portals, and role separation between company admins and external reviewers. Report share links are tokenized with access logging.',
+        a: 'Per-employee access codes, consent capture, JWT-scoped portals, and role separation between company admins and external reviewers. Report share links are tokenized with access logging. See our Privacy page for retention and contact details.',
       },
       {
         q: 'Can we upload existing process documents?',
-        a: 'Yes. The company portal accepts PDFs; text is chunked, embedded, and merged with conversation intelligence so recommendations reflect both interviews and documentation.',
+        a: 'Yes — and you can start there. Upload SOPs, policies, and finance exports for a document baseline report with zero employees invited. When people join later, the same signals strengthen with interview evidence. Quote-level traceability applies once interviews are in the mix.',
+      },
+      {
+        q: 'Do we have to interview employees on day one?',
+        a: 'No. Choose documents-only or hybrid in onboarding. Many teams start with internal docs, generate a baseline, then invite employees so intelligence accumulates rather than starting over.',
+      },
+      {
+        q: 'How does readiness scoring work?',
+        a: 'With no completed interviews, readiness is document-weighted (ready files, department coverage, signals, confirmed patterns). As employees finish interviews, the score blends toward interview-weighted dimensions so you don’t fall off a cliff when the first person completes.',
+      },
+      {
+        q: 'What does “tied to real quotes” mean?',
+        a: 'Interview findings can link back to employee answers. Document baselines cite internal files and excerpts — not live quotes — until conversations add them.',
       },
       {
         q: 'What does pricing look like?',
-        a: 'Plans are tiered by conversation volume — trial, starter, and growth — with in-app billing. Get started for a guided walkthrough and cohort sizing.',
+        a: 'Plans are tiered by conversation volume: trial (included with setup), Starter ($499/mo), and Growth ($1,499/mo), with Enterprise available via sales. A conversation is a completed discovery interview. Document uploads are included; talk to sales for cohort sizing.',
       },
     ],
   },
 
   cta: {
-    eyebrow: 'Get started',
+    eyebrow: 'Request a demo',
     title: 'Hear what your team has been trying to tell you',
     subtitle:
-      'Tell us about your organisation and discovery goals. We’ll walk you through a live demo with the company portal, sample intelligence, and report output.',
-    button: 'Get started',
-    note: 'Typical onboarding: profile setup, employee invites, first interviews within days — not months.',
+      'Tell us about your organisation and discovery goals. We’ll walk you through the company portal, a sample baseline vs discovery report, and how readiness gates delivery.',
+    button: 'Request a demo',
+    note: 'Typical onboarding: profile setup, optional document uploads, then employee invites when you are ready — days, not months.',
   },
 
   footer: {
-    tagline: 'Operational intelligence from the people who do the work.',
+    tagline: 'Operational truth from the people who do the work.',
     links: [
       { label: 'How it works', href: '#how-it-works' },
       { label: 'Platform', href: '#platform' },
       { label: 'FAQ', href: '#faq' },
-      { label: 'Privacy', href: '#' },
+      { label: 'Privacy', href: '/privacy' },
     ],
   },
 } as const;

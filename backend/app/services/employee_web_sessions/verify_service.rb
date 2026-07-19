@@ -6,6 +6,7 @@ module EmployeeWebSessions
     class InvalidSession < Error; end
     class InvalidCode < Error; end
     class RateLimited < Error; end
+    class LimitReached < Error; end
 
     MAX_ATTEMPTS = 5
     WINDOW = 15.minutes
@@ -102,12 +103,22 @@ module EmployeeWebSessions
       conv = employee.conversations.where.not(status: "abandoned").order(created_at: :desc).first
       return conv if conv
 
-      employee.conversations.create!(
-        company: employee.company,
+      company = employee.company
+      unless Subscriptions::ConversationLimitEnforcer.can_start_discovery?(company: company)
+        raise LimitReached, "Discovery conversation limit reached for this organization"
+      end
+
+      conversation = employee.conversations.create!(
+        company: company,
         status: "onboarding",
         started_at: Time.current,
         last_activity_at: Time.current
       )
+      Subscriptions::ConversationLimitEnforcer.record_discovery_started!(
+        company: company,
+        conversation: conversation
+      )
+      conversation
     end
 
     def issue_jwt(session, employee)

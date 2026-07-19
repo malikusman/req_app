@@ -25,6 +25,7 @@ export function PlatformCatalogSources() {
   const [saving, setSaving] = useState(false);
   const [syncingId, setSyncingId] = useState<number | null>(null);
   const [syncingAll, setSyncingAll] = useState(false);
+  const [seeding, setSeeding] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
@@ -111,15 +112,36 @@ export function PlatformCatalogSources() {
     }
   };
 
+  const seedRecommended = async () => {
+    if (!token) return;
+    setSeeding(true);
+    setError('');
+    setMessage('');
+    try {
+      const res = await api.seedRecommendedCatalogSources(token);
+      setMessage(`Recommended AI sources ready (${res.created_or_updated} feeds).`);
+      load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Seed failed');
+    } finally {
+      setSeeding(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Catalog sources"
         description={`RSS/API feeds that seed market candidates. Scheduled every ${intervalHours}h (AI_CATALOG_SYNC_INTERVAL_HOURS).`}
         actions={
-          <Button size="sm" variant="secondary" loading={syncingAll} onClick={syncAll}>
-            Sync all now
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="secondary" loading={seeding} onClick={seedRecommended}>
+              Add recommended AI sources
+            </Button>
+            <Button size="sm" variant="secondary" loading={syncingAll} onClick={syncAll}>
+              Sync all now
+            </Button>
+          </div>
         }
       />
 

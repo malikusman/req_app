@@ -108,6 +108,32 @@ class DiscoverySimulator
         "Honestly the weekly status email I compile could probably go away entirely",
         "That covers pretty much everything about my work"
       ]
+    },
+    "docs_first_finance_ic" => {
+      phone: "+14155558101",
+      name: "Alex DocsFirst",
+      profiling: {
+        role_title: "Accounts Payable Specialist",
+        department: "Finance",
+        seniority: "I'm an individual contributor",
+        responsibilities: "I reconcile vendor invoices in Excel and chase approvals before SAP entry",
+        team_size: nil,
+        tools: "SAP, Excel and Outlook"
+      },
+      expected_agents: %w[domain_finance process technical],
+      unexpected_agents: %w[strategic],
+      answers: [
+        "It starts when a vendor emails an invoice and ends when SAP shows it as paid",
+        "Matching invoices to purchase orders goes wrong the most with manual spreadsheet work",
+        "I wait on manager approval constantly — approval bottlenecks every close",
+        "SAP and Excel don't talk; I re-enter everything by hand creating data silos",
+        "Reconciliation is repetitive time-consuming work every week",
+        "We coordinate handoffs over email and meetings across teams",
+        "At quarter end the approval step breaks first",
+        "I copy invoice numbers between Excel and SAP daily",
+        "A perfect version would auto-match POs and route approvals",
+        "That covers pretty much everything about my work"
+      ]
     }
   }.freeze
 
@@ -130,6 +156,7 @@ class DiscoverySimulator
     banner "Discovery dry run — #{@persona[:name]} (#{@persona_key}) @ #{@company.name}"
     execute_stages!
     print_report
+    self
   ensure
     cleanup! if @cleanup
   end

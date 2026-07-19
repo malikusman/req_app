@@ -12,6 +12,8 @@ module Intelligence
     ].freeze
 
     MAX_EVIDENCE = 10
+    MAX_CHUNKS_PER_DOC = 8
+    CHUNK_TRUNCATE = 500
 
     def self.call(company:)
       new(company: company).call
@@ -61,10 +63,25 @@ module Intelligence
 
     def gather_texts
       insight_texts = ConversationInsight.where(company_id: @company.id).pluck(:summary)
-      doc_texts = @company.documents.where(status: "ready").map { |d| d.insights_preview["summary"].to_s }
+      doc_texts = @company.documents.where(status: "ready").flat_map { |d| document_text_blobs(d) }
       fact_texts = @company.company_memory_facts.limit(200).pluck(:content)
       message_texts = gather_message_sources.map { |m| m[:body] }
-      (insight_texts + doc_texts + fact_texts + message_texts).compact
+      (insight_texts + doc_texts + fact_texts + message_texts).compact_blank
+    end
+
+    def document_text_blobs(document)
+      preview = document.insights_preview.is_a?(Hash) ? document.insights_preview : {}
+      preview_blobs = [
+        preview["summary"].to_s,
+        Array(preview["friction_points"]).join(" "),
+        Array(preview["workflows"]).join(" "),
+        Array(preview["tools_mentioned"]).join(" "),
+        Array(preview["systems"]).join(" ")
+      ]
+      chunk_blobs = document.document_chunks.order(:chunk_index).limit(MAX_CHUNKS_PER_DOC).pluck(:content).map do |content|
+        content.to_s.truncate(CHUNK_TRUNCATE)
+      end
+      (preview_blobs + chunk_blobs).compact_blank
     end
 
     def gather_message_sources

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_13_180000) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_19_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -46,7 +46,16 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_13_180000) do
     t.jsonb "provenance", default: {}, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "analysis_status", default: "pending", null: false
+    t.datetime "analyzed_at"
+    t.datetime "published_at"
+    t.jsonb "industries", default: [], null: false
+    t.jsonb "topics", default: [], null: false
+    t.text "summary"
+    t.index ["analysis_status"], name: "index_catalog_candidates_on_analysis_status"
     t.index ["catalog_source_record_id"], name: "index_catalog_candidates_on_catalog_source_record_id"
+    t.index ["entity_type"], name: "index_catalog_candidates_on_entity_type"
+    t.index ["published_at"], name: "index_catalog_candidates_on_published_at"
     t.index ["review_status"], name: "index_catalog_candidates_on_review_status"
   end
 
@@ -394,6 +403,27 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_13_180000) do
     t.index ["company_id"], name: "index_employee_invitations_on_company_id"
     t.index ["company_user_id"], name: "index_employee_invitations_on_company_user_id"
     t.index ["employee_id"], name: "index_employee_invitations_on_employee_id"
+  end
+
+  create_table "employee_market_alerts", force: :cascade do |t|
+    t.bigint "employee_id", null: false
+    t.bigint "company_id", null: false
+    t.bigint "catalog_candidate_id", null: false
+    t.float "fit_score", default: 0.0, null: false
+    t.text "fit_rationale"
+    t.jsonb "email_body", default: {}, null: false
+    t.string "status", default: "draft", null: false
+    t.string "period_month", null: false
+    t.datetime "sent_at"
+    t.string "delivery_status"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["catalog_candidate_id"], name: "index_employee_market_alerts_on_catalog_candidate_id"
+    t.index ["company_id"], name: "index_employee_market_alerts_on_company_id"
+    t.index ["employee_id", "catalog_candidate_id"], name: "idx_employee_market_alerts_unique_candidate", unique: true
+    t.index ["employee_id", "period_month"], name: "index_employee_market_alerts_on_employee_id_and_period_month"
+    t.index ["employee_id"], name: "index_employee_market_alerts_on_employee_id"
+    t.index ["status"], name: "index_employee_market_alerts_on_status"
   end
 
   create_table "employee_nudges", force: :cascade do |t|
@@ -1086,6 +1116,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_13_180000) do
   add_foreign_key "employee_invitations", "companies"
   add_foreign_key "employee_invitations", "company_users"
   add_foreign_key "employee_invitations", "employees"
+  add_foreign_key "employee_market_alerts", "catalog_candidates"
+  add_foreign_key "employee_market_alerts", "companies"
+  add_foreign_key "employee_market_alerts", "employees"
   add_foreign_key "employee_nudges", "company_users"
   add_foreign_key "employee_nudges", "conversations"
   add_foreign_key "employee_nudges", "employees"

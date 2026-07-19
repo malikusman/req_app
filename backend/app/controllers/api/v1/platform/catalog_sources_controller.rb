@@ -46,6 +46,14 @@ module Api
           render json: { error: e.message }, status: :unprocessable_entity
         end
 
+        def seed_recommended
+          sources = Catalog::SeedRecommendedSources.call
+          render json: {
+            catalog_sources: sources.map { |s| source_json(s) },
+            created_or_updated: sources.size
+          }
+        end
+
         private
 
         def source_params

@@ -1,0 +1,39 @@
+<p><%= @body["greeting"].presence || "Hi there" %>,</p>
+
+<p>
+  We know you
+  <% if @body["role_line"].present? %>
+    work as <strong><%= @body["role_line"] %></strong>
+  <% else %>
+    are part of <%= @company.display_name || @company.name %>
+  <% end %>.
+  <% tools = Array(@body["tools"]) %>
+  <% if tools.any? %>
+    You use tools like <strong><%= tools.join(", ") %></strong>.
+  <% end %>
+</p>
+
+<p>
+  This <strong><%= @body["item_type"] || "AI update" %></strong> may help you:
+  <strong><%= @body["item_name"] %></strong>
+</p>
+
+<% if @body["summary"].present? %>
+  <p><%= @body["summary"] %></p>
+<% end %>
+
+<% if @body["why"].present? %>
+  <p><%= @body["why"] %></p>
+<% end %>
+
+<% if @body["source_url"].present? %>
+  <p>
+    Source:
+    <a href="<%= @body["source_url"] %>"><%= @body["source_name"].presence || @body["source_url"] %></a>
+  </p>
+<% end %>
+
+<p style="color:#666;font-size:12px;">
+  You receive at most two of these personalized market alerts per month.
+  Manage preferences with your company admin if you want to opt out.
+</p>

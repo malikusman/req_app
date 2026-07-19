@@ -103,7 +103,10 @@ export function CompanyBilling() {
       {(sub?.status === 'trial' || sub?.status === 'suspended') && (
         <Card title="Upgrade">
           {!billing.stripe_configured && (
-            <p className="text-sm text-text-secondary">Stripe not configured — mock checkout will activate plans locally.</p>
+            <p className="text-sm text-text-secondary">
+              Stripe is not configured. In development, mock checkout may activate plans locally; in production, set
+              STRIPE_SECRET_KEY (or ALLOW_MOCKS=1 only for demos).
+            </p>
           )}
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             {billing.plans.map((plan) => (

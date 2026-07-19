@@ -8,12 +8,14 @@ export function EmptyState({
   title,
   description,
   action,
+  secondaryAction,
   className,
 }: {
   icon?: LucideIcon;
   title: string;
   description?: string;
   action?: { label: string; onClick: () => void };
+  secondaryAction?: { label: string; onClick: () => void };
   className?: string;
 }) {
   return (
@@ -37,9 +39,14 @@ export function EmptyState({
       {description && (
         <p className="mt-2 max-w-sm text-sm text-muted-foreground">{description}</p>
       )}
-      {action && (
-        <motion.div className="mt-6">
-          <Button onClick={action.onClick}>{action.label}</Button>
+      {(action || secondaryAction) && (
+        <motion.div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+          {action && <Button onClick={action.onClick}>{action.label}</Button>}
+          {secondaryAction && (
+            <Button variant="secondary" onClick={secondaryAction.onClick}>
+              {secondaryAction.label}
+            </Button>
+          )}
         </motion.div>
       )}
     </motion.div>

@@ -1,18 +1,24 @@
 <% company_name = snapshot.dig("company", "name") %>
 <% readiness = snapshot["readiness"] || {} %>
 <% score = readiness["score"].to_f.round %>
-<% bars = report_readiness_bars(readiness["breakdown"]) %>
+<% docs_first = snapshot["docs_first_phase"] == true || snapshot["report_kind"].to_s == "baseline" %>
+<% bars = report_readiness_bars(readiness["breakdown"], docs_first: docs_first) %>
 <section class="page">
   <div class="eyebrow">02 — Readiness</div>
   <h1 style="font-size:28pt;margin:4mm 0 3mm;">A readiness score of <span class="serif-accent"><%= score %></span></h1>
   <div class="split">
     <div>
-      <p class="lead">Readiness gates report generation. It is a weighted score across employee coverage, department spread, pattern confidence, and multimodal evidence.</p>
-      <p><%= h company_name %>’s composite score reflects the depth of discovery completed so far. Gaps in any weighted component are the fastest route to a stronger next version.</p>
+      <% if docs_first %>
+        <p class="lead">Readiness gates report generation. For a document baseline it weights ready documents, department-tagged coverage, pattern confidence, and document sources.</p>
+        <p><%= h company_name %>’s composite score reflects corpus depth so far. Adding employee interviews later strengthens the same signals without discarding this baseline.</p>
+      <% else %>
+        <p class="lead">Readiness gates report generation. After interviews begin, the score blends the document baseline with employee coverage, department spread, pattern confidence, and multimodal evidence.</p>
+        <p><%= h company_name %>’s composite score reflects the depth of discovery completed so far. Gaps in any weighted component are the fastest route to a stronger next version.</p>
+      <% end %>
     </div>
     <div class="exhibit">
       <div class="exlabel">Exhibit 1 · Readiness breakdown</div>
-      <h3>Weighted across employees, departments, patterns, and multimodal evidence.</h3>
+      <h3><%= docs_first ? "Weighted across documents, departments, patterns, and sources." : "Weighted across employees, departments, patterns, documents, and multimodal evidence." %></h3>
       <div class="gauge">
         <%= report_donut_svg(score, "#1F40FF") %>
         <div class="bars" style="flex:1;">
@@ -26,7 +32,7 @@
         </div>
       </div>
       <div class="caption"><%= h report_source_caption(company_name, version: report_version) %></div>
-      <div class="mark">Req</div>
+      <div class="mark">Worktruth</div>
     </div>
   </div>
   <%= render "reports/page_footer", company_name: company_name %>

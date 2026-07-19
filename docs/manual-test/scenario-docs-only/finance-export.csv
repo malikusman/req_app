@@ -1,0 +1,5 @@
+department,process,pain,system,hours_per_week
+finance,month-end close,manual spreadsheet reconciliation,SAP,12
+finance,invoice approval,wait for manager sign-off,email,8
+ops,handoff,coordinate across teams,Teams,6
+finance,vendor master,duplicate records reconcile,Excel,5

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "pdf/reader"
+require "zip"
 
 module Multimodal
   class DocumentTextExtractor
@@ -12,7 +13,8 @@ module Multimodal
 
     def initialize(file_path:, content_type: nil)
       @file_path = file_path
-      @content_type = content_type
+      @content_type = content_type.to_s
+      @ext = File.extname(file_path).downcase
     end
 
     def extract
@@ -21,6 +23,10 @@ module Multimodal
         extract_pdf
       when text?
         File.read(@file_path)
+      when xlsx?
+        extract_xlsx
+      when docx?
+        extract_docx
       else
         begin
           File.read(@file_path, encoding: "UTF-8")
@@ -33,11 +39,19 @@ module Multimodal
     private
 
     def pdf?
-      @content_type.to_s.include?("pdf") || File.extname(@file_path).downcase == ".pdf"
+      @content_type.include?("pdf") || @ext == ".pdf"
     end
 
     def text?
-      %w[.txt .md .csv].include?(File.extname(@file_path).downcase)
+      %w[.txt .md .csv].include?(@ext)
+    end
+
+    def xlsx?
+      @ext == ".xlsx" || @content_type.include?("spreadsheetml") || @content_type.include?("excel")
+    end
+
+    def docx?
+      @ext == ".docx" || @content_type.include?("wordprocessingml")
     end
 
     def extract_pdf
@@ -48,9 +62,46 @@ module Multimodal
       ocr_text = OcrFallback.extract(file_path: @file_path, content_type: @content_type)
       combined = [text, ocr_text].map(&:presence).compact.join("\n\n")
       combined.presence || text
-    rescue StandardError => e
-      Rails.logger.warn("[PDF] extract failed: #{e.message}")
-      OcrFallback.extract(file_path: @file_path, content_type: @content_type)
+    rescue StandardError
+      OcrFallback.extract(file_path: @file_path, content_type: @content_type).to_s
+    end
+
+    # Minimal OOXML extractors — enough for procedures / financial exports without heavy gems.
+    def extract_xlsx
+      shared = []
+      cells = []
+      Zip::File.open(@file_path) do |zip|
+        if (entry = zip.find_entry("xl/sharedStrings.xml"))
+          xml = entry.get_input_stream.read
+          shared = xml.scan(/<t[^>]*>([^<]*)<\/t>/).flatten
+        end
+        sheet = zip.find_entry("xl/worksheets/sheet1.xml") ||
+                zip.glob("xl/worksheets/*.xml").first
+        if sheet
+          xml = sheet.get_input_stream.read
+          xml.scan(/<c[^>]*t="s"[^>]*>\s*<v>(\d+)<\/v>/).each do |(idx)|
+            cells << shared[idx.to_i]
+          end
+          xml.scan(/<c[^>]*>\s*<v>([^<]+)<\/v>/).each do |(val)|
+            cells << val unless val.match?(/\A\d+\z/) && shared[val.to_i]
+          end
+        end
+      end
+      cells.compact.map(&:to_s).map(&:strip).reject(&:blank?).uniq.join("\n")
+    rescue StandardError
+      ""
+    end
+
+    def extract_docx
+      Zip::File.open(@file_path) do |zip|
+        entry = zip.find_entry("word/document.xml")
+        return "" unless entry
+
+        xml = entry.get_input_stream.read
+        xml.scan(/<w:t[^>]*>([^<]*)<\/w:t>/).flatten.join(" ").squeeze(" ").strip
+      end
+    rescue StandardError
+      ""
     end
   end
 end

@@ -13,7 +13,13 @@ module Intelligence
 
     def call
       signals = SignalExtractor.call(company: @company)
-      SignalUpsertService.call(company: @company, signals: signals, department: @department)
+      # Full-company runs reconcile (replace counts, drop stale). Department-scoped jobs only upsert.
+      SignalUpsertService.call(
+        company: @company,
+        signals: signals,
+        department: @department,
+        reconcile_stale: @department.blank?
+      )
 
       patterns = PatternDetector.call(company: @company)
       PatternUpsertService.call(company: @company, patterns: patterns)

@@ -1,10 +1,18 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api, type Recommendation } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
 import { PageHeader, Card, Button, Badge, EmptyState, Skeleton } from '../../components/ui';
 
+const FEEDBACK_LABELS: Record<string, string> = {
+  interested: 'Interested',
+  already_doing: 'Already doing this',
+  not_relevant: 'Not relevant',
+};
+
 export function CompanyRecommendations() {
   const token = useCompanyToken();
+  const navigate = useNavigate();
   const [recs, setRecs] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -36,11 +44,16 @@ export function CompanyRecommendations() {
     <div className="space-y-6">
       <PageHeader
         title="Recommendations"
-        description="AI-generated opportunities with matched solutions from our catalog."
+        description="Ranked opportunities synthesized from your signals and patterns, matched to the solution catalog."
       />
 
       {recs.length === 0 ? (
-        <EmptyState title="No recommendations" description="Complete discovery interviews to generate recommendations." />
+        <EmptyState
+          title="No recommendations"
+          description="Upload documents or complete discovery interviews so recommendations can be synthesized."
+          action={{ label: 'Upload documents', onClick: () => navigate('/company/documents') }}
+          secondaryAction={{ label: 'Invite employees', onClick: () => navigate('/company/employees') }}
+        />
       ) : (
         recs.map((r) => (
           <Card key={r.id}>
@@ -73,7 +86,7 @@ export function CompanyRecommendations() {
                   size="sm"
                   onClick={() => submitFeedback(r.id, f)}
                 >
-                  {f.replace(/_/g, ' ')}
+                  {FEEDBACK_LABELS[f] ?? f}
                 </Button>
               ))}
             </div>

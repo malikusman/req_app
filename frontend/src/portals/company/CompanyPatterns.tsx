@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api, type CompanyPattern } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
 import { PageHeader, Card, Badge, EmptyState, Skeleton } from '../../components/ui';
 
 export function CompanyPatterns() {
   const token = useCompanyToken();
+  const navigate = useNavigate();
   const [patterns, setPatterns] = useState<CompanyPattern[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -33,7 +35,12 @@ export function CompanyPatterns() {
       />
 
       {patterns.length === 0 ? (
-        <EmptyState title="No patterns yet" description="Patterns emerge as signals strengthen across departments." />
+        <EmptyState
+          title="No patterns yet"
+          description="Patterns emerge as signals strengthen across departments — upload more docs or complete interviews."
+          action={{ label: 'Upload documents', onClick: () => navigate('/company/documents') }}
+          secondaryAction={{ label: 'View signals', onClick: () => navigate('/company/intelligence/signals') }}
+        />
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {patterns.map((p) => (

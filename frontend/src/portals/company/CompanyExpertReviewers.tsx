@@ -18,18 +18,22 @@ export function CompanyExpertReviewers() {
       .finally(() => setLoading(false));
   }, [token]);
 
-  if (loading || reviewers.length === 0) return null;
+  if (loading) return null;
 
   return (
-    <Card title="Req expert reviewers">
+    <Card title="Worktruth expert reviewers">
       <p className="mb-4 text-sm text-text-secondary">
-        Independent experts shaping your transformation report — verified by Req.
+        {reviewers.length === 0
+          ? 'Reviewers appear here when a report enters expert review. Platform operators assign up to two experts per company.'
+          : 'Independent experts shaping your transformation report — verified by Worktruth.'}
       </p>
-      <div className="grid gap-4 md:grid-cols-2">
-        {reviewers.map((r) => (
-          <ExpertReviewerCard key={r.id} reviewer={r} />
-        ))}
-      </div>
+      {reviewers.length > 0 && (
+        <div className="grid gap-4 md:grid-cols-2">
+          {reviewers.map((r) => (
+            <ExpertReviewerCard key={r.id} reviewer={r} />
+          ))}
+        </div>
+      )}
     </Card>
   );
 }

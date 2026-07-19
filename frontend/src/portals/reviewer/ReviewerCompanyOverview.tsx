@@ -220,8 +220,12 @@ export function ReviewerCompanyOverview() {
           >
             {conversations.length === 0 ? (
               <EmptyState
-                title="No interviews yet"
-                description="Employee interviews shared by this company will show up here for you to review."
+                title={signals.length > 0 || patterns.length > 0 ? 'Document baseline — no interviews yet' : 'No interviews yet'}
+                description={
+                  signals.length > 0 || patterns.length > 0
+                    ? 'This company has signals from internal documents. Review intelligence and reports; WhatsApp follow-ups become available after employees complete discovery.'
+                    : 'Employee interviews shared by this company will show up here for you to review.'
+                }
               />
             ) : (
               <>

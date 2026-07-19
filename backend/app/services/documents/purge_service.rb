@@ -13,6 +13,7 @@ module Documents
     def call
       Storage::MinioClient.new.delete(@document.storage_key) if @document.storage_key.present?
       @document.document_chunks.delete_all
+      company_id = @document.company_id
       @document.update!(
         status: "failed",
         purged_at: Time.current,
@@ -21,6 +22,7 @@ module Documents
         insights_preview: {},
         metadata: (@document.metadata || {}).merge("purged" => true)
       )
+      AggregateIntelligenceJob.perform_later(company_id)
       @document
     end
   end

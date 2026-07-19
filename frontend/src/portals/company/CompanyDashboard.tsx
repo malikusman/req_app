@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   FileBarChart,
+  FileText,
   Radio,
   AlertTriangle,
   PlayCircle,
@@ -51,7 +52,7 @@ export function CompanyDashboard() {
       <DashboardShell title="Discovery intelligence" description="Live operational snapshot." loading={false}>
         <EmptyState
           title="Unable to load dashboard"
-          description={error || 'Complete onboarding and invite employees to start discovery.'}
+          description={error || 'Complete onboarding, then upload documents or invite employees to start discovery.'}
         />
       </DashboardShell>
     );
@@ -61,25 +62,41 @@ export function CompanyDashboard() {
   const p = snapshot?.participation;
   const score = Math.round(data?.report_readiness_score ?? 0);
   const breakdown = data?.report_readiness_breakdown ?? {};
+  const readyDocs = Number(breakdown.ready_documents ?? 0);
+  const signalCount = snapshot?.top_pain_points.length ?? 0;
+  const docsFirstPhase = Boolean(data?.docs_first_phase ?? data?.company.docs_first_phase);
+  const docsFirstActive = docsFirstPhase && (readyDocs > 0 || score > 0 || signalCount > 0);
+  const processingDocs = docsFirstPhase && readyDocs === 0 && score === 0 && signalCount === 0;
 
-  if (!loading && p && p.invited === 0) {
+  if (!loading && docsFirstPhase && processingDocs) {
     return (
-      <DashboardShell title="Discovery intelligence" description="Get started with your discovery program." loading={false}>
+      <DashboardShell title="Discovery intelligence" description="Start with documents or invite employees." loading={false}>
         <Card>
           <EmptyState
-            title="Invite your first employees"
-            description="Add employees to begin WhatsApp discovery interviews and build your operational snapshot."
-            action={{ label: 'Invite employees', onClick: () => navigate('/company/employees') }}
+            title="Start discovery"
+            description="Upload internal SOPs, policies, or finance exports for a baseline — or invite employees for live interviews. You can do both; intelligence accumulates."
+            action={{ label: 'Upload documents', onClick: () => navigate('/company/documents') }}
           />
+          <div className="mt-4 flex justify-center">
+            <Button variant="secondary" onClick={() => navigate('/company/employees')}>
+              Invite employees later
+            </Button>
+          </div>
         </Card>
       </DashboardShell>
     );
   }
 
+  const docsOnlyView = docsFirstPhase && docsFirstActive;
+
   return (
     <DashboardShell
       title="Discovery intelligence"
-      description="Live operational snapshot — signals, patterns, and recommendations from your program."
+      description={
+        docsOnlyView
+          ? 'Baseline from internal documents — invite employees later to strengthen evidence.'
+          : 'Live operational snapshot — signals, patterns, and recommendations from your program.'
+      }
       loading={loading}
       banner={
         error ? (
@@ -96,19 +113,35 @@ export function CompanyDashboard() {
               value={`${score}%`}
               icon={<FileBarChart className="h-5 w-5 text-primary" />}
             />
-            <StatCard
-              label="In progress"
-              value={data.employees_summary.in_progress_count}
-              icon={<PlayCircle className="h-5 w-5 text-primary" />}
-            />
-            <StatCard
-              label="Stalled"
-              value={data.employees_summary.stalled_count}
-              icon={<AlertTriangle className="h-5 w-5 text-primary" />}
-            />
+            {docsOnlyView ? (
+              <StatCard
+                label="Documents"
+                value={readyDocs}
+                icon={<PlayCircle className="h-5 w-5 text-primary" />}
+              />
+            ) : (
+              <StatCard
+                label="In progress"
+                value={data.employees_summary.in_progress_count}
+                icon={<PlayCircle className="h-5 w-5 text-primary" />}
+              />
+            )}
+            {docsOnlyView ? (
+              <StatCard
+                label="Doc departments"
+                value={Number(breakdown.document_departments ?? 0)}
+                icon={<FileText className="h-5 w-5 text-primary" />}
+              />
+            ) : (
+              <StatCard
+                label="Stalled"
+                value={data.employees_summary.stalled_count}
+                icon={<AlertTriangle className="h-5 w-5 text-primary" />}
+              />
+            )}
             <StatCard
               label="Signals"
-              value={snapshot?.top_pain_points.length ?? 0}
+              value={signalCount}
               icon={<Radio className="h-5 w-5 text-primary" />}
             />
           </>
@@ -117,7 +150,20 @@ export function CompanyDashboard() {
     >
       {data && snapshot && p && (
         <>
-          {data.employees_summary.stalled_count > 0 && (
+          {docsOnlyView && (
+            <Card>
+              <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="m-0 text-sm text-muted-foreground">
+                  No employees invited yet. Document intelligence is the baseline — interviews strengthen the same signals later.
+                </p>
+                <Button variant="secondary" className="shrink-0" onClick={() => navigate('/company/employees')}>
+                  Invite employees
+                </Button>
+              </div>
+            </Card>
+          )}
+
+          {!docsOnlyView && data.employees_summary.stalled_count > 0 && (
             <Card title="Stalled employees">
               <div className="mb-4 flex items-start gap-3 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
@@ -172,7 +218,7 @@ export function CompanyDashboard() {
             <Card title="Report readiness" className="min-w-0">
               <div className="flex min-w-0 flex-col gap-6 md:flex-row md:items-start">
                 <div className="mx-auto w-full min-w-0 shrink-0 md:mx-0 md:w-auto">
-                  <ReadinessGauge score={score} breakdown={breakdown} />
+                  <ReadinessGauge score={score} breakdown={breakdown} docsFirstPhase={docsFirstPhase} />
                 </div>
                 <div className="min-w-0 flex-1 space-y-3">
                   {data.latest_report && (
@@ -192,7 +238,9 @@ export function CompanyDashboard() {
                   <p className="text-sm text-muted-foreground">
                     {snapshot.report_ready
                       ? 'Your organization meets the readiness threshold to generate a discovery report.'
-                      : 'Continue interviews and document uploads to increase readiness.'}
+                      : docsOnlyView
+                        ? 'Upload more department-tagged documents to increase baseline readiness.'
+                        : 'Continue interviews and document uploads to increase readiness.'}
                   </p>
                   <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                     <Link to="/company/reports" className="w-full sm:w-auto">
@@ -215,7 +263,11 @@ export function CompanyDashboard() {
           <div className="grid min-w-0 gap-4 lg:grid-cols-2">
             <Card title="Top pain points" className="min-w-0">
               {snapshot.top_pain_points.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Complete more interviews to surface signals.</p>
+                <p className="text-sm text-muted-foreground">
+                  {docsOnlyView
+                    ? 'Upload procedure or finance documents to surface baseline signals.'
+                    : 'Complete more interviews to surface signals.'}
+                </p>
               ) : (
                 <div className="space-y-4">
                   {snapshot.top_pain_points.map((s) => (

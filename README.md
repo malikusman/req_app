@@ -1,6 +1,8 @@
-# Req — Enterprise Workflow Discovery Platform
+# Worktruth — Enterprise Workflow Discovery Platform
 
-AI-powered workflow discovery via WhatsApp, with dual portals for platform operators and company admins.
+AI-powered operational discovery via documents and WhatsApp/web interviews, with portals for platform operators, company admins, and expert reviewers.
+
+Brand: **Worktruth** (repo folder: `req_app`).
 
 ## Stack
 
@@ -34,6 +36,7 @@ docker compose up
 ```
 
 - **Marketing / home:** http://localhost:5173
+- **Privacy:** http://localhost:5173/privacy
 - **Frontend portals:** http://localhost:5173/platform/login · `/company/login` · `/reviewer/login`
 - **UI component preview (dev):** http://localhost:5173/dev/ui
 - **API:** http://localhost:3000

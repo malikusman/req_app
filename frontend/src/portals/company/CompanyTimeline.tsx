@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api, type TimelineEvent } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
 import { PageHeader, Card, Timeline, EmptyState, Skeleton } from '../../components/ui';
 
 export function CompanyTimeline() {
   const token = useCompanyToken();
+  const navigate = useNavigate();
   const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -37,6 +39,8 @@ export function CompanyTimeline() {
           <EmptyState
             title="No events yet"
             description="Complete interviews or upload documents to populate the timeline."
+            action={{ label: 'Upload documents', onClick: () => navigate('/company/documents') }}
+            secondaryAction={{ label: 'Invite employees', onClick: () => navigate('/company/employees') }}
           />
         ) : (
           <Timeline
