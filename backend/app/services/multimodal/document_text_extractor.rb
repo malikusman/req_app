@@ -21,6 +21,8 @@ module Multimodal
       case
       when pdf?
         extract_pdf
+      when image?
+        extract_image
       when text?
         File.read(@file_path)
       when xlsx?
@@ -28,11 +30,7 @@ module Multimodal
       when docx?
         extract_docx
       else
-        begin
-          File.read(@file_path, encoding: "UTF-8")
-        rescue StandardError
-          ""
-        end
+        safe_binary_fallback
       end
     end
 
@@ -40,6 +38,10 @@ module Multimodal
 
     def pdf?
       @content_type.include?("pdf") || @ext == ".pdf"
+    end
+
+    def image?
+      @content_type.start_with?("image/") || %w[.png .jpg .jpeg .webp .gif].include?(@ext)
     end
 
     def text?
@@ -64,6 +66,20 @@ module Multimodal
       combined.presence || text
     rescue StandardError
       OcrFallback.extract(file_path: @file_path, content_type: @content_type).to_s
+    end
+
+    def extract_image
+      OcrFallback.extract(file_path: @file_path, content_type: @content_type).to_s
+    end
+
+    # Never return invalid UTF-8 to callers — .strip on bad encoding raises ArgumentError.
+    def safe_binary_fallback
+      raw = File.binread(@file_path)
+      text = raw.force_encoding("UTF-8")
+      text = text.scrub("") unless text.valid_encoding?
+      text
+    rescue StandardError
+      ""
     end
 
     # Minimal OOXML extractors — enough for procedures / financial exports without heavy gems.

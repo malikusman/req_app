@@ -27,6 +27,10 @@ module Intelligence
       recommendations = RecommendationSynthesizer.call(company: @company)
       RecommendationUpsertService.call(company: @company, recommendations: recommendations)
 
+      stack_count = infer_stack!
+      catalog_matches = rematch_catalog!
+      idea_count = synthesize_agentic_ideas!
+
       confirmed_patterns = @company.patterns.where(status: "confirmed").count
       @company.update!(
         report_readiness_breakdown: @company.report_readiness_breakdown.merge(
@@ -38,7 +42,45 @@ module Intelligence
       CompanyReadinessRefresher.call(@company)
       NotificationService.notify_pattern_detected(company: @company) if patterns.any?
 
-      { signals: signals.size, patterns: patterns.size, recommendations: recommendations.size }
+      {
+        signals: signals.size,
+        patterns: patterns.size,
+        recommendations: recommendations.size,
+        catalog_matches: catalog_matches,
+        company_systems: stack_count,
+        agentic_ideas: idea_count
+      }
+    end
+
+    private
+
+    def infer_stack!
+      return 0 unless defined?(Intelligence::CompanyStackInferrer)
+
+      Array(Intelligence::CompanyStackInferrer.call(company: @company)).size
+    rescue StandardError => e
+      Rails.logger.warn("[AggregateCompanyIntelligence] stack infer failed company=#{@company.id}: #{e.message}")
+      0
+    end
+
+    def rematch_catalog!
+      return 0 unless defined?(Catalog::CompanyFitService)
+
+      matches = Catalog::CompanyFitService.call(company: @company.reload)
+      Array(matches).size
+    rescue StandardError => e
+      Rails.logger.warn("[AggregateCompanyIntelligence] catalog rematch failed company=#{@company.id}: #{e.message}")
+      0
+    end
+
+    def synthesize_agentic_ideas!
+      return 0 unless defined?(Intelligence::AgenticIdeaSynthesizer)
+
+      ideas = Intelligence::AgenticIdeaSynthesizer.call(company: @company.reload)
+      Array(Intelligence::AgenticIdeaUpsertService.call(company: @company, ideas: ideas)).size
+    rescue StandardError => e
+      Rails.logger.warn("[AggregateCompanyIntelligence] agentic ideas failed company=#{@company.id}: #{e.message}")
+      0
     end
   end
 end

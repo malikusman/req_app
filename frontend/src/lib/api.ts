@@ -288,6 +288,34 @@ export const api = {
   companyOutreaches: (token: string) =>
     request<{ outreaches: Array<Record<string, unknown>> }>('/api/v1/company/outreaches', {}, token),
 
+  reviewerOutreaches: (token: string, companyId: number) =>
+    request<{ outreaches: Array<Record<string, unknown>> }>(
+      `/api/v1/reviewer/companies/${companyId}/outreaches`,
+      {},
+      token
+    ),
+
+  createReviewerOutreach: (
+    token: string,
+    companyId: number,
+    payload: {
+      body: string;
+      purpose?: string;
+      channel?: string;
+      recipient_type?: string;
+      recipient_id?: number;
+      employee_id?: number;
+      report_id?: number;
+      reason?: string;
+      section_key?: string;
+    }
+  ) =>
+    request<{ outreach: Record<string, unknown> }>(
+      `/api/v1/reviewer/companies/${companyId}/outreaches`,
+      { method: 'POST', body: JSON.stringify(payload) },
+      token
+    ),
+
   approveOutreach: (token: string, id: number, payload: { note?: string; edited_body?: string; employee_id?: number } = {}) =>
     request<{ outreach: Record<string, unknown> }>(
       `/api/v1/company/outreaches/${id}/approve`,
@@ -599,6 +627,107 @@ export const api = {
       { method: 'PATCH', body: JSON.stringify({ solution: payload }) },
       token
     ),
+
+  platformCompanySystems: (token: string, companyId: number) =>
+    request<{ company_systems: CompanySystemRow[] }>(
+      `/api/v1/platform/companies/${companyId}/company_systems`,
+      {},
+      token
+    ),
+
+  createPlatformCompanySystem: (token: string, companyId: number, payload: Partial<CompanySystemRow>) =>
+    request<{ company_system: CompanySystemRow }>(
+      `/api/v1/platform/companies/${companyId}/company_systems`,
+      { method: 'POST', body: JSON.stringify({ company_system: payload }) },
+      token
+    ),
+
+  updatePlatformCompanySystem: (token: string, companyId: number, id: number, payload: Partial<CompanySystemRow>) =>
+    request<{ company_system: CompanySystemRow }>(
+      `/api/v1/platform/companies/${companyId}/company_systems/${id}`,
+      { method: 'PATCH', body: JSON.stringify({ company_system: payload }) },
+      token
+    ),
+
+  inferPlatformCompanySystems: (token: string, companyId: number) =>
+    request<{ inferred: number; company_systems: CompanySystemRow[] }>(
+      `/api/v1/platform/companies/${companyId}/company_systems/infer`,
+      { method: 'POST' },
+      token
+    ),
+
+  platformAgenticIdeas: (token: string, companyId: number) =>
+    request<{ agentic_ideas: AgenticIdea[] }>(
+      `/api/v1/platform/companies/${companyId}/agentic_ideas`,
+      {},
+      token
+    ),
+
+  createPlatformAgenticIdea: (token: string, companyId: number, payload: Partial<AgenticIdea>) =>
+    request<{ agentic_idea: AgenticIdea }>(
+      `/api/v1/platform/companies/${companyId}/agentic_ideas`,
+      { method: 'POST', body: JSON.stringify({ agentic_idea: payload }) },
+      token
+    ),
+
+  updatePlatformAgenticIdea: (token: string, companyId: number, id: number, payload: Partial<AgenticIdea>) =>
+    request<{ agentic_idea: AgenticIdea }>(
+      `/api/v1/platform/companies/${companyId}/agentic_ideas/${id}`,
+      { method: 'PATCH', body: JSON.stringify({ agentic_idea: payload }) },
+      token
+    ),
+
+  publishPlatformAgenticIdea: (token: string, companyId: number, id: number) =>
+    request<{ agentic_idea: AgenticIdea }>(
+      `/api/v1/platform/companies/${companyId}/agentic_ideas/${id}/publish`,
+      { method: 'POST' },
+      token
+    ),
+
+  archivePlatformAgenticIdea: (token: string, companyId: number, id: number) =>
+    request<{ agentic_idea: AgenticIdea }>(
+      `/api/v1/platform/companies/${companyId}/agentic_ideas/${id}/archive`,
+      { method: 'POST' },
+      token
+    ),
+
+  synthesizePlatformAgenticIdeas: (token: string, companyId: number) =>
+    request<{ agentic_ideas: AgenticIdea[]; synthesized: number }>(
+      `/api/v1/platform/companies/${companyId}/agentic_ideas/synthesize`,
+      { method: 'POST' },
+      token
+    ),
+
+  reviewerAgenticIdeas: (token: string, companyId: number) =>
+    request<{ agentic_ideas: AgenticIdea[] }>(
+      `/api/v1/reviewer/companies/${companyId}/agentic_ideas`,
+      {},
+      token
+    ),
+
+  createReviewerAgenticIdea: (token: string, companyId: number, payload: Partial<AgenticIdea>) =>
+    request<{ agentic_idea: AgenticIdea }>(
+      `/api/v1/reviewer/companies/${companyId}/agentic_ideas`,
+      { method: 'POST', body: JSON.stringify({ agentic_idea: payload }) },
+      token
+    ),
+
+  updateReviewerAgenticIdea: (token: string, companyId: number, id: number, payload: Partial<AgenticIdea>) =>
+    request<{ agentic_idea: AgenticIdea }>(
+      `/api/v1/reviewer/companies/${companyId}/agentic_ideas/${id}`,
+      { method: 'PATCH', body: JSON.stringify({ agentic_idea: payload }) },
+      token
+    ),
+
+  publishReviewerAgenticIdea: (token: string, companyId: number, id: number) =>
+    request<{ agentic_idea: AgenticIdea }>(
+      `/api/v1/reviewer/companies/${companyId}/agentic_ideas/${id}/publish`,
+      { method: 'POST' },
+      token
+    ),
+
+  companyAgenticIdeas: (token: string) =>
+    request<{ agentic_ideas: AgenticIdea[] }>('/api/v1/company/agentic_ideas', {}, token),
 
   companyReports: (token: string) => request<{ reports: Report[] }>('/api/v1/company/reports', {}, token),
 
@@ -1057,6 +1186,7 @@ export interface ReviewerCompanyDetail extends ReviewerCompanySummary {
   latest_report: { id: number; version: number; status: string } | null;
   my_review_status: string | null;
   co_reviewer_count: number;
+  company_admins?: { id: number; name: string; email: string }[];
 }
 
 export interface ReviewerReportDetail {
@@ -1398,7 +1528,7 @@ export interface Recommendation {
   description: string | null;
   implementation_outline: string | null;
   priority: string;
-  catalog_matches: { name: string; vendor?: string; url?: string; partnership_tier?: string }[];
+  catalog_matches: { name: string; vendor?: string; url?: string; partnership_tier?: string; score?: number }[];
   company_feedback: string;
   company_feedback_note: string | null;
 }
@@ -1416,7 +1546,43 @@ export interface SolutionCatalogEntry {
   partnership_tier: string;
   entity_type?: string;
   slug?: string | null;
+  use_cases?: string[];
+  capabilities?: string[];
+  required_systems?: string[];
+  industries?: string[];
+  departments?: string[];
   published_at?: string | null;
+}
+
+export interface CompanySystemRow {
+  id: number;
+  name: string;
+  category: string;
+  source: string;
+  confidence: number;
+  active: boolean;
+  notes?: string | null;
+}
+
+export interface AgenticIdea {
+  id: number;
+  company_id: number;
+  title: string;
+  summary?: string | null;
+  system_fit?: string | null;
+  value_time?: string | null;
+  value_efficiency?: string | null;
+  value_cost?: string | null;
+  approx_timeline?: string | null;
+  estimated_cost?: string | null;
+  confidence: number;
+  status: string;
+  source: string;
+  catalog_name?: string | null;
+  solution_catalog_entry_id?: number | null;
+  published_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface CompanyDocument {

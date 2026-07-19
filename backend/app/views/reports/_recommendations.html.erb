@@ -5,13 +5,19 @@
   <div class="card-grid-3">
     <% Array(recommendations).each do |rec| %>
       <% pill = report_priority_pill(rec["priority"]) %>
-      <% match = report_catalog_match(rec) %>
+      <% matches = report_catalog_matches(rec) %>
       <div class="rec-card">
         <span class="pill <%= pill %>"><%= h report_priority_label(rec["priority"]) %></span>
         <h4><%= h rec["title"] %></h4>
         <p><%= h rec["description"] %></p>
-        <% if match.present? %>
-          <div class="match">Catalog match: <%= h match %></div>
+        <% if rec["implementation_outline"].present? %>
+          <p style="margin-top:2mm;font-size:8.5pt;"><strong>How:</strong> <%= h rec["implementation_outline"].to_s.truncate(220) %></p>
+        <% end %>
+        <% matches.first(3).each do |match| %>
+          <div class="match">
+            <%= h match["name"] %>
+            <% if match["score"].present? %> · <%= h report_fit_score_label(match["score"]) %><% end %>
+          </div>
         <% end %>
       </div>
     <% end %>
@@ -66,7 +72,12 @@
       </div>
     <% else %>
       <div>
-        <p class="lead">This is the first discovery report for <%= h company_name %>. Subsequent versions will show what is new, strengthened, or resolved.</p>
+        <p class="lead">Start with the highest-priority actions that already have catalog matches and documented evidence. This is the first discovery report for <%= h company_name %>; subsequent versions will show what is new, strengthened, or resolved.</p>
+        <ul style="margin-top:4mm;padding-left:4mm;font-size:9pt;">
+          <% Array(recommendations).sort_by { |r| report_priority_pill(r["priority"]) == "high" ? 0 : 1 }.first(4).each do |rec| %>
+            <li style="margin-bottom:2mm;"><strong><%= h rec["title"] %></strong> — <%= h report_priority_label(rec["priority"]) %></li>
+          <% end %>
+        </ul>
       </div>
     <% end %>
   </div>

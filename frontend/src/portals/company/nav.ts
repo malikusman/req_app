@@ -18,10 +18,10 @@ import {
 } from 'lucide-react';
 import type { SidebarItem } from '../../components/layout/Sidebar';
 
-/** Interview-centric destinations demoted (or badged) during docs-first phase. */
+/** Interview-centric destinations demoted (or badged) during docs-first phase.
+ * Clarifications stay primary — reviewers can ask the CEO/admin without employees. */
 const INTERVIEW_ONLY = new Set([
   '/company/conversations',
-  '/company/outreaches',
   '/company/meeting-requests',
   '/company/media',
   '/company/discovery-questions',
@@ -43,7 +43,7 @@ const BASE_NAV: NavDef[] = [
   { to: '/company/documents', label: 'Documents', icon: FileText, section: SECTIONS.baseline },
   { to: '/company/employees', label: 'Employees', icon: Users, section: SECTIONS.people },
   { to: '/company/conversations', label: 'Conversations', icon: MessageSquare, section: SECTIONS.people, interviewOnly: true },
-  { to: '/company/outreaches', label: 'Clarifications', icon: ShieldCheck, section: SECTIONS.people, interviewOnly: true },
+  { to: '/company/outreaches', label: 'Clarifications', icon: ShieldCheck, section: SECTIONS.delivery },
   { to: '/company/meeting-requests', label: 'Meetings', icon: CalendarClock, section: SECTIONS.people, interviewOnly: true },
   { to: '/company/media', label: 'WhatsApp media', icon: Image, section: SECTIONS.people, interviewOnly: true },
   { to: '/company/intelligence/signals', label: 'Signals', icon: Radio, section: SECTIONS.intelligence },

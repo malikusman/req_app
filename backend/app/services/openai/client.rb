@@ -175,6 +175,43 @@ module Openai
       mock_scanned_pdf_text(language)
     end
 
+    # Vision OCR for portal-uploaded PNG/JPG/WEBP (POD scans, screenshots, handwritten notes).
+    def ocr_image(file_path:, language: "en")
+      ensure_configured_or_mock!("OpenAI")
+      return mock_image_ocr_text(language) unless configured?
+
+      data = Base64.strict_encode64(File.binread(file_path))
+      mime = mime_for_path(file_path)
+      body = {
+        model: ENV.fetch("OPENAI_VISION_MODEL", "gpt-4o-mini"),
+        messages: [{
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: <<~PROMPT
+                Extract all readable text from this workplace image (screenshot, scanned form, or handwritten note).
+                Include exception notes, labels, amounts, and any logistics or finance wording.
+                If handwriting is present, transcribe it as best you can.
+                Respond in #{language} with plain text only — no markdown fences.
+              PROMPT
+            },
+            { type: "image_url", image_url: { url: "data:#{mime};base64,#{data}" } }
+          ]
+        }],
+        max_tokens: 1200
+      }
+      post_json("#{API_BASE}/chat/completions", body).dig("choices", 0, "message", "content").to_s.strip
+    rescue StandardError
+      # Fall back to structured image understanding flattened to text
+      begin
+        structured = understand_image_structured(file_path: file_path, caption: nil, language: language)
+        flatten_image_insights_to_text(structured)
+      rescue StandardError
+        mock_image_ocr_text(language)
+      end
+    end
+
     private
 
     def ensure_configured_or_mock!(service_name)
@@ -301,6 +338,23 @@ module Openai
         "en" => "Scanned SOP checklist: manual invoice approval steps, Excel handoffs, and SAP re-entry every morning.",
         "es" => "Lista SOP escaneada: pasos manuales de aprobación de facturas, transferencias en Excel y reingreso en SAP."
       }.fetch(language, "Scanned document describing manual invoice approval and spreadsheet handoffs.")
+    end
+
+    def mock_image_ocr_text(language)
+      {
+        "en" => "POD exception note: damaged carton / short ship. AP retypes into Excel. Manual spreadsheet handoff before SAP.",
+        "es" => "Nota de excepción POD: caja dañada / envío incompleto. AP reescribe en Excel."
+      }.fetch(language, "Proof of delivery exception note with handwritten damage comment and Excel re-entry.")
+    end
+
+    def flatten_image_insights_to_text(structured)
+      parts = [
+        structured["summary"],
+        Array(structured["process_steps"]).join(". "),
+        Array(structured["pain_points"]).join(". "),
+        Array(structured["tools_visible"]).join(", ")
+      ]
+      parts.map(&:presence).compact.join("\n").strip
     end
 
     def normalize_image_insights(payload)

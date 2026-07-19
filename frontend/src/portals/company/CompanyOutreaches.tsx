@@ -21,6 +21,8 @@ type Outreach = {
   edited_body?: string | null;
   reason?: string;
   employee_id?: number;
+  recipient_type?: string;
+  recipient_name?: string | null;
   reviewer_name?: string;
   created_at: string;
   replies?: Reply[];
@@ -97,8 +99,8 @@ export function CompanyOutreaches() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Reviewer clarifications"
-        description="Approve or decline reviewer requests, then answer portal clarifications and review employee replies."
+        title="Reviewer questions"
+        description="Questions from your assigned reviewer for your company. Answer portal clarifications here; approve employee WhatsApp or email outreach when needed."
       />
 
       {error && <p className="text-sm text-status-error">{error}</p>}
@@ -121,6 +123,14 @@ export function CompanyOutreaches() {
               key: 'reviewer',
               header: 'Reviewer',
               render: (o: Outreach) => o.reviewer_name || '—',
+            },
+            {
+              key: 'recipient',
+              header: 'To',
+              render: (o: Outreach) =>
+                o.recipient_type === 'company_admin'
+                  ? o.recipient_name || 'Company admin'
+                  : o.recipient_name || (o.employee_id ? `Employee #${o.employee_id}` : '—'),
             },
             {
               key: 'body',
@@ -150,6 +160,8 @@ export function CompanyOutreaches() {
                       Decline
                     </Button>
                   </div>
+                ) : o.recipient_type === 'company_admin' && o.status === 'sent' ? (
+                  <span className="text-xs font-medium text-accent">Answer</span>
                 ) : (
                   <span className="text-xs text-muted-foreground">{o.channel}</span>
                 ),
@@ -158,8 +170,8 @@ export function CompanyOutreaches() {
           rows={outreaches}
           emptyState={
             <EmptyState
-              title="No clarification requests"
-              description="Reviewer follow-ups requiring approval will appear here."
+              title="No reviewer questions yet"
+              description="When your reviewer asks a question for the company, it will appear here."
             />
           }
         />
@@ -175,6 +187,12 @@ export function CompanyOutreaches() {
                   <span className="text-xs text-text-secondary">{selected.channel}</span>
                 </div>
                 <div className="font-medium">{selected.reviewer_name || 'Reviewer'}</div>
+                {selected.recipient_name && (
+                  <p className="mt-1 text-xs text-text-secondary">
+                    To: {selected.recipient_name}
+                    {selected.recipient_type === 'company_admin' ? ' (company admin)' : ''}
+                  </p>
+                )}
                 <p className="mt-2 whitespace-pre-wrap text-text-primary">{selected.edited_body || selected.body}</p>
                 {selected.reason && (
                   <p className="mt-2 text-xs text-text-secondary">Reason: {selected.reason}</p>
@@ -202,11 +220,11 @@ export function CompanyOutreaches() {
               {canAnswer ? (
                 <div className="space-y-2">
                   <Textarea
-                    label="Admin answer"
+                    label={selected.recipient_type === 'company_admin' ? 'Your answer' : 'Admin answer'}
                     rows={4}
                     value={answer}
                     onChange={(e) => setAnswer(e.target.value)}
-                    placeholder="Answer this clarification for the reviewer…"
+                    placeholder="Answer this question for the reviewer…"
                   />
                   <Button size="sm" loading={actingId === selected.id} disabled={!answer.trim()} onClick={submitAnswer}>
                     Submit answer & close
@@ -238,6 +256,12 @@ export function CompanyOutreaches() {
                     <span className="text-xs text-text-secondary">{selected.channel}</span>
                   </div>
                   <div className="font-medium">{selected.reviewer_name || 'Reviewer'}</div>
+                  {selected.recipient_name && (
+                    <p className="mt-1 text-xs text-text-secondary">
+                      To: {selected.recipient_name}
+                      {selected.recipient_type === 'company_admin' ? ' (company admin)' : ''}
+                    </p>
+                  )}
                   <p className="mt-2 whitespace-pre-wrap text-text-primary">{selected.edited_body || selected.body}</p>
                 </div>
                 <div>
@@ -260,11 +284,11 @@ export function CompanyOutreaches() {
                 {canAnswer ? (
                   <div className="space-y-2">
                     <Textarea
-                      label="Admin answer"
+                      label={selected.recipient_type === 'company_admin' ? 'Your answer' : 'Admin answer'}
                       rows={4}
                       value={answer}
                       onChange={(e) => setAnswer(e.target.value)}
-                      placeholder="Answer this clarification for the reviewer…"
+                      placeholder="Answer this question for the reviewer…"
                     />
                     <Button size="sm" loading={actingId === selected.id} disabled={!answer.trim()} onClick={submitAnswer}>
                       Submit answer & close

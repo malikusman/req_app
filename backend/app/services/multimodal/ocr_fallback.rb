@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module Multimodal
-  # Vision OCR fallback when pdf-reader returns little or no text (scanned PDFs).
+  # Vision OCR fallback when pdf-reader returns little text, or for portal image uploads.
   class OcrFallback
     MIN_CHARS = 40
 
@@ -11,14 +11,20 @@ module Multimodal
 
     def initialize(file_path:, content_type: nil, language: "en")
       @file_path = file_path
-      @content_type = content_type
+      @content_type = content_type.to_s
       @language = language
     end
 
     def extract
-      return "" unless pdf?
-
-      Openai::Client.new.ocr_scanned_pdf(file_path: @file_path, language: @language).to_s.strip
+      client = Openai::Client.new
+      text = if pdf?
+               client.ocr_scanned_pdf(file_path: @file_path, language: @language)
+             elsif image?
+               client.ocr_image(file_path: @file_path, language: @language)
+             else
+               ""
+             end
+      text.to_s.strip
     rescue StandardError => e
       Rails.logger.warn("[OcrFallback] failed: #{e.message}")
       ""
@@ -27,7 +33,13 @@ module Multimodal
     private
 
     def pdf?
-      @content_type.to_s.include?("pdf") || File.extname(@file_path).downcase == ".pdf"
+      @content_type.include?("pdf") || File.extname(@file_path).downcase == ".pdf"
+    end
+
+    def image?
+      return true if @content_type.start_with?("image/")
+
+      %w[.png .jpg .jpeg .webp .gif].include?(File.extname(@file_path).downcase)
     end
   end
 end

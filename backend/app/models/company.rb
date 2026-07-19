@@ -11,6 +11,8 @@ class Company < ApplicationRecord
   has_many :company_signals, dependent: :destroy
   has_many :patterns, dependent: :destroy
   has_many :recommendations, dependent: :destroy
+  has_many :company_systems, dependent: :destroy
+  has_many :agentic_ideas, dependent: :destroy
   has_many :insight_timeline_events, dependent: :destroy
   has_many :discovery_question_feedbacks, dependent: :destroy
   has_many :reports, dependent: :destroy

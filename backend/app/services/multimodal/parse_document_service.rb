@@ -21,12 +21,12 @@ module Multimodal
       file.write(raw)
       file.rewind
 
-      text = DocumentTextExtractor.extract(file_path: file.path, content_type: @document.content_type).to_s.strip
+      text = DocumentTextExtractor.extract(file_path: file.path, content_type: @document.content_type).to_s
+      text = text.encode("UTF-8", invalid: :replace, undef: :replace, replace: "").strip
       if text.length < MIN_TEXT_CHARS
         @document.update!(
           status: "failed",
-          processing_error: "insufficient_text: extracted #{text.length} characters (minimum #{MIN_TEXT_CHARS}). " \
-                            "Scanned PDFs, images, and slide decks often need a text-based export."
+          processing_error: insufficient_text_error(text.length)
         )
         return nil
       end
@@ -35,10 +35,12 @@ module Multimodal
 
       lang = @document.company.locale
       preview = @openai.summarize_document(text, language: lang)
+      preview = preview.merge("chunk_count" => chunk_count)
+      preview = preview.merge("source" => "vision_ocr") if image_document?
 
       @document.update!(
         status: "ready",
-        insights_preview: preview.merge("chunk_count" => chunk_count),
+        insights_preview: preview,
         processing_error: nil
       )
 
@@ -50,6 +52,23 @@ module Multimodal
     ensure
       file&.close
       file&.unlink
+    end
+
+    private
+
+    def image_document?
+      ct = @document.content_type.to_s
+      ct.start_with?("image/") || %w[.png .jpg .jpeg .webp .gif].include?(File.extname(@document.filename.to_s).downcase)
+    end
+
+    def insufficient_text_error(length)
+      if image_document?
+        "image_ocr_unavailable: extracted #{length} characters after vision OCR (minimum #{MIN_TEXT_CHARS}). " \
+          "Ensure OPENAI_API_KEY is configured, or upload a clearer scan / text export."
+      else
+        "insufficient_text: extracted #{length} characters (minimum #{MIN_TEXT_CHARS}). " \
+          "Scanned PDFs, images, and slide decks often need a text-based export."
+      end
     end
   end
 end

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, type SolutionCatalogEntry } from '../../lib/api';
 import { usePlatformToken } from '../../lib/auth';
-import { PageHeader, Card, DataTable, Input, Select, Button, Badge, EmptyState } from '../../components/ui';
+import { PageHeader, Card, DataTable, Input, Select, Button, Badge, EmptyState, Textarea } from '../../components/ui';
 
 export function PlatformSolutions() {
   const token = usePlatformToken();
@@ -11,9 +11,14 @@ export function PlatformSolutions() {
   const [category, setCategory] = useState('automation');
   const [entityType, setEntityType] = useState('tool');
   const [keywords, setKeywords] = useState('');
+  const [capabilities, setCapabilities] = useState('');
+  const [requiredSystems, setRequiredSystems] = useState('');
+  const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editActive, setEditActive] = useState(true);
+  const [editCapabilities, setEditCapabilities] = useState('');
+  const [editRequiredSystems, setEditRequiredSystems] = useState('');
   const [saving, setSaving] = useState(false);
 
   const load = () => {
@@ -35,8 +40,11 @@ export function PlatformSolutions() {
       name,
       vendor,
       category,
+      description: description || null,
       entity_type: entityType,
       match_keywords: keywords.split(',').map((k) => k.trim()).filter(Boolean),
+      capabilities: capabilities.split(',').map((k) => k.trim()).filter(Boolean),
+      required_systems: requiredSystems.split(',').map((k) => k.trim()).filter(Boolean),
       tags: [category],
       active: true,
       published_at: new Date().toISOString(),
@@ -44,19 +52,28 @@ export function PlatformSolutions() {
     setName('');
     setVendor('');
     setKeywords('');
+    setCapabilities('');
+    setRequiredSystems('');
+    setDescription('');
     load();
   };
 
   const startEdit = (solution: SolutionCatalogEntry) => {
     setEditingId(solution.id);
     setEditActive(solution.active);
+    setEditCapabilities((solution.capabilities || []).join(', '));
+    setEditRequiredSystems((solution.required_systems || []).join(', '));
   };
 
   const saveEdit = async (solution: SolutionCatalogEntry) => {
     if (!token) return;
     setSaving(true);
     try {
-      await api.updateSolution(token, solution.id, { active: editActive });
+      await api.updateSolution(token, solution.id, {
+        active: editActive,
+        capabilities: editCapabilities.split(',').map((k) => k.trim()).filter(Boolean),
+        required_systems: editRequiredSystems.split(',').map((k) => k.trim()).filter(Boolean),
+      });
       setEditingId(null);
       load();
     } finally {
@@ -105,6 +122,24 @@ export function PlatformSolutions() {
             onChange={(e) => setKeywords(e.target.value)}
             placeholder="invoice, excel, approval"
           />
+          <Input
+            label="Capabilities (comma-separated)"
+            value={capabilities}
+            onChange={(e) => setCapabilities(e.target.value)}
+            placeholder="exception triage, document OCR"
+          />
+          <Input
+            label="Required systems (comma-separated)"
+            value={requiredSystems}
+            onChange={(e) => setRequiredSystems(e.target.value)}
+            placeholder="SAP, Excel, TMS"
+          />
+          <Textarea
+            label="Description"
+            rows={2}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
           <div className="md:col-span-2">
             <Button type="submit">Add solution</Button>
           </div>
@@ -140,14 +175,26 @@ export function PlatformSolutions() {
             header: 'Active',
             render: (s) =>
               editingId === s.id ? (
-                <Select
-                  value={editActive ? 'yes' : 'no'}
-                  onChange={(e) => setEditActive(e.target.value === 'yes')}
-                  options={[
-                    { value: 'yes', label: 'yes' },
-                    { value: 'no', label: 'no' },
-                  ]}
-                />
+                <div className="space-y-2">
+                  <Select
+                    value={editActive ? 'yes' : 'no'}
+                    onChange={(e) => setEditActive(e.target.value === 'yes')}
+                    options={[
+                      { value: 'yes', label: 'yes' },
+                      { value: 'no', label: 'no' },
+                    ]}
+                  />
+                  <Input
+                    label="Capabilities"
+                    value={editCapabilities}
+                    onChange={(e) => setEditCapabilities(e.target.value)}
+                  />
+                  <Input
+                    label="Required systems"
+                    value={editRequiredSystems}
+                    onChange={(e) => setEditRequiredSystems(e.target.value)}
+                  />
+                </div>
               ) : (
                 <Badge variant={s.active ? 'success' : 'neutral'}>{s.active ? 'yes' : 'no'}</Badge>
               ),

@@ -26,16 +26,20 @@
       <% cat = report_category_class(signal["signal_type"]) %>
       <% pct = report_pct(signal["strength"]) %>
       <% depts = Array(signal["departments"]).reject(&:blank?) %>
-      <% excerpt = report_signal_excerpt(signal) %>
+      <% excerpts = report_signal_excerpts(signal, limit: 3) %>
+      <% multimodal = report_multimodal_labels(signal) %>
       <div class="signal-card <%= cat %>">
         <div class="meta"><%= h report_category_label(cat) %><% if depts.any? %> · <%= h depts.join(", ") %><% end %></div>
         <div class="st"><%= h signal["label"] %></div>
         <div class="strength"><i style="width:<%= pct %>%"></i></div>
         <div class="meta">Strength <%= format("%.2f", signal["strength"].to_f) %></div>
         <% if signal["evidence_count"].to_i.positive? %>
-          <p><%= signal["evidence_count"] %> supporting evidence item<%= "s" unless signal["evidence_count"].to_i == 1 %> across interviews and media.</p>
+          <p><%= signal["evidence_count"] %> supporting evidence item<%= "s" unless signal["evidence_count"].to_i == 1 %> across documents, interviews, and media.</p>
         <% end %>
-        <% if excerpt.present? %>
+        <% if multimodal.any? %>
+          <div class="meta" style="margin-top:2mm;">Also seen in: <%= h multimodal.join(", ") %></div>
+        <% end %>
+        <% excerpts.each do |excerpt| %>
           <div class="evidence"><%= h excerpt.truncate(160) %></div>
         <% end %>
       </div>

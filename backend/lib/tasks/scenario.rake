@@ -2,6 +2,7 @@
 
 require_relative "../scenario_cycle_runner"
 require_relative "../docs_only_scenario_runner"
+require_relative "../gulflink_scenario_runner"
 require_relative "../discovery_simulator"
 
 namespace :scenario do
@@ -23,5 +24,10 @@ namespace :scenario do
   desc "Docs-first Scenario A→B: employees later; assert signals accumulate (IDs preserved)"
   task docs_then_employees: :environment do
     DocsOnlyScenarioRunner.docs_then_employees!(cleanup: ENV["CLEANUP"] == "1")
+  end
+
+  desc "GulfLink Logistics (Dubai): docs → McKinsey reviewer → Q&A → report + OBSERVATIONS.md"
+  task gulflink: :environment do
+    GulflinkScenarioRunner.call(cleanup: ENV["CLEANUP"] == "1")
   end
 end

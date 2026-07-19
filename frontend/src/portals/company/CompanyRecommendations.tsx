@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api, type Recommendation } from '../../lib/api';
+import { api, type AgenticIdea, type Recommendation } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
 import { PageHeader, Card, Button, Badge, EmptyState, Skeleton } from '../../components/ui';
 
@@ -14,13 +14,19 @@ export function CompanyRecommendations() {
   const token = useCompanyToken();
   const navigate = useNavigate();
   const [recs, setRecs] = useState<Recommendation[]>([]);
+  const [ideas, setIdeas] = useState<AgenticIdea[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!token) return;
-    api
-      .companyRecommendations(token)
-      .then((d) => setRecs(d.recommendations))
+    Promise.all([
+      api.companyRecommendations(token),
+      api.companyAgenticIdeas(token).catch(() => ({ agentic_ideas: [] as AgenticIdea[] })),
+    ])
+      .then(([recData, ideaData]) => {
+        setRecs(recData.recommendations);
+        setIdeas(ideaData.agentic_ideas);
+      })
       .finally(() => setLoading(false));
   }, [token]);
 
@@ -44,8 +50,33 @@ export function CompanyRecommendations() {
     <div className="space-y-6">
       <PageHeader
         title="Recommendations"
-        description="Ranked opportunities synthesized from your signals and patterns, matched to the solution catalog."
+        description="Ranked opportunities from your signals and patterns, plus published agentic ideas for your company."
       />
+
+      {ideas.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="m-0 text-lg font-medium text-foreground">Published agentic ideas</h2>
+          {ideas.map((idea) => (
+            <Card key={idea.id}>
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <h3 className="m-0 font-medium text-text-primary">{idea.title}</h3>
+                <Badge variant="success">
+                  {Math.round((idea.confidence || 0) * 100)}% confidence
+                </Badge>
+              </div>
+              {idea.summary && <p className="text-sm text-text-secondary">{idea.summary}</p>}
+              {idea.system_fit && (
+                <p className="text-sm text-text-primary">
+                  <strong>System fit:</strong> {idea.system_fit}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                {[idea.approx_timeline, idea.estimated_cost, idea.catalog_name].filter(Boolean).join(' · ')}
+              </p>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {recs.length === 0 ? (
         <EmptyState
@@ -73,6 +104,9 @@ export function CompanyRecommendations() {
                     <li key={i}>
                       {c.name}
                       {c.vendor ? ` (${c.vendor})` : ''}
+                      {'score' in c && c.score != null
+                        ? ` · ${Math.round(Number(c.score) <= 1 ? Number(c.score) * 100 : Number(c.score))}% fit`
+                        : ''}
                     </li>
                   ))}
                 </ul>

@@ -1,0 +1,15 @@
+GulfLink Logistics LLC — Accounts Payable Approval Matrix (Dubai HQ)
+Effective: 2026-01-01  Currency: AED
+
+Vendor payments and freight-cost settlements follow this matrix.
+Manual spreadsheet trackers are still used when TMS and SAP are out of sync.
+
+Threshold (AED) | Approver | System
+0 – 5,000 | AP Clerk | Excel AP workbook + email
+5,001 – 25,000 | Finance Controller | SAP FB60 + SharePoint folder
+25,001 – 100,000 | CFO | Dual approval in SAP + wet-ink backup
+100,001+ | CEO | Board memo + SAP release
+
+Friction: AP clerks re-enter carrier invoices into SAP after checking PDF PODs.
+Approval bottlenecks when CFO is travelling. Data silos between TMS lane costs and Excel opex.
+Repetitive copy-paste from warehouse cost sheet into month-end close pack.

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_19_120000) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_19_120002) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -28,6 +28,37 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_19_120000) do
     t.index ["company_id", "created_at"], name: "idx_on_company_id_created_at_a49b557fa4"
     t.index ["company_id"], name: "index_access_code_verification_attempts_on_company_id"
     t.index ["employee_id"], name: "index_access_code_verification_attempts_on_employee_id"
+  end
+
+  create_table "agentic_ideas", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.string "title", null: false
+    t.text "summary"
+    t.text "system_fit"
+    t.text "value_time"
+    t.text "value_efficiency"
+    t.text "value_cost"
+    t.string "approx_timeline"
+    t.string "estimated_cost"
+    t.float "confidence", default: 0.5, null: false
+    t.string "status", default: "draft", null: false
+    t.string "source", default: "generated", null: false
+    t.jsonb "related_signal_ids", default: [], null: false
+    t.jsonb "related_pattern_ids", default: [], null: false
+    t.jsonb "related_stack_ids", default: [], null: false
+    t.bigint "solution_catalog_entry_id"
+    t.string "created_by_type"
+    t.bigint "created_by_id"
+    t.string "updated_by_type"
+    t.bigint "updated_by_id"
+    t.datetime "published_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id", "status"], name: "index_agentic_ideas_on_company_id_and_status"
+    t.index ["company_id", "title"], name: "index_agentic_ideas_on_company_id_and_title"
+    t.index ["company_id"], name: "index_agentic_ideas_on_company_id"
+    t.index ["created_by_type", "created_by_id"], name: "index_agentic_ideas_on_created_by"
+    t.index ["solution_catalog_entry_id"], name: "index_agentic_ideas_on_solution_catalog_entry_id"
   end
 
   create_table "catalog_candidates", force: :cascade do |t|
@@ -227,6 +258,22 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_19_120000) do
     t.datetime "updated_at", null: false
     t.index ["company_id", "signal_type", "label"], name: "index_company_signals_unique_label", unique: true
     t.index ["company_id"], name: "index_company_signals_on_company_id"
+  end
+
+  create_table "company_systems", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.string "name", null: false
+    t.string "normalized_name", null: false
+    t.string "category", default: "other", null: false
+    t.string "source", default: "manual", null: false
+    t.float "confidence", default: 1.0, null: false
+    t.boolean "active", default: true, null: false
+    t.text "notes"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id", "active"], name: "index_company_systems_on_company_id_and_active"
+    t.index ["company_id", "normalized_name"], name: "index_company_systems_on_company_id_and_normalized_name", unique: true
+    t.index ["company_id"], name: "index_company_systems_on_company_id"
   end
 
   create_table "company_users", force: :cascade do |t|
@@ -1075,6 +1122,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_19_120000) do
 
   add_foreign_key "access_code_verification_attempts", "companies"
   add_foreign_key "access_code_verification_attempts", "employees"
+  add_foreign_key "agentic_ideas", "companies"
+  add_foreign_key "agentic_ideas", "solution_catalog", column: "solution_catalog_entry_id"
   add_foreign_key "catalog_candidates", "catalog_source_records"
   add_foreign_key "catalog_candidates", "solution_catalog", column: "suggested_catalog_entry_id"
   add_foreign_key "catalog_endorsements", "companies"
@@ -1093,6 +1142,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_19_120000) do
   add_foreign_key "company_memory_facts", "conversations"
   add_foreign_key "company_memory_facts", "employees"
   add_foreign_key "company_signals", "companies"
+  add_foreign_key "company_systems", "companies"
   add_foreign_key "company_users", "companies"
   add_foreign_key "company_users", "company_users", column: "invited_by_id"
   add_foreign_key "conversation_insights", "companies"

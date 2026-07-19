@@ -82,4 +82,35 @@ RSpec.describe Multimodal::DocumentTextExtractor do
 
     expect(text).to include("Approval bottlenecks")
   end
+
+  it "OCRs image uploads via OcrFallback and never raises InvalidByteSequenceError" do
+    path = tmpdir.join("extractor-spec-pod.png").to_s
+    # Minimal valid PNG (1x1)
+    File.binwrite(
+      path,
+      Base64.decode64("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==")
+    )
+    allow(Multimodal::OcrFallback).to receive(:extract).and_return(
+      "POD exception note: damaged carton / short ship. AP retypes into Excel."
+    )
+
+    text = nil
+    expect {
+      text = described_class.extract(file_path: path, content_type: "image/png")
+    }.not_to raise_error
+
+    expect(text).to include("POD exception note")
+    expect(text).to be_valid_encoding
+    expect(Multimodal::OcrFallback).to have_received(:extract).with(hash_including(file_path: path))
+  end
+
+  it "scrubs invalid UTF-8 on unknown binary instead of returning a broken string" do
+    path = tmpdir.join("extractor-spec-binary.bin").to_s
+    File.binwrite(path, "hello\xFF\xFEworld")
+
+    text = described_class.extract(file_path: path, content_type: "application/octet-stream")
+
+    expect(text).to be_valid_encoding
+    expect { text.strip }.not_to raise_error
+  end
 end

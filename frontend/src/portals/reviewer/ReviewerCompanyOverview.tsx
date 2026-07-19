@@ -23,6 +23,7 @@ import {
 import { useReviewerToken } from '../../lib/auth';
 import { PageHeader, Card, StatCard, Button, Badge, Skeleton, EmptyState } from '../../components/ui';
 import { ReviewerChatDrawer } from './workspace/ReviewerChatDrawer';
+import { AgenticIdeasPanel } from '../shared/AgenticIdeasPanel';
 
 type ConversationRow = {
   id: number;
@@ -203,6 +204,26 @@ export function ReviewerCompanyOverview() {
               Submit a call request for company-admin approval. Approved meetings show schedule and link here.
             </p>
             <MeetingRequestsPanel companyId={Number(companyId)} reportId={reportId} />
+          </Card>
+
+          <Card title="Ask company admin">
+            <p className="mb-3 text-sm text-muted-foreground">
+              Send a portal clarification directly to the company admin (CEO). No employee contact or approval gate.
+            </p>
+            <AskCompanyAdminPanel
+              companyId={Number(companyId)}
+              reportId={reportId}
+              admins={company.company_admins || []}
+            />
+          </Card>
+
+          <Card title="Agentic AI ideas">
+            <p className="mb-3 text-sm text-muted-foreground">
+              Draft and publish agentic opportunities for this company. Published ideas appear in the next generated PDF.
+            </p>
+            {token ? (
+              <AgenticIdeasPanel token={token} companyId={Number(companyId)} mode="reviewer" />
+            ) : null}
           </Card>
 
           <Card
@@ -392,6 +413,142 @@ export function ReviewerCompanyOverview() {
       </div>
 
       <ReviewerChatDrawer companyId={Number(companyId)} open={chatOpen} onOpenChange={setChatOpen} />
+    </div>
+  );
+}
+
+function AskCompanyAdminPanel({
+  companyId,
+  reportId,
+  admins,
+}: {
+  companyId: number;
+  reportId?: number;
+  admins: { id: number; name: string; email: string }[];
+}) {
+  const token = useReviewerToken();
+  const [body, setBody] = useState('');
+  const [recipientId, setRecipientId] = useState<number | ''>(admins[0]?.id ?? '');
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
+  const [outreaches, setOutreaches] = useState<
+    Array<{
+      id: number;
+      body: string;
+      status: string;
+      recipient_type?: string;
+      recipient_name?: string | null;
+      sent_at?: string | null;
+    }>
+  >([]);
+
+  const load = () => {
+    if (!token) return;
+    api
+      .reviewerOutreaches(token, companyId)
+      .then((d) => {
+        const list = (d.outreaches as typeof outreaches).filter((o) => o.recipient_type === 'company_admin');
+        setOutreaches(list);
+      })
+      .catch(() => setOutreaches([]));
+  };
+
+  useEffect(() => {
+    load();
+  }, [token, companyId]);
+
+  useEffect(() => {
+    if (admins.length && recipientId === '') {
+      setRecipientId(admins[0].id);
+    }
+  }, [admins, recipientId]);
+
+  const submit = async () => {
+    if (!token || !body.trim()) return;
+    setSaving(true);
+    setMessage('');
+    try {
+      await api.createReviewerOutreach(token, companyId, {
+        body: body.trim(),
+        purpose: 'clarification',
+        channel: 'portal',
+        recipient_type: 'company_admin',
+        recipient_id: typeof recipientId === 'number' ? recipientId : undefined,
+        report_id: reportId,
+        reason: 'needs_info',
+      });
+      setBody('');
+      setMessage('Sent to the company admin Clarifications inbox.');
+      load();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Failed to send clarification');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {outreaches.length > 0 && (
+        <ul className="space-y-2">
+          {outreaches.slice(0, 6).map((o) => (
+            <li key={o.id} className="rounded-md border border-border px-3 py-2 text-sm">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge
+                  variant={
+                    o.status === 'sent' || o.status === 'replied'
+                      ? 'success'
+                      : o.status === 'closed'
+                        ? 'neutral'
+                        : 'info'
+                  }
+                >
+                  {o.status}
+                </Badge>
+                {o.recipient_name && (
+                  <span className="text-xs text-muted-foreground">{o.recipient_name}</span>
+                )}
+              </div>
+              <p className="mt-1 m-0 text-sm">{o.body}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="space-y-3 border-t border-border pt-3">
+        {admins.length > 1 && (
+          <select
+            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+            value={recipientId === '' ? '' : String(recipientId)}
+            onChange={(e) => setRecipientId(e.target.value ? Number(e.target.value) : '')}
+          >
+            {admins.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name} ({a.email})
+              </option>
+            ))}
+          </select>
+        )}
+        {admins.length === 1 && (
+          <p className="m-0 text-xs text-muted-foreground">
+            To: {admins[0].name} ({admins[0].email})
+          </p>
+        )}
+        {admins.length === 0 && (
+          <p className="m-0 text-xs text-muted-foreground">No active company admin on file — still sendable to default admin.</p>
+        )}
+        <textarea
+          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+          rows={3}
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          placeholder="Ask the company admin to clarify a finding, exception, or process gap…"
+        />
+        <Button size="sm" loading={saving} disabled={!body.trim()} onClick={submit}>
+          Ask company admin
+        </Button>
+        {message && <p className="m-0 text-xs text-muted-foreground">{message}</p>}
+      </div>
     </div>
   );
 }
