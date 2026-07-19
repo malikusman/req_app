@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api, type AgenticIdea, type Recommendation } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
 import { PageHeader, Card, Button, Badge, EmptyState, Skeleton } from '../../components/ui';
+import { useToast } from '../../components/ui/ToastProvider';
 
 const FEEDBACK_LABELS: Record<string, string> = {
   interested: 'Interested',
@@ -13,12 +14,15 @@ const FEEDBACK_LABELS: Record<string, string> = {
 export function CompanyRecommendations() {
   const token = useCompanyToken();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [recs, setRecs] = useState<Recommendation[]>([]);
   const [ideas, setIdeas] = useState<AgenticIdea[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
-  useEffect(() => {
+  const load = () => {
     if (!token) return;
+    setLoadError('');
     Promise.all([
       api.companyRecommendations(token),
       api.companyAgenticIdeas(token).catch(() => ({ agentic_ideas: [] as AgenticIdea[] })),
@@ -27,14 +31,28 @@ export function CompanyRecommendations() {
         setRecs(recData.recommendations);
         setIdeas(ideaData.agentic_ideas);
       })
+      .catch(() => setLoadError('Could not load recommendations.'))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    load();
   }, [token]);
 
   const submitFeedback = async (id: number, feedback: string) => {
     if (!token) return;
-    await api.recommendationFeedback(token, id, feedback);
-    const d = await api.companyRecommendations(token);
-    setRecs(d.recommendations);
+    try {
+      await api.recommendationFeedback(token, id, feedback);
+      const d = await api.companyRecommendations(token);
+      setRecs(d.recommendations);
+      toast({ variant: 'success', title: 'Feedback saved', description: 'Thanks — this helps rank future recommendations.' });
+    } catch (err) {
+      toast({
+        variant: 'error',
+        title: 'Feedback failed',
+        description: err instanceof Error ? err.message : 'Could not save feedback.',
+      });
+    }
   };
 
   if (loading) {
@@ -52,6 +70,15 @@ export function CompanyRecommendations() {
         title="Recommendations"
         description="Ranked opportunities from your signals and patterns, plus published agentic ideas for your company."
       />
+
+      {loadError && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-button border border-status-error/30 bg-status-errorBg px-4 py-3 text-sm text-status-error">
+          <span>{loadError}</span>
+          <Button size="sm" variant="secondary" onClick={load}>
+            Retry
+          </Button>
+        </div>
+      )}
 
       {ideas.length > 0 && (
         <div className="space-y-3">
@@ -79,12 +106,14 @@ export function CompanyRecommendations() {
       )}
 
       {recs.length === 0 ? (
-        <EmptyState
-          title="No recommendations"
-          description="Upload documents or complete discovery interviews so recommendations can be synthesized."
-          action={{ label: 'Upload documents', onClick: () => navigate('/company/documents') }}
-          secondaryAction={{ label: 'Invite employees', onClick: () => navigate('/company/employees') }}
-        />
+        !loadError && (
+          <EmptyState
+            title="No recommendations"
+            description="Upload documents or complete discovery interviews so recommendations can be synthesized."
+            action={{ label: 'Upload documents', onClick: () => navigate('/company/documents') }}
+            secondaryAction={{ label: 'Invite employees', onClick: () => navigate('/company/employees') }}
+          />
+        )
       ) : (
         recs.map((r) => (
           <Card key={r.id}>

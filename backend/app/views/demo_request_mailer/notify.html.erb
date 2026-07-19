@@ -1,0 +1,9 @@
+<h2>New demo request</h2>
+<table cellpadding="4">
+  <tr><td><strong>Name</strong></td><td><%= @demo_request.name %></td></tr>
+  <tr><td><strong>Email</strong></td><td><%= @demo_request.email %></td></tr>
+  <tr><td><strong>Company</strong></td><td><%= @demo_request.company_name %></td></tr>
+  <tr><td><strong>Role</strong></td><td><%= @demo_request.role.presence || "—" %></td></tr>
+  <tr><td><strong>Notes</strong></td><td><%= @demo_request.notes.presence || "—" %></td></tr>
+  <tr><td><strong>Received</strong></td><td><%= @demo_request.created_at %></td></tr>
+</table>

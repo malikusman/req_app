@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, type Employee } from '../../lib/api';
 import { useCompanyToken, useAuth } from '../../lib/auth';
-import { PageHeader, Card, Input, Select, Button, ProgressBar, Textarea } from '../../components/ui';
+import { PageHeader, Card, Input, Select, Button, ProgressBar, Textarea, Skeleton } from '../../components/ui';
 
 export function CompanyOnboarding() {
   const token = useCompanyToken();
@@ -21,15 +21,21 @@ export function CompanyOnboarding() {
   const [bulkInviting, setBulkInviting] = useState(false);
   const [skippedInvites, setSkippedInvites] = useState(false);
   const [error, setError] = useState('');
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [finishing, setFinishing] = useState(false);
 
   useEffect(() => {
     if (!token) return;
-    api.companyOnboarding(token).then((d) => {
-      setStep(d.step);
-      setDisplayName(d.company.display_name || '');
-      setLocale(d.company.locale || 'en');
-      if (d.company.engagement_mode) setEngagementMode(d.company.engagement_mode);
-    });
+    api
+      .companyOnboarding(token)
+      .then((d) => {
+        setStep(d.step);
+        setDisplayName(d.company.display_name || '');
+        setLocale(d.company.locale || 'en');
+        if (d.company.engagement_mode) setEngagementMode(d.company.engagement_mode);
+      })
+      .catch(() => setError('Could not load onboarding progress — defaults shown.'))
+      .finally(() => setInitialLoading(false));
   }, [token]);
 
   const saveProfile = async () => {
@@ -97,15 +103,36 @@ export function CompanyOnboarding() {
 
   const finish = async () => {
     if (!token) return;
-    await api.completeOnboarding(token);
-    if (session?.portal === 'company') {
-      setSession({
-        ...session,
-        company: { ...session.company, portal_onboarding_completed_at: new Date().toISOString() },
-      });
+    setError('');
+    setFinishing(true);
+    try {
+      await api.completeOnboarding(token);
+      if (session?.portal === 'company') {
+        setSession({
+          ...session,
+          company: { ...session.company, portal_onboarding_completed_at: new Date().toISOString() },
+        });
+      }
+      navigate(skippedInvites || invited.length === 0 ? '/company/documents' : '/company/dashboard');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not complete onboarding. Please try again.');
+    } finally {
+      setFinishing(false);
     }
-    navigate(skippedInvites || invited.length === 0 ? '/company/documents' : '/company/dashboard');
   };
+
+  const copyCode = (code: string) => {
+    navigator.clipboard.writeText(code);
+  };
+
+  if (initialLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton variant="text" />
+        <Skeleton variant="card" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -215,6 +242,9 @@ export function CompanyOnboarding() {
               <div className="rounded-button border border-border bg-surface-muted p-4">
                 <p className="m-0 text-sm text-text-secondary">Latest access code (share privately):</p>
                 <p className="mt-2 font-mono text-lg font-semibold">{lastCode}</p>
+                <Button variant="secondary" size="sm" className="mt-2" onClick={() => copyCode(lastCode)}>
+                  Copy code
+                </Button>
               </div>
             )}
             <div className="flex flex-wrap gap-2 pt-2">
@@ -255,7 +285,7 @@ export function CompanyOnboarding() {
               ))}
             </ul>
           )}
-          <Button className="mt-4" onClick={finish}>
+          <Button className="mt-4" loading={finishing} onClick={finish}>
             {skippedInvites || invited.length === 0 ? 'Go to documents' : 'Go to dashboard'}
           </Button>
         </Card>

@@ -8,7 +8,7 @@ export function ProblemSection() {
   const { problem } = marketingContent;
 
   return (
-    <section id="why-req" className="bg-marketing-bg px-6 py-24 md:px-12 md:py-28">
+    <section id="why-worktruth" className="bg-marketing-bg px-6 py-24 md:px-12 md:py-28">
       <div className="mx-auto max-w-6xl">
         <ScrollReveal>
           <p className="text-label-caps text-marketing-accent">{problem.eyebrow}</p>

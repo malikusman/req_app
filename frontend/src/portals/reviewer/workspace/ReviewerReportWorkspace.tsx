@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { Check, ChevronRight, FileText, MessageSquare } from 'lucide-react';
+import { Check, ChevronRight, Circle, FileText, MessageSquare } from 'lucide-react';
 import { api, type ReviewerReportWorkspacePayload } from '../../../lib/api';
 import { useAuth, useReviewerToken } from '../../../lib/auth';
 import { Badge, Button, Card, ConfirmDialog, PageHeader, Skeleton, StatCard, Textarea } from '../../../components/ui';
@@ -860,9 +860,26 @@ export function ReviewerReportWorkspace() {
             <div className="space-y-4">
               <Card title="Submit checklist">
                 <ul className="space-y-2 text-sm">
-                  <li>{sectionsComplete(workspace.review.section_states) ? '✓' : '○'} All sections marked reviewed or needs clarification</li>
-                  <li>{workspace.review.overall_note ? '✓' : '○'} Overall conclusion saved</li>
-                  <li>{workspace.co_reviewer_reviews.every((cr) => cr.status === 'submitted') ? '✓' : '○'} Co-reviewers submitted</li>
+                  {[
+                    {
+                      done: sectionsComplete(workspace.review.section_states),
+                      label: 'All sections marked reviewed or needs clarification',
+                    },
+                    { done: !!workspace.review.overall_note, label: 'Overall conclusion saved' },
+                    {
+                      done: workspace.co_reviewer_reviews.every((cr) => cr.status === 'submitted'),
+                      label: 'Co-reviewers submitted',
+                    },
+                  ].map((item) => (
+                    <li key={item.label} className="flex items-center gap-2">
+                      {item.done ? (
+                        <Check className="h-4 w-4 shrink-0 text-status-success" />
+                      ) : (
+                        <Circle className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      )}
+                      <span>{item.label}</span>
+                    </li>
+                  ))}
                 </ul>
               </Card>
               <ReviewerStructuredFindingsPanel

@@ -48,9 +48,11 @@ export function CompanyMeetingRequests() {
   const [loading, setLoading] = useState(true);
   const [actingId, setActingId] = useState<number | null>(null);
   const [error, setError] = useState('');
+  const [loadError, setLoadError] = useState('');
 
   const load = () => {
     if (!token) return;
+    setLoadError('');
     Promise.all([api.companyMeetingRequests(token), api.companyEmployees(token)])
       .then(([m, e]) => {
         const list = m.meeting_requests as Meeting[];
@@ -58,6 +60,7 @@ export function CompanyMeetingRequests() {
         setEmployees(e.employees);
         setSelected((prev) => (prev ? list.find((x) => x.id === prev.id) || null : null));
       })
+      .catch(() => setLoadError('Could not load meeting requests.'))
       .finally(() => setLoading(false));
   };
 
@@ -128,6 +131,15 @@ export function CompanyMeetingRequests() {
       />
 
       {error && <p className="text-sm text-status-error">{error}</p>}
+
+      {loadError && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-button border border-status-error/30 bg-status-errorBg px-4 py-3 text-sm text-status-error">
+          <span>{loadError}</span>
+          <Button size="sm" variant="secondary" onClick={load}>
+            Retry
+          </Button>
+        </div>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
         <DataTable

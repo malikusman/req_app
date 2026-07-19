@@ -3,13 +3,13 @@
 require "rails_helper"
 
 RSpec.describe "Dashboard APIs", type: :request do
+  before do
+    stub_request(:get, %r{http://langgraph:8000/health}).to_return(status: 200, body: '{"status":"ok"}')
+    stub_request(:get, %r{http://gotenberg:3000/health}).to_return(status: 200, body: "")
+  end
+
   describe "GET /api/v1/platform/dashboard" do
     let(:platform_user) { create(:platform_user) }
-
-    before do
-      stub_request(:get, %r{http://langgraph:8000/health}).to_return(status: 200, body: '{"status":"ok"}')
-      stub_request(:get, %r{http://gotenberg:3000/health}).to_return(status: 200, body: "")
-    end
 
     it "returns aggregated platform dashboard payload" do
       create(:company, :onboarded)

@@ -146,7 +146,9 @@ export function PlatformCatalogSources() {
       />
 
       {error && <p className="text-sm text-status-error">{error}</p>}
-      {message && <p className="text-sm text-text-secondary">{message}</p>}
+      {message && (
+        <p className="rounded-button bg-status-successBg px-4 py-2 text-sm text-status-success">{message}</p>
+      )}
 
       <Card title="Add source">
         <div className="grid gap-3 md:grid-cols-2">

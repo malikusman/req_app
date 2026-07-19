@@ -33,7 +33,7 @@ export const marketingContent = {
       contactStatus: 'online · WhatsApp',
       messages: [
         {
-          from: 'req' as const,
+          from: 'agent' as const,
           text: 'Morning Jordan! Walk me through what happens after an invoice lands in your inbox? 📄',
         },
         {
@@ -41,7 +41,7 @@ export const marketingContent = {
           text: 'Honestly? I re-type it into SAP, then chase two approvals over email. Month-end it’s 40+ invoices…',
         },
         {
-          from: 'req' as const,
+          from: 'agent' as const,
           text: 'That sounds heavy. Where does it usually get stuck — the re-typing or the approvals?',
         },
         {
@@ -55,9 +55,9 @@ export const marketingContent = {
       },
     },
     stats: [
-      { value: 'Docs or people', label: 'Start with a document baseline — or invite employees first' },
-      { value: 'One graph', label: 'Signals strengthen as interviews add live evidence' },
-      { value: 'Governed PDF', label: 'Versioned reports with reviewer gate before leadership' },
+      { value: '2 ways in', label: 'Start from documents, from interviews, or run both together' },
+      { value: '1 evidence graph', label: 'Signals strengthen as interviews add live evidence' },
+      { value: '0 apps to install', label: 'Employees answer on WhatsApp or a browser chat link' },
     ],
     statsDisclaimer:
       'Early enterprise programs. Document baselines cite internal files; quote-level interview evidence appears once conversations complete.',
@@ -185,6 +185,52 @@ export const marketingContent = {
     ],
   },
 
+  evidenceFlow: {
+    eyebrow: 'The evidence graph',
+    title: 'Watch evidence become a report',
+    subtitle:
+      'Every file and every answer lands on one graph. Signals cluster into patterns, patterns rank opportunities, and the report regenerates — version by version — as evidence grows.',
+    inputs: [
+      { kind: 'document' as const, title: 'freight-billing-sop.pdf', caption: 'Uploaded by ops' },
+      { kind: 'chat' as const, title: '“Approvals take 3 days, every time.”', caption: 'WhatsApp · Finance' },
+      { kind: 'voice' as const, title: 'Voice note · 0:42', caption: 'Warehouse walkthrough' },
+      { kind: 'image' as const, title: 'pod-scan-sample.png', caption: 'Read with vision OCR' },
+    ],
+    hub: {
+      title: 'Evidence graph',
+      caption: 'Signals · patterns · systems',
+    },
+    outputs: [
+      { step: 'Signal', text: 'Manual invoice entry + approval bottleneck · Finance' },
+      { step: 'Pattern', text: 'Confirmed across 3 teams · high automation potential' },
+      { step: 'Report v3', text: 'Reviewer-approved PDF · ranked opportunities · deltas vs v2' },
+    ],
+  },
+
+  alwaysOn: {
+    eyebrow: 'Beyond the report',
+    title: 'Discovery that keeps working after the PDF',
+    subtitle:
+      'The report is a milestone, not the finish line. Worktruth keeps matching your evidence against what is possible — and tells the right people when something changes.',
+    items: [
+      {
+        title: 'An agentic-AI backlog, grounded in your evidence',
+        body: 'Signals and patterns are matched against your actual tool stack to draft automation and AI-agent ideas — each with the systems it touches and a confidence score. Experts review and publish them into the report’s Opportunities section.',
+        badge: 'Opportunities',
+      },
+      {
+        title: 'AI market intelligence, matched to your people',
+        body: 'Curated AI and automation news is analyzed and matched to opted-in employees by role, department, and tools — only high-fit items are sent, capped at a couple of emails a month. No newsletter noise.',
+        badge: 'Market alerts',
+      },
+      {
+        title: 'Stack-aware recommendations',
+        body: 'Worktruth infers which systems you already run from documents and interviews. Recommendations flag whether a tool extends something you own or adds a new capability — so effort estimates are honest.',
+        badge: 'Client stack',
+      },
+    ],
+  },
+
   platform: {
     eyebrow: 'Platform',
     title: 'One platform. Every seat at the table.',
@@ -250,12 +296,11 @@ export const marketingContent = {
     ],
   },
 
-  testimonial: {
-    quote: {
-      text: 'Start with the files that already describe how work should happen — then interview the people who know where it actually breaks. Worktruth keeps both on one evidence graph so the report gets stronger over time, not rewritten from scratch.',
-      attribution: 'Product methodology',
-      company: 'Worktruth',
-    },
+  method: {
+    eyebrow: 'The method',
+    quote:
+      'Start with the files that already describe how work should happen — then interview the people who know where it actually breaks. Worktruth keeps both on one evidence graph so the report gets stronger over time, not rewritten from scratch.',
+    label: 'How every Worktruth engagement runs',
   },
 
   faq: {
@@ -292,6 +337,10 @@ export const marketingContent = {
       {
         q: 'What does “tied to real quotes” mean?',
         a: 'Interview findings can link back to employee answers. Document baselines cite internal files and excerpts — not live quotes — until conversations add them.',
+      },
+      {
+        q: 'What happens after the report is delivered?',
+        a: 'Discovery stays on. Upload more documents or invite more people and the same intelligence refreshes — reports regenerate with deltas against the last version. Evidence is also matched against your tool stack to maintain an agentic-AI opportunity backlog, and opted-in employees receive occasional high-fit AI market alerts relevant to their role.',
       },
       {
         q: 'What does pricing look like?',

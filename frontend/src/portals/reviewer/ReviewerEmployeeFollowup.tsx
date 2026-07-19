@@ -10,7 +10,13 @@ export function ReviewerEmployeeFollowup() {
   const token = useReviewerToken();
   const [employeeName, setEmployeeName] = useState<string | null>(null);
   const [threads, setThreads] = useState<
-    { id: number; body: string; status: string; replies: { body: string; received_at: string }[] }[]
+    {
+      id: number;
+      body: string;
+      status: string;
+      sent_at: string | null;
+      replies: { body: string; received_at: string }[];
+    }[]
   >([]);
   const [body, setBody] = useState('');
   const [loading, setLoading] = useState(true);
@@ -53,7 +59,9 @@ export function ReviewerEmployeeFollowup() {
         id: `out-${t.id}`,
         direction: 'outbound',
         body: t.body,
-        timestamp: new Date().toISOString(),
+        // sent_at is null while the outreach is still queued for company admin
+        // approval — the API exposes no created_at, so fall back to "now" then.
+        timestamp: t.sent_at ?? new Date().toISOString(),
       },
     ];
     t.replies.forEach((r, i) => {

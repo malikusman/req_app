@@ -7,14 +7,18 @@ export function CompanyBilling() {
   const token = useCompanyToken();
   const [billing, setBilling] = useState<BillingSnapshot | null>(null);
   const [loading, setLoading] = useState(false);
-  const [msg, setMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+  const [loadError, setLoadError] = useState('');
   const [initialLoading, setInitialLoading] = useState(true);
 
   const load = () => {
     if (!token) return;
+    setLoadError('');
     api
       .companyBilling(token)
       .then(setBilling)
+      .catch((err) => setLoadError(err instanceof Error ? err.message : 'Could not load billing information.'))
       .finally(() => setInitialLoading(false));
   };
 
@@ -22,7 +26,7 @@ export function CompanyBilling() {
     load();
     const params = new URLSearchParams(window.location.search);
     if (params.get('success')) {
-      setMsg(params.get('mock') ? 'Mock subscription activated.' : 'Subscription updated successfully.');
+      setSuccessMsg(params.get('mock') ? 'Mock subscription activated.' : 'Subscription updated successfully.');
       window.history.replaceState({}, '', '/company/billing');
       load();
     }
@@ -30,12 +34,14 @@ export function CompanyBilling() {
 
   const checkout = async (plan: string) => {
     if (!token) return;
+    setSuccessMsg('');
+    setErrorMsg('');
     setLoading(true);
     try {
       const res = await api.startBillingCheckout(token, plan);
       window.location.href = res.checkout_url;
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : 'Checkout failed');
+      setErrorMsg(err instanceof Error ? err.message : 'Checkout failed');
     } finally {
       setLoading(false);
     }
@@ -54,7 +60,16 @@ export function CompanyBilling() {
     return (
       <div className="space-y-6">
         <PageHeader title="Billing" description="Manage your subscription and discovery conversation usage." />
-        <EmptyState title="Unable to load billing" description="Try refreshing the page." />
+        {loadError ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-button border border-status-error/30 bg-status-errorBg px-4 py-3 text-sm text-status-error">
+            <span>{loadError}</span>
+            <Button size="sm" variant="secondary" onClick={load}>
+              Retry
+            </Button>
+          </div>
+        ) : (
+          <EmptyState title="No billing data" description="Billing details will appear once your subscription is set up." />
+        )}
       </div>
     );
   }
@@ -65,7 +80,10 @@ export function CompanyBilling() {
   return (
     <div className="space-y-6">
       <PageHeader title="Billing" description="Manage your subscription and discovery conversation usage." />
-      {msg && <p className="rounded-button bg-status-successBg px-4 py-2 text-sm text-status-success">{msg}</p>}
+      {successMsg && (
+        <p className="rounded-button bg-status-successBg px-4 py-2 text-sm text-status-success">{successMsg}</p>
+      )}
+      {errorMsg && <p className="rounded-button bg-status-errorBg px-4 py-2 text-sm text-status-error">{errorMsg}</p>}
 
       <Card title="Current plan">
         {sub ? (

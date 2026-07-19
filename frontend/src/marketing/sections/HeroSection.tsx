@@ -6,22 +6,24 @@ import { marketingContent, type HeroChatMessage } from '../content';
 import { RequestAccessModal } from '../RequestAccessModal';
 
 /** Seconds between each chat element appearing in the hero conversation. */
-const BEAT = 1.1;
+const BEAT = 0.55;
+/** Delay before the first bubble lands. */
+const LEAD_IN = 0.35;
 
 function HeroChatBubble({ message, index }: { message: HeroChatMessage; index: number }) {
   const reduced = useReducedMotion();
-  const fromReq = message.from === 'req';
+  const fromAgent = message.from === 'agent';
 
   return (
     <motion.div
-      className={fromReq ? 'flex justify-start' : 'flex justify-end'}
+      className={fromAgent ? 'flex justify-start' : 'flex justify-end'}
       initial={reduced ? false : { opacity: 0, y: 14, scale: 0.96 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ delay: reduced ? 0 : 0.6 + index * BEAT, type: 'spring', stiffness: 320, damping: 26 }}
+      transition={{ delay: reduced ? 0 : LEAD_IN + index * BEAT, type: 'spring', stiffness: 320, damping: 26 }}
     >
       <p
         className={
-          fromReq
+          fromAgent
             ? 'm-0 max-w-[85%] rounded-2xl rounded-bl-md bg-marketing-surface px-4 py-2.5 text-sm leading-relaxed text-marketing-foreground shadow-card'
             : 'm-0 max-w-[85%] rounded-2xl rounded-br-md bg-marketing-accent-muted px-4 py-2.5 text-sm leading-relaxed text-marketing-foreground shadow-card'
         }
@@ -35,7 +37,7 @@ function HeroChatBubble({ message, index }: { message: HeroChatMessage; index: n
 function HeroChatCard() {
   const reduced = useReducedMotion();
   const { chat } = marketingContent.hero;
-  const insightDelay = 0.6 + chat.messages.length * BEAT + 0.4;
+  const insightDelay = LEAD_IN + chat.messages.length * BEAT + 0.3;
 
   return (
     <div className="relative mx-auto w-full max-w-md">

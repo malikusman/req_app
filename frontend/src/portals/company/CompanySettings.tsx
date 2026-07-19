@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
-import { PageHeader, Card, Input, Select, Button, StatCard } from '../../components/ui';
+import { PageHeader, Card, Input, Select, Button, StatCard, Skeleton } from '../../components/ui';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { useToast } from '../../components/ui/ToastProvider';
 
@@ -13,44 +13,82 @@ export function CompanySettings() {
   const [engagementMode, setEngagementMode] = useState('hybrid');
   const [security, setSecurity] = useState<{ active_access_codes: number; security_snapshot: Record<string, unknown> } | null>(null);
   const [rotateOpen, setRotateOpen] = useState(false);
+  const [loadError, setLoadError] = useState('');
+
+  const load = () => {
+    if (!token) return;
+    setLoadError('');
+    api
+      .companySettingsOrganization(token)
+      .then((d) => {
+        setDisplayName(d.company.display_name || '');
+        setLocale(d.company.locale);
+        const mode = (d.settings?.engagement_mode as string) || 'hybrid';
+        setEngagementMode(mode);
+      })
+      .catch(() => setLoadError('Could not load settings.'));
+    api
+      .companySettingsSecurity(token)
+      .then(setSecurity)
+      .catch(() => setLoadError('Could not load settings.'));
+  };
 
   useEffect(() => {
-    if (!token) return;
-    api.companySettingsOrganization(token).then((d) => {
-      setDisplayName(d.company.display_name || '');
-      setLocale(d.company.locale);
-      const mode = (d.settings?.engagement_mode as string) || 'hybrid';
-      setEngagementMode(mode);
-    });
-    api.companySettingsSecurity(token).then(setSecurity);
+    load();
   }, [token]);
 
   const saveOrg = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!token) return;
-    await api.updateCompanySettings(token, {
-      display_name: displayName,
-      locale,
-      engagement_mode: engagementMode,
-    });
-    toast({ variant: 'success', title: 'Saved', description: 'Organization settings updated.' });
+    try {
+      await api.updateCompanySettings(token, {
+        display_name: displayName,
+        locale,
+        engagement_mode: engagementMode,
+      });
+      toast({ variant: 'success', title: 'Saved', description: 'Organization settings updated.' });
+    } catch (err) {
+      toast({
+        variant: 'error',
+        title: 'Save failed',
+        description: err instanceof Error ? err.message : 'Could not update organization settings.',
+      });
+    }
   };
 
   const rotate = async () => {
     if (!token) return;
-    const res = await api.rotateAccessCodes(token);
-    setRotateOpen(false);
-    toast({
-      variant: 'success',
-      title: 'Access codes rotated',
-      description: `${res.codes_rotated} codes updated — redistribute privately.`,
-    });
-    api.companySettingsSecurity(token).then(setSecurity);
+    try {
+      const res = await api.rotateAccessCodes(token);
+      setRotateOpen(false);
+      toast({
+        variant: 'success',
+        title: 'Access codes rotated',
+        description: `${res.codes_rotated} codes updated — redistribute privately.`,
+      });
+      api.companySettingsSecurity(token).then(setSecurity).catch(() => undefined);
+    } catch (err) {
+      setRotateOpen(false);
+      toast({
+        variant: 'error',
+        title: 'Rotation failed',
+        description: err instanceof Error ? err.message : 'Could not rotate access codes.',
+      });
+    }
   };
 
   return (
     <div className="space-y-6">
       <PageHeader title="Settings" description="Organization profile and security controls." />
+
+      {loadError && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-button border border-status-error/30 bg-status-errorBg px-4 py-3 text-sm text-status-error">
+          <span>{loadError}</span>
+          <Button size="sm" variant="secondary" onClick={load}>
+            Retry
+          </Button>
+        </div>
+      )}
 
       <Card title="Organization">
         <form onSubmit={saveOrg} className="max-w-md space-y-4">
@@ -85,7 +123,12 @@ export function CompanySettings() {
       </Card>
 
       <Card title="Security">
-        {security && (
+        {!security ? (
+          <div className="space-y-4">
+            <Skeleton variant="text" />
+            <Skeleton variant="text" />
+          </div>
+        ) : (
           <div className="space-y-4">
             <StatCard label="Active access codes" value={security.active_access_codes} />
             <p className="text-sm text-text-secondary">

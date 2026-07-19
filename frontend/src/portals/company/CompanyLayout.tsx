@@ -80,7 +80,7 @@ export function CompanyLayout() {
     <>
       <ImpersonationBanner />
       {integrationWarnings.length > 0 && (
-        <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-950" role="status">
+        <div className="border-b border-warning/30 bg-warning/10 px-4 py-2 text-sm text-warning md:ml-sidebar" role="status">
           {integrationWarnings.map((w) => (
             <p key={w} className="leading-snug">
               {w}

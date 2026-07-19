@@ -32,6 +32,19 @@ async function fetchPreviewBlob(token: string, path: string) {
 }
 
 export const api = {
+  publicDemoRequest: (payload: {
+    name: string;
+    email: string;
+    company_name: string;
+    role?: string;
+    notes?: string;
+    website?: string;
+  }) =>
+    request<{ ok: boolean }>('/api/v1/public/demo_requests', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
   platformLogin: (email: string, password: string) =>
     request<{ token: string; user: { id: number; email: string; name: string; role: string } }>(
       '/api/v1/auth/platform/login',
@@ -1017,7 +1030,13 @@ export const api = {
   reviewerFollowupThread: (token: string, companyId: number, employeeId: number) =>
     request<{
       employee: { id: number; display_name: string | null };
-      threads: { id: number; body: string; status: string; replies: { body: string; received_at: string }[] }[];
+      threads: {
+        id: number;
+        body: string;
+        status: string;
+        sent_at: string | null;
+        replies: { body: string; received_at: string }[];
+      }[];
     }>(`/api/v1/reviewer/companies/${companyId}/employees/${employeeId}/followup`, {}, token),
 
   sendReviewerFollowup: (token: string, companyId: number, employeeId: number, body: string, reportId?: number) =>

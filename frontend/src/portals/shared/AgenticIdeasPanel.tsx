@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { api, type AgenticIdea } from '../../lib/api';
-import { Badge, Button, Card, EmptyState, Input, Textarea } from '../../components/ui';
+import { Badge, Button, Card, EmptyState, Input, Skeleton, Textarea } from '../../components/ui';
 
 type Mode = 'platform' | 'reviewer';
+
+type Notice = { kind: 'success' | 'error'; text: string };
 
 export function AgenticIdeasPanel({
   token,
@@ -15,8 +17,10 @@ export function AgenticIdeasPanel({
 }) {
   const [ideas, setIdeas] = useState<AgenticIdea[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [synthesizing, setSynthesizing] = useState(false);
+  const [busyId, setBusyId] = useState<number | null>(null);
+  const [notice, setNotice] = useState<Notice | null>(null);
   const [title, setTitle] = useState('');
   const [summary, setSummary] = useState('');
   const [systemFit, setSystemFit] = useState('');
@@ -33,7 +37,9 @@ export function AgenticIdeasPanel({
         : api.reviewerAgenticIdeas(token, companyId);
     req
       .then((d) => setIdeas(d.agentic_ideas))
-      .catch((err) => setMessage(err instanceof Error ? err.message : 'Failed to load ideas'))
+      .catch((err) =>
+        setNotice({ kind: 'error', text: err instanceof Error ? err.message : 'Failed to load ideas' })
+      )
       .finally(() => setLoading(false));
   };
 
@@ -43,8 +49,8 @@ export function AgenticIdeasPanel({
 
   const create = async () => {
     if (!title.trim()) return;
-    setSaving(true);
-    setMessage('');
+    setCreating(true);
+    setNotice(null);
     try {
       const payload = {
         title: title.trim(),
@@ -60,58 +66,58 @@ export function AgenticIdeasPanel({
       setSummary('');
       setSystemFit('');
       setEstimatedCost('');
-      setMessage('Idea added as draft.');
+      setNotice({ kind: 'success', text: 'Idea added as draft.' });
       load();
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : 'Create failed');
+      setNotice({ kind: 'error', text: err instanceof Error ? err.message : 'Create failed' });
     } finally {
-      setSaving(false);
+      setCreating(false);
     }
   };
 
   const publish = async (id: number) => {
-    setSaving(true);
+    setBusyId(id);
     try {
       if (mode === 'platform') await api.publishPlatformAgenticIdea(token, companyId, id);
       else await api.publishReviewerAgenticIdea(token, companyId, id);
       load();
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : 'Publish failed');
+      setNotice({ kind: 'error', text: err instanceof Error ? err.message : 'Publish failed' });
     } finally {
-      setSaving(false);
+      setBusyId(null);
     }
   };
 
   const archive = async (id: number) => {
     if (mode !== 'platform') return;
-    setSaving(true);
+    setBusyId(id);
     try {
       await api.archivePlatformAgenticIdea(token, companyId, id);
       load();
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : 'Archive failed');
+      setNotice({ kind: 'error', text: err instanceof Error ? err.message : 'Archive failed' });
     } finally {
-      setSaving(false);
+      setBusyId(null);
     }
   };
 
   const synthesize = async () => {
     if (mode !== 'platform') return;
-    setSaving(true);
-    setMessage('');
+    setSynthesizing(true);
+    setNotice(null);
     try {
       const d = await api.synthesizePlatformAgenticIdeas(token, companyId);
       setIdeas(d.agentic_ideas);
-      setMessage(`Generated ${d.synthesized} draft ideas from company evidence.`);
+      setNotice({ kind: 'success', text: `Generated ${d.synthesized} draft ideas from company evidence.` });
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : 'Synthesize failed');
+      setNotice({ kind: 'error', text: err instanceof Error ? err.message : 'Synthesize failed' });
     } finally {
-      setSaving(false);
+      setSynthesizing(false);
     }
   };
 
   const saveEdit = async (id: number) => {
-    setSaving(true);
+    setBusyId(id);
     try {
       if (mode === 'platform') await api.updatePlatformAgenticIdea(token, companyId, id, editDraft);
       else await api.updateReviewerAgenticIdea(token, companyId, id, editDraft);
@@ -119,9 +125,9 @@ export function AgenticIdeasPanel({
       setEditDraft({});
       load();
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : 'Update failed');
+      setNotice({ kind: 'error', text: err instanceof Error ? err.message : 'Update failed' });
     } finally {
-      setSaving(false);
+      setBusyId(null);
     }
   };
 
@@ -132,16 +138,23 @@ export function AgenticIdeasPanel({
           Living backlog of agentic opportunities. Only <strong>published</strong> ideas enter the next generated PDF.
         </p>
         {mode === 'platform' && (
-          <Button size="sm" variant="secondary" loading={saving} onClick={synthesize}>
+          <Button size="sm" variant="secondary" loading={synthesizing} onClick={synthesize}>
             Generate from evidence
           </Button>
         )}
       </div>
 
-      {message && <p className="m-0 text-sm text-muted-foreground">{message}</p>}
+      {notice &&
+        (notice.kind === 'success' ? (
+          <p className="m-0 rounded-button bg-status-successBg px-4 py-2 text-sm text-status-success">
+            {notice.text}
+          </p>
+        ) : (
+          <p className="m-0 text-sm text-status-error">{notice.text}</p>
+        ))}
 
       {loading ? (
-        <p className="text-sm text-muted-foreground">Loading ideas…</p>
+        <Skeleton variant="card" />
       ) : ideas.length === 0 ? (
         <EmptyState title="No agentic ideas yet" description="Generate from evidence or add one manually." />
       ) : (
@@ -180,7 +193,7 @@ export function AgenticIdeasPanel({
                     />
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" loading={saving} onClick={() => saveEdit(idea.id)}>
+                    <Button size="sm" loading={busyId === idea.id} onClick={() => saveEdit(idea.id)}>
                       Save
                     </Button>
                     <Button size="sm" variant="secondary" onClick={() => setEditingId(null)}>
@@ -227,12 +240,12 @@ export function AgenticIdeasPanel({
                         Edit
                       </Button>
                       {idea.status !== 'published' && (
-                        <Button size="sm" loading={saving} onClick={() => publish(idea.id)}>
+                        <Button size="sm" loading={busyId === idea.id} onClick={() => publish(idea.id)}>
                           Publish
                         </Button>
                       )}
                       {mode === 'platform' && idea.status !== 'archived' && (
-                        <Button size="sm" variant="secondary" loading={saving} onClick={() => archive(idea.id)}>
+                        <Button size="sm" variant="secondary" loading={busyId === idea.id} onClick={() => archive(idea.id)}>
                           Archive
                         </Button>
                       )}
@@ -264,7 +277,7 @@ export function AgenticIdeasPanel({
               placeholder="e.g. $15–25k"
             />
           </div>
-          <Button size="sm" loading={saving} disabled={!title.trim()} onClick={create}>
+          <Button size="sm" loading={creating} disabled={!title.trim()} onClick={create}>
             Add draft idea
           </Button>
         </div>

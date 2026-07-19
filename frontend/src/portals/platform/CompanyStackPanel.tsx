@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, type CompanySystemRow } from '../../lib/api';
-import { Badge, Button, Card, EmptyState, Input, Select } from '../../components/ui';
+import { Badge, Button, Card, EmptyState, Input, Select, Skeleton } from '../../components/ui';
 
 const CATEGORIES = [
   { value: 'erp', label: 'ERP' },
@@ -13,11 +13,15 @@ const CATEGORIES = [
   { value: 'other', label: 'Other' },
 ];
 
+type Notice = { kind: 'success' | 'error'; text: string };
+
 export function CompanyStackPanel({ token, companyId }: { token: string; companyId: number }) {
   const [systems, setSystems] = useState<CompanySystemRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [inferring, setInferring] = useState(false);
+  const [busyId, setBusyId] = useState<number | null>(null);
+  const [notice, setNotice] = useState<Notice | null>(null);
   const [name, setName] = useState('');
   const [category, setCategory] = useState('other');
 
@@ -26,7 +30,9 @@ export function CompanyStackPanel({ token, companyId }: { token: string; company
     api
       .platformCompanySystems(token, companyId)
       .then((d) => setSystems(d.company_systems.filter((s) => s.active)))
-      .catch((err) => setMessage(err instanceof Error ? err.message : 'Failed to load stack'))
+      .catch((err) =>
+        setNotice({ kind: 'error', text: err instanceof Error ? err.message : 'Failed to load stack' })
+      )
       .finally(() => setLoading(false));
   };
 
@@ -36,39 +42,42 @@ export function CompanyStackPanel({ token, companyId }: { token: string; company
 
   const create = async () => {
     if (!name.trim()) return;
-    setSaving(true);
+    setCreating(true);
     try {
       await api.createPlatformCompanySystem(token, companyId, { name: name.trim(), category });
       setName('');
       load();
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : 'Create failed');
+      setNotice({ kind: 'error', text: err instanceof Error ? err.message : 'Create failed' });
     } finally {
-      setSaving(false);
+      setCreating(false);
     }
   };
 
   const infer = async () => {
-    setSaving(true);
-    setMessage('');
+    setInferring(true);
+    setNotice(null);
     try {
       const d = await api.inferPlatformCompanySystems(token, companyId);
       setSystems(d.company_systems.filter((s) => s.active));
-      setMessage(`Inferred/updated ${d.inferred} stack entries from employees and documents.`);
+      setNotice({
+        kind: 'success',
+        text: `Inferred/updated ${d.inferred} stack entries from employees and documents.`,
+      });
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : 'Infer failed');
+      setNotice({ kind: 'error', text: err instanceof Error ? err.message : 'Infer failed' });
     } finally {
-      setSaving(false);
+      setInferring(false);
     }
   };
 
   const deactivate = async (id: number) => {
-    setSaving(true);
+    setBusyId(id);
     try {
       await api.updatePlatformCompanySystem(token, companyId, id, { active: false });
       load();
     } finally {
-      setSaving(false);
+      setBusyId(null);
     }
   };
 
@@ -78,13 +87,23 @@ export function CompanyStackPanel({ token, companyId }: { token: string; company
         <p className="m-0 text-sm text-muted-foreground">
           Client systems already in use — used for catalog fit and agentic idea system-fit narratives.
         </p>
-        <Button size="sm" variant="secondary" loading={saving} onClick={infer}>
+        <Button size="sm" variant="secondary" loading={inferring} onClick={infer}>
           Infer from evidence
         </Button>
       </div>
-      {message && <p className="m-0 text-sm text-muted-foreground">{message}</p>}
+      {notice &&
+        (notice.kind === 'success' ? (
+          <p className="m-0 rounded-button bg-status-successBg px-4 py-2 text-sm text-status-success">
+            {notice.text}
+          </p>
+        ) : (
+          <p className="m-0 text-sm text-status-error">{notice.text}</p>
+        ))}
       {loading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <div className="space-y-2">
+          <Skeleton variant="text" />
+          <Skeleton variant="text" className="w-2/3" />
+        </div>
       ) : systems.length === 0 ? (
         <EmptyState title="No systems on file" description="Infer from documents/employees or add manually." />
       ) : (
@@ -98,7 +117,7 @@ export function CompanyStackPanel({ token, companyId }: { token: string; company
                   <Badge variant="info">{s.source}</Badge>
                 </div>
               </div>
-              <Button size="sm" variant="secondary" loading={saving} onClick={() => deactivate(s.id)}>
+              <Button size="sm" variant="secondary" loading={busyId === s.id} onClick={() => deactivate(s.id)}>
                 Remove
               </Button>
             </li>
@@ -110,7 +129,7 @@ export function CompanyStackPanel({ token, companyId }: { token: string; company
           <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} placeholder="SAP" />
           <Select label="Category" value={category} onChange={(e) => setCategory(e.target.value)} options={CATEGORIES} />
           <div className="flex items-end">
-            <Button size="sm" loading={saving} disabled={!name.trim()} onClick={create}>
+            <Button size="sm" loading={creating} disabled={!name.trim()} onClick={create}>
               Add
             </Button>
           </div>

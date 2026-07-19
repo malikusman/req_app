@@ -13,7 +13,7 @@ export function CompanyReports() {
   const [reports, setReports] = useState<Report[]>([]);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
-  const [shareMsg, setShareMsg] = useState('');
+  const [loadError, setLoadError] = useState('');
   const [loading, setLoading] = useState(true);
   const [readiness, setReadiness] = useState<{ score: number; docsFirst: boolean; breakdown: Record<string, number> }>({
     score: 0,
@@ -25,7 +25,11 @@ export function CompanyReports() {
     if (!token) return;
     api
       .companyReports(token)
-      .then((d) => setReports(d.reports))
+      .then((d) => {
+        setReports(d.reports);
+        setLoadError('');
+      })
+      .catch(() => setLoadError('Could not load reports.'))
       .finally(() => setLoading(false));
   };
 
@@ -37,13 +41,16 @@ export function CompanyReports() {
 
   useEffect(() => {
     if (!token) return;
-    api.companyDashboard(token).then((d) => {
-      setReadiness({
-        score: Math.round(d.report_readiness_score ?? 0),
-        docsFirst: Boolean(d.docs_first_phase ?? d.company.docs_first_phase),
-        breakdown: d.report_readiness_breakdown ?? {},
-      });
-    });
+    api
+      .companyDashboard(token)
+      .then((d) => {
+        setReadiness({
+          score: Math.round(d.report_readiness_score ?? 0),
+          docsFirst: Boolean(d.docs_first_phase ?? d.company.docs_first_phase),
+          breakdown: d.report_readiness_breakdown ?? {},
+        });
+      })
+      .catch(() => undefined);
   }, [token]);
 
   const generate = async () => {
@@ -62,11 +69,8 @@ export function CompanyReports() {
 
   const share = async (id: number) => {
     if (!token) return;
-    setShareMsg('');
     try {
       const res = await api.shareReport(token, id, 30);
-      const msg = `Share link created (expires ${new Date(res.expires_at).toLocaleDateString()}): ${res.share_url}`;
-      setShareMsg(msg);
       try {
         await navigator.clipboard.writeText(res.share_url);
         toast({ variant: 'success', title: 'Link copied', description: 'Share URL copied to clipboard.' });
@@ -104,8 +108,13 @@ export function CompanyReports() {
       />
 
       {error && <p className="text-sm text-status-error">{error}</p>}
-      {shareMsg && (
-        <p className="rounded-button bg-status-successBg px-4 py-2 text-sm text-status-success">{shareMsg}</p>
+      {loadError && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-button border border-status-error/30 bg-status-errorBg px-4 py-3 text-sm text-status-error">
+          <span>{loadError}</span>
+          <Button size="sm" variant="secondary" onClick={load}>
+            Retry
+          </Button>
+        </div>
       )}
 
       <CompanyExpertReviewers />

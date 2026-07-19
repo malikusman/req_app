@@ -13,7 +13,12 @@ import {
   EmptyState,
   Modal,
 } from '../../components/ui';
-import { Button as OutlineButton } from '@/components/shadcn/button';
+
+function generatePassword() {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  const bytes = crypto.getRandomValues(new Uint8Array(14));
+  return Array.from(bytes, (b) => alphabet[b % alphabet.length]).join('');
+}
 
 export function PlatformCompanies() {
   const { session, setSession } = useAuth();
@@ -26,7 +31,7 @@ export function PlatformCompanies() {
     name: '',
     admin_email: '',
     admin_name: '',
-    admin_password: 'password123',
+    admin_password: generatePassword(),
   });
   const [error, setError] = useState('');
   const [impersonatingId, setImpersonatingId] = useState<number | null>(null);
@@ -60,7 +65,7 @@ export function PlatformCompanies() {
         },
       });
       setShowForm(false);
-      setForm({ name: '', admin_email: '', admin_name: '', admin_password: 'password123' });
+      setForm({ name: '', admin_email: '', admin_name: '', admin_password: generatePassword() });
       load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create company');
@@ -161,14 +166,14 @@ export function PlatformCompanies() {
             className: 'text-right',
             render: (c) => (
               <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-                <OutlineButton
-                  variant="outline"
+                <Button
+                  variant="secondary"
                   size="sm"
-                  disabled={impersonatingId === c.id}
+                  loading={impersonatingId === c.id}
                   onClick={() => handleImpersonate(c.id)}
                 >
-                  {impersonatingId === c.id ? 'Opening…' : 'Impersonate'}
-                </OutlineButton>
+                  Impersonate
+                </Button>
               </div>
             ),
           },
@@ -194,6 +199,17 @@ export function PlatformCompanies() {
             onChange={(e) => setForm({ ...form, admin_name: e.target.value })}
             required
           />
+          <div>
+            <Input
+              label="Admin password"
+              value={form.admin_password}
+              onChange={(e) => setForm({ ...form, admin_password: e.target.value })}
+              required
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Share this with the company admin — they use it for their first sign-in.
+            </p>
+          </div>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="secondary" onClick={() => setShowForm(false)}>
               Cancel

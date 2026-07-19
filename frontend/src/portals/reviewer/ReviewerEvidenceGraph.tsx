@@ -27,18 +27,57 @@ type GraphPayload = {
 
 type LaidOutNode = GraphNode & { x: number; y: number; key: string };
 
-const TYPE_COLORS: Record<string, string> = {
-  employee: '#2563eb',
-  conversation: '#7c3aed',
-  message: '#64748b',
-  document: '#0d9488',
-  media: '#0891b2',
-  signal: '#ea580c',
-  pattern: '#dc2626',
-  recommendation: '#16a34a',
-  finding: '#ca8a04',
-  outreach: '#db2777',
+// Pulse CVD-safe chart palette — CSS variable strings work directly in SVG fill/stroke.
+const CHART_TOKENS = [1, 2, 3, 4, 5, 6].map((i) => `hsl(var(--chart-${i}))`);
+
+const NODE_TYPES = [
+  'employee',
+  'signal',
+  'document',
+  'pattern',
+  'recommendation',
+  'conversation',
+  'message',
+  'media',
+  'finding',
+  'outreach',
+];
+
+// Cycle the six chart tokens across node types.
+const TYPE_COLORS: Record<string, string> = Object.fromEntries(
+  NODE_TYPES.map((t, i) => [t, CHART_TOKENS[i % CHART_TOKENS.length]])
+);
+
+const TYPE_LABELS: Record<string, string> = {
+  employee: 'Employee',
+  conversation: 'Conversation',
+  message: 'Message',
+  document: 'Document',
+  media: 'Media',
+  signal: 'Signal',
+  pattern: 'Pattern',
+  recommendation: 'Recommendation',
+  finding: 'Finding',
+  outreach: 'Outreach',
 };
+
+const FILTER_LABELS: Record<string, string> = {
+  all: 'All',
+  employee: 'Employees',
+  conversation: 'Conversations',
+  message: 'Messages',
+  document: 'Documents',
+  media: 'Media',
+  signal: 'Signals',
+  pattern: 'Patterns',
+  recommendation: 'Recommendations',
+  finding: 'Findings',
+  outreach: 'Outreach',
+};
+
+function typeLabel(type: string) {
+  return TYPE_LABELS[type] || type.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
+}
 
 const TYPE_RING: Record<string, number> = {
   employee: 0,
@@ -202,7 +241,7 @@ export function ReviewerEvidenceGraph() {
             onClick={() => setFilter(t)}
             className={`rounded-full border px-3 py-1 text-xs ${filter === t ? 'border-primary bg-primary/10' : 'border-border'}`}
           >
-            {t}
+            {FILTER_LABELS[t] || typeLabel(t)}
           </button>
         ))}
         <Link
@@ -247,14 +286,14 @@ export function ReviewerEvidenceGraph() {
                       y1={from.y}
                       x2={to.x}
                       y2={to.y}
-                      stroke={highlight ? '#334155' : '#cbd5e1'}
+                      stroke={highlight ? 'hsl(var(--foreground))' : 'hsl(var(--border))'}
                       strokeWidth={highlight ? 1.75 : 1}
                       opacity={dimmed ? 0.12 : highlight ? 0.9 : 0.45}
                     />
                   );
                 })}
                 {laidOut.map((n) => {
-                  const color = TYPE_COLORS[n.type] || '#64748b';
+                  const color = TYPE_COLORS[n.type] || 'hsl(var(--muted-foreground))';
                   const isSelected = selected && nodeKey(selected) === n.key;
                   const dimmed = connectedKeys && !connectedKeys.has(n.key);
                   return (
@@ -268,10 +307,10 @@ export function ReviewerEvidenceGraph() {
                       <circle
                         r={isSelected ? 14 : 10}
                         fill={color}
-                        stroke={isSelected ? '#0f172a' : '#fff'}
+                        stroke={isSelected ? 'hsl(var(--foreground))' : 'hsl(var(--card))'}
                         strokeWidth={isSelected ? 2.5 : 1.5}
                       />
-                      <title>{`${n.type}: ${n.label || n.id}`}</title>
+                      <title>{`${typeLabel(n.type)}: ${n.label || n.id}`}</title>
                     </g>
                   );
                 })}
@@ -282,7 +321,7 @@ export function ReviewerEvidenceGraph() {
                   .map(([t, c]) => (
                     <span key={t} className="inline-flex items-center gap-1">
                       <span className="inline-block h-2 w-2 rounded-full" style={{ background: c }} />
-                      {t}
+                      {typeLabel(t)}
                     </span>
                   ))}
               </div>
@@ -296,9 +335,9 @@ export function ReviewerEvidenceGraph() {
           ) : (
             <div className="space-y-3 text-sm">
               <div>
-                <div className="font-medium">{selected.label || `${selected.type} #${selected.id}`}</div>
+                <div className="font-medium">{selected.label || `${typeLabel(selected.type)} ${selected.id}`}</div>
                 <div className="text-text-secondary">
-                  {selected.type} #{selected.id}
+                  {typeLabel(selected.type)} {selected.id}
                   {selected.department ? ` · ${selected.department}` : ''}
                 </div>
                 {typeof selected.confidence === 'number' && (
@@ -319,15 +358,15 @@ export function ReviewerEvidenceGraph() {
                     .slice(0, 30)
                     .map((e, idx) => (
                       <li key={idx} className="text-xs">
-                        <span className="text-text-secondary">{e.type}:</span>{' '}
-                        {e.from.type}#{e.from.id} → {e.to.type}#{e.to.id}
+                        <span className="capitalize text-text-secondary">{e.type.replace(/_/g, ' ')}:</span>{' '}
+                        {typeLabel(e.from.type)} {e.from.id} → {typeLabel(e.to.type)} {e.to.id}
                       </li>
                     ))}
                 </ul>
               </div>
               {graph?.coverage && (
                 <div className="rounded-md border border-border p-3 text-xs">
-                  <div>Signals: {String(graph.coverage.signals ?? '—')}</div>
+                  <div>Signals covered: {String(graph.coverage.signals ?? '—')}</div>
                   <div>Supported edges: {String(graph.coverage.supported_edges ?? '—')}</div>
                 </div>
               )}

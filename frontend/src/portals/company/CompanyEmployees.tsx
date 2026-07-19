@@ -45,6 +45,7 @@ export function CompanyEmployees() {
   const [preferredChannel, setPreferredChannel] = useState<'whatsapp' | 'web' | 'both'>('whatsapp');
   const [newCode, setNewCode] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [loadError, setLoadError] = useState('');
   const [nudgeMsg, setNudgeMsg] = useState('');
   const [loading, setLoading] = useState(true);
   const [inviting, setInviting] = useState(false);
@@ -63,9 +64,11 @@ export function CompanyEmployees() {
 
   const load = () => {
     if (!token) return;
+    setLoadError('');
     api
       .companyEmployees(token)
       .then((d) => setEmployees(d.employees))
+      .catch(() => setLoadError('Could not load employees.'))
       .finally(() => setLoading(false));
   };
 
@@ -171,6 +174,15 @@ export function CompanyEmployees() {
         title="Employees"
         description="Invite employees, nudge stalled interviews, and manage private value digests."
       />
+
+      {loadError && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-button border border-status-error/30 bg-status-errorBg px-4 py-3 text-sm text-status-error">
+          <span>{loadError}</span>
+          <Button size="sm" variant="secondary" onClick={load}>
+            Retry
+          </Button>
+        </div>
+      )}
 
       <Card title="Invite employee">
         {usage && usage.conversation_limit != null && (

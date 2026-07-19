@@ -70,9 +70,44 @@ export function ReviewerSectionContent({
   }
 
   if (section === 'delta') {
-    const d = snapshot.delta_from_previous as Record<string, unknown> | undefined;
+    // Shape built by Reports::DeltaCalculator on the backend.
+    const d = snapshot.delta_from_previous as
+      | {
+          summary?: string;
+          new_signals?: { label?: string; strength?: number }[];
+          new_patterns?: { title?: string }[];
+          new_recommendations?: { title?: string }[];
+          strengthened_signals?: { label?: string; strength?: number }[];
+        }
+      | undefined;
     if (!d) return <p className="text-sm text-muted-foreground">First report — no delta.</p>;
-    return <pre className="overflow-auto rounded-lg bg-muted p-3 text-xs">{JSON.stringify(d, null, 2)}</pre>;
+    const withStrength = (label?: string, strength?: number) =>
+      typeof strength === 'number' ? `${label ?? 'Untitled'} (${Math.round(strength * 100)}%)` : label ?? 'Untitled';
+    const groups = [
+      { label: 'New signals', items: (d.new_signals || []).map((s) => withStrength(s.label, s.strength)) },
+      { label: 'Strengthened signals', items: (d.strengthened_signals || []).map((s) => withStrength(s.label, s.strength)) },
+      { label: 'New patterns', items: (d.new_patterns || []).map((p) => p.title ?? 'Untitled') },
+      { label: 'New recommendations', items: (d.new_recommendations || []).map((r) => r.title ?? 'Untitled') },
+    ].filter((g) => g.items.length > 0);
+    return (
+      <div className="space-y-4">
+        {d.summary && <p className="m-0 text-sm text-foreground">{d.summary}</p>}
+        {groups.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No new signals, patterns, or recommendations since the previous report.</p>
+        ) : (
+          groups.map((g) => (
+            <div key={g.label}>
+              <p className="m-0 mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">{g.label}</p>
+              <ul className="m-0 list-disc space-y-1 pl-5 text-sm">
+                {g.items.map((item, i) => (
+                  <li key={i}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          ))
+        )}
+      </div>
+    );
   }
 
   if (section === 'signals') {

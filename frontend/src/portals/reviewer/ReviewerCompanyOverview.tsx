@@ -21,7 +21,7 @@ import {
   type ReviewerCompanyDetail,
 } from '../../lib/api';
 import { useReviewerToken } from '../../lib/auth';
-import { PageHeader, Card, StatCard, Button, Badge, Skeleton, EmptyState } from '../../components/ui';
+import { PageHeader, Card, StatCard, Button, Badge, Skeleton, EmptyState, Select, Textarea } from '../../components/ui';
 import { ReviewerChatDrawer } from './workspace/ReviewerChatDrawer';
 import { AgenticIdeasPanel } from '../shared/AgenticIdeasPanel';
 
@@ -430,7 +430,7 @@ function AskCompanyAdminPanel({
   const [body, setBody] = useState('');
   const [recipientId, setRecipientId] = useState<number | ''>(admins[0]?.id ?? '');
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState('');
+  const [notice, setNotice] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
   const [outreaches, setOutreaches] = useState<
     Array<{
       id: number;
@@ -466,7 +466,7 @@ function AskCompanyAdminPanel({
   const submit = async () => {
     if (!token || !body.trim()) return;
     setSaving(true);
-    setMessage('');
+    setNotice(null);
     try {
       await api.createReviewerOutreach(token, companyId, {
         body: body.trim(),
@@ -478,10 +478,13 @@ function AskCompanyAdminPanel({
         reason: 'needs_info',
       });
       setBody('');
-      setMessage('Sent to the company admin Clarifications inbox.');
+      setNotice({ kind: 'success', text: 'Sent to the company admin Clarifications inbox.' });
       load();
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : 'Failed to send clarification');
+      setNotice({
+        kind: 'error',
+        text: err instanceof Error ? err.message : 'Failed to send clarification',
+      });
     } finally {
       setSaving(false);
     }
@@ -517,17 +520,12 @@ function AskCompanyAdminPanel({
 
       <div className="space-y-3 border-t border-border pt-3">
         {admins.length > 1 && (
-          <select
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+          <Select
+            label="Recipient"
             value={recipientId === '' ? '' : String(recipientId)}
             onChange={(e) => setRecipientId(e.target.value ? Number(e.target.value) : '')}
-          >
-            {admins.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name} ({a.email})
-              </option>
-            ))}
-          </select>
+            options={admins.map((a) => ({ value: String(a.id), label: `${a.name} (${a.email})` }))}
+          />
         )}
         {admins.length === 1 && (
           <p className="m-0 text-xs text-muted-foreground">
@@ -537,8 +535,8 @@ function AskCompanyAdminPanel({
         {admins.length === 0 && (
           <p className="m-0 text-xs text-muted-foreground">No active company admin on file — still sendable to default admin.</p>
         )}
-        <textarea
-          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+        <Textarea
+          label="Question"
           rows={3}
           value={body}
           onChange={(e) => setBody(e.target.value)}
@@ -547,7 +545,14 @@ function AskCompanyAdminPanel({
         <Button size="sm" loading={saving} disabled={!body.trim()} onClick={submit}>
           Ask company admin
         </Button>
-        {message && <p className="m-0 text-xs text-muted-foreground">{message}</p>}
+        {notice &&
+          (notice.kind === 'success' ? (
+            <p className="m-0 rounded-button bg-status-successBg px-3 py-2 text-xs text-status-success">
+              {notice.text}
+            </p>
+          ) : (
+            <p className="m-0 text-xs text-status-error">{notice.text}</p>
+          ))}
       </div>
     </div>
   );
@@ -557,7 +562,7 @@ function MeetingRequestsPanel({ companyId, reportId }: { companyId: number; repo
   const token = useReviewerToken();
   const [purpose, setPurpose] = useState('');
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState('');
+  const [notice, setNotice] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
   const [meetings, setMeetings] = useState<
     Array<{
       id: number;
@@ -585,7 +590,7 @@ function MeetingRequestsPanel({ companyId, reportId }: { companyId: number; repo
   const submit = async () => {
     if (!token || !purpose.trim()) return;
     setSaving(true);
-    setMessage('');
+    setNotice(null);
     try {
       await api.createReviewerMeetingRequest(token, companyId, {
         purpose: purpose.trim(),
@@ -594,10 +599,13 @@ function MeetingRequestsPanel({ companyId, reportId }: { companyId: number; repo
         urgency: 'normal',
       });
       setPurpose('');
-      setMessage('Meeting request submitted for company admin approval.');
+      setNotice({ kind: 'success', text: 'Meeting request submitted for company admin approval.' });
       load();
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : 'Failed to submit meeting request');
+      setNotice({
+        kind: 'error',
+        text: err instanceof Error ? err.message : 'Failed to submit meeting request',
+      });
     } finally {
       setSaving(false);
     }
@@ -650,8 +658,8 @@ function MeetingRequestsPanel({ companyId, reportId }: { companyId: number; repo
       )}
 
       <div className="space-y-3 border-t border-border pt-3">
-        <textarea
-          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+        <Textarea
+          label="Purpose"
           rows={3}
           value={purpose}
           onChange={(e) => setPurpose(e.target.value)}
@@ -660,7 +668,14 @@ function MeetingRequestsPanel({ companyId, reportId }: { companyId: number; repo
         <Button size="sm" loading={saving} disabled={!purpose.trim()} onClick={submit}>
           Request meeting
         </Button>
-        {message && <p className="m-0 text-xs text-muted-foreground">{message}</p>}
+        {notice &&
+          (notice.kind === 'success' ? (
+            <p className="m-0 rounded-button bg-status-successBg px-3 py-2 text-xs text-status-success">
+              {notice.text}
+            </p>
+          ) : (
+            <p className="m-0 text-xs text-status-error">{notice.text}</p>
+          ))}
       </div>
     </div>
   );

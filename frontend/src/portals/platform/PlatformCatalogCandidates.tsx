@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
 import { usePlatformToken } from '../../lib/auth';
-import { PageHeader, Card, DataTable, Badge, Button, EmptyState, Textarea, Select } from '../../components/ui';
+import { PageHeader, Card, DataTable, Badge, Button, EmptyState, Textarea, Select, Modal } from '../../components/ui';
 
 type Candidate = {
   id: number;
@@ -223,15 +223,17 @@ export function PlatformCatalogCandidates() {
         emptyState={<EmptyState title="No candidates" description="Adjust filters or sync catalog sources to discover market items." />}
       />
 
-      {selected && (
-        <Card
-          title={selected.name}
-          action={
-            <Button size="sm" variant="secondary" onClick={() => setSelected(null)}>
-              Close
-            </Button>
-          }
-        >
+      <Modal
+        open={!!selected}
+        onClose={() => setSelected(null)}
+        title={selected?.name || 'Candidate'}
+        footer={
+          <Button size="sm" variant="secondary" onClick={() => setSelected(null)}>
+            Close
+          </Button>
+        }
+      >
+        {selected && (
           <div className="space-y-3 text-sm">
             <div className="flex flex-wrap gap-2">
               <Badge variant={analysisBadgeVariant(selected.analysis_status)}>{selected.analysis_status || '—'}</Badge>
@@ -263,8 +265,8 @@ export function PlatformCatalogCandidates() {
               <p className="text-text-secondary">Industries: {selected.industries.join(', ')}</p>
             )}
           </div>
-        </Card>
-      )}
+        )}
+      </Modal>
     </div>
   );
 }

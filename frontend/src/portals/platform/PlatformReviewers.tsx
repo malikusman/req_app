@@ -3,11 +3,17 @@ import { api, type ReviewerUser } from '../../lib/api';
 import { usePlatformToken } from '../../lib/auth';
 import { PageHeader, Button, DataTable, Input, Modal, Badge, EmptyState } from '../../components/ui';
 
+function generatePassword() {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  const bytes = crypto.getRandomValues(new Uint8Array(14));
+  return Array.from(bytes, (b) => alphabet[b % alphabet.length]).join('');
+}
+
 export function PlatformReviewers() {
   const token = usePlatformToken();
   const [reviewers, setReviewers] = useState<ReviewerUser[]>([]);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ email: '', name: '', password: 'password123' });
+  const [form, setForm] = useState({ email: '', name: '', password: generatePassword() });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
@@ -32,7 +38,7 @@ export function PlatformReviewers() {
     try {
       await api.createPlatformReviewer(token, form);
       setShowForm(false);
-      setForm({ email: '', name: '', password: 'password123' });
+      setForm({ email: '', name: '', password: generatePassword() });
       load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed');
@@ -102,13 +108,18 @@ export function PlatformReviewers() {
             required
           />
           <Input label="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-          <Input
-            label="Password"
-            type="password"
-            value={form.password}
-            onChange={(e) => setForm({ ...form, password: e.target.value })}
-            required
-          />
+          <div className="space-y-1">
+            <Input
+              label="Password"
+              type="text"
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              required
+            />
+            <p className="text-xs text-text-secondary">
+              Share this with the reviewer — they use it for their first sign-in.
+            </p>
+          </div>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="secondary" onClick={() => setShowForm(false)}>
               Cancel

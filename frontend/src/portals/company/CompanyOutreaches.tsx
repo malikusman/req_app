@@ -46,9 +46,11 @@ export function CompanyOutreaches() {
   const [loading, setLoading] = useState(true);
   const [actingId, setActingId] = useState<number | null>(null);
   const [error, setError] = useState('');
+  const [loadError, setLoadError] = useState('');
 
   const load = () => {
     if (!token) return;
+    setLoadError('');
     api
       .companyOutreaches(token)
       .then((d) => {
@@ -56,6 +58,7 @@ export function CompanyOutreaches() {
         setOutreaches(list);
         setSelected((prev) => (prev ? list.find((o) => o.id === prev.id) || null : null));
       })
+      .catch(() => setLoadError('Could not load reviewer questions.'))
       .finally(() => setLoading(false));
   };
 
@@ -104,6 +107,15 @@ export function CompanyOutreaches() {
       />
 
       {error && <p className="text-sm text-status-error">{error}</p>}
+
+      {loadError && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-button border border-status-error/30 bg-status-errorBg px-4 py-3 text-sm text-status-error">
+          <span>{loadError}</span>
+          <Button size="sm" variant="secondary" onClick={load}>
+            Retry
+          </Button>
+        </div>
+      )}
 
       <Card title="Admin note (optional)">
         <Textarea

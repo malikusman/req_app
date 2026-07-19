@@ -97,7 +97,9 @@ export function ReviewerCatalog() {
       />
 
       {error && <p className="text-sm text-status-error">{error}</p>}
-      {message && <p className="text-sm text-text-secondary">{message}</p>}
+      {message && (
+        <p className="rounded-button bg-status-successBg px-4 py-2 text-sm text-status-success">{message}</p>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
         <div className="space-y-3">

@@ -3,7 +3,7 @@ import { ScrollReveal } from '../../components/motion';
 import { marketingContent } from '../content';
 
 export function SocialProofSection() {
-  const { testimonial } = marketingContent;
+  const { method } = marketingContent;
 
   return (
     <section className="border-y border-marketing-border bg-marketing-surface px-6 py-20 md:px-12 md:py-24">
@@ -16,14 +16,13 @@ export function SocialProofSection() {
             >
               <MessageCircle className="h-5 w-5" />
             </span>
-            <blockquote className="m-0">
+            <p className="m-0 text-label-caps text-marketing-accent">{method.eyebrow}</p>
+            <blockquote className="m-0 mt-4">
               <p className="m-0 font-display text-2xl font-semibold leading-relaxed text-marketing-foreground md:text-3xl">
-                &ldquo;{testimonial.quote.text}&rdquo;
+                &ldquo;{method.quote}&rdquo;
               </p>
             </blockquote>
-            <figcaption className="mt-6 text-sm text-marketing-muted">
-              — {testimonial.quote.attribution}, {testimonial.quote.company}
-            </figcaption>
+            <figcaption className="mt-6 text-sm text-marketing-muted">{method.label}</figcaption>
           </figure>
         </ScrollReveal>
       </div>

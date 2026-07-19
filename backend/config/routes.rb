@@ -221,6 +221,7 @@ Rails.application.routes.draw do
         post "discover/attachments", to: "discover_attachments#create"
         get "outreach/:token", to: "outreach_replies#show"
         post "outreach/:token/reply", to: "outreach_replies#create"
+        post "demo_requests", to: "demo_requests#create"
       end
     end
   end
