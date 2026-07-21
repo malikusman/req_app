@@ -19,8 +19,8 @@ module Reports
       snapshot = SnapshotBuilder.call(company: @company, delta: delta)
       html = HtmlBuilder.call(snapshot: snapshot, report_version: @report.version)
       pdf_bytes = PdfGenerator.call(html: html)
-
-      content_type = pdf_bytes == html ? "text/html" : "application/pdf"
+      html_fallback = pdf_bytes == html
+      content_type = html_fallback ? "text/html" : "application/pdf"
       ext = content_type == "application/pdf" ? "pdf" : "html"
       storage_key = "reports/#{@company.id}/v#{@report.version}/report.#{ext}"
 
@@ -36,7 +36,7 @@ module Reports
         content_type: content_type,
         report_snapshot: snapshot,
         generated_at: Time.current,
-        error_message: nil
+        error_message: html_fallback ? "PDF service unavailable — stored as HTML (not a PDF)." : nil
       )
 
       if @company.reviewer_assignments.active.exists?

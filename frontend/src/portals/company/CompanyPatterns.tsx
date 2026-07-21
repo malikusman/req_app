@@ -1,19 +1,28 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api, type CompanyPattern } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
-import { PageHeader, Card, Badge, EmptyState, Skeleton } from '../../components/ui';
+import { PageHeader, Card, Badge, EmptyState, Skeleton, Button } from '../../components/ui';
 
 export function CompanyPatterns() {
   const token = useCompanyToken();
+  const navigate = useNavigate();
   const [patterns, setPatterns] = useState<CompanyPattern[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
-  useEffect(() => {
+  const load = () => {
     if (!token) return;
+    setLoadError('');
     api
       .intelligencePatterns(token)
       .then((d) => setPatterns(d.patterns))
+      .catch(() => setLoadError('Could not load patterns.'))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    load();
   }, [token]);
 
   if (loading) {
@@ -32,8 +41,24 @@ export function CompanyPatterns() {
         description="Cross-team themes that emerge as signals strengthen."
       />
 
+      {loadError && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-button border border-status-error/30 bg-status-errorBg px-4 py-3 text-sm text-status-error">
+          <span>{loadError}</span>
+          <Button size="sm" variant="secondary" onClick={load}>
+            Retry
+          </Button>
+        </div>
+      )}
+
       {patterns.length === 0 ? (
-        <EmptyState title="No patterns yet" description="Patterns emerge as signals strengthen across departments." />
+        !loadError && (
+          <EmptyState
+            title="No patterns yet"
+            description="Patterns emerge as signals strengthen across departments — upload more docs or complete interviews."
+            action={{ label: 'Upload documents', onClick: () => navigate('/company/documents') }}
+            secondaryAction={{ label: 'View signals', onClick: () => navigate('/company/intelligence/signals') }}
+          />
+        )
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {patterns.map((p) => (

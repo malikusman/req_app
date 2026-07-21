@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, type Employee } from '../../lib/api';
 import { useCompanyToken, useAuth } from '../../lib/auth';
-import { PageHeader, Card, Input, Select, Button, ProgressBar, Textarea } from '../../components/ui';
+import { PageHeader, Card, Input, Select, Button, ProgressBar, Textarea, Skeleton } from '../../components/ui';
 
 export function CompanyOnboarding() {
   const token = useCompanyToken();
@@ -11,6 +11,7 @@ export function CompanyOnboarding() {
   const [step, setStep] = useState(1);
   const [displayName, setDisplayName] = useState('');
   const [locale, setLocale] = useState('en');
+  const [engagementMode, setEngagementMode] = useState('hybrid');
   const [phone, setPhone] = useState('');
   const [name, setName] = useState('');
   const [department, setDepartment] = useState('');
@@ -18,23 +19,32 @@ export function CompanyOnboarding() {
   const [lastCode, setLastCode] = useState('');
   const [bulkPhones, setBulkPhones] = useState('');
   const [bulkInviting, setBulkInviting] = useState(false);
+  const [skippedInvites, setSkippedInvites] = useState(false);
   const [error, setError] = useState('');
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [finishing, setFinishing] = useState(false);
 
   useEffect(() => {
     if (!token) return;
-    api.companyOnboarding(token).then((d) => {
-      setStep(d.step);
-      setDisplayName(d.company.display_name || '');
-      setLocale(d.company.locale || 'en');
-    });
+    api
+      .companyOnboarding(token)
+      .then((d) => {
+        setStep(d.step);
+        setDisplayName(d.company.display_name || '');
+        setLocale(d.company.locale || 'en');
+        if (d.company.engagement_mode) setEngagementMode(d.company.engagement_mode);
+      })
+      .catch(() => setError('Could not load onboarding progress — defaults shown.'))
+      .finally(() => setInitialLoading(false));
   }, [token]);
 
   const saveProfile = async () => {
     if (!token) return;
     setError('');
     try {
-      const res = await api.updateOnboardingProfile(token, displayName, locale);
+      const res = await api.updateOnboardingProfile(token, displayName, locale, engagementMode);
       setStep(res.step);
+      if (res.engagement_mode) setEngagementMode(res.engagement_mode);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save');
     }
@@ -50,6 +60,7 @@ export function CompanyOnboarding() {
       setPhone('');
       setName('');
       setDepartment('');
+      setSkippedInvites(false);
       setStep(3);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to invite');
@@ -76,6 +87,7 @@ export function CompanyOnboarding() {
         ...res.employees.map((e) => ({ ...e, access_code: e.access_code })),
       ]);
       setBulkPhones('');
+      setSkippedInvites(false);
       setStep(3);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Bulk invite failed');
@@ -84,21 +96,50 @@ export function CompanyOnboarding() {
     }
   };
 
+  const skipInvites = () => {
+    setSkippedInvites(true);
+    setStep(3);
+  };
+
   const finish = async () => {
     if (!token) return;
-    await api.completeOnboarding(token);
-    if (session?.portal === 'company') {
-      setSession({
-        ...session,
-        company: { ...session.company, portal_onboarding_completed_at: new Date().toISOString() },
-      });
+    setError('');
+    setFinishing(true);
+    try {
+      await api.completeOnboarding(token);
+      if (session?.portal === 'company') {
+        setSession({
+          ...session,
+          company: { ...session.company, portal_onboarding_completed_at: new Date().toISOString() },
+        });
+      }
+      navigate(skippedInvites || invited.length === 0 ? '/company/documents' : '/company/dashboard');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not complete onboarding. Please try again.');
+    } finally {
+      setFinishing(false);
     }
-    navigate('/company/dashboard');
   };
+
+  const copyCode = (code: string) => {
+    navigator.clipboard.writeText(code);
+  };
+
+  if (initialLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton variant="text" />
+        <Skeleton variant="card" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Welcome — let's get started" description="Set up your company in three quick steps." />
+      <PageHeader
+        title="Welcome — let's get started"
+        description="Start with internal documents, invite employees now, or add people later."
+      />
 
       <div>
         <p className="mb-2 text-sm text-text-secondary">Step {step} of 3</p>
@@ -127,22 +168,45 @@ export function CompanyOnboarding() {
                 { value: 'de', label: 'German' },
               ]}
             />
+            <Select
+              label="How will you start discovery?"
+              value={engagementMode}
+              onChange={(e) => setEngagementMode(e.target.value)}
+              options={[
+                {
+                  value: 'hybrid',
+                  label: 'Docs now → people later (baseline report, then interviews strengthen it)',
+                },
+                {
+                  value: 'documents',
+                  label: 'Documents only (baseline PDF without invites)',
+                },
+                {
+                  value: 'interview',
+                  label: 'Employees first (WhatsApp / web interviews, docs optional)',
+                },
+              ]}
+            />
+            <p className="text-xs text-text-secondary">
+              Next: optional invites, then a short checklist — documents path lands you on Documents to upload.
+            </p>
             <Button onClick={saveProfile}>Continue</Button>
           </div>
         </Card>
       )}
 
       {step === 2 && (
-        <Card title="Step 2 — Invite employees">
+        <Card title="Step 2 — Invite employees (optional)">
           <p className="text-sm text-text-secondary">
-            We suggest starting with <strong>3–5 employees per department</strong> for meaningful insights.
+            You can invite people now, or skip and upload ISO / procedure / finance documents first.
+            Interviews later will strengthen the same intelligence baseline — not replace it.
           </p>
           <div className="mt-4 max-w-md space-y-4">
             <Input
-              label="Phone (E.164)"
+              label="Mobile number (with country code)"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              placeholder="+14155551234"
+              placeholder="+1 415 555 1234"
             />
             <Input label="Name (optional)" value={name} onChange={(e) => setName(e.target.value)} />
             <Input
@@ -178,24 +242,40 @@ export function CompanyOnboarding() {
               <div className="rounded-button border border-border bg-surface-muted p-4">
                 <p className="m-0 text-sm text-text-secondary">Latest access code (share privately):</p>
                 <p className="mt-2 font-mono text-lg font-semibold">{lastCode}</p>
+                <Button variant="secondary" size="sm" className="mt-2" onClick={() => copyCode(lastCode)}>
+                  Copy code
+                </Button>
               </div>
             )}
-            {invited.length > 0 && (
-              <Button variant="secondary" onClick={() => setStep(3)}>
-                Continue to instructions ({invited.length} invited)
+            <div className="flex flex-wrap gap-2 pt-2">
+              {invited.length > 0 && (
+                <Button variant="secondary" onClick={() => setStep(3)}>
+                  Continue ({invited.length} invited)
+                </Button>
+              )}
+              <Button variant="ghost" onClick={skipInvites}>
+                Skip for now — start with documents
               </Button>
-            )}
+            </div>
           </div>
         </Card>
       )}
 
       {step >= 3 && (
-        <Card title="Step 3 — Share instructions">
-          <ul className="list-inside list-disc space-y-2 text-sm text-text-secondary">
-            <li>Share the bot number with each invited employee</li>
-            <li>Send each person their unique access code via email or Slack</li>
-            <li>Never post access codes in public channels</li>
-          </ul>
+        <Card title={skippedInvites || invited.length === 0 ? 'Step 3 — Start with documents' : 'Step 3 — Share instructions'}>
+          {skippedInvites || invited.length === 0 ? (
+            <ul className="list-inside list-disc space-y-2 text-sm text-text-secondary">
+              <li>Upload ISO certificates, SOPs, and finance files from Documents</li>
+              <li>Tag documents with a department when possible for better coverage</li>
+              <li>Baseline intelligence builds from your corpus; invite employees later to strengthen it</li>
+            </ul>
+          ) : (
+            <ul className="list-inside list-disc space-y-2 text-sm text-text-secondary">
+              <li>Share the bot number with each invited employee</li>
+              <li>Send each person their unique access code via email or Slack</li>
+              <li>Never post access codes in public channels</li>
+            </ul>
+          )}
           {invited.length > 0 && (
             <ul className="mt-4 space-y-2 text-sm">
               {invited.map((e) => (
@@ -205,8 +285,8 @@ export function CompanyOnboarding() {
               ))}
             </ul>
           )}
-          <Button className="mt-4" onClick={finish}>
-            Go to dashboard
+          <Button className="mt-4" loading={finishing} onClick={finish}>
+            {skippedInvites || invited.length === 0 ? 'Go to documents' : 'Go to dashboard'}
           </Button>
         </Card>
       )}

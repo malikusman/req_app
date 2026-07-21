@@ -25,6 +25,65 @@ RSpec.describe Outreaches::CreateService do
     expect(outreach.status).to eq("pending_admin_approval")
     expect(outreach.body).to include("SAP")
   end
+
+  it "sends company_admin portal outreaches immediately without approval" do
+    admin = create(:company_user, company: company, role: "company_admin", status: "active")
+
+    outreach = described_class.call(
+      reviewer: reviewer,
+      company: company,
+      recipient_type: "company_admin",
+      recipient_id: admin.id,
+      body: "Omar — can you confirm demurrage accrual timing?",
+      purpose: "clarification",
+      channel: "whatsapp"
+    )
+
+    expect(outreach.status).to eq("sent")
+    expect(outreach.channel).to eq("portal")
+    expect(outreach.recipient_type).to eq("company_admin")
+    expect(outreach.recipient_id).to eq(admin.id)
+    expect(outreach.employee_id).to be_nil
+    expect(outreach.sent_at).to be_present
+  end
+
+  it "defaults company_admin recipient to the first active admin" do
+    admin = create(:company_user, company: company, role: "company_admin", status: "active")
+
+    outreach = described_class.call(
+      reviewer: reviewer,
+      company: company,
+      recipient_type: "company_admin",
+      body: "Question for the company admin",
+      purpose: "clarification"
+    )
+
+    expect(outreach.recipient_id).to eq(admin.id)
+    expect(outreach.status).to eq("sent")
+  end
+
+  it "records an admin answer closing the company_admin clarification" do
+    admin = create(:company_user, company: company, role: "company_admin", status: "active")
+    outreach = described_class.call(
+      reviewer: reviewer,
+      company: company,
+      recipient_type: "company_admin",
+      body: "Confirm Excel exception tab usage.",
+      purpose: "clarification"
+    )
+
+    reply = Outreaches::RecordReplyService.call(
+      outreach: outreach,
+      body: "Yes — AP parks exceptions in Excel until SAP release.",
+      channel: "portal",
+      company_user: admin
+    )
+    outreach.update!(status: "closed")
+
+    expect(reply.body).to include("Excel")
+    expect(outreach.reload.status).to eq("closed")
+    expect(outreach.reviewer_outreach_replies.count).to eq(1)
+  end
 end
 
 RSpec.describe Outreaches::ApproveService do

@@ -40,7 +40,9 @@ Rails.application.routes.draw do
         patch "catalog/sources/:id", to: "catalog_sources#update"
         delete "catalog/sources/:id", to: "catalog_sources#destroy"
         post "catalog/sources/:id/sync", to: "catalog_sources#sync"
+        post "catalog/sources/seed_recommended", to: "catalog_sources#seed_recommended"
         get "catalog/candidates", to: "catalog_candidates#index"
+        get "catalog/candidates/:id", to: "catalog_candidates#show"
         post "catalog/candidates/:id/approve", to: "catalog_candidates#approve"
         post "catalog/candidates/:id/reject", to: "catalog_candidates#reject"
         post "catalog/candidates/:id/merge", to: "catalog_candidates#merge"
@@ -55,6 +57,17 @@ Rails.application.routes.draw do
         get "companies/:company_id/intelligence/patterns", to: "intelligence#patterns"
         get "companies/:company_id/intelligence/recommendations", to: "intelligence#recommendations"
         get "companies/:company_id/intelligence/timeline", to: "intelligence#timeline"
+        get "companies/:company_id/company_systems", to: "company_systems#index"
+        post "companies/:company_id/company_systems", to: "company_systems#create"
+        patch "companies/:company_id/company_systems/:id", to: "company_systems#update"
+        delete "companies/:company_id/company_systems/:id", to: "company_systems#destroy"
+        post "companies/:company_id/company_systems/infer", to: "company_systems#infer"
+        get "companies/:company_id/agentic_ideas", to: "agentic_ideas#index"
+        post "companies/:company_id/agentic_ideas", to: "agentic_ideas#create"
+        patch "companies/:company_id/agentic_ideas/:id", to: "agentic_ideas#update"
+        post "companies/:company_id/agentic_ideas/:id/publish", to: "agentic_ideas#publish"
+        post "companies/:company_id/agentic_ideas/:id/archive", to: "agentic_ideas#archive"
+        post "companies/:company_id/agentic_ideas/synthesize", to: "agentic_ideas#synthesize"
         post "companies/:company_id/reports/:id/approve", to: "reports#approve"
         get "companies/:company_id/reports/:id/download", to: "reports#download"
         post "companies/:company_id/impersonate", to: "impersonations#create"
@@ -119,6 +132,11 @@ Rails.application.routes.draw do
           resources :meeting_requests, only: %i[index create show], controller: "meeting_requests"
           get "catalog", to: "catalog#index"
           post "catalog/:id/endorse", to: "catalog#endorse"
+          resources :agentic_ideas, only: %i[index create update], controller: "agentic_ideas" do
+            member do
+              post :publish
+            end
+          end
         end
       end
 
@@ -158,6 +176,7 @@ Rails.application.routes.draw do
             patch :feedback, action: :update_feedback
           end
         end
+        resources :agentic_ideas, only: %i[index], controller: "agentic_ideas"
         resources :reports, only: %i[index show create] do
           member do
             get :download
@@ -202,6 +221,7 @@ Rails.application.routes.draw do
         post "discover/attachments", to: "discover_attachments#create"
         get "outreach/:token", to: "outreach_replies#show"
         post "outreach/:token/reply", to: "outreach_replies#create"
+        post "demo_requests", to: "demo_requests#create"
       end
     end
   end

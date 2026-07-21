@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './lib/auth';
 import { ToastProvider } from './components/ui/ToastProvider';
 import { Toaster } from './components/shadcn/sonner';
 import { MarketingPage } from './marketing/MarketingPage';
+import { PrivacyPage } from './marketing/PrivacyPage';
 import { PlatformLogin } from './auth/PlatformLogin';
 import { CompanyLogin } from './auth/CompanyLogin';
 import { ReviewerLogin } from './auth/ReviewerLogin';
@@ -98,6 +99,7 @@ export default function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<HomeRoute />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="/dev/ui" element={<DevUiShowcase />} />
             <Route path="/platform/login" element={<PlatformLogin />} />
             <Route path="/company/login" element={<CompanyLogin />} />

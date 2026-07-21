@@ -18,6 +18,10 @@ RSpec.describe Discovery::ProcessTurnService do
   end
 
   describe "legacy single-agent path" do
+    before do
+      company.update!(settings: company.settings.merge("discovery_multi_agent_enabled" => false))
+    end
+
     it "sends no multi_agent payload and persists the insight" do
       expect(client).to receive(:run_turn!).with(hash_including(multi_agent: nil)).and_return(
         "assistant_message" => "Next question?",

@@ -1,10 +1,10 @@
-import { MessageCircle, Brain, FileText } from 'lucide-react';
+import { FileText, MessageCircle, ShieldCheck } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
 import { ScrollReveal, Stagger } from '../../components/motion';
 import { spring } from '../../lib/motion';
 import { marketingContent } from '../content';
 
-const icons = [MessageCircle, Brain, FileText] as const;
+const icons = [FileText, MessageCircle, ShieldCheck] as const;
 
 function StepCard({
   step,

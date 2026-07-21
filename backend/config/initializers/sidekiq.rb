@@ -33,7 +33,10 @@ Sidekiq.configure_server do |config|
     schedule_file = Rails.root.join("config/sidekiq_schedule.yml")
     if File.exist?(schedule_file)
       schedule = YAML.load_file(schedule_file)
-      Sidekiq::Cron::Job.load_from_hash CatalogSyncSchedule.apply!(schedule)
+      # Bang form removes jobs no longer in YAML; destroy_all ensures attribute
+      # updates (e.g. active_job: true) replace stale Redis definitions.
+      Sidekiq::Cron::Job.destroy_all!
+      Sidekiq::Cron::Job.load_from_hash! CatalogSyncSchedule.apply!(schedule)
       Rails.logger.info(
         "[Sidekiq] catalog_sync_all_sources cron=#{CatalogSyncSchedule.cron_expression} " \
         "(AI_CATALOG_SYNC_INTERVAL_HOURS=#{CatalogSyncSchedule.interval_hours})"

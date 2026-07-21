@@ -1,15 +1,15 @@
-# Req — Project Status & Demo Guide
+# Worktruth — Project Status & Demo Guide
 
-> Last updated: June 2026  
-> Latest commit on `main`: multi-agent discovery, demo wiring, dry-run simulator (`21865cc`)
+> Last updated: July 2026  
+> Brand: **Worktruth** (repo/codename: `req_app`)
 
-This document explains **what Req is**, **what has been built**, **where we are now**, **how the demo seed works**, and **what is left to do**.
+This document explains **what Worktruth is**, **what has been built**, **where we are now**, **how the demo seed works**, and **what is left to do**.
 
 ---
 
 ## Table of contents
 
-1. [What Req is](#what-req-is)
+1. [What Worktruth is](#what-worktruth-is)
 2. [Architecture at a glance](#architecture-at-a-glance)
 3. [What we have done (by phase)](#what-we-have-done-by-phase)
 4. [Multi-agent discovery (latest major feature)](#multi-agent-discovery-latest-major-feature)
@@ -23,23 +23,24 @@ This document explains **what Req is**, **what has been built**, **where we are 
 
 ---
 
-## What Req is
+## What Worktruth is
 
-**Req** is an enterprise workflow discovery platform. It:
+**Worktruth** is an enterprise workflow discovery platform. It:
 
-1. **Interviews employees over WhatsApp** — adaptive AI questions, voice notes, images, documents.
-2. **Structures raw conversation into intelligence** — signals, patterns, recommendations, readiness scores.
-3. **Delivers governed reports** — versioned HTML/PDF, reviewer QA, platform approval, share links.
+1. **Builds a document baseline** — upload SOPs, policies, and exports for signals without inviting employees yet.
+2. **Interviews employees over WhatsApp or web chat** — adaptive AI questions, voice notes, images, documents.
+3. **Structures evidence into intelligence** — signals, patterns, recommendations, readiness scores.
+4. **Delivers governed reports** — versioned HTML/PDF, reviewer QA, platform approval, share links.
 
 Three authenticated portals serve different audiences:
 
 | Portal | Audience |
 |--------|----------|
-| **Platform** (`/platform`) | Req operators — companies, trials, playbooks, audit, system health |
-| **Company** (`/company`) | Client admins — employees, intelligence, documents, reports, billing |
+| **Platform** (`/platform`) | Worktruth operators — companies, trials, playbooks, audit, system health |
+| **Company** (`/company`) | Client admins — employees, documents, intelligence, reports, billing |
 | **Reviewer** (`/reviewer`) | External experts — assigned companies, report review, WhatsApp follow-ups |
 
-The **marketing site** (`/`) is the public homepage for prospects (currently dark premium theme; light redesign planned).
+The **marketing site** (`/`) is the public homepage for prospects (light shadcn-based theme). Privacy: `/privacy`.
 
 ---
 
@@ -93,8 +94,8 @@ Rails owns **canonical state** (`conversations.state_snapshot` blackboard). The 
 | **8 — Reviewer role** | Done | Reviewer portal, report section review, WhatsApp follow-ups, co-reviewer chat |
 | **Demo wiring** | Done | Rich Acme + Beta seed, platform/company/reviewer dashboards wired to APIs |
 | **Multi-agent (A/B/C)** | Done | Profiling, supervisor agents, blackboard, company memory, debug UI, dry-run simulator |
-| **Marketing redesign** | Planned | Light modern theme, 21st.dev blocks, workflow-canvas-inspired hero — not started |
-| **Portal UI refresh** | Planned | Modern look for internal portals — after marketing site |
+| **Marketing redesign** | Done | Light theme, dual-path docs + interviews positioning, Worktruth brand |
+| **Portal UI refresh** | In progress | Docs-first IA, empty states, honesty banners |
 | **Multi-agent Phase D** | Planned | Postgres checkpointer, Reviewer Liaison + Gap Analyst agents |
 
 ---
@@ -126,7 +127,7 @@ Enabled per company via `company.settings` (Acme and Beta have these **on** in s
 - Specialist agents: **domain**, **process**, **technical**, **strategic** (routed from profile)
 - Shared **blackboard** in `conversations.state_snapshot` — agent queue, findings, coverage, rolling summary
 - [`Discovery::ProcessTurnService`](backend/app/services/discovery/process_turn_service.rb) extended payload; legacy single-agent path when flag off
-- Mock mode works without `OPENAI_API_KEY`
+- Mock mode works without `OPENAI_API_KEY` **only** when `ALLOW_MOCKS=1` or in development/test; production fails closed.
 
 ### Phase C — Company memory + debug UI
 

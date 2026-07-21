@@ -11,6 +11,8 @@ class Company < ApplicationRecord
   has_many :company_signals, dependent: :destroy
   has_many :patterns, dependent: :destroy
   has_many :recommendations, dependent: :destroy
+  has_many :company_systems, dependent: :destroy
+  has_many :agentic_ideas, dependent: :destroy
   has_many :insight_timeline_events, dependent: :destroy
   has_many :discovery_question_feedbacks, dependent: :destroy
   has_many :reports, dependent: :destroy
@@ -30,13 +32,14 @@ class Company < ApplicationRecord
   before_validation :generate_slug, on: :create
 
   DEFAULT_SETTINGS = {
+    "engagement_mode" => "hybrid",
     "discovery_question_target" => 10,
     "discovery_session_timeout_hours" => 72,
-    "discovery_profiling_enabled" => false,
-    "discovery_multi_agent_enabled" => false,
-    "discovery_memory_retrieval_enabled" => false,
-    "discovery_media_indexing_enabled" => false,
-    "discovery_multimodal_enabled" => false,
+    "discovery_profiling_enabled" => true,
+    "discovery_multi_agent_enabled" => true,
+    "discovery_memory_retrieval_enabled" => true,
+    "discovery_media_indexing_enabled" => true,
+    "discovery_multimodal_enabled" => true,
     "discovery_max_followup_depth" => 2,
     "discovery_max_questions_per_agent" => 5,
     "discovery_max_active_agents" => 4,
@@ -44,14 +47,33 @@ class Company < ApplicationRecord
       "min_employees_interviewed" => 3,
       "min_departments" => 2,
       "min_patterns" => 1,
-      "min_multimodal_contributions" => 1
+      "min_multimodal_contributions" => 1,
+      "min_ready_documents" => 3,
+      "min_document_departments" => 1
     },
     "department_targets" => {},
     "custom_departments" => []
   }.freeze
 
+  ENGAGEMENT_MODES = %w[hybrid documents interview].freeze
+
   def merged_settings
-    DEFAULT_SETTINGS.merge(self[:settings] || {})
+    DEFAULT_SETTINGS.deep_merge(self[:settings] || {})
+  end
+
+  def engagement_mode
+    mode = merged_settings["engagement_mode"].to_s
+    ENGAGEMENT_MODES.include?(mode) ? mode : "hybrid"
+  end
+
+  def docs_first_phase?
+    (report_readiness_breakdown || {})["employees_interviewed"].to_i.zero?
+  end
+
+  def promote_to_hybrid_engagement!
+    return unless engagement_mode == "documents"
+
+    update!(settings: (settings || {}).merge("engagement_mode" => "hybrid"))
   end
 
   def onboarding_complete?

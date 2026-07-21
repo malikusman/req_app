@@ -23,6 +23,7 @@ RSpec.describe Documents::PurgeService do
     original_key = document.storage_key
     client = instance_double(Storage::MinioClient, delete: true)
     allow(Storage::MinioClient).to receive(:new).and_return(client)
+    allow(AggregateIntelligenceJob).to receive(:perform_later)
 
     described_class.call(document: document)
 
@@ -30,5 +31,6 @@ RSpec.describe Documents::PurgeService do
     expect(document.reload.storage_key).to start_with("purged/")
     expect(document.metadata["purged"]).to eq(true)
     expect(document.purged_at).to be_present
+    expect(AggregateIntelligenceJob).to have_received(:perform_later).with(company.id)
   end
 end

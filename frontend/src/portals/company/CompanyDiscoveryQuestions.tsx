@@ -7,13 +7,16 @@ export function CompanyDiscoveryQuestions() {
   const token = useCompanyToken();
   const [questions, setQuestions] = useState<DiscoveryQuestion[]>([]);
   const [error, setError] = useState('');
+  const [loadError, setLoadError] = useState('');
   const [loading, setLoading] = useState(true);
 
   const load = () => {
     if (!token) return;
+    setLoadError('');
     api
       .discoveryQuestions(token)
       .then((d) => setQuestions(d.questions))
+      .catch(() => setLoadError('Could not load discovery questions.'))
       .finally(() => setLoading(false));
   };
 
@@ -39,6 +42,15 @@ export function CompanyDiscoveryQuestions() {
         description="Questions employees receive during discovery — not their answers (privacy preserved)."
       />
       {error && <p className="text-sm text-status-error">{error}</p>}
+
+      {loadError && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-button border border-status-error/30 bg-status-errorBg px-4 py-3 text-sm text-status-error">
+          <span>{loadError}</span>
+          <Button size="sm" variant="secondary" onClick={load}>
+            Retry
+          </Button>
+        </div>
+      )}
 
       <DataTable
         loading={loading}

@@ -187,4 +187,11 @@ BetaDemoSeeder.call(slug: beta.slug)
 
 DemoScript.print_walkthrough
 
+begin
+  Catalog::SeedRecommendedSources.call
+  puts "Seeded recommended AI catalog sources (#{CatalogSource.count} total)"
+rescue StandardError => e
+  puts "Catalog source seed skipped: #{e.message}"
+end
+
 puts "Done."

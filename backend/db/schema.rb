@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_13_180000) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_19_200000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -30,6 +30,37 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_13_180000) do
     t.index ["employee_id"], name: "index_access_code_verification_attempts_on_employee_id"
   end
 
+  create_table "agentic_ideas", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.string "title", null: false
+    t.text "summary"
+    t.text "system_fit"
+    t.text "value_time"
+    t.text "value_efficiency"
+    t.text "value_cost"
+    t.string "approx_timeline"
+    t.string "estimated_cost"
+    t.float "confidence", default: 0.5, null: false
+    t.string "status", default: "draft", null: false
+    t.string "source", default: "generated", null: false
+    t.jsonb "related_signal_ids", default: [], null: false
+    t.jsonb "related_pattern_ids", default: [], null: false
+    t.jsonb "related_stack_ids", default: [], null: false
+    t.bigint "solution_catalog_entry_id"
+    t.string "created_by_type"
+    t.bigint "created_by_id"
+    t.string "updated_by_type"
+    t.bigint "updated_by_id"
+    t.datetime "published_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id", "status"], name: "index_agentic_ideas_on_company_id_and_status"
+    t.index ["company_id", "title"], name: "index_agentic_ideas_on_company_id_and_title"
+    t.index ["company_id"], name: "index_agentic_ideas_on_company_id"
+    t.index ["created_by_type", "created_by_id"], name: "index_agentic_ideas_on_created_by"
+    t.index ["solution_catalog_entry_id"], name: "index_agentic_ideas_on_solution_catalog_entry_id"
+  end
+
   create_table "catalog_candidates", force: :cascade do |t|
     t.bigint "catalog_source_record_id"
     t.string "name", null: false
@@ -46,7 +77,16 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_13_180000) do
     t.jsonb "provenance", default: {}, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "analysis_status", default: "pending", null: false
+    t.datetime "analyzed_at"
+    t.datetime "published_at"
+    t.jsonb "industries", default: [], null: false
+    t.jsonb "topics", default: [], null: false
+    t.text "summary"
+    t.index ["analysis_status"], name: "index_catalog_candidates_on_analysis_status"
     t.index ["catalog_source_record_id"], name: "index_catalog_candidates_on_catalog_source_record_id"
+    t.index ["entity_type"], name: "index_catalog_candidates_on_entity_type"
+    t.index ["published_at"], name: "index_catalog_candidates_on_published_at"
     t.index ["review_status"], name: "index_catalog_candidates_on_review_status"
   end
 
@@ -220,6 +260,22 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_13_180000) do
     t.index ["company_id"], name: "index_company_signals_on_company_id"
   end
 
+  create_table "company_systems", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.string "name", null: false
+    t.string "normalized_name", null: false
+    t.string "category", default: "other", null: false
+    t.string "source", default: "manual", null: false
+    t.float "confidence", default: 1.0, null: false
+    t.boolean "active", default: true, null: false
+    t.text "notes"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id", "active"], name: "index_company_systems_on_company_id_and_active"
+    t.index ["company_id", "normalized_name"], name: "index_company_systems_on_company_id_and_normalized_name", unique: true
+    t.index ["company_id"], name: "index_company_systems_on_company_id"
+  end
+
   create_table "company_users", force: :cascade do |t|
     t.bigint "company_id", null: false
     t.string "email", null: false
@@ -286,6 +342,20 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_13_180000) do
     t.datetime "updated_at", null: false
     t.index ["company_id"], name: "index_conversations_on_company_id"
     t.index ["employee_id"], name: "index_conversations_on_employee_id"
+  end
+
+  create_table "demo_requests", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "email", null: false
+    t.string "company_name", null: false
+    t.string "role"
+    t.text "notes"
+    t.string "source", default: "marketing", null: false
+    t.string "status", default: "new", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["email"], name: "index_demo_requests_on_email"
+    t.index ["status"], name: "index_demo_requests_on_status"
   end
 
   create_table "discovery_playbooks", force: :cascade do |t|
@@ -394,6 +464,27 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_13_180000) do
     t.index ["company_id"], name: "index_employee_invitations_on_company_id"
     t.index ["company_user_id"], name: "index_employee_invitations_on_company_user_id"
     t.index ["employee_id"], name: "index_employee_invitations_on_employee_id"
+  end
+
+  create_table "employee_market_alerts", force: :cascade do |t|
+    t.bigint "employee_id", null: false
+    t.bigint "company_id", null: false
+    t.bigint "catalog_candidate_id", null: false
+    t.float "fit_score", default: 0.0, null: false
+    t.text "fit_rationale"
+    t.jsonb "email_body", default: {}, null: false
+    t.string "status", default: "draft", null: false
+    t.string "period_month", null: false
+    t.datetime "sent_at"
+    t.string "delivery_status"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["catalog_candidate_id"], name: "index_employee_market_alerts_on_catalog_candidate_id"
+    t.index ["company_id"], name: "index_employee_market_alerts_on_company_id"
+    t.index ["employee_id", "catalog_candidate_id"], name: "idx_employee_market_alerts_unique_candidate", unique: true
+    t.index ["employee_id", "period_month"], name: "index_employee_market_alerts_on_employee_id_and_period_month"
+    t.index ["employee_id"], name: "index_employee_market_alerts_on_employee_id"
+    t.index ["status"], name: "index_employee_market_alerts_on_status"
   end
 
   create_table "employee_nudges", force: :cascade do |t|
@@ -1045,6 +1136,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_13_180000) do
 
   add_foreign_key "access_code_verification_attempts", "companies"
   add_foreign_key "access_code_verification_attempts", "employees"
+  add_foreign_key "agentic_ideas", "companies"
+  add_foreign_key "agentic_ideas", "solution_catalog", column: "solution_catalog_entry_id"
   add_foreign_key "catalog_candidates", "catalog_source_records"
   add_foreign_key "catalog_candidates", "solution_catalog", column: "suggested_catalog_entry_id"
   add_foreign_key "catalog_endorsements", "companies"
@@ -1063,6 +1156,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_13_180000) do
   add_foreign_key "company_memory_facts", "conversations"
   add_foreign_key "company_memory_facts", "employees"
   add_foreign_key "company_signals", "companies"
+  add_foreign_key "company_systems", "companies"
   add_foreign_key "company_users", "companies"
   add_foreign_key "company_users", "company_users", column: "invited_by_id"
   add_foreign_key "conversation_insights", "companies"
@@ -1086,6 +1180,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_13_180000) do
   add_foreign_key "employee_invitations", "companies"
   add_foreign_key "employee_invitations", "company_users"
   add_foreign_key "employee_invitations", "employees"
+  add_foreign_key "employee_market_alerts", "catalog_candidates"
+  add_foreign_key "employee_market_alerts", "companies"
+  add_foreign_key "employee_market_alerts", "employees"
   add_foreign_key "employee_nudges", "company_users"
   add_foreign_key "employee_nudges", "conversations"
   add_foreign_key "employee_nudges", "employees"

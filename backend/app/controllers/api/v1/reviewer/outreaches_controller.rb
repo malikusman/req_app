@@ -25,6 +25,7 @@ module Api
             purpose: params[:purpose].presence || "clarification",
             channel: params[:channel].presence || "whatsapp",
             recipient_type: params[:recipient_type].presence || "employee",
+            recipient_id: params[:recipient_id],
             employee_id: params[:employee_id],
             report_id: params[:report_id],
             section_key: params[:section_key],
@@ -55,9 +56,11 @@ module Api
             company_id: o.company_id,
             report_id: o.report_id,
             reviewer_user_id: o.reviewer_user_id,
+            reviewer_name: o.reviewer_user&.name,
             employee_id: o.employee_id,
             recipient_type: o.recipient_type,
             recipient_id: o.recipient_id,
+            recipient_name: recipient_name_for(o),
             purpose: o.purpose,
             channel: o.channel,
             status: o.status,
@@ -75,6 +78,14 @@ module Api
             created_at: o.created_at,
             updated_at: o.updated_at
           }
+        end
+
+        def recipient_name_for(o)
+          if o.recipient_type == "company_admin"
+            CompanyUser.find_by(id: o.recipient_id)&.name
+          else
+            o.employee&.display_name || o.employee&.name
+          end
         end
       end
     end

@@ -7,7 +7,7 @@ import {
   type ReviewerProfilePayload,
 } from '../../lib/api';
 import { useReviewerToken } from '../../lib/auth';
-import { PageHeader, Card, Button, Input, Badge, Textarea, Skeleton } from '../../components/ui';
+import { PageHeader, Card, Button, Input, Badge, Textarea, Skeleton, useToast } from '../../components/ui';
 import { ExpertReviewerCard } from '../../components/ExpertReviewerCard';
 
 const emptyExperience = (): ReviewerExperience => ({
@@ -20,6 +20,7 @@ const emptyExperience = (): ReviewerExperience => ({
 
 export function ReviewerProfile() {
   const token = useReviewerToken();
+  const { toast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
   const [profile, setProfile] = useState<ReviewerProfile | null>(null);
   const [name, setName] = useState('');
@@ -52,7 +53,9 @@ export function ReviewerProfile() {
       setExperiences(
         d.profile.experiences.length > 0 ? d.profile.experiences : [emptyExperience()]
       );
-    }).finally(() => setLoading(false));
+    })
+      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load profile'))
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -87,6 +90,10 @@ export function ReviewerProfile() {
         publish,
       });
       setProfile(res.profile);
+      toast({
+        title: publish ? 'Profile published' : 'Profile saved',
+        variant: 'success',
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Save failed');
     } finally {
@@ -114,7 +121,7 @@ export function ReviewerProfile() {
     return (
       <div className="space-y-6">
         <Skeleton variant="text" />
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
+        <div className="grid gap-6 lg:grid-cols-2">
           <Skeleton variant="card" className="min-h-[480px]" />
           <Skeleton variant="card" className="min-h-[320px]" />
         </div>

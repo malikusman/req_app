@@ -31,7 +31,9 @@ module ReportsHelper
     "departments_represented" => { label: "Department spread", cat: "cat-tooling", target: 2 },
     "confirmed_patterns" => { label: "Pattern confidence", cat: "cat-people", target: 1 },
     "multimodal_contributions" => { label: "Multimodal evidence", cat: "cat-data", target: 1 },
-    "insights_count" => { label: "Insights captured", cat: "cat-process", target: 10 }
+    "insights_count" => { label: "Insights captured", cat: "cat-process", target: 10 },
+    "ready_documents" => { label: "Ready documents", cat: "cat-process", target: 3 },
+    "document_departments" => { label: "Document departments", cat: "cat-tooling", target: 1 }
   }.freeze
 
   def report_reset_page!
@@ -61,7 +63,7 @@ module ReportsHelper
   end
 
   def report_brand_footer(company_name)
-    "Req · #{company_name} Discovery Report"
+    "Worktruth · #{company_name} Discovery Report"
   end
 
   def report_pct(value)
@@ -107,9 +109,18 @@ module ReportsHelper
     SVG
   end
 
-  def report_readiness_bars(breakdown)
-    (breakdown || {}).filter_map do |key, raw|
-      meta = READINESS_BAR_META[key.to_s]
+  def report_readiness_bars(breakdown, docs_first: false)
+    preferred = if docs_first
+                  %w[ready_documents document_departments confirmed_patterns multimodal_contributions]
+                else
+                  %w[employees_interviewed departments_represented confirmed_patterns multimodal_contributions ready_documents document_departments]
+                end
+
+    preferred.filter_map do |key|
+      raw = (breakdown || {})[key]
+      next if raw.nil?
+
+      meta = READINESS_BAR_META[key]
       next unless meta
 
       target = meta[:target].to_f
@@ -142,38 +153,66 @@ module ReportsHelper
     add.call("What changed", "Delta versus the previous version", "rule-teal") if report_has_delta?(snapshot["delta_from_previous"])
     add.call("Signals", "Recurring pain points with evidence", "rule-magenta") if Array(snapshot["signals"]).any?
     add.call("Patterns", "Cross-team themes and confidence", "rule-magenta") if Array(snapshot["patterns"]).any?
+    add.call("Implications", "What the findings mean if left unaddressed", "rule-magenta") if Array(snapshot["implications"]).any?
     add.call("Recommendations", "Prioritized actions, catalog-matched", "rule-blue") if Array(snapshot["recommendations"]).any?
+    add.call("Opportunities", "Published agentic ideas for this company", "rule-blue") if Array(snapshot["agentic_ideas"]).any?
     add.call("Supporting media & method", "Evidence base and how we measured", "rule-teal")
     entries
   end
 
   def report_signal_excerpt(signal)
-    excerpts = Array(signal["source_excerpts"])
-    first = excerpts.first
-    return nil if first.blank?
+    report_signal_excerpts(signal, limit: 1).first
+  end
 
-    if first.is_a?(Hash)
-      text = first["excerpt"] || first["text"] || first["body"]
-      return text.presence
-    end
-    first.to_s.presence
+  def report_signal_excerpts(signal, limit: 3)
+    Array(signal["source_excerpts"]).filter_map do |item|
+      if item.is_a?(Hash)
+        (item["excerpt"] || item["text"] || item["body"]).to_s.presence
+      else
+        item.to_s.presence
+      end
+    end.first(limit)
+  end
+
+  def report_multimodal_labels(signal)
+    Array(signal["multimodal_evidence"]).filter_map do |item|
+      if item.is_a?(Hash)
+        (item["type"] || item["label"] || item["source"] || item["kind"]).to_s.presence
+      else
+        item.to_s.presence
+      end
+    end.first(4)
   end
 
   def report_catalog_match(recommendation)
-    matches = Array(recommendation["catalog_matches"])
-    return nil if matches.blank?
+    matches = report_catalog_matches(recommendation)
+    matches.first&.dig("name")
+  end
 
-    first = matches.first
-    if first.is_a?(Hash)
-      first["name"] || first["title"] || first["label"]
-    else
-      first.to_s
-    end
+  def report_catalog_matches(recommendation)
+    Array(recommendation["catalog_matches"]).filter_map do |m|
+      next unless m.is_a?(Hash)
+
+      {
+        "name" => (m["name"] || m["title"] || m["label"]).to_s.presence,
+        "vendor" => (m["vendor"]).to_s.presence,
+        "score" => m["score"] || m[:score],
+        "reason" => (m["reason"] || m["why_it_fits"]).to_s.presence
+      }.tap { |h| h.compact! }
+    end.select { |m| m["name"].present? }
+  end
+
+  def report_fit_score_label(score)
+    return nil if score.nil?
+
+    v = score.to_f
+    pct = v <= 1.0 ? (v * 100).round : v.round
+    "#{pct}% fit"
   end
 
   def report_source_caption(company_name, version: nil)
     ver = version.present? ? "v#{version}" : "snapshot"
-    "Source: Req discovery #{ver} · #{company_name}"
+    "Source: Worktruth discovery #{ver} · #{company_name}"
   end
 
   SECTION_LABELS = {

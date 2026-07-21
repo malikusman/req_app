@@ -28,7 +28,7 @@ export function MarketingNav() {
     >
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
         <Link to="/" className="font-display text-lg font-bold text-marketing-foreground">
-          Req
+          Worktruth
         </Link>
 
         <nav className="hidden items-center gap-6 md:flex">

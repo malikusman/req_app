@@ -1,26 +1,58 @@
 import { useEffect, useState } from 'react';
-import { api, type Recommendation } from '../../lib/api';
+import { useNavigate } from 'react-router-dom';
+import { api, type AgenticIdea, type Recommendation } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
 import { PageHeader, Card, Button, Badge, EmptyState, Skeleton } from '../../components/ui';
+import { useToast } from '../../components/ui/ToastProvider';
+
+const FEEDBACK_LABELS: Record<string, string> = {
+  interested: 'Interested',
+  already_doing: 'Already doing this',
+  not_relevant: 'Not relevant',
+};
 
 export function CompanyRecommendations() {
   const token = useCompanyToken();
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const [recs, setRecs] = useState<Recommendation[]>([]);
+  const [ideas, setIdeas] = useState<AgenticIdea[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+
+  const load = () => {
+    if (!token) return;
+    setLoadError('');
+    Promise.all([
+      api.companyRecommendations(token),
+      api.companyAgenticIdeas(token).catch(() => ({ agentic_ideas: [] as AgenticIdea[] })),
+    ])
+      .then(([recData, ideaData]) => {
+        setRecs(recData.recommendations);
+        setIdeas(ideaData.agentic_ideas);
+      })
+      .catch(() => setLoadError('Could not load recommendations.'))
+      .finally(() => setLoading(false));
+  };
 
   useEffect(() => {
-    if (!token) return;
-    api
-      .companyRecommendations(token)
-      .then((d) => setRecs(d.recommendations))
-      .finally(() => setLoading(false));
+    load();
   }, [token]);
 
   const submitFeedback = async (id: number, feedback: string) => {
     if (!token) return;
-    await api.recommendationFeedback(token, id, feedback);
-    const d = await api.companyRecommendations(token);
-    setRecs(d.recommendations);
+    try {
+      await api.recommendationFeedback(token, id, feedback);
+      const d = await api.companyRecommendations(token);
+      setRecs(d.recommendations);
+      toast({ variant: 'success', title: 'Feedback saved', description: 'Thanks — this helps rank future recommendations.' });
+    } catch (err) {
+      toast({
+        variant: 'error',
+        title: 'Feedback failed',
+        description: err instanceof Error ? err.message : 'Could not save feedback.',
+      });
+    }
   };
 
   if (loading) {
@@ -36,11 +68,52 @@ export function CompanyRecommendations() {
     <div className="space-y-6">
       <PageHeader
         title="Recommendations"
-        description="AI-generated opportunities with matched solutions from our catalog."
+        description="Ranked opportunities from your signals and patterns, plus published agentic ideas for your company."
       />
 
+      {loadError && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-button border border-status-error/30 bg-status-errorBg px-4 py-3 text-sm text-status-error">
+          <span>{loadError}</span>
+          <Button size="sm" variant="secondary" onClick={load}>
+            Retry
+          </Button>
+        </div>
+      )}
+
+      {ideas.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="m-0 text-lg font-medium text-foreground">Published agentic ideas</h2>
+          {ideas.map((idea) => (
+            <Card key={idea.id}>
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <h3 className="m-0 font-medium text-text-primary">{idea.title}</h3>
+                <Badge variant="success">
+                  {Math.round((idea.confidence || 0) * 100)}% confidence
+                </Badge>
+              </div>
+              {idea.summary && <p className="text-sm text-text-secondary">{idea.summary}</p>}
+              {idea.system_fit && (
+                <p className="text-sm text-text-primary">
+                  <strong>System fit:</strong> {idea.system_fit}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                {[idea.approx_timeline, idea.estimated_cost, idea.catalog_name].filter(Boolean).join(' · ')}
+              </p>
+            </Card>
+          ))}
+        </div>
+      )}
+
       {recs.length === 0 ? (
-        <EmptyState title="No recommendations" description="Complete discovery interviews to generate recommendations." />
+        !loadError && (
+          <EmptyState
+            title="No recommendations"
+            description="Upload documents or complete discovery interviews so recommendations can be synthesized."
+            action={{ label: 'Upload documents', onClick: () => navigate('/company/documents') }}
+            secondaryAction={{ label: 'Invite employees', onClick: () => navigate('/company/employees') }}
+          />
+        )
       ) : (
         recs.map((r) => (
           <Card key={r.id}>
@@ -60,6 +133,9 @@ export function CompanyRecommendations() {
                     <li key={i}>
                       {c.name}
                       {c.vendor ? ` (${c.vendor})` : ''}
+                      {'score' in c && c.score != null
+                        ? ` · ${Math.round(Number(c.score) <= 1 ? Number(c.score) * 100 : Number(c.score))}% fit`
+                        : ''}
                     </li>
                   ))}
                 </ul>
@@ -73,7 +149,7 @@ export function CompanyRecommendations() {
                   size="sm"
                   onClick={() => submitFeedback(r.id, f)}
                 >
-                  {f.replace(/_/g, ' ')}
+                  {FEEDBACK_LABELS[f] ?? f}
                 </Button>
               ))}
             </div>

@@ -20,7 +20,7 @@ export function LogoMarquee({
         {doubled.map((name, i) => (
           <span
             key={`${name}-${i}`}
-            className="shrink-0 text-lg font-semibold text-text-secondary"
+            className="shrink-0 text-lg font-semibold text-marketing-muted"
           >
             {name}
           </span>

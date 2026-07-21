@@ -81,7 +81,7 @@ export function OutreachReplyPage() {
       <Card className="w-full max-w-lg space-y-6 p-6">
         <div className="space-y-2">
           <p className="text-sm uppercase tracking-wide text-muted-foreground">Clarification reply</p>
-          <h1 className="text-2xl font-semibold text-foreground">{outreach?.company_name || 'Req'}</h1>
+          <h1 className="text-2xl font-semibold text-foreground">{outreach?.company_name || 'Worktruth'}</h1>
           <p className="text-sm text-muted-foreground">
             A reviewer asked for more detail. Your reply is recorded securely via this link.
           </p>

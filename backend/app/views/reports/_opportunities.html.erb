@@ -1,0 +1,33 @@
+<% company_name = snapshot.dig("company", "name") %>
+<% ideas = Array(snapshot["agentic_ideas"]) %>
+<% if ideas.any? %>
+<section class="page">
+  <div class="eyebrow">Opportunities</div>
+  <h1 style="font-size:28pt;margin:4mm 0 3mm;">Agentic ideas ready to pursue</h1>
+  <p class="lead" style="max-width:210mm;">Published opportunities shaped from this company's evidence. Each idea includes system fit, value, and an approximate delivery window. Draft ideas stay in the backlog until platform or reviewer publish them.</p>
+  <div class="card-grid-3">
+    <% ideas.each do |idea| %>
+      <% conf = report_pct(idea["confidence"]) %>
+      <div class="rec-card">
+        <span class="pill med"><%= conf %>% confidence</span>
+        <h4><%= h idea["title"] %></h4>
+        <% if idea["summary"].present? %><p><%= h idea["summary"].to_s.truncate(180) %></p><% end %>
+        <% if idea["system_fit"].present? %>
+          <p style="margin-top:2mm;font-size:8.5pt;"><strong>System fit:</strong> <%= h idea["system_fit"].to_s.truncate(160) %></p>
+        <% end %>
+        <ul style="margin:2mm 0 0;padding-left:4mm;font-size:8pt;">
+          <% if idea["value_time"].present? %><li><strong>Time:</strong> <%= h idea["value_time"].to_s.truncate(120) %></li><% end %>
+          <% if idea["value_efficiency"].present? %><li><strong>Efficiency:</strong> <%= h idea["value_efficiency"].to_s.truncate(120) %></li><% end %>
+          <% if idea["value_cost"].present? %><li><strong>Cost:</strong> <%= h idea["value_cost"].to_s.truncate(120) %></li><% end %>
+        </ul>
+        <div class="match" style="margin-top:2mm;">
+          <% if idea["approx_timeline"].present? %><%= h idea["approx_timeline"] %><% end %>
+          <% if idea["estimated_cost"].present? %><% if idea["approx_timeline"].present? %> · <% end %><%= h idea["estimated_cost"] %><% end %>
+          <% if idea["catalog_name"].present? %><% if idea["approx_timeline"].present? || idea["estimated_cost"].present? %> · <% end %><%= h idea["catalog_name"] %><% end %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+  <%= render "reports/page_footer", company_name: company_name %>
+</section>
+<% end %>

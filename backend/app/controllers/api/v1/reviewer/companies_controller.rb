@@ -22,7 +22,10 @@ module Api
               participation: Intelligence::SnapshotBuilder.call(company: company)["participation"],
               latest_report: latest_report ? { id: latest_report.id, version: latest_report.version, status: latest_report.status } : nil,
               my_review_status: my_review&.status,
-              co_reviewer_count: company.reviewer_assignments.active.count
+              co_reviewer_count: company.reviewer_assignments.active.count,
+              company_admins: company.company_users.where(role: "company_admin", status: "active").order(:name).map { |u|
+                { id: u.id, name: u.name, email: u.email }
+              }
             )
           }
         end

@@ -43,7 +43,17 @@ module Api
         private
 
         def organization_params
-          params.permit(department_targets: {}, custom_departments: [], report_thresholds: {}).to_h
+          permitted = params.permit(
+            :engagement_mode,
+            department_targets: {},
+            custom_departments: [],
+            report_thresholds: {}
+          ).to_h
+          if permitted["engagement_mode"].present?
+            mode = permitted["engagement_mode"].to_s
+            permitted.delete("engagement_mode") unless Company::ENGAGEMENT_MODES.include?(mode)
+          end
+          permitted
         end
       end
     end

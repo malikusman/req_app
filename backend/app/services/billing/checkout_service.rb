@@ -24,6 +24,7 @@ module Billing
       if stripe_configured?
         stripe_checkout_url
       else
+        MocksAllowed.require!("Stripe")
         mock_checkout_url
       end
     end

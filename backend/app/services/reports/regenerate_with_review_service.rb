@@ -34,7 +34,8 @@ module Reports
 
     def upload_artifact!(html)
       pdf_bytes = PdfGenerator.call(html: html)
-      content_type = pdf_bytes == html ? "text/html" : "application/pdf"
+      html_fallback = pdf_bytes == html
+      content_type = html_fallback ? "text/html" : "application/pdf"
       ext = content_type == "application/pdf" ? "pdf" : "html"
       storage_key = "reports/#{@company.id}/v#{@report.version}/report.#{ext}"
 
@@ -44,7 +45,11 @@ module Reports
         content_type: content_type
       )
 
-      @report.update!(storage_key: storage_key, content_type: content_type)
+      @report.update!(
+        storage_key: storage_key,
+        content_type: content_type,
+        error_message: html_fallback ? "PDF service unavailable — stored as HTML (not a PDF)." : @report.error_message
+      )
     end
   end
 end

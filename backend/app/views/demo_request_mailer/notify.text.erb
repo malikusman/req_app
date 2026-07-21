@@ -1,0 +1,8 @@
+New demo request
+
+Name:     <%= @demo_request.name %>
+Email:    <%= @demo_request.email %>
+Company:  <%= @demo_request.company_name %>
+Role:     <%= @demo_request.role.presence || "—" %>
+Notes:    <%= @demo_request.notes.presence || "—" %>
+Received: <%= @demo_request.created_at %>

@@ -1,0 +1,1 @@
+POD scan sample (image): handwritten exception 'damaged carton / short ship' — AP retypes into Excel. Expected product gap: image OCR may yield insufficient text.

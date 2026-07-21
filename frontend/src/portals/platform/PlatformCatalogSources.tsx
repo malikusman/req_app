@@ -25,6 +25,7 @@ export function PlatformCatalogSources() {
   const [saving, setSaving] = useState(false);
   const [syncingId, setSyncingId] = useState<number | null>(null);
   const [syncingAll, setSyncingAll] = useState(false);
+  const [seeding, setSeeding] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
@@ -111,20 +112,43 @@ export function PlatformCatalogSources() {
     }
   };
 
+  const seedRecommended = async () => {
+    if (!token) return;
+    setSeeding(true);
+    setError('');
+    setMessage('');
+    try {
+      const res = await api.seedRecommendedCatalogSources(token);
+      setMessage(`Recommended AI sources ready (${res.created_or_updated} feeds).`);
+      load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Seed failed');
+    } finally {
+      setSeeding(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Catalog sources"
         description={`RSS/API feeds that seed market candidates. Scheduled every ${intervalHours}h (AI_CATALOG_SYNC_INTERVAL_HOURS).`}
         actions={
-          <Button size="sm" variant="secondary" loading={syncingAll} onClick={syncAll}>
-            Sync all now
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="secondary" loading={seeding} onClick={seedRecommended}>
+              Add recommended AI sources
+            </Button>
+            <Button size="sm" variant="secondary" loading={syncingAll} onClick={syncAll}>
+              Sync all now
+            </Button>
+          </div>
         }
       />
 
       {error && <p className="text-sm text-status-error">{error}</p>}
-      {message && <p className="text-sm text-text-secondary">{message}</p>}
+      {message && (
+        <p className="rounded-button bg-status-successBg px-4 py-2 text-sm text-status-success">{message}</p>
+      )}
 
       <Card title="Add source">
         <div className="grid gap-3 md:grid-cols-2">

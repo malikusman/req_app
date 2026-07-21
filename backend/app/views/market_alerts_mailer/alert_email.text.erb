@@ -1,0 +1,17 @@
+<%= @body["greeting"].presence || "Hi there" %>,
+
+We know you<%= @body["role_line"].present? ? " work as #{@body["role_line"]}" : " are part of #{@company.display_name || @company.name}" %>.
+<% tools = Array(@body["tools"]) %>
+<% if tools.any? %>You use tools like <%= tools.join(", ") %>.<% end %>
+
+This <%= @body["item_type"] || "AI update" %> may help you: <%= @body["item_name"] %>
+
+<%= @body["summary"] %>
+
+<%= @body["why"] %>
+
+<% if @body["source_url"].present? %>
+Source: <%= @body["source_url"] %>
+<% end %>
+
+You receive at most two of these personalized market alerts per month.

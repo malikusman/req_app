@@ -109,7 +109,6 @@ export default {
             hover: 'hsl(160 83% 26%)',
             muted: 'hsl(153 46% 91%)',
           },
-          gold: '#d4a853',
           border: 'hsl(var(--border))',
         },
       },
@@ -123,7 +122,7 @@ export default {
         modal: 'var(--radius)',
       },
       fontFamily: {
-        sans: ['Manrope', 'Inter', 'system-ui', 'sans-serif'],
+        sans: ['Manrope', 'system-ui', 'sans-serif'],
         display: ['Sora', 'Manrope', 'system-ui', 'sans-serif'],
       },
       fontSize: {

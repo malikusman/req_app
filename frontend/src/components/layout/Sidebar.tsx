@@ -12,6 +12,8 @@ export type SidebarItem = {
   to: string;
   label: string;
   icon: LucideIcon;
+  section?: string;
+  badge?: string;
 };
 
 type SidebarProps = {
@@ -46,33 +48,46 @@ function SidebarNav({
 
       <ScrollArea className="flex-1 px-3 py-4">
         <nav className="flex flex-col gap-0.5">
-          {items.map(({ to, label, icon: Icon }) => {
+          {items.map(({ to, label, icon: Icon, section, badge }, index) => {
             const active = isItemActive(activePath, to);
+            const prevSection = index > 0 ? items[index - 1]?.section : undefined;
+            const showSection = section && section !== prevSection;
             return (
-              <Link
-                key={to}
-                to={to}
-                onClick={onNavigate}
-                className={cn(
-                  'relative flex items-center gap-3 rounded-full px-3.5 py-2.5 text-sm font-medium transition-colors',
-                  active
-                    ? 'text-sidebar-accent-foreground'
-                    : 'text-sidebar-foreground hover:bg-sidebar-hover hover:text-foreground'
+              <div key={to}>
+                {showSection && (
+                  <p className="mb-1 mt-3 px-3.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground first:mt-0">
+                    {section}
+                  </p>
                 )}
-              >
-                {active && !reduced && (
-                  <motion.span
-                    layoutId="sidebar-active-pill"
-                    className="absolute inset-0 rounded-full bg-sidebar-accent"
-                    transition={spring.soft}
-                  />
-                )}
-                {active && reduced && (
-                  <span className="absolute inset-0 rounded-full bg-sidebar-accent" />
-                )}
-                <Icon className="relative z-10 h-[18px] w-[18px] shrink-0" aria-hidden />
-                <span className="relative z-10">{label}</span>
-              </Link>
+                <Link
+                  to={to}
+                  onClick={onNavigate}
+                  className={cn(
+                    'relative flex items-center gap-3 rounded-full px-3.5 py-2.5 text-sm font-medium transition-colors',
+                    active
+                      ? 'text-sidebar-accent-foreground'
+                      : 'text-sidebar-foreground hover:bg-sidebar-hover hover:text-foreground'
+                  )}
+                >
+                  {active && !reduced && (
+                    <motion.span
+                      layoutId="sidebar-active-pill"
+                      className="absolute inset-0 rounded-full bg-sidebar-accent"
+                      transition={spring.soft}
+                    />
+                  )}
+                  {active && reduced && (
+                    <span className="absolute inset-0 rounded-full bg-sidebar-accent" />
+                  )}
+                  <Icon className="relative z-10 h-[18px] w-[18px] shrink-0" aria-hidden />
+                  <span className="relative z-10 flex-1">{label}</span>
+                  {badge && (
+                    <span className="relative z-10 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                      {badge}
+                    </span>
+                  )}
+                </Link>
+              </div>
             );
           })}
         </nav>

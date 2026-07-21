@@ -1,23 +1,44 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api, type CompanyDocument } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
 import { PageHeader, Card, Input, DataTable, Badge, FileDropzone, EmptyState, Button } from '../../components/ui';
+import { useToast } from '../../components/ui/ToastProvider';
 
 export function CompanyDocuments() {
   const token = useCompanyToken();
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const [documents, setDocuments] = useState<CompanyDocument[]>([]);
   const [department, setDepartment] = useState('');
   const [reviewerVisible, setReviewerVisible] = useState(true);
   const [error, setError] = useState('');
+  const [loadError, setLoadError] = useState('');
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [togglingId, setTogglingId] = useState<number | null>(null);
+  const celebratedReady = useRef(false);
 
   const load = () => {
     if (!token) return;
     api
       .companyDocuments(token)
-      .then((d) => setDocuments(d.documents))
+      .then((d) => {
+        setDocuments(d.documents);
+        setLoadError('');
+        const readyCount = d.documents.filter((doc) => doc.status === 'ready').length;
+        if (readyCount > 0 && !celebratedReady.current) {
+          celebratedReady.current = true;
+          if (readyCount === 1) {
+            toast({
+              variant: 'success',
+              title: 'First document ready',
+              description: 'Text extracted — check Signals next, or upload more for coverage.',
+            });
+          }
+        }
+      })
+      .catch(() => setLoadError('Could not load documents.'))
       .finally(() => setLoading(false));
   };
 
@@ -25,13 +46,34 @@ export function CompanyDocuments() {
     load();
   }, [token]);
 
+  useEffect(() => {
+    if (!token) return;
+    const processing = documents.some((d) => d.status === 'processing' || d.status === 'pending');
+    if (!processing) return;
+    const id = window.setInterval(load, 3000);
+    return () => window.clearInterval(id);
+  }, [token, documents]);
+
   const onUpload = async (file: File) => {
     if (!token) return;
     setError('');
+    const lower = file.name.toLowerCase();
+    if (/\.(pptx|jpg|jpeg|png|webp)$/i.test(lower)) {
+      setError(
+        'Images and PowerPoint files often have little extractable text. Prefer PDF, DOCX, XLSX, CSV, or Markdown for readiness and signals.'
+      );
+    }
+    if (!department.trim()) {
+      setError((prev) =>
+        prev
+          ? `${prev} Tip: tag a department so document coverage counts toward readiness.`
+          : 'Tip: tag a department so document coverage counts toward readiness.'
+      );
+    }
     setUploading(true);
     try {
       await api.uploadDocument(token, file, {
-        department: department || undefined,
+        department: department.trim() || undefined,
         reviewer_visible: reviewerVisible,
       });
       load();
@@ -61,19 +103,28 @@ export function CompanyDocuments() {
     <div className="space-y-6">
       <PageHeader
         title="Documents"
-        description="Upload SOPs, org charts, or process PDFs to enrich discovery insights. Control what assigned reviewers can see."
+        description="Upload SOPs, policies, and finance exports to build a discovery baseline. Tag departments for readiness coverage. Control what assigned reviewers can see."
       />
 
       {error && <p className="text-sm text-status-error">{error}</p>}
+
+      {loadError && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-button border border-status-error/30 bg-status-errorBg px-4 py-3 text-sm text-status-error">
+          <span>{loadError}</span>
+          <Button size="sm" variant="secondary" onClick={load}>
+            Retry
+          </Button>
+        </div>
+      )}
 
       <Card title="Upload document">
         <div className="mb-4 flex flex-wrap items-end gap-4">
           <div className="max-w-xs flex-1">
             <Input
-              label="Department (optional)"
+              label="Department (recommended)"
               value={department}
               onChange={(e) => setDepartment(e.target.value)}
-              placeholder="operations"
+              placeholder="finance, quality, operations…"
             />
           </div>
           <label className="flex cursor-pointer items-center gap-2 pb-2 text-sm text-text-primary">
@@ -89,7 +140,7 @@ export function CompanyDocuments() {
         <FileDropzone accept=".pdf,.txt,.md,.csv,.docx,.xlsx,.pptx,.jpg,.jpeg,.png,.webp" onFile={onUpload} />
         {uploading && <p className="mt-2 text-sm text-text-secondary">Uploading…</p>}
         <p className="mt-2 text-xs text-text-secondary">
-          Supported: PDF, TXT, MD, CSV, DOCX, XLSX, PPTX, and images (max 25MB).
+          Best: PDF, DOCX, XLSX, CSV, Markdown. PPTX and images are accepted but often fail text extraction (min 40 characters required for Ready).
         </p>
       </Card>
 
@@ -137,7 +188,13 @@ export function CompanyDocuments() {
           },
         ]}
         rows={documents as CompanyDocument[]}
-        emptyState={<EmptyState title="No documents" description="Upload your first document to enrich insights." />}
+        emptyState={
+          <EmptyState
+            title="No documents yet"
+            description="Drop your first SOP, policy, or export above to start a document baseline — no employees required."
+            action={{ label: 'Invite employees later', onClick: () => navigate('/company/employees') }}
+          />
+        }
       />
     </div>
   );

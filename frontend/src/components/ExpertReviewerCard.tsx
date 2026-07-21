@@ -25,7 +25,7 @@ export function ExpertReviewerCard({ reviewer, compact }: Props) {
           <div className="flex flex-wrap items-center gap-2">
             <h4 className="m-0 text-base font-medium text-text-primary">{reviewer.name}</h4>
             {reviewer.platform_verified && (
-              <Badge variant="success">Req verified</Badge>
+              <Badge variant="success">Worktruth verified</Badge>
             )}
           </div>
           {reviewer.headline && (

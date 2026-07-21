@@ -30,7 +30,7 @@ export function Modal({
         </DialogHeader>
         <div className="overflow-y-auto px-6 py-4">{children}</div>
         {footer && (
-          <div className="flex items-center justify-end gap-2 border-t px-6 py-4">{footer}</div>
+          <div className="flex flex-wrap items-center justify-end gap-2 border-t px-6 py-4">{footer}</div>
         )}
       </DialogContent>
     </Dialog>

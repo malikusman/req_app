@@ -10,8 +10,8 @@ export function ReviewerLogin() {
   return (
     <LoginForm
       portal="reviewer"
-      portalName="Reviewer Portal"
-      tagline="Review AI-generated reports and coordinate expert analysis."
+      portalName="Worktruth — Reviewer"
+      tagline="Review discovery reports and coordinate expert analysis."
       defaultEmail="reviewer@reqapp.local"
       footer={<Link to="/">← Back to home</Link>}
       onSubmit={async (email, password) => {

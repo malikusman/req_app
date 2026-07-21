@@ -49,6 +49,7 @@ class InviteEmployeeService
     SendEmployeeInvitationJob.perform_later(invitation.id) if should_send_whatsapp
 
     company.increment!(:invited_count)
+    company.promote_to_hybrid_engagement!
 
     {
       employee: employee,

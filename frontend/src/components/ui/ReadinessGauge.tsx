@@ -8,7 +8,25 @@ const BREAKDOWN_LABELS: Record<string, string> = {
   confirmed_patterns: 'Confirmed patterns',
   multimodal_contributions: 'Multimodal sources',
   insights_count: 'Insights captured',
+  ready_documents: 'Ready documents',
+  document_departments: 'Document departments',
 };
+
+const DOCS_PHASE_KEYS = [
+  'ready_documents',
+  'document_departments',
+  'confirmed_patterns',
+  'multimodal_contributions',
+];
+
+const INTERVIEW_PHASE_KEYS = [
+  'employees_interviewed',
+  'departments_represented',
+  'confirmed_patterns',
+  'multimodal_contributions',
+  'ready_documents',
+  'document_departments',
+];
 
 function breakdownLabel(key: string): string {
   return BREAKDOWN_LABELS[key] ?? key.replace(/_/g, ' ');
@@ -17,14 +35,20 @@ function breakdownLabel(key: string): string {
 export function ReadinessGauge({
   score,
   breakdown,
+  docsFirstPhase = false,
   className,
 }: {
   score: number;
   breakdown: Record<string, number>;
+  docsFirstPhase?: boolean;
   className?: string;
 }) {
   const clamped = Math.min(100, Math.max(0, score));
   const data = [{ name: 'score', value: clamped, fill: 'hsl(var(--chart-1))' }];
+  const keys = docsFirstPhase ? DOCS_PHASE_KEYS : INTERVIEW_PHASE_KEYS;
+  const entries = keys
+    .filter((key) => breakdown[key] !== undefined)
+    .map((key) => [key, breakdown[key]] as const);
 
   return (
     <motion.div
@@ -32,6 +56,9 @@ export function ReadinessGauge({
       animate={{ opacity: 1 }}
       className={cn('flex flex-col items-center gap-4', className)}
     >
+      <p className="text-xs font-medium uppercase tracking-wide text-text-secondary">
+        {docsFirstPhase ? 'Document baseline phase' : 'Interview + documents phase'}
+      </p>
       <div className="relative h-48 w-48">
         <ResponsiveContainer width="100%" height="100%">
           <RadialBarChart
@@ -59,7 +86,7 @@ export function ReadinessGauge({
         </motion.div>
       </div>
       <ul className="w-full space-y-2">
-        {Object.entries(breakdown).map(([key, val], i) => (
+        {entries.map(([key, val], i) => (
           <motion.li
             key={key}
             initial={{ opacity: 0, x: -6 }}

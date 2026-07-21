@@ -216,6 +216,25 @@ class NotificationService
     )
   end
 
+  def self.notify_outreach_received(outreach:, recipient:)
+    reviewer_name = outreach.reviewer_user.name
+    notify(
+      type: :outreach_received,
+      company: outreach.company,
+      recipients: recipient,
+      title: "Reviewer question for your company",
+      body: "#{reviewer_name}: #{outreach.body.to_s.truncate(160)}",
+      action_url: "#{app_host}/company/outreaches/#{outreach.id}",
+      metadata: {
+        outreach_id: outreach.id,
+        reviewer_user_id: outreach.reviewer_user_id,
+        purpose: outreach.purpose,
+        channel: outreach.channel,
+        recipient_type: outreach.recipient_type
+      }
+    )
+  end
+
   def self.notify_outreach_reply(outreach:, reply:)
     notify(
       type: :outreach_reply,

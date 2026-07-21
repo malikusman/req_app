@@ -34,6 +34,8 @@ import {
 } from '../../components/ui';
 import { PlatformCompanyReviewers } from './PlatformCompanyReviewers';
 import { ConversationMediaCard, ConversationMediaList } from '../../components/ConversationMediaCard';
+import { CompanyStackPanel } from './CompanyStackPanel';
+import { AgenticIdeasPanel } from '../shared/AgenticIdeasPanel';
 
 export function PlatformCompanyDetail() {
   const { id } = useParams();
@@ -265,6 +267,8 @@ export function PlatformCompanyDetail() {
           { value: 'overview', label: 'Overview' },
           { value: 'conversations', label: 'Conversations' },
           { value: 'intelligence', label: 'Intelligence' },
+          { value: 'stack', label: 'Client stack' },
+          { value: 'ideas', label: 'Agentic ideas' },
           { value: 'reports', label: 'Reports' },
           { value: 'reviewers', label: 'Reviewers' },
           { value: 'audit', label: 'Audit' },
@@ -484,6 +488,18 @@ export function PlatformCompanyDetail() {
             <EmptyState title="No intelligence data" />
           )}
         </div>
+      )}
+
+      {tab === 'stack' && token && (
+        <Card title="Client systems">
+          <CompanyStackPanel token={token} companyId={companyId} />
+        </Card>
+      )}
+
+      {tab === 'ideas' && token && (
+        <Card title="Agentic AI ideas backlog">
+          <AgenticIdeasPanel token={token} companyId={companyId} mode="platform" />
+        </Card>
       )}
 
       {tab === 'reports' && (

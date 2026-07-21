@@ -34,8 +34,12 @@ module Reports
       raise Error, "Gotenberg failed: #{response.code}" unless response.is_a?(Net::HTTPSuccess)
 
       response.body
-    rescue Error, Errno::ECONNREFUSED, SocketError => e
-      Rails.logger.warn("[PDF] Gotenberg unavailable (#{e.message}), storing HTML fallback")
+    rescue Error, Errno::ECONNREFUSED, SocketError, Net::OpenTimeout, Net::ReadTimeout => e
+      unless MocksAllowed.allowed?
+        raise Error, "PDF generation unavailable (#{e.message}). Ensure Gotenberg is running."
+      end
+
+      Rails.logger.warn("[PDF] Gotenberg unavailable (#{e.message}), storing HTML fallback (ALLOW_MOCKS)")
       @html
     end
 

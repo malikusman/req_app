@@ -57,7 +57,14 @@ export function CompanyConversations() {
         ]}
         rows={conversations}
         onRowClick={(c) => navigate(`/company/conversations/${c.id}`)}
-        emptyState={<EmptyState title="No conversations" description="Conversations appear when employees start interviews." />}
+        emptyState={
+          <EmptyState
+            title="No conversations yet"
+            description="Conversations appear when invited employees start WhatsApp or web interviews."
+            action={{ label: 'Invite employees', onClick: () => navigate('/company/employees') }}
+            secondaryAction={{ label: 'Upload documents instead', onClick: () => navigate('/company/documents') }}
+          />
+        }
       />
     </div>
   );

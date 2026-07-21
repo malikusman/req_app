@@ -14,8 +14,8 @@ const portalFeatures: Record<AuthPortal, string[]> = {
   ],
   company: [
     'Track discovery progress',
-    'View AI-generated insights',
-    'Generate transformation reports',
+    'View signals, patterns, and recommendations',
+    'Generate governed transformation reports',
   ],
   reviewer: [
     'Annotate and review reports',
@@ -60,7 +60,7 @@ export function AuthLayout({ portal, portalName, tagline, children }: AuthLayout
         >
           <motion.div variants={fadeUp} transition={transition.reveal} className="flex items-center gap-2">
             <span className="h-6 w-2 shrink-0 rounded-sm bg-primary" aria-hidden />
-            <span className="text-3xl font-bold tracking-tight text-foreground">Req</span>
+            <span className="text-3xl font-bold tracking-tight text-foreground">Worktruth</span>
           </motion.div>
           <motion.p
             variants={fadeUp}
@@ -97,7 +97,7 @@ export function AuthLayout({ portal, portalName, tagline, children }: AuthLayout
           animate={reduced ? undefined : { opacity: 1 }}
           transition={{ ...transition.reveal, delay: 0.35 }}
         >
-          &ldquo;The most actionable operational intelligence we&apos;ve ever seen.&rdquo;
+          &ldquo;Documents and conversations on one evidence graph — so leadership sees how work actually happens.&rdquo;
         </motion.blockquote>
       </div>
 

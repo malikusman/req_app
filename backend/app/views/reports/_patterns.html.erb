@@ -1,21 +1,53 @@
 <% company_name = snapshot.dig("company", "name") %>
+<% implications = Array(snapshot["implications"]) %>
 <section class="page">
   <div class="eyebrow">06 — Patterns</div>
   <h1 style="font-size:28pt;margin:4mm 0 3mm;">Cross-team themes</h1>
-  <p class="lead" style="max-width:200mm;">Each pattern connects several signals across departments. Confidence reflects how consistently the theme appeared across interviews and evidence.</p>
+  <p class="lead" style="max-width:200mm;">Each pattern connects several signals across departments. Confidence reflects how consistently the theme appeared across documents, interviews, and evidence.</p>
   <div class="patterns-3">
     <% Array(patterns).each do |pattern| %>
       <% cat = report_pattern_category_class(pattern["title"]) %>
       <% conf = report_pct(pattern["confidence"]) %>
+      <% depts = Array(pattern["departments"]).reject(&:blank?) %>
+      <% labels = Array(pattern["linked_signal_labels"]).reject(&:blank?) %>
       <div class="pattern-card">
         <%= report_donut_svg(conf, report_category_color(cat)) %>
         <div>
           <div class="st"><%= h pattern["title"] %></div>
-          <div class="meta">Confidence <%= format("%.2f", pattern["confidence"].to_f) %></div>
+          <div class="meta">
+            Confidence <%= format("%.2f", pattern["confidence"].to_f) %>
+            <% if depts.any? %> · <%= h depts.join(", ") %><% end %>
+            <% if pattern["evidence_count"].to_i.positive? %> · <%= pattern["evidence_count"] %> evidence<% end %>
+          </div>
           <p><%= h pattern["description"] %></p>
+          <% if labels.any? %>
+            <div class="meta" style="margin-top:2mm;">Linked signals: <%= h labels.first(4).join("; ") %></div>
+          <% end %>
         </div>
       </div>
     <% end %>
   </div>
   <%= render "reports/page_footer", company_name: company_name %>
 </section>
+
+<% if implications.any? %>
+<section class="page">
+  <div class="eyebrow">06b — Implications</div>
+  <h1 style="font-size:28pt;margin:4mm 0 3mm;">What this means if left unaddressed</h1>
+  <p class="lead" style="max-width:200mm;">These implications are derived from the patterns above — departments involved, linked signals, and documented evidence counts. No speculative ROI is invented here.</p>
+  <div class="card-grid-3">
+    <% implications.each do |item| %>
+      <% cat = report_pattern_category_class(item["title"]) %>
+      <div class="rec-card">
+        <div class="match <%= cat %>"><%= h report_category_label(cat) %></div>
+        <h4><%= h item["title"] %></h4>
+        <p><%= h item["statement"] %></p>
+        <% if Array(item["signal_labels"]).any? %>
+          <div class="meta" style="margin-top:2mm;font-size:8pt;">Driven by: <%= h Array(item["signal_labels"]).first(3).join("; ") %></div>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+  <%= render "reports/page_footer", company_name: company_name %>
+</section>
+<% end %>

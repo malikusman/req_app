@@ -2,17 +2,20 @@
 
 module Intelligence
   class SignalUpsertService
-    def self.call(company:, signals:, department: nil)
-      new(company: company, signals: signals, department: department).call
+    def self.call(company:, signals:, department: nil, reconcile_stale: false)
+      new(company: company, signals: signals, department: department, reconcile_stale: reconcile_stale).call
     end
 
-    def initialize(company:, signals:, department: nil)
+    def initialize(company:, signals:, department: nil, reconcile_stale: false)
       @company = company
       @signals = signals
       @department = department
+      @reconcile_stale = reconcile_stale
     end
 
     def call
+      seen_ids = []
+
       @signals.each do |attrs|
         signal = CompanySignal.find_or_initialize_by(
           company: @company,
@@ -22,59 +25,64 @@ module Intelligence
 
         departments = (signal.departments + Array(@department)).compact.uniq
         now = Time.current
+        new_strength = attrs[:strength].to_f
+        new_evidence = attrs[:evidence_count].to_i
 
         if signal.new_record?
           signal.assign_attributes(
-            strength: attrs[:strength],
-            evidence_count: attrs[:evidence_count],
+            strength: new_strength,
+            evidence_count: new_evidence,
             departments: departments,
             first_seen_at: now,
             last_updated_at: now,
-            strength_history: [{ "strength" => attrs[:strength], "at" => now.iso8601 }],
-            metadata: metadata_with_evidence({}, attrs)
+            strength_history: [{ "strength" => new_strength, "at" => now.iso8601 }],
+            metadata: metadata_from_attrs(attrs)
           )
           signal.save!
           TimelineRecorder.signal_detected!(company: @company, signal: signal)
         else
-          new_strength = [signal.strength, attrs[:strength]].max
+          previous_strength = signal.strength.to_f
+          history = signal.strength_history
+          if new_strength > previous_strength + 0.05
+            history = history + [{ "strength" => previous_strength, "at" => now.iso8601 }]
+          end
+
           signal.update!(
-            evidence_count: signal.evidence_count + attrs[:evidence_count],
+            evidence_count: new_evidence,
+            strength: new_strength,
             departments: departments,
             last_updated_at: now,
-            metadata: metadata_with_evidence(signal.metadata, attrs)
+            strength_history: history,
+            metadata: metadata_from_attrs(attrs),
+            status: new_strength >= 0.7 ? "confirmed" : signal.status
           )
-          if new_strength > signal.strength + 0.05
-            signal.record_strength!(new_strength)
+
+          if new_strength > previous_strength + 0.05
             TimelineRecorder.signal_strengthened!(company: @company, signal: signal)
           end
         end
+
+        seen_ids << signal.id
       end
+
+      if @reconcile_stale
+        @company.company_signals.where.not(id: seen_ids).find_each(&:destroy!)
+      end
+
+      seen_ids
     end
 
     private
 
-    def metadata_with_evidence(existing, attrs)
-      merged = merge_multimodal_evidence(
-        Array(existing["multimodal_evidence"]),
-        Array(attrs[:multimodal_evidence])
-      )
-      excerpts = merge_source_excerpts(
-        Array(existing["source_excerpts"]),
-        Array(attrs[:source_excerpts])
-      )
-      existing.merge("multimodal_evidence" => merged, "source_excerpts" => excerpts)
-    end
-
-    def merge_multimodal_evidence(existing, incoming)
-      (existing + incoming.map { |item| item.stringify_keys }).uniq do |item|
-        [item["source"], item["id"]]
-      end.first(Intelligence::SignalExtractor::MAX_EVIDENCE)
-    end
-
-    def merge_source_excerpts(existing, incoming)
-      (existing + incoming.map { |item| item.stringify_keys }).uniq do |item|
-        item["message_id"]
-      end.first(Intelligence::SignalExtractor::MAX_EVIDENCE)
+    def metadata_from_attrs(attrs)
+      {
+        "multimodal_evidence" => Array(attrs[:multimodal_evidence]).map { |item|
+          item.respond_to?(:stringify_keys) ? item.stringify_keys : item
+        }.first(Intelligence::SignalExtractor::MAX_EVIDENCE),
+        "source_excerpts" => Array(attrs[:source_excerpts]).map { |item|
+          item.respond_to?(:stringify_keys) ? item.stringify_keys : item
+        }.first(Intelligence::SignalExtractor::MAX_EVIDENCE)
+      }
     end
   end
 end
