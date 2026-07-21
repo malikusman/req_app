@@ -18,12 +18,12 @@ module Openai
       return mock_transcript(language) unless configured?
 
       uri = URI("#{API_BASE}/audio/transcriptions")
-      request = multipart_request(uri, {
+      # multipart_request already returns the parsed JSON body
+      multipart_request(uri, {
         model: ENV.fetch("OPENAI_WHISPER_MODEL", "whisper-1"),
         language: language,
         file: File.open(file_path)
-      })
-      parse_json(request)["text"].to_s.strip
+      })["text"].to_s.strip
     end
 
     def describe_image(file_path:, language: "en")
