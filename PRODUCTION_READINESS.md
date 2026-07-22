@@ -51,8 +51,8 @@ Severity legend: **BLOCKER** (no production traffic until fixed) · **HIGH** (fi
 | BLK-1 | BLOCKER | OCR fabricates fake business data on OpenAI failure | Done |
 | BLK-2 | BLOCKER | No database backups | |
 | BLK-3 | BLOCKER | PII stored in plaintext (no encryption at rest) | |
-| BLK-4 | BLOCKER | No error tracking in any runtime | |
-| BLK-5 | BLOCKER | Stripe webhook fails open; mock checkout wired into prod | |
+| BLK-4 | BLOCKER | No error tracking in any runtime | Deferred — LangSmith for agent (easy-wins track) |
+| BLK-5 | BLOCKER | Stripe webhook fails open; mock checkout wired into prod | Done |
 | BLK-6 | BLOCKER | pgvector has no ANN index (full scans on hot path) | |
 | HIGH-1 | HIGH | No rate limiting / brute-force protection | |
 | HIGH-2 | HIGH | `Rails.cache` is per-container file store (no shared Redis cache) | |

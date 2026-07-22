@@ -5,14 +5,16 @@ module Api
     module Billing
       class MockCheckoutController < ApplicationController
         def show
+          return head :not_found unless MocksAllowed.allowed?
+
           payload = Rails.cache.read("mock_checkout:#{params[:token]}")&.with_indifferent_access
           return render plain: "Invalid or expired checkout link", status: :not_found unless payload
 
-          company = Company.find(payload[:company_id])
+          company = ::Company.find(payload[:company_id])
           sub = company.subscription
           plan = payload[:plan].to_s
 
-          Subscriptions::PlanLimits.apply_defaults!(sub)
+          ::Subscriptions::PlanLimits.apply_defaults!(sub)
           sub.update!(
             plan: plan,
             status: "active",
