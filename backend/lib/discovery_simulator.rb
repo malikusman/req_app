@@ -207,6 +207,13 @@ class DiscoverySimulator
     EmployeeInvitation.where(employee_id: employee.id).delete_all
     EmployeeAccessCode.where(employee_id: employee.id).delete_all
     AccessCodeVerificationAttempt.where(employee_id: employee.id).delete_all
+    EmployeeValueDigest.where(employee_id: employee.id).delete_all
+    EmployeeValuePreference.where(employee_id: employee.id).delete_all
+    EmployeeMarketAlert.where(employee_id: employee.id).delete_all
+    EmployeeWebSession.where(employee_id: employee.id).delete_all
+    MediaAttachment.where(employee_id: employee.id).delete_all
+    ReviewerOutreach.where(employee_id: employee.id).delete_all if defined?(ReviewerOutreach)
+    ReviewDiscussion.where(employee_id: employee.id).delete_all if defined?(ReviewDiscussion)
     employee.delete
   end
 
