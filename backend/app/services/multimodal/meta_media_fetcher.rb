@@ -45,6 +45,8 @@ module Multimodal
       uri = URI("https://graph.facebook.com/#{version}/#{media_id}")
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = true
+      http.open_timeout = 5
+      http.read_timeout = 30
       request = Net::HTTP::Get.new(uri)
       request["Authorization"] = "Bearer #{token}"
       response = http.request(request)
@@ -58,6 +60,8 @@ module Multimodal
       uri = URI(url)
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = true
+      http.open_timeout = 5
+      http.read_timeout = 60
       request = Net::HTTP::Get.new(uri)
       request["Authorization"] = "Bearer #{ENV.fetch('META_WHATSAPP_TOKEN')}"
       response = http.request(request)

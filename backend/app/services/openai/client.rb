@@ -234,6 +234,7 @@ module Openai
       uri = URI(url)
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = true
+      http.open_timeout = 5
       http.read_timeout = 120
       request = Net::HTTP::Post.new(uri)
       request["Authorization"] = "Bearer #{api_key}"
@@ -247,6 +248,7 @@ module Openai
       body = build_multipart_body(boundary, fields)
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = true
+      http.open_timeout = 5
       http.read_timeout = 120
       request = Net::HTTP::Post.new(uri)
       request["Authorization"] = "Bearer #{api_key}"

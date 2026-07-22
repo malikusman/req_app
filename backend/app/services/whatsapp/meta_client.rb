@@ -119,6 +119,8 @@ module Whatsapp
       uri = URI("https://graph.facebook.com/#{@api_version}/#{@phone_number_id}/messages")
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = true
+      http.open_timeout = 5
+      http.read_timeout = 30
       request = Net::HTTP::Post.new(uri)
       request["Authorization"] = "Bearer #{@token}"
       request["Content-Type"] = "application/json"
