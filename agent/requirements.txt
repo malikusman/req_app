@@ -7,3 +7,4 @@ langchain-core==0.3.28
 pydantic==2.10.3
 pydantic-settings==2.6.1
 redis==5.2.1
+langsmith>=0.1.147,<0.3

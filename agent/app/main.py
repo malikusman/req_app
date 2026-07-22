@@ -6,12 +6,20 @@ from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
 
 from app.circuit_breaker import is_open
-from app.config import settings
+from app.config import configure_langsmith, settings
 from app.graph import execute_turn
 from app.multi_agent_graph import execute_multi_agent_turn
 from app.router import build_agent_queue
 
 app = FastAPI(title="Req Discovery Agent", version="1.0.0")
+
+if configure_langsmith():
+    import logging
+
+    logging.getLogger("uvicorn.error").info(
+        "LangSmith tracing enabled (project=%s)",
+        settings.langsmith_project,
+    )
 
 
 class PlaybookPayload(BaseModel):

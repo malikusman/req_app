@@ -51,7 +51,7 @@ Severity legend: **BLOCKER** (no production traffic until fixed) · **HIGH** (fi
 | BLK-1 | BLOCKER | OCR fabricates fake business data on OpenAI failure | Done |
 | BLK-2 | BLOCKER | No database backups | |
 | BLK-3 | BLOCKER | PII stored in plaintext (no encryption at rest) | |
-| BLK-4 | BLOCKER | No error tracking in any runtime | Deferred — LangSmith for agent (easy-wins track) |
+| BLK-4 | BLOCKER | No error tracking in any runtime | Partial — LangSmith agent tracing (Sentry deferred) |
 | BLK-5 | BLOCKER | Stripe webhook fails open; mock checkout wired into prod | Done |
 | BLK-6 | BLOCKER | pgvector has no ANN index (full scans on hot path) | |
 | HIGH-1 | HIGH | No rate limiting / brute-force protection | |
@@ -543,9 +543,11 @@ Add missing entries to `.env.example` and `deploy/.env.production.example`. **Bo
 | **`REDIS_CACHE_URL`** | Rails cache | HIGH-2 — optional; defaults to `REDIS_URL` with Redis DB `/1` |
 | `OPENAI_API_KEY` | Rails, agent | Rotate current dev key |
 | `OPENAI_VISION_MODEL` | Rails | default `gpt-4o-mini` |
-| **`SENTRY_DSN`** | Rails/Sidekiq | BLK-4 |
-| **`VITE_SENTRY_DSN`** | Frontend | BLK-4 |
-| **`SENTRY_DSN` (agent)** | Python agent | BLK-4 |
+| **`SENTRY_DSN`** | Rails/Sidekiq | BLK-4 (deferred on easy-wins track) |
+| **`VITE_SENTRY_DSN`** | Frontend | BLK-4 (deferred) |
+| **`LANGSMITH_API_KEY`** | Python agent | BLK-4 — enables LangSmith tracing when set |
+| **`LANGSMITH_PROJECT`** | Python agent | default `worktruth-agent` |
+| **`LANGSMITH_TRACING`** | Python agent | optional; auto-on when API key set; `false` to disable |
 | **`STRIPE_SECRET_KEY`** | Rails | BLK-5 |
 | **`STRIPE_WEBHOOK_SECRET`** | Rails | BLK-5 — hard-required in prod |
 | `INTERNAL_API_TOKEN` | Rails internal API | HIGH-3 — remove default, require in prod |
