@@ -171,7 +171,10 @@ module Openai
         max_tokens: 1200
       }
       post_json("#{API_BASE}/chat/completions", body).dig("choices", 0, "message", "content").to_s.strip
-    rescue StandardError
+    rescue StandardError => e
+      raise unless MocksAllowed.allowed?
+
+      Rails.logger.warn("[OCR] scanned_pdf fell back to mock: #{e.class}: #{e.message}")
       mock_scanned_pdf_text(language)
     end
 
@@ -207,7 +210,10 @@ module Openai
       begin
         structured = understand_image_structured(file_path: file_path, caption: nil, language: language)
         flatten_image_insights_to_text(structured)
-      rescue StandardError
+      rescue StandardError => inner
+        raise inner unless MocksAllowed.allowed?
+
+        Rails.logger.warn("[OCR] image fell back to mock: #{inner.class}: #{inner.message}")
         mock_image_ocr_text(language)
       end
     end

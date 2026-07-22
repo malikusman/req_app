@@ -39,4 +39,14 @@ RSpec.describe Multimodal::OcrFallback do
     expect(client).to have_received(:ocr_scanned_pdf)
     FileUtils.rm_f(pdf_path)
   end
+
+  it "returns empty string when OCR raises so ParseDocumentService can mark failed" do
+    client = instance_double(Openai::Client)
+    allow(Openai::Client).to receive(:new).and_return(client)
+    allow(client).to receive(:ocr_image).and_raise(Openai::Client::Error, "OpenAI unavailable")
+
+    text = described_class.extract(file_path: png_path, content_type: "image/png")
+
+    expect(text).to eq("")
+  end
 end

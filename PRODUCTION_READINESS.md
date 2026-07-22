@@ -46,28 +46,28 @@ Severity legend: **BLOCKER** (no production traffic until fixed) · **HIGH** (fi
 
 ## Summary table
 
-| ID | Sev | Title |
-|----|-----|-------|
-| BLK-1 | BLOCKER | OCR fabricates fake business data on OpenAI failure |
-| BLK-2 | BLOCKER | No database backups |
-| BLK-3 | BLOCKER | PII stored in plaintext (no encryption at rest) |
-| BLK-4 | BLOCKER | No error tracking in any runtime |
-| BLK-5 | BLOCKER | Stripe webhook fails open; mock checkout wired into prod |
-| BLK-6 | BLOCKER | pgvector has no ANN index (full scans on hot path) |
-| HIGH-1 | HIGH | No rate limiting / brute-force protection |
-| HIGH-2 | HIGH | `Rails.cache` is per-container file store (no shared Redis cache) |
-| HIGH-3 | HIGH | Internal API auth falls back to a public default token |
-| HIGH-4 | HIGH | External calls lack connect timeouts on a single shared queue |
-| HIGH-5 | HIGH | WhatsApp dedup permanently drops messages on transient failure |
-| HIGH-6 | HIGH | MarketIntel matching is O(employees×candidates) with N+1 |
-| HIGH-7 | HIGH | N+1s and missing indexes on hot columns |
-| HIGH-8 | HIGH | No log aggregation; health check too shallow |
-| HIGH-9 | HIGH | No data retention enforcement, erasure, or export (GDPR) |
-| HIGH-10 | HIGH | PII not filtered from logs |
-| HIGH-11 | HIGH | No frontend tests, no coverage gate, no rubocop in CI |
-| HIGH-12 | HIGH | Deploy has no rollback / backup-before-migrate; MinIO unreplicated |
-| MED-1..9 | MEDIUM | See Part A §Medium |
-| LOW-1..5 | LOW | See Part A §Low |
+| ID | Sev | Title | Status |
+|----|-----|-------|--------|
+| BLK-1 | BLOCKER | OCR fabricates fake business data on OpenAI failure | Done |
+| BLK-2 | BLOCKER | No database backups | |
+| BLK-3 | BLOCKER | PII stored in plaintext (no encryption at rest) | |
+| BLK-4 | BLOCKER | No error tracking in any runtime | |
+| BLK-5 | BLOCKER | Stripe webhook fails open; mock checkout wired into prod | |
+| BLK-6 | BLOCKER | pgvector has no ANN index (full scans on hot path) | |
+| HIGH-1 | HIGH | No rate limiting / brute-force protection | |
+| HIGH-2 | HIGH | `Rails.cache` is per-container file store (no shared Redis cache) | |
+| HIGH-3 | HIGH | Internal API auth falls back to a public default token | |
+| HIGH-4 | HIGH | External calls lack connect timeouts on a single shared queue | |
+| HIGH-5 | HIGH | WhatsApp dedup permanently drops messages on transient failure | |
+| HIGH-6 | HIGH | MarketIntel matching is O(employees×candidates) with N+1 | |
+| HIGH-7 | HIGH | N+1s and missing indexes on hot columns | |
+| HIGH-8 | HIGH | No log aggregation; health check too shallow | |
+| HIGH-9 | HIGH | No data retention enforcement, erasure, or export (GDPR) | |
+| HIGH-10 | HIGH | PII not filtered from logs | |
+| HIGH-11 | HIGH | No frontend tests, no coverage gate, no rubocop in CI | |
+| HIGH-12 | HIGH | Deploy has no rollback / backup-before-migrate; MinIO unreplicated | |
+| MED-1..9 | MEDIUM | See Part A §Medium | |
+| LOW-1..5 | LOW | See Part A §Low | |
 
 ---
 
