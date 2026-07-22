@@ -57,11 +57,11 @@ Severity legend: **BLOCKER** (no production traffic until fixed) · **HIGH** (fi
 | HIGH-1 | HIGH | No rate limiting / brute-force protection | |
 | HIGH-2 | HIGH | `Rails.cache` is per-container file store (no shared Redis cache) | Done |
 | HIGH-3 | HIGH | Internal API auth falls back to a public default token | Done |
-| HIGH-4 | HIGH | External calls lack connect timeouts on a single shared queue | |
+| HIGH-4 | HIGH | External calls lack connect timeouts on a single shared queue | Partial — open/read timeouts (queue split deferred) |
 | HIGH-5 | HIGH | WhatsApp dedup permanently drops messages on transient failure | |
 | HIGH-6 | HIGH | MarketIntel matching is O(employees×candidates) with N+1 | |
 | HIGH-7 | HIGH | N+1s and missing indexes on hot columns | |
-| HIGH-8 | HIGH | No log aggregation; health check too shallow | |
+| HIGH-8 | HIGH | No log aggregation; health check too shallow | Partial — `/health/ready` (logs/Sidekiq healthcheck deferred) |
 | HIGH-9 | HIGH | No data retention enforcement, erasure, or export (GDPR) | |
 | HIGH-10 | HIGH | PII not filtered from logs | |
 | HIGH-11 | HIGH | No frontend tests, no coverage gate, no rubocop in CI | |

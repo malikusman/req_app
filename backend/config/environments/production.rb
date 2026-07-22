@@ -40,14 +40,14 @@ Rails.application.configure do
   # Cloudflare (or Caddy) terminates TLS; origin receives HTTP with X-Forwarded-Proto.
   config.assume_ssl = true
   config.force_ssl = ENV.fetch("FORCE_SSL", "true") == "true"
-  config.ssl_options = { redirect: { exclude: ->(request) { request.path == "/up" } } }
+  config.ssl_options = { redirect: { exclude: ->(request) { %w[/up /health/ready].include?(request.path) } } }
 
   if (app_host = ENV["APP_HOST"].presence)
     host = app_host.to_s.sub(%r{\Ahttps?://}, "").split("/").first
     config.hosts << host if host.present?
   end
   config.hosts << "localhost" << "rails"
-  config.host_authorization = { exclude: ->(request) { request.path == "/up" } }
+  config.host_authorization = { exclude: ->(request) { %w[/up /health/ready].include?(request.path) } }
 
   # Log to STDOUT by default
   config.logger = ActiveSupport::Logger.new(STDOUT)
