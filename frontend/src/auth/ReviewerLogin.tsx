@@ -13,7 +13,14 @@ export function ReviewerLogin() {
       portalName="Worktruth — Reviewer"
       tagline="Review discovery reports and coordinate expert analysis."
       defaultEmail="reviewer@reqapp.local"
-      footer={<Link to="/">← Back to home</Link>}
+      forgotPasswordTo="/auth/forgot-password?portal=reviewer"
+      footer={
+        <>
+          <Link to="/reviewer/apply">Become a reviewer</Link>
+          {' · '}
+          <Link to="/">Back to home</Link>
+        </>
+      }
       onSubmit={async (email, password) => {
         const data = await api.reviewerLogin(email, password);
         setSession({ portal: 'reviewer', token: data.token, user: data.user });

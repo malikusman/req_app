@@ -21,6 +21,7 @@ class Company < ApplicationRecord
   has_many :reviewer_users, through: :reviewer_assignments
   has_many :reviewer_chat_messages, dependent: :destroy
   has_many :company_memory_facts, dependent: :destroy
+  has_one :company_registration, dependent: :destroy
 
   def bot_phone_display
     ENV.fetch("META_WHATSAPP_DISPLAY_NUMBER", "+1 000 000 0000")
@@ -29,7 +30,17 @@ class Company < ApplicationRecord
   validates :name, :slug, presence: true
   validates :slug, uniqueness: true, format: { with: /\A[a-z0-9\-]+\z/ }
 
+  APPROVAL_STATUSES = %w[pending_approval approved rejected].freeze
+
+  validates :approval_status, inclusion: { in: APPROVAL_STATUSES }
+
   before_validation :generate_slug, on: :create
+
+  scope :approved, -> { where(approval_status: "approved") }
+
+  def approved_for_access?
+    approval_status == "approved"
+  end
 
   DEFAULT_SETTINGS = {
     "engagement_mode" => "hybrid",
@@ -90,6 +101,13 @@ class Company < ApplicationRecord
   private
 
   def generate_slug
-    self.slug ||= name.to_s.parameterize
+    base = name.to_s.parameterize.presence || "company"
+    candidate = base
+    suffix = 0
+    while self.class.exists?(slug: candidate)
+      suffix += 1
+      candidate = "#{base}-#{suffix}"
+    end
+    self.slug ||= candidate
   end
 end

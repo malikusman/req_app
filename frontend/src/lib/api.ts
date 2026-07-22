@@ -45,6 +45,88 @@ export const api = {
       body: JSON.stringify(payload),
     }),
 
+  publicCompanyRegistration: (payload: {
+    company_name: string;
+    display_name?: string;
+    admin_name: string;
+    admin_email: string;
+    role_title?: string;
+    notes?: string;
+    website?: string;
+  }) =>
+    request<{ ok: boolean; registration?: { id: number; status: string } }>(
+      '/api/v1/public/company_registrations',
+      { method: 'POST', body: JSON.stringify(payload) }
+    ),
+
+  publicReviewerApplication: (payload: {
+    name: string;
+    email: string;
+    headline?: string;
+    expertise_summary?: string;
+    notes?: string;
+    website?: string;
+  }) =>
+    request<{ ok: boolean; application?: { id: number; status: string } }>(
+      '/api/v1/public/reviewer_applications',
+      { method: 'POST', body: JSON.stringify(payload) }
+    ),
+
+  requestPasswordReset: (portal: string, email: string) =>
+    request<{ ok: boolean }>('/api/v1/public/password_resets', {
+      method: 'POST',
+      body: JSON.stringify({ portal, email }),
+    }),
+
+  verifyPasswordReset: (token: string) =>
+    request<{ ok: boolean; portal: string; email: string; name?: string }>(
+      `/api/v1/public/password_resets/verify?token=${encodeURIComponent(token)}`
+    ),
+
+  confirmPasswordReset: (token: string, password: string, password_confirmation: string) =>
+    request<{ ok: boolean }>('/api/v1/public/password_resets/confirm', {
+      method: 'PUT',
+      body: JSON.stringify({ token, password, password_confirmation }),
+    }),
+
+  platformRegistrations: (token: string, status?: string) =>
+    request<{
+      company_registrations: CompanyRegistrationRow[];
+      reviewer_applications: ReviewerApplicationRow[];
+    }>(
+      `/api/v1/platform/registrations${status ? `?status=${encodeURIComponent(status)}` : ''}`,
+      {},
+      token
+    ),
+
+  approveCompanyRegistration: (token: string, id: number, review_note?: string) =>
+    request<{ company_registration: CompanyRegistrationRow }>(
+      `/api/v1/platform/registrations/companies/${id}/approve`,
+      { method: 'POST', body: JSON.stringify({ review_note }) },
+      token
+    ),
+
+  rejectCompanyRegistration: (token: string, id: number, review_note?: string) =>
+    request<{ company_registration: CompanyRegistrationRow }>(
+      `/api/v1/platform/registrations/companies/${id}/reject`,
+      { method: 'POST', body: JSON.stringify({ review_note }) },
+      token
+    ),
+
+  approveReviewerApplication: (token: string, id: number, review_note?: string) =>
+    request<{ reviewer_application: ReviewerApplicationRow }>(
+      `/api/v1/platform/registrations/reviewers/${id}/approve`,
+      { method: 'POST', body: JSON.stringify({ review_note }) },
+      token
+    ),
+
+  rejectReviewerApplication: (token: string, id: number, review_note?: string) =>
+    request<{ reviewer_application: ReviewerApplicationRow }>(
+      `/api/v1/platform/registrations/reviewers/${id}/reject`,
+      { method: 'POST', body: JSON.stringify({ review_note }) },
+      token
+    ),
+
   platformLogin: (email: string, password: string) =>
     request<{ token: string; user: { id: number; email: string; name: string; role: string } }>(
       '/api/v1/auth/platform/login',
@@ -1693,7 +1775,37 @@ export interface Company {
   locale: string;
   report_readiness_score: number;
   portal_onboarding_completed_at: string | null;
+  approval_status?: string;
   subscription: { plan: string; status: string; trial_ends_at: string | null } | null;
+  created_at: string;
+}
+
+export interface CompanyRegistrationRow {
+  id: number;
+  status: string;
+  company_name: string;
+  admin_name: string;
+  admin_email: string;
+  role_title?: string | null;
+  notes?: string | null;
+  review_note?: string | null;
+  company_id: number;
+  company_approval_status?: string;
+  admin_user_status?: string;
+  created_at: string;
+  reviewed_at?: string | null;
+}
+
+export interface ReviewerApplicationRow {
+  id: number;
+  status: string;
+  name: string;
+  email: string;
+  headline?: string | null;
+  expertise_summary?: string | null;
+  application_notes?: string | null;
+  approved_at?: string | null;
+  rejected_at?: string | null;
   created_at: string;
 }
 

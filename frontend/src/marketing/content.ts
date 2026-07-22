@@ -18,6 +18,8 @@ export const marketingContent = {
     ],
     signInLabel: 'Sign in',
     ctaLabel: 'Request a demo',
+    signupLabel: 'Sign up',
+    signupHref: '/company/signup',
   },
 
   hero: {
@@ -364,6 +366,7 @@ export const marketingContent = {
       { label: 'How it works', href: '#how-it-works' },
       { label: 'Platform', href: '#platform' },
       { label: 'FAQ', href: '#faq' },
+      { label: 'Become a reviewer', href: '/reviewer/apply' },
       { label: 'Privacy', href: '/privacy' },
     ],
   },

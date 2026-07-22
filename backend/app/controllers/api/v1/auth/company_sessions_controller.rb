@@ -10,6 +10,10 @@ module Api
             return render json: { error: "Invalid email or password" }, status: :unauthorized
           end
 
+          unless user.company.approved_for_access?
+            return render json: { error: "Company account is pending approval" }, status: :forbidden
+          end
+
           unless user.company.subscription&.active_for_access?
             return render json: { error: "Subscription inactive" }, status: :forbidden
           end

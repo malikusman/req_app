@@ -10,7 +10,7 @@ class ReviewerUser < ApplicationRecord
   has_many :report_reviews, dependent: :destroy
   has_many :notifications, as: :recipient, dependent: :destroy
 
-  STATUSES = %w[active deactivated].freeze
+  STATUSES = %w[pending active deactivated rejected].freeze
 
   validates :email, presence: true, uniqueness: true
   validates :name, presence: true
@@ -19,6 +19,7 @@ class ReviewerUser < ApplicationRecord
   before_create :ensure_jti
 
   scope :active, -> { where(status: "active") }
+  scope :pending_applications, -> { where(status: "pending") }
 
   def active_company_ids
     reviewer_assignments.active.pluck(:company_id)

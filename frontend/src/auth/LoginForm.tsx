@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { Link } from 'react-router-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { AuthLayout, type AuthPortal } from '../components/layout/AuthLayout';
 import { ShineBorder } from '../components/motion';
@@ -12,12 +13,21 @@ type Props = {
   tagline: string;
   defaultEmail: string;
   footer?: React.ReactNode;
+  forgotPasswordTo?: string;
   onSubmit: (email: string, password: string) => Promise<void>;
 };
 
-export function LoginForm({ portal, portalName, tagline, defaultEmail, footer, onSubmit }: Props) {
+export function LoginForm({
+  portal,
+  portalName,
+  tagline,
+  defaultEmail,
+  footer,
+  forgotPasswordTo,
+  onSubmit,
+}: Props) {
   const [email, setEmail] = useState(defaultEmail);
-  const [password, setPassword] = useState('password123');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const reduced = useReducedMotion();
@@ -82,9 +92,14 @@ export function LoginForm({ portal, portalName, tagline, defaultEmail, footer, o
               onChange={(e) => setPassword(e.target.value)}
               required
             />
-            <a href="#" className="mt-1.5 inline-block text-sm text-text-secondary hover:text-accent">
-              Forgot password?
-            </a>
+            {forgotPasswordTo ? (
+              <Link
+                to={forgotPasswordTo}
+                className="mt-1.5 inline-block text-sm text-text-secondary hover:text-accent"
+              >
+                Forgot password?
+              </Link>
+            ) : null}
           </div>
           <Button type="submit" className="w-full" loading={loading}>
             Sign in

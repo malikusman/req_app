@@ -19,7 +19,7 @@ module Api
           authorize ::Company, :create?
           company = nil
           ActiveRecord::Base.transaction do
-            company = ::Company.create!(company_params)
+            company = ::Company.create!(company_params.merge(approval_status: "approved", approved_at: Time.current))
             Subscription.create!(
               company: company,
               plan: "trial",
@@ -81,6 +81,7 @@ module Api
             locale: company.locale,
             report_readiness_score: company.report_readiness_score,
             portal_onboarding_completed_at: company.portal_onboarding_completed_at,
+            approval_status: company.approval_status,
             subscription: subscription_json(company.subscription),
             created_at: company.created_at
           }

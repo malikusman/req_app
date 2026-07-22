@@ -13,6 +13,7 @@ export function PlatformLogin() {
       portalName="Platform Admin"
       tagline="Manage companies, trials, and system health across your Worktruth deployment."
       defaultEmail="admin@reqapp.local"
+      forgotPasswordTo="/auth/forgot-password?portal=platform"
       footer={
         <>
           Company admin? <Link to="/company/login">Company portal</Link> · <Link to="/reviewer/login">Reviewer</Link>

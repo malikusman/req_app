@@ -1,0 +1,8 @@
+New company signup pending approval
+
+Company: <%= @registration.company_name %>
+Admin:   <%= @registration.admin_name %> <<%= @registration.admin_email %>>
+Role:    <%= @registration.role_title.presence || "—" %>
+Notes:   <%= @registration.notes.presence || "—" %>
+
+Review in the platform portal → Registrations.

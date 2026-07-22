@@ -7,6 +7,10 @@ import { PrivacyPage } from './marketing/PrivacyPage';
 import { PlatformLogin } from './auth/PlatformLogin';
 import { CompanyLogin } from './auth/CompanyLogin';
 import { ReviewerLogin } from './auth/ReviewerLogin';
+import { CompanySignupPage } from './auth/CompanySignupPage';
+import { ReviewerApplyPage } from './auth/ReviewerApplyPage';
+import { ForgotPasswordPage } from './auth/ForgotPasswordPage';
+import { SetPasswordPage } from './auth/SetPasswordPage';
 import { PlatformLayout } from './portals/platform/PlatformLayout';
 import { PlatformDashboard } from './portals/platform/PlatformDashboard';
 import { PlatformCompanies } from './portals/platform/PlatformCompanies';
@@ -18,6 +22,7 @@ import { PlatformSolutions } from './portals/platform/PlatformSolutions';
 import { PlatformSystem } from './portals/platform/PlatformSystem';
 import { PlatformMonitoringPage } from './portals/platform/PlatformMonitoring';
 import { PlatformReviewers } from './portals/platform/PlatformReviewers';
+import { PlatformRegistrations } from './portals/platform/PlatformRegistrations';
 import { CompanyLayout } from './portals/company/CompanyLayout';
 import { CompanyDashboard } from './portals/company/CompanyDashboard';
 import { CompanyOnboarding } from './portals/company/CompanyOnboarding';
@@ -104,7 +109,11 @@ export default function App() {
             <Route path="/dev/ui" element={<DevUiShowcase />} />
             <Route path="/platform/login" element={<PlatformLogin />} />
             <Route path="/company/login" element={<CompanyLogin />} />
+            <Route path="/company/signup" element={<CompanySignupPage />} />
             <Route path="/reviewer/login" element={<ReviewerLogin />} />
+            <Route path="/reviewer/apply" element={<ReviewerApplyPage />} />
+            <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/auth/set-password" element={<SetPasswordPage />} />
             <Route
               path="/platform"
               element={
@@ -115,6 +124,7 @@ export default function App() {
             >
               <Route index element={<Navigate to="dashboard" replace />} />
               <Route path="dashboard" element={<PlatformDashboard />} />
+              <Route path="registrations" element={<PlatformRegistrations />} />
               <Route path="companies" element={<PlatformCompanies />} />
               <Route path="companies/:id" element={<PlatformCompanyDetail />} />
               <Route path="audit" element={<PlatformAuditLog />} />

@@ -4,6 +4,7 @@ class CompanyUser < ApplicationRecord
   has_secure_password
   belongs_to :company
   belongs_to :invited_by, class_name: "CompanyUser", optional: true
+  has_one :company_registration, dependent: :nullify
 
   ROLES = %w[company_admin company_viewer].freeze
   STATUSES = %w[pending active deactivated].freeze

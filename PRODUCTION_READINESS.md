@@ -477,6 +477,7 @@ These implement the five stakeholder concerns. They are product-facing; sequence
 
 ## FEAT-SIGNUP — Self-serve signup & approval flows
 
+- **Status:** Done
 - **Type:** Product / medium priority. Nothing exists today — three login endpoints only, no registration controller, dead "Forgot password."
 - **Evidence:** [backend/config/routes.rb:10](backend/config/routes.rb#L10) (login only); no registrations controller; [frontend/src/auth/LoginForm.tsx](frontend/src/auth/LoginForm.tsx) (hardcoded demo password, dead forgot-password); [frontend/src/marketing/MarketingNav.tsx](frontend/src/marketing/MarketingNav.tsx) / [frontend/src/marketing/sections/MarketingFooter.tsx](frontend/src/marketing/sections/MarketingFooter.tsx) (no signup entry). `CompanyUser` already has an unused `pending` status ([backend/app/models/company_user.rb:8](backend/app/models/company_user.rb#L8)); `ReviewerUser` has only active/deactivated ([backend/app/models/reviewer_user.rb:13](backend/app/models/reviewer_user.rb#L13)). `DemoRequest` has a `status` field but no admin queue consumes it.
 - **Implementation:**

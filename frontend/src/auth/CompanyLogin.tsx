@@ -13,9 +13,12 @@ export function CompanyLogin() {
       portalName="Worktruth — Company"
       tagline="Run workflow discovery and intelligence for your organization."
       defaultEmail="admin@acme.local"
+      forgotPasswordTo="/auth/forgot-password?portal=company"
       footer={
         <>
-          <Link to="/">← Back to home</Link>
+          <Link to="/company/signup">Create a company account</Link>
+          {' · '}
+          <Link to="/">Back to home</Link>
         </>
       }
       onSubmit={async (email, password) => {

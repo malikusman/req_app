@@ -48,6 +48,12 @@ export function MarketingNav() {
           >
             {nav.signInLabel}
           </Link>
+          <Link
+            to={nav.signupHref}
+            className="text-sm text-marketing-muted transition-colors hover:text-marketing-foreground"
+          >
+            {nav.signupLabel}
+          </Link>
           <Button size="sm" onClick={() => setOpen(true)}>
             {nav.ctaLabel}
           </Button>
@@ -93,6 +99,13 @@ export function MarketingNav() {
                 onClick={() => setMenuOpen(false)}
               >
                 {nav.signInLabel}
+              </Link>
+              <Link
+                to={nav.signupHref}
+                className="text-sm text-marketing-muted"
+                onClick={() => setMenuOpen(false)}
+              >
+                {nav.signupLabel}
               </Link>
               <Button
                 size="sm"

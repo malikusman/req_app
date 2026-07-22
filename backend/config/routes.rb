@@ -75,6 +75,11 @@ Rails.application.routes.draw do
         get "monitoring", to: "monitoring#show"
         get "dashboard", to: "dashboard#show"
         get "audit_logs", to: "audit_logs#index"
+        get "registrations", to: "registrations#index"
+        post "registrations/companies/:id/approve", to: "registrations#approve_company"
+        post "registrations/companies/:id/reject", to: "registrations#reject_company"
+        post "registrations/reviewers/:id/approve", to: "registrations#approve_reviewer"
+        post "registrations/reviewers/:id/reject", to: "registrations#reject_reviewer"
         resources :reviewers, only: %i[index show create update]
         get "companies/:company_id/reviewer_assignments", to: "reviewer_assignments#index"
         post "companies/:company_id/reviewer_assignments", to: "reviewer_assignments#create"
@@ -224,6 +229,12 @@ Rails.application.routes.draw do
         get "outreach/:token", to: "outreach_replies#show"
         post "outreach/:token/reply", to: "outreach_replies#create"
         post "demo_requests", to: "demo_requests#create"
+        post "company_registrations", to: "company_registrations#create"
+        post "reviewer_applications", to: "reviewer_applications#create"
+        post "password_resets", to: "password_resets#create"
+        get "password_resets/verify", to: "password_resets#show"
+        put "password_resets/confirm", to: "password_resets#update"
+        patch "password_resets/confirm", to: "password_resets#update"
       end
     end
   end

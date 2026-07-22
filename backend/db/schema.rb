@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_23_000001) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_23_010001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -198,6 +198,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_23_000001) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.jsonb "company_profile", default: {}, null: false
+    t.string "approval_status", default: "approved", null: false
+    t.datetime "approved_at"
+    t.datetime "rejected_at"
+    t.index ["approval_status"], name: "index_companies_on_approval_status"
     t.index ["slug"], name: "index_companies_on_slug", unique: true
   end
 
@@ -241,6 +245,27 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_23_000001) do
     t.index ["company_id"], name: "index_company_memory_facts_on_company_id"
     t.index ["conversation_id"], name: "index_company_memory_facts_on_conversation_id"
     t.index ["employee_id"], name: "index_company_memory_facts_on_employee_id"
+  end
+
+  create_table "company_registrations", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "company_user_id", null: false
+    t.bigint "reviewed_by_platform_user_id"
+    t.string "company_name", null: false
+    t.string "admin_name", null: false
+    t.string "admin_email", null: false
+    t.string "role_title"
+    t.text "notes"
+    t.string "status", default: "pending", null: false
+    t.text "review_note"
+    t.datetime "reviewed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["admin_email"], name: "index_company_registrations_on_admin_email"
+    t.index ["company_id"], name: "index_company_registrations_on_company_id"
+    t.index ["company_user_id"], name: "index_company_registrations_on_company_user_id"
+    t.index ["reviewed_by_platform_user_id"], name: "index_company_registrations_on_reviewed_by_platform_user_id"
+    t.index ["status"], name: "index_company_registrations_on_status"
   end
 
   create_table "company_signals", force: :cascade do |t|
@@ -1058,6 +1083,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_23_000001) do
     t.string "profile_status", default: "draft", null: false
     t.datetime "profile_completed_at"
     t.datetime "platform_verified_at"
+    t.datetime "approved_at"
+    t.datetime "rejected_at"
+    t.text "application_notes"
+    t.text "expertise_summary"
     t.index ["email"], name: "index_reviewer_users_on_email", unique: true
     t.index ["jti"], name: "index_reviewer_users_on_jti", unique: true
     t.index ["profile_status"], name: "index_reviewer_users_on_profile_status"
@@ -1156,6 +1185,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_23_000001) do
   add_foreign_key "company_memory_facts", "companies"
   add_foreign_key "company_memory_facts", "conversations"
   add_foreign_key "company_memory_facts", "employees"
+  add_foreign_key "company_registrations", "companies"
+  add_foreign_key "company_registrations", "company_users"
+  add_foreign_key "company_registrations", "platform_users", column: "reviewed_by_platform_user_id"
   add_foreign_key "company_signals", "companies"
   add_foreign_key "company_systems", "companies"
   add_foreign_key "company_users", "companies"
