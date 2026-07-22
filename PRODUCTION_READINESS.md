@@ -414,6 +414,7 @@ These implement the five stakeholder concerns. They are product-facing; sequence
 
 ## FEAT-CLUSTER — Employee relationship / "map with links" view
 
+- **Status:** Done (edges from `source_excerpts`; `signal_sources` join table deferred)
 - **Type:** Product / high perceived value. **~70% of the data already exists and is already served to the reviewer frontend — it's a presentation + edge-derivation gap, not a data gap.**
 - **Problem:** Reviewers and admins face 10+ employees with only flat tables and one-at-a-time transcripts. There's no way to see "these N employees share this pain point / department / pattern," so cross-employee links are missed. The existing Evidence Graph is close but its backend builder **never wires the important edges**.
 - **Evidence:**

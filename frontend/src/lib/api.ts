@@ -551,6 +551,13 @@ export const api = {
   intelligencePatterns: (token: string) =>
     request<{ patterns: CompanyPattern[] }>('/api/v1/company/intelligence/patterns', {}, token),
 
+  companyEvidenceGraph: (token: string) =>
+    request<{ graph: { nodes: unknown[]; edges: unknown[]; coverage: Record<string, unknown> } }>(
+      '/api/v1/company/evidence_graph',
+      {},
+      token
+    ),
+
   platformCompanyReports: (token: string, companyId: number) =>
     request<{ reports: PlatformReport[] }>(`/api/v1/platform/companies/${companyId}/reports`, {}, token),
 

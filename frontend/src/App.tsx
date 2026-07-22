@@ -25,6 +25,7 @@ import { CompanyEmployees } from './portals/company/CompanyEmployees';
 import { CompanyConversations } from './portals/company/CompanyConversations';
 import { CompanyConversationDetail } from './portals/company/CompanyConversationDetail';
 import { CompanySignals } from './portals/company/CompanySignals';
+import { CompanyEvidenceGraph } from './portals/company/CompanyEvidenceGraph';
 import { CompanyPatterns } from './portals/company/CompanyPatterns';
 import { CompanyDocuments } from './portals/company/CompanyDocuments';
 import { ReviewerDocuments } from './portals/reviewer/ReviewerDocuments';
@@ -164,6 +165,7 @@ export default function App() {
               <Route path="conversations/:id" element={<CompanyConversationDetail />} />
               <Route path="intelligence/signals" element={<CompanySignals />} />
               <Route path="intelligence/patterns" element={<CompanyPatterns />} />
+              <Route path="intelligence/clusters" element={<CompanyEvidenceGraph />} />
               <Route path="documents" element={<CompanyDocuments />} />
               <Route path="outreaches" element={<CompanyOutreaches />} />
               <Route path="meeting-requests" element={<CompanyMeetingRequests />} />

@@ -1,26 +1,24 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
 import { api } from '../../lib/api';
-import { useReviewerToken } from '../../lib/auth';
+import { useCompanyToken } from '../../lib/auth';
 import { EvidenceGraphView, type GraphPayload } from '../../components/evidence/EvidenceGraphView';
 import { Skeleton } from '../../components/ui';
 
-export function ReviewerEvidenceGraph() {
-  const { companyId } = useParams();
-  const token = useReviewerToken();
+export function CompanyEvidenceGraph() {
+  const token = useCompanyToken();
   const [graph, setGraph] = useState<GraphPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!token || !companyId) return;
+    if (!token) return;
     setLoading(true);
     api
-      .reviewerEvidenceGraph(token, Number(companyId))
+      .companyEvidenceGraph(token)
       .then((d) => setGraph(d.graph as GraphPayload))
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load graph'))
       .finally(() => setLoading(false));
-  }, [token, companyId]);
+  }, [token]);
 
   if (loading) {
     return (
@@ -37,13 +35,12 @@ export function ReviewerEvidenceGraph() {
       {graph ? (
         <EvidenceGraphView
           graph={graph}
-          documentsHref={`/reviewer/companies/${companyId}/documents`}
-          title="Evidence graph"
-          description="Employee clusters by shared signals and departments — click a node to inspect links."
+          documentsHref="/company/documents"
+          title="Employee clusters"
+          description="See which employees share the same signals and departments."
           breadcrumbs={[
-            { label: 'Dashboard', href: '/reviewer/dashboard' },
-            { label: 'Company', href: `/reviewer/companies/${companyId}` },
-            { label: 'Evidence graph' },
+            { label: 'Dashboard', href: '/company/dashboard' },
+            { label: 'Employee clusters' },
           ]}
         />
       ) : null}
