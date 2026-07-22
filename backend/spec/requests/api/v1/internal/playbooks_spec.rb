@@ -26,5 +26,13 @@ RSpec.describe "Api::V1::Internal::Playbooks", type: :request do
 
       expect(response).to have_http_status(:unauthorized)
     end
+
+    it "returns unauthorized with the wrong internal token" do
+      get "/api/v1/internal/playbooks/active",
+          params: { department: "finance" },
+          headers: { "X-Internal-Token" => "wrong-token" }
+
+      expect(response).to have_http_status(:unauthorized)
+    end
   end
 end

@@ -10,9 +10,15 @@ module InternalAuthenticatable
   private
 
   def authenticate_internal!
+    expected = ENV["INTERNAL_API_TOKEN"].to_s
+    if expected.blank?
+      raise "INTERNAL_API_TOKEN is not configured" if Rails.env.production?
+
+      return render json: { error: "unauthorized" }, status: :unauthorized
+    end
+
     token = request.headers["X-Internal-Token"].to_s
-    expected = ENV.fetch("INTERNAL_API_TOKEN", "dev-internal-token")
-    return if ActiveSupport::SecurityUtils.secure_compare(token, expected)
+    return if token.present? && ActiveSupport::SecurityUtils.secure_compare(token, expected)
 
     render json: { error: "unauthorized" }, status: :unauthorized
   end

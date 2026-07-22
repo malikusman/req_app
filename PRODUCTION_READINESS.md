@@ -56,7 +56,7 @@ Severity legend: **BLOCKER** (no production traffic until fixed) · **HIGH** (fi
 | BLK-6 | BLOCKER | pgvector has no ANN index (full scans on hot path) | |
 | HIGH-1 | HIGH | No rate limiting / brute-force protection | |
 | HIGH-2 | HIGH | `Rails.cache` is per-container file store (no shared Redis cache) | |
-| HIGH-3 | HIGH | Internal API auth falls back to a public default token | |
+| HIGH-3 | HIGH | Internal API auth falls back to a public default token | Done |
 | HIGH-4 | HIGH | External calls lack connect timeouts on a single shared queue | |
 | HIGH-5 | HIGH | WhatsApp dedup permanently drops messages on transient failure | |
 | HIGH-6 | HIGH | MarketIntel matching is O(employees×candidates) with N+1 | |
