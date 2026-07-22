@@ -62,8 +62,18 @@ Rails.application.configure do
   # want to log everything, set the level to "debug".
   config.log_level = ENV.fetch("RAILS_LOG_LEVEL", "info")
 
-  # Use a different cache store in production.
-  # config.cache_store = :mem_cache_store
+  # Shared Redis cache across rails/sidekiq (HIGH-2). Use DB /1 so Sidekiq (/0) is isolated from FLUSHDB.
+  config.cache_store = :redis_cache_store, {
+    url: (
+      ENV["REDIS_CACHE_URL"].presence ||
+      begin
+        uri = URI.parse(ENV.fetch("REDIS_URL", "redis://127.0.0.1:6379/0"))
+        uri.path = "/1"
+        uri.to_s
+      end
+    ),
+    namespace: "cache"
+  }
 
   # Use a real queuing backend for Active Job (and separate queues per environment).
   # config.active_job.queue_adapter = :resque

@@ -55,7 +55,7 @@ Severity legend: **BLOCKER** (no production traffic until fixed) · **HIGH** (fi
 | BLK-5 | BLOCKER | Stripe webhook fails open; mock checkout wired into prod | Done |
 | BLK-6 | BLOCKER | pgvector has no ANN index (full scans on hot path) | |
 | HIGH-1 | HIGH | No rate limiting / brute-force protection | |
-| HIGH-2 | HIGH | `Rails.cache` is per-container file store (no shared Redis cache) | |
+| HIGH-2 | HIGH | `Rails.cache` is per-container file store (no shared Redis cache) | Done |
 | HIGH-3 | HIGH | Internal API auth falls back to a public default token | Done |
 | HIGH-4 | HIGH | External calls lack connect timeouts on a single shared queue | |
 | HIGH-5 | HIGH | WhatsApp dedup permanently drops messages on transient failure | |
@@ -540,6 +540,7 @@ Add missing entries to `.env.example` and `deploy/.env.production.example`. **Bo
 |-----|---------|-------|
 | `DATABASE_URL` | Rails | Managed PG target (BLK-2) |
 | `REDIS_URL` | Rails, Sidekiq, cache, agent | Must be **shared** for cache (HIGH-2) & breaker sync (FEAT-AGENTS) |
+| **`REDIS_CACHE_URL`** | Rails cache | HIGH-2 — optional; defaults to `REDIS_URL` with Redis DB `/1` |
 | `OPENAI_API_KEY` | Rails, agent | Rotate current dev key |
 | `OPENAI_VISION_MODEL` | Rails | default `gpt-4o-mini` |
 | **`SENTRY_DSN`** | Rails/Sidekiq | BLK-4 |
