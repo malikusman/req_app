@@ -25,12 +25,13 @@ module Discovery
     end
 
     def call
+      playbook = nil
       ensure_thread!
       playbook = DiscoveryPlaybook.active_playbook_for(@employee.department.presence || "default")
-      raise Langgraph::UnavailableError, "no_playbook" unless playbook
+      raise Langgraph::UnavailableError.new("no_playbook", retryable: false) unless playbook
 
       if OpenaiCircuitBreaker.open?
-        return handle_unavailable!(playbook: playbook)
+        return handle_unavailable!(playbook: playbook, trip_breaker: true)
       end
 
       result = @client.run_turn!(
@@ -43,9 +44,15 @@ module Discovery
       )
 
       persist_turn!(result, playbook)
+      OpenaiCircuitBreaker.reset!
       result
-    rescue Langgraph::UnavailableError
-      handle_unavailable!(playbook: playbook)
+    rescue Langgraph::UnavailableError => e
+      Rails.logger.warn("[Discovery::ProcessTurn] #{e.message} retryable=#{e.retryable}")
+      handle_unavailable!(
+        playbook: playbook,
+        trip_breaker: e.retryable,
+        defer: e.retryable
+      )
     end
 
     private
@@ -157,11 +164,12 @@ module Discovery
       result
     end
 
-    def handle_unavailable!(playbook: nil)
-      OpenaiCircuitBreaker.trip!
+    def handle_unavailable!(playbook: nil, trip_breaker: true, defer: nil)
+      OpenaiCircuitBreaker.trip! if trip_breaker
       lang = @employee.preferred_language.presence || @company.locale
+      defer = @defer_on_failure if defer.nil?
 
-      if @defer_on_failure
+      if defer
         RetryDiscoveryTurnJob.set(wait: 30.seconds).perform_later(
           @conversation.id,
           @user_message,

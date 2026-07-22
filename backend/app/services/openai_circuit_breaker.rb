@@ -1,5 +1,9 @@
 # frozen_string_literal: true
 
+# Shared Redis flag with the Python agent (`openai:circuit_open` on REDIS_URL DB /0).
+# Rails reads the flag and may trip it only for retryable OpenAI/agent outages.
+# The agent owns windowed failure counting; Rails resets on a successful turn.
+# Fail-open on Redis errors (prefer availability over hard-block).
 class OpenaiCircuitBreaker
   KEY = "openai:circuit_open"
 

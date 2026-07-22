@@ -1,3 +1,10 @@
+"""OpenAI circuit breaker shared with Rails via Redis key `openai:circuit_open`.
+
+Both the Python agent and Rails `OpenaiCircuitBreaker` must use the same
+`REDIS_URL` (DB /0). The agent owns windowed failure counting; Rails reads the
+flag and may trip/reset on retryable outages. Fail-open on Redis errors.
+"""
+
 import time
 
 import redis

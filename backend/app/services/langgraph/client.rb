@@ -5,6 +5,8 @@ require "json"
 
 module Langgraph
   class Client
+    READ_TIMEOUT = Integer(ENV.fetch("LANGGRAPH_READ_TIMEOUT", "45"))
+
     def initialize(base_url: ENV.fetch("LANGGRAPH_URL", "http://langgraph:8000"))
       @base_url = base_url.chomp("/")
     end
@@ -42,7 +44,7 @@ module Langgraph
     rescue UnavailableError
       raise
     rescue StandardError => e
-      raise UnavailableError, e.message
+      raise UnavailableError.new(e.message, retryable: true)
     end
 
     def route!(thread_id:, profile:, limits:, context: {})
@@ -55,7 +57,7 @@ module Langgraph
     rescue UnavailableError
       raise
     rescue StandardError => e
-      raise UnavailableError, e.message
+      raise UnavailableError.new(e.message, retryable: true)
     end
 
     private
@@ -64,22 +66,33 @@ module Langgraph
       uri = URI.parse("#{@base_url}#{path}")
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = uri.scheme == "https"
-      http.open_timeout = 10
-      http.read_timeout = 120
+      http.open_timeout = 5
+      http.read_timeout = READ_TIMEOUT
 
       request = Net::HTTP::Post.new(uri)
       request["Content-Type"] = "application/json"
       request.body = body.to_json
 
       response = http.request(request)
-      parsed = JSON.parse(response.body)
-
-      if response.code.to_i == 503
-        raise UnavailableError, parsed.dig("detail", "error") || "openai_unavailable"
+      parsed = begin
+        JSON.parse(response.body)
+      rescue JSON::ParserError
+        {}
       end
 
-      unless response.is_a?(Net::HTTPSuccess)
-        raise UnavailableError, parsed["detail"] || parsed["error"] || "request_failed"
+      code = response.code.to_i
+      if code == 503 || code >= 500
+        raise UnavailableError.new(
+          parsed.dig("detail", "error") || parsed["detail"] || parsed["error"] || "openai_unavailable",
+          retryable: true
+        )
+      end
+
+      if code >= 400
+        raise UnavailableError.new(
+          parsed["detail"] || parsed["error"] || "agent_request_failed_#{code}",
+          retryable: false
+        )
       end
 
       parsed

@@ -155,5 +155,21 @@ RSpec.describe Discovery::ProcessTurnService do
       expect(conversation.reload.status).to eq("completed")
       expect(conversation.conversation_insights.last.summary).to eq("Addendum insight")
     end
+
+    it "does not trip the breaker or defer on non-retryable agent errors" do
+      expect(client).to receive(:run_turn!).and_raise(
+        Langgraph::UnavailableError.new("bad_payload", retryable: false)
+      )
+      expect(OpenaiCircuitBreaker).not_to receive(:trip!)
+      expect(RetryDiscoveryTurnJob).not_to receive(:set)
+
+      result = described_class.call(
+        conversation: conversation,
+        employee: employee,
+        user_message: "hello"
+      )
+
+      expect(result["delayed"]).to eq(true)
+    end
   end
 end

@@ -12,6 +12,7 @@ from app.state import default_limits
 SENIOR_LEVELS = {"manager", "director", "executive"}
 IC_LEVELS = {"individual_contributor", "team_lead", "manager"}
 TECHNICAL_DEPARTMENTS = {"it", "engineering", "technology"}
+REGULATED_DEPARTMENTS = {"finance", "legal", "hr", "compliance", "risk", "audit"}
 
 
 def build_agent_queue(
@@ -59,6 +60,18 @@ def build_agent_queue(
         )
     else:
         skipped.append({"id": "technical", "reason": "No tools/systems surfaced yet"})
+
+    if department in REGULATED_DEPARTMENTS:
+        agents.append(
+            {
+                "id": "compliance",
+                "priority": 3,
+                "question_budget": 2,
+                "reason": f"{department.title()} is regulated — compliance/control focus",
+            }
+        )
+    else:
+        skipped.append({"id": "compliance", "reason": f"Department {department} is not treated as regulated"})
 
     if seniority in SENIOR_LEVELS or department == "executive":
         agents.append(

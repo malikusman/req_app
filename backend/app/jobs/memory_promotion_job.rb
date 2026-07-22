@@ -25,7 +25,10 @@ class MemoryPromotionJob < ApplicationJob
       next if finding["confidence"].to_f < MIN_CONFIDENCE
       next if company.company_memory_facts.exists?(conversation_id: conversation.id, content: content)
 
-      embedding = openai.configured? ? safe_embedding(openai, content) : nil
+      next unless openai.configured?
+
+      embedding = safe_embedding(openai, content)
+      next if embedding.blank?
 
       begin
         company.company_memory_facts.create!(

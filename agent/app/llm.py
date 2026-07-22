@@ -1,4 +1,3 @@
-import json
 import time
 from typing import Any
 
@@ -7,6 +6,7 @@ from langchain_openai import ChatOpenAI
 
 from app.circuit_breaker import record_failure, record_success
 from app.config import settings
+from app.json_parse import LlmJsonParseError, extract_json_object
 
 
 class OpenAIUnavailable(Exception):
@@ -152,19 +152,36 @@ Set completed to true only when the interview should end (reached target or natu
         model=settings.openai_model,
         api_key=settings.openai_api_key,
         temperature=0.4,
+        model_kwargs={"response_format": {"type": "json_object"}},
     )
 
     last_error = None
     for attempt in range(settings.max_openai_retries + 1):
         try:
             response = llm.invoke(messages)
+            try:
+                payload = extract_json_object(response.content)
+            except LlmJsonParseError as parse_exc:
+                reformat = messages + [
+                    HumanMessage(
+                        content=(
+                            "Your previous reply was not valid JSON. "
+                            "Reply again with a single JSON object only, matching the schema."
+                        )
+                    )
+                ]
+                response = llm.invoke(reformat)
+                try:
+                    payload = extract_json_object(response.content)
+                except LlmJsonParseError:
+                    last_error = parse_exc
+                    record_failure()
+                    if attempt < settings.max_openai_retries:
+                        time.sleep(2**attempt)
+                        continue
+                    raise OpenAIUnavailable(str(parse_exc)) from parse_exc
+
             record_success()
-            content = response.content.strip()
-            if content.startswith("```"):
-                content = content.split("```")[1]
-                if content.startswith("json"):
-                    content = content[4:]
-            payload = json.loads(content)
             completed = bool(payload.get("completed")) or question_count + 1 >= question_target
             return {
                 "assistant_message": payload.get("assistant_message", ""),
@@ -172,6 +189,8 @@ Set completed to true only when the interview should end (reached target or natu
                 "completed": completed,
                 "question_count": question_count if completed else question_count + 1,
             }
+        except OpenAIUnavailable:
+            raise
         except Exception as exc:
             last_error = exc
             record_failure()

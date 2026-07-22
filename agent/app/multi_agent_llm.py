@@ -15,6 +15,7 @@ from langchain_openai import ChatOpenAI
 
 from app.circuit_breaker import record_failure, record_success
 from app.config import settings
+from app.json_parse import LlmJsonParseError, extract_json_object
 from app.llm import OpenAIUnavailable
 from app.orchestrator import needs_summary_refresh
 from app.personas import mock_question_for, persona_for
@@ -90,15 +91,40 @@ def run_agent_turn(state: dict[str, Any]) -> dict[str, Any]:
         model=settings.openai_model,
         api_key=settings.openai_api_key,
         temperature=0.4,
+        model_kwargs={"response_format": {"type": "json_object"}},
     )
 
     last_error = None
     for attempt in range(settings.max_openai_retries + 1):
         try:
             response = llm.invoke(messages)
+            try:
+                payload = _parse_payload(response.content)
+            except LlmJsonParseError as parse_exc:
+                # One reformat retry — do not trip the breaker on the first bad JSON.
+                reformat = messages + [
+                    HumanMessage(
+                        content=(
+                            "Your previous reply was not valid JSON. "
+                            "Reply again with a single JSON object only, matching the schema."
+                        )
+                    )
+                ]
+                response = llm.invoke(reformat)
+                try:
+                    payload = _parse_payload(response.content)
+                except LlmJsonParseError:
+                    last_error = parse_exc
+                    record_failure()
+                    if attempt < settings.max_openai_retries:
+                        time.sleep(2**attempt)
+                        continue
+                    raise OpenAIUnavailable(str(parse_exc)) from parse_exc
             record_success()
-            return _parse_payload(response.content)
-        except Exception as exc:  # noqa: BLE001 — circuit breaker needs all failures
+            return payload
+        except OpenAIUnavailable:
+            raise
+        except Exception as exc:  # noqa: BLE001 — transport / API failures
             last_error = exc
             record_failure()
             if attempt < settings.max_openai_retries:
@@ -241,12 +267,7 @@ Respond with JSON only:
 
 
 def _parse_payload(content: str) -> dict[str, Any]:
-    text = content.strip()
-    if text.startswith("```"):
-        text = text.split("```")[1]
-        if text.startswith("json"):
-            text = text[4:]
-    payload = json.loads(text)
+    payload = extract_json_object(content)
     finding = payload.get("finding")
     if finding and not finding.get("content"):
         payload["finding"] = None

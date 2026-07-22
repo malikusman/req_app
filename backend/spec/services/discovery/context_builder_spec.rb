@@ -47,6 +47,49 @@ RSpec.describe Discovery::ContextBuilder do
       expect(context[:document_snippets]).to eq([])
     end
 
+    it "filters memory facts below the cosine similarity threshold" do
+      company.update!(settings: company.settings.merge("discovery_memory_retrieval_enabled" => true))
+      allow(ENV).to receive(:[]).and_call_original
+      allow(ENV).to receive(:[]).with("OPENAI_API_KEY").and_return("test-key")
+
+      openai = instance_double(Openai::Client, embedding: Array.new(1536, 0.1))
+      allow(Openai::Client).to receive(:new).and_return(openai)
+
+      close = double(
+        "CloseFact",
+        content: "Invoice approval takes three days",
+        fact_type: "finding",
+        department: "finance",
+        neighbor_distance: 0.1
+      )
+      far = double(
+        "FarFact",
+        content: "Cafeteria menu changed",
+        fact_type: "finding",
+        department: "hr",
+        neighbor_distance: 0.9
+      )
+
+      facts_scope = double("MemoryFactsScope")
+      where_chain = double("WhereChain")
+      neighbors = double("Neighbors")
+      allow(company).to receive_message_chain(:company_memory_facts, :embedded).and_return(facts_scope)
+      allow(facts_scope).to receive(:where).with(no_args).and_return(where_chain)
+      allow(where_chain).to receive(:not).and_return(facts_scope)
+      allow(facts_scope).to receive(:nearest_neighbors).and_return(neighbors)
+      allow(neighbors).to receive(:first).with(3).and_return([close, far])
+
+      context = described_class.call(
+        conversation: conversation,
+        employee: employee,
+        user_message: "How do invoices get approved?"
+      )
+
+      expect(context[:memory_facts]).to eq([
+        { content: "Invoice approval takes three days", fact_type: "finding", department: "finance" }
+      ])
+    end
+
     it "retrieves whatsapp-upload document chunks when retrieval is enabled" do
       company.update!(settings: company.settings.merge("discovery_memory_retrieval_enabled" => true))
       allow(ENV).to receive(:[]).and_call_original

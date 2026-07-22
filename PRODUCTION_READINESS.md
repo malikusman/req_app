@@ -462,13 +462,14 @@ These implement the five stakeholder concerns. They are product-facing; sequence
 
 ## FEAT-AGENTS — Agent logic improvements
 
+- **Status:** Done (items 1–6; Phase D / #7 deferred)
 - **Type:** Quality / medium priority.
 - **Problems & fixes (each independent):**
-  1. **JSON parsing brittleness → false "outage".** `_parse_payload` naive fence-strip + `json.loads`; a verbose reply throws, counts against the breaker, surfaces as "OpenAI unavailable." Evidence: [agent/app/multi_agent_llm.py:204](agent/app/multi_agent_llm.py#L204). Fix: use OpenAI **structured outputs / JSON mode** (response_format) and a tolerant parser; on parse failure, one reformat retry before counting a breaker failure; distinguish parse errors from transport errors.
-  2. **Two circuit breakers can desync / fail open.** Rails and Python both key `openai:circuit_open` but only coordinate if they share the exact same Redis; both fail open on Redis error. Evidence: [agent/app/circuit_breaker.py:9](agent/app/circuit_breaker.py#L9); `backend/app/services/openai_circuit_breaker.rb`. Fix: ensure both point at the **same** Redis URL/DB (document in env matrix); consider a single owner (Python) that Rails reads. Decide fail-open vs fail-closed deliberately and document.
-  3. **Agent-service errors are all mapped to "unavailable."** A 4xx (bad payload) is retried like an outage. Evidence: [backend/app/services/langgraph/client.rb:80](backend/app/services/langgraph/client.rb#L80). Fix: treat 4xx as a permanent error (log + surface), only 5xx/timeouts as retryable `UnavailableError`. Shorten the 120s read timeout on the synchronous path.
-  4. **Shallow routing; COMPLIANCE persona never used.** Routing is fixed rules; personas differ only in prompt; `COMPLIANCE` defined but never routed. Evidence: [agent/app/router.py:17](agent/app/router.py#L17); [agent/app/personas.py:30](agent/app/personas.py#L30). Fix: either route COMPLIANCE for regulated departments (finance/legal/hr) or remove it to avoid dead code; optionally re-prioritize agents based on coverage/findings mid-interview.
-  5. **Memory retrieval injects nearest-3 regardless of relevance.** Evidence: [backend/app/services/discovery/context_builder.rb:8](backend/app/services/discovery/context_builder.rb#L8). Fix: add a cosine similarity threshold; skip injection below it (ties to BLK-6 index).
+  1. **JSON parsing brittleness → false "outage."** `_parse_payload` naive fence-strip + `json.loads`; a verbose reply throws, counts against the breaker, surfaces as "OpenAI unavailable." Evidence: [agent/app/multi_agent_llm.py](agent/app/multi_agent_llm.py). Fix: use OpenAI **structured outputs / JSON mode** (response_format) and a tolerant parser; on parse failure, one reformat retry before counting a breaker failure; distinguish parse errors from transport errors.
+  2. **Two circuit breakers can desync / fail open.** Rails and Python both key `openai:circuit_open` but only coordinate if they share the exact same Redis; both fail open on Redis error. Evidence: [agent/app/circuit_breaker.py](agent/app/circuit_breaker.py); `backend/app/services/openai_circuit_breaker.rb`. Fix: ensure both point at the **same** Redis URL/DB (document in env matrix); consider a single owner (Python) that Rails reads. Decide fail-open vs fail-closed deliberately and document.
+  3. **Agent-service errors are all mapped to "unavailable."** A 4xx (bad payload) is retried like an outage. Evidence: [backend/app/services/langgraph/client.rb](backend/app/services/langgraph/client.rb). Fix: treat 4xx as a permanent error (log + surface), only 5xx/timeouts as retryable `UnavailableError`. Shorten the 120s read timeout on the synchronous path.
+  4. **Shallow routing; COMPLIANCE persona never used.** Routing is fixed rules; personas differ only in prompt; `COMPLIANCE` defined but never routed. Evidence: [agent/app/router.py](agent/app/router.py); [agent/app/personas.py](agent/app/personas.py). Fix: either route COMPLIANCE for regulated departments (finance/legal/hr) or remove it to avoid dead code; optionally re-prioritize agents based on coverage/findings mid-interview.
+  5. **Memory retrieval injects nearest-3 regardless of relevance.** Evidence: [backend/app/services/discovery/context_builder.rb](backend/app/services/discovery/context_builder.rb). Fix: add a cosine similarity threshold; skip injection below it (ties to BLK-6 index).
   6. **Mock mode stores memory facts without embeddings** (unretrievable later). Evidence: [backend/app/jobs/memory_promotion_job.rb](backend/app/jobs/memory_promotion_job.rb). Fix: skip promotion (or mark `pending_embedding`) when no key, and re-embed when a key is available.
   7. **Phase D groundwork (future):** Postgres LangGraph checkpointer (durability for partial-turn failures), a **Gap Analyst** agent (pairs naturally with FEAT-CLUSTER — "who didn't we ask / what's missing"), and a **Reviewer Liaison** agent (suggest follow-up drafts). All planned, none started ([PROJECT_STATUS.md](PROJECT_STATUS.md) lines ~99, 352-354, 383-387).
 - **Acceptance criteria:** Malformed LLM JSON no longer trips the breaker; 4xx from the agent isn't retried as an outage; the two breakers provably share state; irrelevant memory isn't injected; no dead persona.
@@ -543,8 +544,9 @@ Add missing entries to `.env.example` and `deploy/.env.production.example`. **Bo
 | Var | Used by | Notes |
 |-----|---------|-------|
 | `DATABASE_URL` | Rails | Managed PG target (BLK-2) |
-| `REDIS_URL` | Rails, Sidekiq, cache, agent | Must be **shared** for cache (HIGH-2) & breaker sync (FEAT-AGENTS) |
+| `REDIS_URL` | Rails, Sidekiq, agent breaker | Must be **shared** DB `/0` for `openai:circuit_open` (FEAT-AGENTS). Cache should use `REDIS_CACHE_URL` (`/1`). |
 | **`REDIS_CACHE_URL`** | Rails cache | HIGH-2 — optional; defaults to `REDIS_URL` with Redis DB `/1` |
+| **`LANGGRAPH_READ_TIMEOUT`** | Rails → agent HTTP | FEAT-AGENTS — default `45` seconds |
 | `OPENAI_API_KEY` | Rails, agent | Rotate current dev key |
 | `OPENAI_VISION_MODEL` | Rails | default `gpt-4o-mini` |
 | **`SENTRY_DSN`** | Rails/Sidekiq | BLK-4 (deferred on easy-wins track) |

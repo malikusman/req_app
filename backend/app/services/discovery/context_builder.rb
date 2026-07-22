@@ -7,6 +7,8 @@ module Discovery
   class ContextBuilder
     FACT_LIMIT = 3
     CHUNK_LIMIT = 2
+    # Cosine distance from neighbor gem; keep only reasonably similar memories.
+    MAX_COSINE_DISTANCE = 0.35
 
     def self.limits_for(company)
       settings = company.merged_settings
@@ -79,6 +81,7 @@ module Discovery
       scope = scope.where.not(employee_id: @employee.id) if @employee.id
       scope.nearest_neighbors(:embedding, query_embedding, distance: "cosine")
            .first(FACT_LIMIT)
+           .select { |fact| relevant_neighbor?(fact) }
            .map { |fact| { content: fact.content, fact_type: fact.fact_type, department: fact.department } }
     rescue StandardError => e
       Rails.logger.warn("[ContextBuilder] fact retrieval failed: #{e.message}")
@@ -116,7 +119,16 @@ module Discovery
     def nearest_chunks(scope, limit)
       return [] if limit <= 0
 
-      scope.nearest_neighbors(:embedding, query_embedding, distance: "cosine").first(limit)
+      scope.nearest_neighbors(:embedding, query_embedding, distance: "cosine")
+           .first(limit)
+           .select { |chunk| relevant_neighbor?(chunk) }
+    end
+
+    def relevant_neighbor?(record)
+      distance = record.try(:neighbor_distance)
+      return true if distance.nil?
+
+      distance.to_f <= MAX_COSINE_DISTANCE
     end
 
     def media_context
