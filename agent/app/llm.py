@@ -93,6 +93,9 @@ def run_discovery_turn(
     question_target: int,
     user_message: str,
     history: list[dict[str, str]],
+    industry: str | None = None,
+    size_band: str | None = None,
+    region: str | None = None,
 ) -> dict[str, Any]:
     if not settings.openai_api_key:
         return _mock_turn(
@@ -103,10 +106,21 @@ def run_discovery_turn(
             employee_name=employee_name,
         )
 
+    profile_bits = []
+    if industry:
+        profile_bits.append(f"industry={industry}")
+    if size_band:
+        profile_bits.append(f"size={size_band}")
+    if region:
+        profile_bits.append(f"region={region}")
+    profile_line = (
+        f"Company profile: {'; '.join(profile_bits)}.\n" if profile_bits else ""
+    )
+
     system = f"""You are a workflow discovery interviewer for {company_name}.
 Department focus: {department or "general"}.
 Employee: {employee_name or "the employee"}.
-
+{profile_line}
 {playbook_block}
 
 Rules:

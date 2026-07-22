@@ -22,7 +22,11 @@ module Reports
         "company" => {
           "name" => @company.display_name || @company.name,
           "locale" => @company.locale,
-          "engagement_mode" => @company.engagement_mode
+          "engagement_mode" => @company.engagement_mode,
+          "profile" => @company.company_profile.slice(
+            "industry", "sub_industry", "size_band", "region", "country",
+            "annual_revenue_band", "business_goals", "org_departments"
+          )
         },
         "readiness" => {
           "score" => @company.report_readiness_score,
@@ -157,10 +161,12 @@ module Reports
       ready_docs = @company.documents.where(status: "ready")
       count = ready_docs.count
       depts = ready_docs.where.not(department: [nil, ""]).distinct.pluck(:department).compact
+      profile_lead = profile_framing_sentence
       parts = [
+        profile_lead,
         "Baseline discovery from #{count} internal #{'document'.pluralize(count)}" \
         "#{depts.any? ? " across #{depts.join(', ')}" : ""}."
-      ]
+      ].compact
 
       top_patterns = @company.patterns.order(confidence: :desc).limit(2).pluck(:title)
       top_signals = @company.company_signals.order(strength: :desc).limit(3).pluck(:label)
@@ -187,11 +193,12 @@ module Reports
       participation = Intelligence::SnapshotBuilder.call(company: @company)["participation"] || {}
       invited = participation["invited"].to_i
       completed = participation["completed"].to_i
-      parts = if completed.zero? && invited.zero?
-                ["Discovery interviews have not started yet."]
-              else
-                ["#{completed} of #{[invited, completed].max} employees completed discovery interviews."]
-              end
+      parts = [profile_framing_sentence].compact
+      parts << if completed.zero? && invited.zero?
+                 "Discovery interviews have not started yet."
+               else
+                 "#{completed} of #{[invited, completed].max} employees completed discovery interviews."
+               end
 
       doc_count = @company.documents.where(status: "ready").count
       parts << "Findings are reinforced by #{doc_count} internal #{'document'.pluralize(doc_count)}." if doc_count.positive?
@@ -203,6 +210,24 @@ module Reports
       parts << "#{pattern_count} cross-team #{'pattern'.pluralize(pattern_count)} inform the recommendations below." if pattern_count.positive?
 
       parts.join(" ")
+    end
+
+    def profile_framing_sentence
+      profile = @company.company_profile
+      industry = profile["industry"].presence
+      size = profile["size_band"].presence
+      region = profile["region"].presence || profile["country"].presence
+      return nil if industry.blank? && size.blank? && region.blank?
+
+      subject = if industry
+                  "This #{industry} organization"
+                else
+                  "This organization"
+                end
+      details = []
+      details << "about #{size} people" if size
+      details << "operating in #{region}" if region
+      details.any? ? "#{subject} (#{details.join(', ')}) is the focus of this report." : "#{subject} is the focus of this report."
     end
 
     def normalize_excerpts(raw)

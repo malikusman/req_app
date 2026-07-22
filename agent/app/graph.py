@@ -33,6 +33,9 @@ def _run_turn(state: TurnState) -> TurnState:
         question_target=state.get("question_target", 10),
         user_message=state["user_message"],
         history=state.get("history", []),
+        industry=state.get("industry"),
+        size_band=state.get("size_band"),
+        region=state.get("region"),
     )
     return {
         **state,

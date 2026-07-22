@@ -44,6 +44,32 @@ def closing_message(language: str, employee_name: str) -> str:
     return template.format(name=employee_name or "there")
 
 
+def _company_profile_blurb(state: dict[str, Any]) -> str:
+    profile = state.get("company_profile") or {}
+    industry = state.get("industry") or profile.get("industry")
+    size = state.get("size_band") or profile.get("size_band")
+    region = state.get("region") or profile.get("region") or profile.get("country")
+    goals = state.get("business_goals") or profile.get("business_goals")
+    bits = []
+    if industry:
+        bits.append(f"industry={industry}")
+    if size:
+        bits.append(f"size={size}")
+    if region:
+        bits.append(f"region={region}")
+    if goals:
+        goal_text = ", ".join(goals) if isinstance(goals, list) else str(goals)
+        if goal_text.strip():
+            bits.append(f"goals={goal_text[:160]}")
+    if not bits:
+        return ""
+    return (
+        "Company profile context (use to tailor questions; do not recite unless useful): "
+        + "; ".join(bits)
+        + ".\n"
+    )
+
+
 def run_agent_turn(state: dict[str, Any]) -> dict[str, Any]:
     """Returns the structured llm_output consumed by orchestrator.finalize_turn."""
     if not settings.openai_api_key:
@@ -178,6 +204,7 @@ def _build_system_prompt(state: dict[str, Any]) -> str:
 
 You are one of several specialist interviewers collaborating on a workflow discovery
 interview over WhatsApp for {state.get('company_name', 'the company')}.
+{_company_profile_blurb(state)}
 
 {profile_block}
 

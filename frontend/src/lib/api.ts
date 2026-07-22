@@ -100,16 +100,31 @@ export const api = {
   companyOnboarding: (token: string) =>
     request<{
       step: number;
-      company: { display_name: string; locale: string; engagement_mode?: string };
+      company: {
+        display_name: string;
+        locale: string;
+        engagement_mode?: string;
+        company_profile?: CompanyProfile;
+        known_systems?: string[];
+      };
       invited_count: number;
     }>('/api/v1/company/onboarding', {}, token),
 
-  updateOnboardingProfile: (token: string, display_name: string, locale: string, engagement_mode?: string) =>
-    request<{ ok: boolean; step: number; engagement_mode?: string }>(
+  updateOnboardingProfile: (
+    token: string,
+    payload: {
+      display_name: string;
+      locale: string;
+      engagement_mode?: string;
+      company_profile?: CompanyProfile;
+      known_systems?: string[];
+    }
+  ) =>
+    request<{ ok: boolean; step: number; engagement_mode?: string; company_profile?: CompanyProfile }>(
       '/api/v1/company/onboarding/profile',
       {
         method: 'PATCH',
-        body: JSON.stringify({ display_name, locale, engagement_mode }),
+        body: JSON.stringify(payload),
       },
       token
     ),
@@ -786,7 +801,15 @@ export const api = {
   platformSystem: (token: string) => request<PlatformSystemHealth>('/api/v1/platform/system', {}, token),
 
   companySettingsOrganization: (token: string) =>
-    request<{ settings: Record<string, unknown>; company: { display_name: string; locale: string } }>(
+    request<{
+      settings: Record<string, unknown>;
+      company: {
+        display_name: string;
+        locale: string;
+        company_profile?: CompanyProfile;
+        known_systems?: string[];
+      };
+    }>(
       '/api/v1/company/settings/organization',
       {},
       token
@@ -799,9 +822,11 @@ export const api = {
       locale?: string;
       engagement_mode?: string;
       department_targets?: Record<string, number>;
+      company_profile?: CompanyProfile;
+      known_systems?: string[];
     }
   ) =>
-    request<{ ok: boolean; settings?: Record<string, unknown> }>(
+    request<{ ok: boolean; settings?: Record<string, unknown>; company_profile?: CompanyProfile }>(
       '/api/v1/company/settings/organization',
       { method: 'PATCH', body: JSON.stringify(payload) },
       token
@@ -1479,6 +1504,17 @@ export interface PlatformSystemHealth {
     api_errors: number;
     failure_rate: number;
   };
+}
+
+export interface CompanyProfile {
+  industry?: string;
+  sub_industry?: string;
+  size_band?: string;
+  region?: string;
+  country?: string;
+  annual_revenue_band?: string;
+  business_goals?: string | string[];
+  org_departments?: string[];
 }
 
 export interface IntelligenceSnapshot {

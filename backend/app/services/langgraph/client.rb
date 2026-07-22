@@ -35,6 +35,7 @@ module Langgraph
         body[:document_snippets] = multi_agent[:document_snippets] || []
         body[:media_context] = multi_agent[:media_context]
         body[:media_snippets] = multi_agent[:media_snippets] || []
+        body[:company_profile] = multi_agent[:company_profile] if multi_agent[:company_profile].present?
       end
 
       post("/v1/threads/#{thread_id}/turn", body)

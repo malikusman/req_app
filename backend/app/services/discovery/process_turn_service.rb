@@ -59,14 +59,23 @@ module Discovery
 
     def build_context(playbook)
       target = @conversation.effective_question_target
+      profile = @company.company_profile
       {
         preferred_language: @employee.preferred_language.presence || @company.locale,
         company_name: @company.display_name || @company.name,
         employee_name: @employee.display_name.to_s,
         department: @employee.department.presence || "default",
         question_count: @conversation.question_count,
-        question_target: target
-      }
+        question_target: target,
+        industry: profile["industry"],
+        size_band: profile["size_band"],
+        region: profile["region"].presence || profile["country"],
+        business_goals: profile["business_goals"],
+        company_profile: profile.slice(
+          "industry", "sub_industry", "size_band", "region", "country",
+          "annual_revenue_band", "business_goals", "org_departments"
+        )
+      }.compact
     end
 
     def build_history
@@ -102,7 +111,8 @@ module Discovery
         memory_facts: context[:memory_facts],
         document_snippets: context[:document_snippets],
         media_context: context[:media_context],
-        media_snippets: context[:media_snippets]
+        media_snippets: context[:media_snippets],
+        company_profile: context[:company_profile]
       }
     end
 

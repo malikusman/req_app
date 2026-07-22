@@ -36,6 +36,28 @@ RSpec.describe Reports::SnapshotBuilder do
     expect(snapshot.dig("situation", "headline")).to include("Document baseline")
   end
 
+  it "includes company profile in the snapshot and executive framing" do
+    company.update!(
+      company_profile: { "industry" => "logistics", "size_band" => "51-200", "region" => "UAE" },
+      settings: (company.settings || {}).merge("engagement_mode" => "documents")
+    )
+    Document.create!(
+      company: company,
+      filename: "sop.txt",
+      content_type: "text/plain",
+      status: "ready",
+      storage_key: "docs/sop-#{SecureRandom.hex(4)}.txt",
+      source: "company_portal_upload",
+      byte_size: 40,
+      department: "finance"
+    )
+
+    snapshot = described_class.call(company: company, delta: { "summary" => "Initial" })
+
+    expect(snapshot.dig("company", "profile", "industry")).to eq("logistics")
+    expect(snapshot["executive_summary"]).to include("logistics")
+  end
+
   it "avoids 'N of 0' interview counts when invited_count drifted" do
     company.update!(
       invited_count: 0,

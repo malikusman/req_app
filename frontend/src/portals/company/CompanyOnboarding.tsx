@@ -12,6 +12,11 @@ export function CompanyOnboarding() {
   const [displayName, setDisplayName] = useState('');
   const [locale, setLocale] = useState('en');
   const [engagementMode, setEngagementMode] = useState('hybrid');
+  const [industry, setIndustry] = useState('');
+  const [sizeBand, setSizeBand] = useState('');
+  const [region, setRegion] = useState('');
+  const [businessGoals, setBusinessGoals] = useState('');
+  const [knownSystems, setKnownSystems] = useState('');
   const [phone, setPhone] = useState('');
   const [name, setName] = useState('');
   const [department, setDepartment] = useState('');
@@ -33,6 +38,16 @@ export function CompanyOnboarding() {
         setDisplayName(d.company.display_name || '');
         setLocale(d.company.locale || 'en');
         if (d.company.engagement_mode) setEngagementMode(d.company.engagement_mode);
+        const profile = d.company.company_profile || {};
+        setIndustry(profile.industry || '');
+        setSizeBand(profile.size_band || '');
+        setRegion(profile.region || profile.country || '');
+        setBusinessGoals(
+          Array.isArray(profile.business_goals)
+            ? profile.business_goals.join(', ')
+            : profile.business_goals || ''
+        );
+        setKnownSystems((d.company.known_systems || []).join(', '));
       })
       .catch(() => setError('Could not load onboarding progress — defaults shown.'))
       .finally(() => setInitialLoading(false));
@@ -42,7 +57,21 @@ export function CompanyOnboarding() {
     if (!token) return;
     setError('');
     try {
-      const res = await api.updateOnboardingProfile(token, displayName, locale, engagementMode);
+      const res = await api.updateOnboardingProfile(token, {
+        display_name: displayName,
+        locale,
+        engagement_mode: engagementMode,
+        company_profile: {
+          industry: industry.trim() || undefined,
+          size_band: sizeBand || undefined,
+          region: region.trim() || undefined,
+          business_goals: businessGoals.trim() || undefined,
+        },
+        known_systems: knownSystems
+          .split(/[,;\n]+/)
+          .map((s) => s.trim())
+          .filter(Boolean),
+      });
       setStep(res.step);
       if (res.engagement_mode) setEngagementMode(res.engagement_mode);
     } catch (err) {
@@ -186,6 +215,44 @@ export function CompanyOnboarding() {
                   label: 'Employees first (WhatsApp / web interviews, docs optional)',
                 },
               ]}
+            />
+            <Input
+              label="Industry (optional)"
+              value={industry}
+              onChange={(e) => setIndustry(e.target.value)}
+              placeholder="Logistics, manufacturing, SaaS…"
+            />
+            <Select
+              label="Company size (optional)"
+              value={sizeBand}
+              onChange={(e) => setSizeBand(e.target.value)}
+              options={[
+                { value: '', label: 'Prefer not to say' },
+                { value: '1-10', label: '1–10' },
+                { value: '11-50', label: '11–50' },
+                { value: '51-200', label: '51–200' },
+                { value: '201-1000', label: '201–1,000' },
+                { value: '1000+', label: '1,000+' },
+              ]}
+            />
+            <Input
+              label="Region / country (optional)"
+              value={region}
+              onChange={(e) => setRegion(e.target.value)}
+              placeholder="UAE, GCC, US…"
+            />
+            <Textarea
+              label="Business goals (optional)"
+              value={businessGoals}
+              onChange={(e) => setBusinessGoals(e.target.value)}
+              placeholder="Reduce month-end close time, cut re-entry…"
+              rows={2}
+            />
+            <Input
+              label="Systems you already use (optional)"
+              value={knownSystems}
+              onChange={(e) => setKnownSystems(e.target.value)}
+              placeholder="SAP, Excel, Slack (comma-separated)"
             />
             <p className="text-xs text-text-secondary">
               Next: optional invites, then a short checklist — documents path lands you on Documents to upload.

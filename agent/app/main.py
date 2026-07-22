@@ -35,6 +35,11 @@ class TurnContext(BaseModel):
     department: str = "default"
     question_count: int = 0
     question_target: int = 10
+    industry: str | None = None
+    size_band: str | None = None
+    region: str | None = None
+    business_goals: Any = None
+    company_profile: dict[str, Any] | None = None
 
 
 class HistoryMessage(BaseModel):
@@ -56,6 +61,7 @@ class TurnRequest(BaseModel):
     memory_facts: list[dict[str, Any]] = Field(default_factory=list)
     document_snippets: list[str] = Field(default_factory=list)
     media_context: dict[str, Any] | None = None
+    company_profile: dict[str, Any] | None = None
     media_snippets: list[str] = Field(default_factory=list)
 
 
@@ -106,6 +112,11 @@ def run_turn(thread_id: str, body: TurnRequest):
         "department": body.context.department,
         "question_count": body.context.question_count,
         "question_target": body.context.question_target,
+        "industry": body.context.industry,
+        "size_band": body.context.size_band,
+        "region": body.context.region,
+        "business_goals": body.context.business_goals,
+        "company_profile": body.context.company_profile or {},
         "user_message": body.user_message,
         "history": [m.model_dump() for m in body.history],
     }
@@ -120,6 +131,7 @@ def run_turn(thread_id: str, body: TurnRequest):
                 "document_snippets": body.document_snippets,
                 "media_context": body.media_context,
                 "media_snippets": body.media_snippets,
+                "company_profile": body.company_profile or body.context.company_profile or {},
             }
         )
         result = execute_multi_agent_turn(state)

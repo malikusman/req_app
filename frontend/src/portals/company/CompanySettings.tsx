@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
-import { PageHeader, Card, Input, Select, Button, StatCard, Skeleton } from '../../components/ui';
+import { PageHeader, Card, Input, Select, Button, StatCard, Skeleton, Textarea } from '../../components/ui';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { useToast } from '../../components/ui/ToastProvider';
 
@@ -11,6 +11,11 @@ export function CompanySettings() {
   const [displayName, setDisplayName] = useState('');
   const [locale, setLocale] = useState('en');
   const [engagementMode, setEngagementMode] = useState('hybrid');
+  const [industry, setIndustry] = useState('');
+  const [sizeBand, setSizeBand] = useState('');
+  const [region, setRegion] = useState('');
+  const [businessGoals, setBusinessGoals] = useState('');
+  const [knownSystems, setKnownSystems] = useState('');
   const [security, setSecurity] = useState<{ active_access_codes: number; security_snapshot: Record<string, unknown> } | null>(null);
   const [rotateOpen, setRotateOpen] = useState(false);
   const [loadError, setLoadError] = useState('');
@@ -25,6 +30,16 @@ export function CompanySettings() {
         setLocale(d.company.locale);
         const mode = (d.settings?.engagement_mode as string) || 'hybrid';
         setEngagementMode(mode);
+        const profile = d.company.company_profile || {};
+        setIndustry(profile.industry || '');
+        setSizeBand(profile.size_band || '');
+        setRegion(profile.region || profile.country || '');
+        setBusinessGoals(
+          Array.isArray(profile.business_goals)
+            ? profile.business_goals.join(', ')
+            : profile.business_goals || ''
+        );
+        setKnownSystems((d.company.known_systems || []).join(', '));
       })
       .catch(() => setLoadError('Could not load settings.'));
     api
@@ -45,6 +60,16 @@ export function CompanySettings() {
         display_name: displayName,
         locale,
         engagement_mode: engagementMode,
+        company_profile: {
+          industry: industry.trim() || undefined,
+          size_band: sizeBand || undefined,
+          region: region.trim() || undefined,
+          business_goals: businessGoals.trim() || undefined,
+        },
+        known_systems: knownSystems
+          .split(/[,;\n]+/)
+          .map((s) => s.trim())
+          .filter(Boolean),
       });
       toast({ variant: 'success', title: 'Saved', description: 'Organization settings updated.' });
     } catch (err) {
@@ -118,6 +143,38 @@ export function CompanySettings() {
             Documents-only emphasizes the baseline path in the portal. Inviting employees automatically switches to
             hybrid so interviews strengthen the same signals.
           </p>
+          <Input
+            label="Industry"
+            value={industry}
+            onChange={(e) => setIndustry(e.target.value)}
+            placeholder="Logistics, manufacturing…"
+          />
+          <Select
+            label="Company size"
+            value={sizeBand}
+            onChange={(e) => setSizeBand(e.target.value)}
+            options={[
+              { value: '', label: 'Prefer not to say' },
+              { value: '1-10', label: '1–10' },
+              { value: '11-50', label: '11–50' },
+              { value: '51-200', label: '51–200' },
+              { value: '201-1000', label: '201–1,000' },
+              { value: '1000+', label: '1,000+' },
+            ]}
+          />
+          <Input label="Region / country" value={region} onChange={(e) => setRegion(e.target.value)} />
+          <Textarea
+            label="Business goals"
+            value={businessGoals}
+            onChange={(e) => setBusinessGoals(e.target.value)}
+            rows={2}
+          />
+          <Input
+            label="Known systems"
+            value={knownSystems}
+            onChange={(e) => setKnownSystems(e.target.value)}
+            placeholder="SAP, Excel, Slack"
+          />
           <Button type="submit">Save</Button>
         </form>
       </Card>

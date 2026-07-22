@@ -8,7 +8,12 @@ module Api
           authorize :settings, :organization?
           render json: {
             settings: current_company.merged_settings,
-            company: { display_name: current_company.display_name, locale: current_company.locale }
+            company: {
+              display_name: current_company.display_name,
+              locale: current_company.locale,
+              company_profile: current_company.company_profile,
+              known_systems: current_company.company_systems.active.order(:name).pluck(:name)
+            }
           }
         end
 
@@ -20,7 +25,20 @@ module Api
             locale: params[:locale] || current_company.locale,
             settings: settings
           )
-          render json: { ok: true, settings: current_company.merged_settings }
+
+          if params.key?(:company_profile) || params.key?(:known_systems)
+            Companies::ProfileUpdater.call(
+              company: current_company,
+              profile_params: profile_params,
+              known_systems: params.key?(:known_systems) ? Array(params[:known_systems]) : nil
+            )
+          end
+
+          render json: {
+            ok: true,
+            settings: current_company.merged_settings,
+            company_profile: current_company.reload.company_profile
+          }
         end
 
         def security
@@ -54,6 +72,13 @@ module Api
             permitted.delete("engagement_mode") unless Company::ENGAGEMENT_MODES.include?(mode)
           end
           permitted
+        end
+
+        def profile_params
+          params.fetch(:company_profile, {}).permit(
+            :industry, :sub_industry, :size_band, :region, :country,
+            :annual_revenue_band, :business_goals, org_departments: []
+          ).to_h
         end
       end
     end

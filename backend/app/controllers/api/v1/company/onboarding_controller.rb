@@ -12,7 +12,9 @@ module Api
               display_name: current_company.display_name,
               locale: current_company.locale,
               logo_storage_key: current_company.logo_storage_key,
-              engagement_mode: current_company.engagement_mode
+              engagement_mode: current_company.engagement_mode,
+              company_profile: current_company.company_profile,
+              known_systems: current_company.company_systems.active.order(:name).pluck(:name)
             },
             invited_count: current_company.employees.count
           }
@@ -30,7 +32,19 @@ module Api
             attrs[:settings] = current_company.settings.merge("engagement_mode" => mode)
           end
           current_company.update!(attrs)
-          render json: { ok: true, step: 2, engagement_mode: current_company.engagement_mode }
+
+          Companies::ProfileUpdater.call(
+            company: current_company,
+            profile_params: profile_params,
+            known_systems: known_systems_param
+          )
+
+          render json: {
+            ok: true,
+            step: 2,
+            engagement_mode: current_company.engagement_mode,
+            company_profile: current_company.reload.company_profile
+          }
         end
 
         def complete
@@ -56,6 +70,19 @@ module Api
           return 2 if current_company.display_name.present?
 
           1
+        end
+
+        def profile_params
+          params.fetch(:company_profile, {}).permit(
+            :industry, :sub_industry, :size_band, :region, :country,
+            :annual_revenue_band, :business_goals, org_departments: []
+          ).to_h
+        end
+
+        def known_systems_param
+          return nil unless params.key?(:known_systems)
+
+          Array(params[:known_systems])
         end
       end
     end

@@ -444,6 +444,7 @@ These implement the five stakeholder concerns. They are product-facing; sequence
 
 ## FEAT-ENRICH — Company profile enrichment at onboarding
 
+- **Status:** Done
 - **Type:** Product / medium priority. **Capture + downstream wiring must ship together, or the fields are dead data.**
 - **Problem:** Onboarding captures almost nothing (display name, locale, engagement mode, employee phones). The Company model has no industry, region, size, org structure, or goals, so discovery, reports, and catalog fit run "cold" — `build_context` passes only name/department/language.
 - **Evidence:** [frontend/src/portals/company/CompanyOnboarding.tsx](frontend/src/portals/company/CompanyOnboarding.tsx); [backend/app/controllers/api/v1/company/onboarding_controller.rb](backend/app/controllers/api/v1/company/onboarding_controller.rb); `Company::DEFAULT_SETTINGS` [backend/app/models/company.rb:35](backend/app/models/company.rb#L35); downstream `build_context` [backend/app/services/discovery/process_turn_service.rb:60](backend/app/services/discovery/process_turn_service.rb#L60); catalog fit [backend/app/services/catalog/company_fit_service.rb](backend/app/services/catalog/company_fit_service.rb); report snapshot [backend/app/services/reports/snapshot_builder.rb:23](backend/app/services/reports/snapshot_builder.rb#L23).

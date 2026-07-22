@@ -38,7 +38,11 @@ module Discovery
         memory_facts: memory_facts,
         document_snippets: document_snippets,
         media_context: media_context,
-        media_snippets: media_snippets
+        media_snippets: media_snippets,
+        company_profile: @company.company_profile.slice(
+          "industry", "sub_industry", "size_band", "region", "country",
+          "annual_revenue_band", "business_goals", "org_departments"
+        )
       }
     end
 
