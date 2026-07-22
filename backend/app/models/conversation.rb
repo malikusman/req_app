@@ -25,6 +25,17 @@ class Conversation < ApplicationRecord
     status == "profiling"
   end
 
+  def completed?
+    status == "completed"
+  end
+
+  def effective_question_target
+    stored = state_snapshot["question_target"]
+    return stored.to_i if stored.present?
+
+    company.merged_settings.fetch("discovery_question_target", 10).to_i
+  end
+
   def blackboard
     state_snapshot["blackboard"] || {}
   end

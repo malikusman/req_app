@@ -98,5 +98,62 @@ RSpec.describe Discovery::ProcessTurnService do
       expect(conversation.status).to eq("completed")
       expect(conversation.blackboard["shared_findings"].size).to eq(1)
     end
+
+    it "uses the conversation effective question target after reopen" do
+      conversation.update!(
+        status: "discovery",
+        question_count: 10,
+        state_snapshot: conversation.state_snapshot.merge("question_target" => 13)
+      )
+
+      expect(client).to receive(:run_turn!) do |args|
+        expect(args[:context][:question_target]).to eq(13)
+        expect(args[:context][:question_count]).to eq(10)
+        {
+          "assistant_message" => "Tell me more about that approval?",
+          "insight" => { "summary" => "Late detail on approvals", "topics" => ["approvals"] },
+          "completed" => false,
+          "question_count" => 11,
+          "blackboard" => returned_blackboard
+        }
+      end
+
+      described_class.call(
+        conversation: conversation,
+        employee: employee,
+        user_message: "Also, CFO sign-off takes two weeks"
+      )
+
+      expect(conversation.reload.conversation_insights.last.summary).to eq("Late detail on approvals")
+    end
+
+    it "re-finalizes after an addendum and re-enqueues aggregation" do
+      employee.update!(participation_status: "completed", completed_at: 1.day.ago)
+      conversation.update!(
+        status: "discovery",
+        question_count: 11,
+        state_snapshot: { "question_target" => 13, "addendum_count" => 1 }
+      )
+
+      expect(client).to receive(:run_turn!).and_return(
+        "assistant_message" => "Thanks again!",
+        "insight" => { "summary" => "Addendum insight", "topics" => ["approvals"] },
+        "completed" => true,
+        "question_count" => 12,
+        "blackboard" => returned_blackboard
+      )
+
+      expect do
+        described_class.call(
+          conversation: conversation,
+          employee: employee,
+          user_message: "That was the missing piece"
+        )
+      end.to have_enqueued_job(AggregateIntelligenceJob)
+        .and have_enqueued_job(MemoryPromotionJob)
+
+      expect(conversation.reload.status).to eq("completed")
+      expect(conversation.conversation_insights.last.summary).to eq("Addendum insight")
+    end
   end
 end

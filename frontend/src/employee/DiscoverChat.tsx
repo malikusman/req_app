@@ -123,13 +123,14 @@ export function DiscoverChat() {
     }
   };
 
-  const canAttach = state?.conversation_status === 'discovery';
+  const canAttach =
+    state?.conversation_status === 'discovery' || Boolean(state?.completed);
   const canSend = Boolean(selectedFile || draft.trim());
 
   const statusLabel = useMemo(() => {
     if (!state) return null;
     if (processingMedia) return 'Processing your file…';
-    if (state.completed) return 'Interview complete — thank you!';
+    if (state.completed) return 'Interview complete — you can always add more anytime';
     if (state.conversation_status === 'discovery') return 'Discovery in progress';
     if (state.conversation_status === 'profiling') return 'Getting to know your role';
     if (state.onboarding_step === 'awaiting_consent') return 'Please review consent and reply YES to continue';
@@ -180,74 +181,83 @@ export function DiscoverChat() {
             showTyping={sending || processingMedia}
           />
 
-          {!state?.completed && (
-            <form
-              onSubmit={send}
-              className="shrink-0 border-t border-border bg-background/95 px-3 py-3 backdrop-blur-sm sm:px-4 sm:py-4"
-            >
-              {selectedFile && (
-                <div className="mb-3 flex items-center gap-2 rounded-lg bg-muted px-3 py-2 text-sm">
-                  <Paperclip className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  <span className="min-w-0 flex-1 truncate text-foreground">{selectedFile.name}</span>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedFile(null)}
-                    className="rounded p-1 text-muted-foreground hover:bg-background hover:text-foreground"
-                    aria-label="Remove file"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              )}
-
-              <div className="flex items-end gap-2">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept={ACCEPTED_TYPES}
-                  className="sr-only"
-                  disabled={!canAttach || sending || processingMedia}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) setSelectedFile(file);
-                    e.target.value = '';
-                  }}
-                />
-                <Button
-                  type="button"
-                  variant="secondary"
-                  disabled={!canAttach || sending || processingMedia}
-                  onClick={() => fileInputRef.current?.click()}
-                  aria-label="Attach image or PDF"
-                  className="h-11 w-11 shrink-0 p-0"
-                  icon={<Paperclip className="h-5 w-5" />}
-                />
-
-                <div className="min-w-0 flex-1">
-                  <Textarea
-                    value={draft}
-                    onChange={(e) => setDraft(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder={selectedFile ? 'Add a caption (optional)…' : 'Type your reply…'}
-                    disabled={sending || processingMedia}
-                    className="min-h-[72px] max-h-40 w-full resize-none text-base sm:min-h-[88px]"
-                  />
-                </div>
-
-                <Button
-                  type="submit"
-                  disabled={sending || processingMedia || !canSend}
-                  className="h-11 shrink-0 px-4 sm:px-5"
-                >
-                  Send
-                </Button>
-              </div>
-              <p className="mt-2 hidden text-xs text-muted-foreground sm:block">
-                Enter to send · Shift+Enter for a new line
-                {canAttach ? ' · Attach images or PDFs during discovery' : ''}
+          <form
+            onSubmit={send}
+            className="shrink-0 border-t border-border bg-background/95 px-3 py-3 backdrop-blur-sm sm:px-4 sm:py-4"
+          >
+            {state?.completed && (
+              <p className="mb-3 text-sm text-muted-foreground">
+                Interview complete — but you can always add more anytime.
               </p>
-            </form>
-          )}
+            )}
+            {selectedFile && (
+              <div className="mb-3 flex items-center gap-2 rounded-lg bg-muted px-3 py-2 text-sm">
+                <Paperclip className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <span className="min-w-0 flex-1 truncate text-foreground">{selectedFile.name}</span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedFile(null)}
+                  className="rounded p-1 text-muted-foreground hover:bg-background hover:text-foreground"
+                  aria-label="Remove file"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+
+            <div className="flex items-end gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={ACCEPTED_TYPES}
+                className="sr-only"
+                disabled={!canAttach || sending || processingMedia}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) setSelectedFile(file);
+                  e.target.value = '';
+                }}
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={!canAttach || sending || processingMedia}
+                onClick={() => fileInputRef.current?.click()}
+                aria-label="Attach image or PDF"
+                className="h-11 w-11 shrink-0 p-0"
+                icon={<Paperclip className="h-5 w-5" />}
+              />
+
+              <div className="min-w-0 flex-1">
+                <Textarea
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder={
+                    selectedFile
+                      ? 'Add a caption (optional)…'
+                      : state?.completed
+                        ? 'Share anything else that comes to mind…'
+                        : 'Type your reply…'
+                  }
+                  disabled={sending || processingMedia}
+                  className="min-h-[72px] max-h-40 w-full resize-none text-base sm:min-h-[88px]"
+                />
+              </div>
+
+              <Button
+                type="submit"
+                disabled={sending || processingMedia || !canSend}
+                className="h-11 shrink-0 px-4 sm:px-5"
+              >
+                Send
+              </Button>
+            </div>
+            <p className="mt-2 hidden text-xs text-muted-foreground sm:block">
+              Enter to send · Shift+Enter for a new line
+              {canAttach ? ' · Attach images or PDFs during discovery' : ''}
+            </p>
+          </form>
         </div>
       </div>
     </div>

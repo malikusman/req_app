@@ -20,10 +20,22 @@ from app.orchestrator import needs_summary_refresh
 from app.personas import mock_question_for, persona_for
 
 CLOSING_MESSAGES = {
-    "en": "Thank you, {name}! That's everything we need — your insights will help your team improve how work gets done.",
-    "es": "¡Gracias, {name}! Eso es todo lo que necesitamos — tus aportes ayudarán a tu equipo a mejorar su forma de trabajar.",
-    "fr": "Merci, {name} ! C'est tout ce dont nous avons besoin — vos réponses aideront votre équipe à s'améliorer.",
-    "de": "Danke, {name}! Das ist alles, was wir brauchen — Ihre Einblicke helfen Ihrem Team, sich zu verbessern.",
+    "en": (
+        "Thank you, {name}! We've got what we need for now — but if anything else comes to mind, "
+        "just message me anytime and I'll add it."
+    ),
+    "es": (
+        "¡Gracias, {name}! Por ahora tenemos lo que necesitamos — si se te ocurre algo más, "
+        "escríbeme cuando quieras y lo añadiré."
+    ),
+    "fr": (
+        "Merci, {name} ! Nous avons ce qu'il nous faut pour le moment — si autre chose vous vient "
+        "à l'esprit, écrivez-moi à tout moment et je l'ajouterai."
+    ),
+    "de": (
+        "Danke, {name}! Fürs Erste haben wir alles — fällt Ihnen später noch etwas ein, "
+        "schreiben Sie mir jederzeit und ich ergänze es."
+    ),
 }
 
 

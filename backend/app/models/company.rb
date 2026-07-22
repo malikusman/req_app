@@ -34,6 +34,7 @@ class Company < ApplicationRecord
   DEFAULT_SETTINGS = {
     "engagement_mode" => "hybrid",
     "discovery_question_target" => 10,
+    "discovery_addendum_budget" => 3,
     "discovery_session_timeout_hours" => 72,
     "discovery_profiling_enabled" => true,
     "discovery_multi_agent_enabled" => true,

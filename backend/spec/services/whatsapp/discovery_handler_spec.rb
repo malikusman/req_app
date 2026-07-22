@@ -29,4 +29,28 @@ RSpec.describe Whatsapp::DiscoveryHandler do
       expect(outbound.is_discovery_question).to be(true)
     end
   end
+
+  describe "#handle_inbound_text" do
+    it "reopens a completed conversation before processing the turn" do
+      employee.update!(onboarding_step: "verified", participation_status: "completed")
+      conversation.update!(status: "completed", question_count: 10)
+
+      allow(Discovery::ProcessTurnService).to receive(:call).and_return(
+        "assistant_message" => "Thanks — tell me more about that.",
+        "completed" => false,
+        "question_count" => 11
+      )
+
+      handler.handle_inbound_text("One more thing about approvals")
+
+      expect(conversation.reload.status).to eq("discovery")
+      expect(conversation.effective_question_target).to eq(13)
+      expect(Discovery::ProcessTurnService).to have_received(:call).with(
+        hash_including(user_message: "One more thing about approvals")
+      )
+      expect(conversation.messages.where(direction: "inbound").last.body).to eq(
+        "One more thing about approvals"
+      )
+    end
+  end
 end

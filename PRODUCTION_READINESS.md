@@ -386,6 +386,7 @@ These implement the five stakeholder concerns. They are product-facing; sequence
 
 ## FEAT-ADDMORE — Employees can always share more, even after completion
 
+- **Status:** Done (Option 1 — reopen + bounded `discovery_addendum_budget`)
 - **Type:** Core product / high priority.
 - **Problem:** The 10-question target is a soft cap, but once a conversation is `completed` there is **no reopen path**, and a completed employee who sends more gets the generic closing message echoed while their content is **silently dropped as evidence** — stored as a raw message row but never turned into an insight, never added to the blackboard, never promoted to memory, and never re-aggregated.
 - **Evidence:**

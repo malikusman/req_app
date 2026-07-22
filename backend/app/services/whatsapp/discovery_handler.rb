@@ -28,6 +28,13 @@ module Whatsapp
     end
 
     def process_user_message(text, inbound_message:)
+      if @conversation.completed?
+        @conversation = Discovery::ReopenConversationService.call(
+          conversation: @conversation,
+          employee: @employee
+        )
+      end
+
       result = Discovery::ProcessTurnService.call(
         conversation: @conversation,
         employee: @employee,

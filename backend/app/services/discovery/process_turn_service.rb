@@ -58,7 +58,7 @@ module Discovery
     end
 
     def build_context(playbook)
-      target = @company.merged_settings.fetch("discovery_question_target", 10).to_i
+      target = @conversation.effective_question_target
       {
         preferred_language: @employee.preferred_language.presence || @company.locale,
         company_name: @company.display_name || @company.name,

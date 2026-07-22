@@ -15,27 +15,34 @@ module Discovery
     def call
       return if @conversation.status == "completed"
 
+      first_completion = @employee.participation_status != "completed"
+      snapshot = @conversation.state_snapshot.merge("finalized_at" => Time.current.iso8601)
+
       @conversation.update!(
         status: "completed",
         completed_at: Time.current,
-        last_activity_at: Time.current
+        last_activity_at: Time.current,
+        state_snapshot: snapshot
       )
 
-      return if @employee.participation_status == "completed"
+      if first_completion
+        @employee.update!(
+          participation_status: "completed",
+          completed_at: Time.current,
+          last_active_at: Time.current
+        )
 
-      @employee.update!(
-        participation_status: "completed",
-        completed_at: Time.current,
-        last_active_at: Time.current
-      )
+        @company.increment!(:completed_count)
+        @company.increment!(:conversation_count)
+        Intelligence::TimelineRecorder.interview_completed!(company: @company, employee: @employee)
+        NotificationService.notify_interview_completed(company: @company, employee: @employee)
+      else
+        @employee.update!(last_active_at: Time.current)
+      end
 
-      @company.increment!(:completed_count)
-      @company.increment!(:conversation_count)
-      Intelligence::TimelineRecorder.interview_completed!(company: @company, employee: @employee)
+      # Always re-aggregate / promote memory so late addendum insights are included (FEAT-ADDMORE).
       AggregateIntelligenceJob.perform_later(@company.id, @employee.department)
       MemoryPromotionJob.perform_later(@conversation.id)
-
-      NotificationService.notify_interview_completed(company: @company, employee: @employee)
     end
   end
 end

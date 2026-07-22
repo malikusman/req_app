@@ -26,6 +26,13 @@ module Intelligence
               summary: "Interview completed#{employee.department.present? ? " (#{employee.department})" : ''}")
     end
 
+    def self.conversation_reopened!(company:, employee:, conversation:)
+      addendum = conversation.state_snapshot.fetch("addendum_count", 1).to_i
+      create!(company: company, event_type: "conversation_reopened", target: employee,
+              title: "#{employee.display_name || employee.phone_e164} shared more after completion",
+              summary: "Discovery reopened (addendum ##{addendum}) with more questions available")
+    end
+
     def self.create!(company:, event_type:, target:, title:, summary:)
       InsightTimelineEvent.create!(
         company: company,
