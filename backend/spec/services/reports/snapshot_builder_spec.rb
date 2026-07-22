@@ -35,4 +35,20 @@ RSpec.describe Reports::SnapshotBuilder do
     expect(snapshot["executive_summary"]).to include("Baseline discovery")
     expect(snapshot.dig("situation", "headline")).to include("Document baseline")
   end
+
+  it "avoids 'N of 0' interview counts when invited_count drifted" do
+    company.update!(
+      invited_count: 0,
+      report_readiness_breakdown: (company.report_readiness_breakdown || {}).merge("employees_interviewed" => 1),
+      settings: (company.settings || {}).merge("engagement_mode" => "hybrid")
+    )
+    create(:employee, company: company, participation_status: "completed")
+    create(:company_signal, company: company, label: "Approval bottlenecks")
+
+    snapshot = described_class.call(company: company, delta: { "summary" => "Initial" })
+
+    expect(snapshot["report_kind"]).to eq("discovery")
+    expect(snapshot["executive_summary"]).to include("1 of 1 employees completed discovery")
+    expect(snapshot["executive_summary"]).not_to include("of 0")
+  end
 end

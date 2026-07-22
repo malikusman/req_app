@@ -13,8 +13,10 @@ module Api
         end
 
         def create
+          attrs = finding_params.to_h
+          attrs["evidence_refs"] = sanitize_evidence_refs(attrs["evidence_refs"])
           finding = @review.report_review_findings.build(
-            finding_params.merge(reviewer_user: current_reviewer_user)
+            attrs.merge("reviewer_user" => current_reviewer_user)
           )
           authorize finding, :create?
           finding.save!
@@ -24,7 +26,9 @@ module Api
         def update
           finding = @review.report_review_findings.find(params[:id])
           authorize finding, :update?
-          finding.update!(finding_params)
+          attrs = finding_params.to_h
+          attrs["evidence_refs"] = sanitize_evidence_refs(attrs["evidence_refs"]) if attrs.key?("evidence_refs")
+          finding.update!(attrs)
           render json: { finding: finding_json(finding) }
         end
 
@@ -39,6 +43,7 @@ module Api
 
         def load_review
           report = policy_scope(::Report).find(params[:report_id])
+          @company = report.company
           @review = ReportReview.find_by!(report: report, reviewer_user: current_reviewer_user)
         end
 
@@ -47,6 +52,24 @@ module Api
             :finding_type, :section_key, :target_type, :target_id, :disposition,
             :severity, :body, :publishable, :resolution_status, evidence_refs: []
           )
+        end
+
+        def sanitize_evidence_refs(raw)
+          company = @company || @review.report.company
+          signal_ids = company.company_signals.pluck(:id).to_set
+          pattern_ids = company.patterns.pluck(:id).to_set
+
+          Array(raw).filter_map do |ref|
+            text = ref.to_s.strip
+            next unless text.match?(/\A(signal|pattern):\d+\z/)
+
+            kind, id_str = text.split(":")
+            id = id_str.to_i
+            next if kind == "signal" && !signal_ids.include?(id)
+            next if kind == "pattern" && !pattern_ids.include?(id)
+
+            text
+          end.uniq.first(12)
         end
 
         def finding_json(f)

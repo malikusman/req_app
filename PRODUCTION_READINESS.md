@@ -493,6 +493,7 @@ These implement the five stakeholder concerns. They are product-facing; sequence
 
 ## FEAT-STATS — Stats honesty pass
 
+- **Status:** Done
 - **Type:** Trust / low-effort, high-signal.
 - **Problems & fixes:**
   1. Company dashboard **"Signals" tile capped at 5** (`top_pain_points.length`, capped at [backend/app/services/reports/snapshot_builder.rb:40](backend/app/services/reports/snapshot_builder.rb#L40)) — show the true signal count.

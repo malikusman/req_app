@@ -1478,6 +1478,7 @@ export interface IntelligenceSnapshot {
   participation: { invited: number; started: number; completed: number; completion_rate: number };
   department_coverage: { department: string; completed: number; target: number }[];
   top_pain_points: { id: number; label: string; strength: number; departments: string[]; signal_type: string }[];
+  signal_count?: number;
   emerging_patterns: { id: number; title: string; confidence: number; departments: string[] }[];
   report_readiness_score: number;
   report_ready: boolean;

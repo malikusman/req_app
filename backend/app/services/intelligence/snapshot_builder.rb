@@ -14,6 +14,8 @@ module Intelligence
       invited = @company.invited_count
       started = @company.employees.where(participation_status: %w[started completed]).count
       completed = @company.employees.where(participation_status: "completed").count
+      # Never show "N of 0" when completed employees exist but invited_count drifted.
+      invited = [invited, completed].max
 
       dept_targets = @company.merged_settings.fetch("department_targets", {})
       custom_depts = @company.merged_settings.fetch("custom_departments", [])
@@ -37,6 +39,7 @@ module Intelligence
           "unrecognized_attempts_7d" => @company.security_snapshot["unrecognized_verification_attempts_7d"].to_i,
           "last_code_rotation_at" => @company.pin_rotated_at
         },
+        "signal_count" => @company.company_signals.count,
         "top_pain_points" => @company.company_signals.order(strength: :desc).limit(5).map do |s|
           { "id" => s.id, "label" => s.label, "strength" => s.strength, "departments" => s.departments, "signal_type" => s.signal_type }
         end,

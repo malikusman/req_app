@@ -56,7 +56,7 @@ module Dashboard
           status: latest_report.status
         } : nil,
         my_review_status: my_review&.status,
-        co_reviewer_count: company.reviewer_assignments.active.count,
+        co_reviewer_count: company.reviewer_assignments.active.where.not(reviewer_user_id: @reviewer_user.id).count,
         review_pending: review_pending?(latest_report, my_review)
       }
     end

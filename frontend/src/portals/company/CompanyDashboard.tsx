@@ -63,7 +63,7 @@ export function CompanyDashboard() {
   const score = Math.round(data?.report_readiness_score ?? 0);
   const breakdown = data?.report_readiness_breakdown ?? {};
   const readyDocs = Number(breakdown.ready_documents ?? 0);
-  const signalCount = snapshot?.top_pain_points.length ?? 0;
+  const signalCount = snapshot?.signal_count ?? snapshot?.top_pain_points.length ?? 0;
   const docsFirstPhase = Boolean(data?.docs_first_phase ?? data?.company.docs_first_phase);
   const docsFirstActive = docsFirstPhase && (readyDocs > 0 || score > 0 || signalCount > 0);
   const processingDocs = docsFirstPhase && readyDocs === 0 && score === 0 && signalCount === 0;

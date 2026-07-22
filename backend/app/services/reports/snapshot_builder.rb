@@ -113,7 +113,7 @@ module Reports
                 else
                   participation = Intelligence::SnapshotBuilder.call(company: @company)["participation"] || {}
                   completed = participation["completed"].to_i
-                  invited = participation["invited"].to_i
+                  invited = [participation["invited"].to_i, completed].max
                   "Worktruth analyzed discovery interviews (#{completed} of #{invited} completed)" \
                     "#{doc_count.positive? ? " alongside #{doc_count} internal documents" : ""} " \
                     "to surface where work slows, breaks, or depends on manual workarounds."
@@ -187,7 +187,11 @@ module Reports
       participation = Intelligence::SnapshotBuilder.call(company: @company)["participation"] || {}
       invited = participation["invited"].to_i
       completed = participation["completed"].to_i
-      parts = ["#{completed} of #{invited} employees completed discovery interviews."]
+      parts = if completed.zero? && invited.zero?
+                ["Discovery interviews have not started yet."]
+              else
+                ["#{completed} of #{[invited, completed].max} employees completed discovery interviews."]
+              end
 
       doc_count = @company.documents.where(status: "ready").count
       parts << "Findings are reinforced by #{doc_count} internal #{'document'.pluralize(doc_count)}." if doc_count.positive?

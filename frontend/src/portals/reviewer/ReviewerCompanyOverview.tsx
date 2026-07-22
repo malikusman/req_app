@@ -99,7 +99,7 @@ export function ReviewerCompanyOverview() {
 
   const reportId = company.latest_report?.id;
   const reviewSubmitted = company.my_review_status === 'submitted';
-  const hasCoReviewers = company.co_reviewer_count >= 2;
+  const hasCoReviewers = company.co_reviewer_count >= 1;
   const completedInterviews = conversations.filter((c) => c.status === 'completed').length;
   const roster = employees.length > 0 ? employees : conversations.map((c) => ({
     id: c.employee_id,
@@ -399,8 +399,8 @@ export function ReviewerCompanyOverview() {
           <Card title="Collaboration">
             {hasCoReviewers ? (
               <p className="m-0 text-sm text-muted-foreground">
-                {company.co_reviewer_count} reviewers are assigned to {company.name}. Use co-reviewer chat to stay
-                aligned before you submit.
+                {company.co_reviewer_count} co-reviewer{company.co_reviewer_count === 1 ? '' : 's'} on{' '}
+                {company.name}. Use co-reviewer chat to stay aligned before you submit.
               </p>
             ) : (
               <p className="m-0 text-sm text-muted-foreground">

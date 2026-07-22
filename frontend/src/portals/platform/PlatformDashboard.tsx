@@ -76,9 +76,7 @@ export function PlatformDashboard() {
   const system = data?.system;
   const trials = data?.trials_expiring_soon ?? [];
   const activeTrials = monitoring?.subscriptions.active_trials ?? monitoring?.subscriptions.by_status?.trial ?? 0;
-  const reportsTotal = monitoring
-    ? monitoring.reports.ready + monitoring.reports.generating + monitoring.reports.failed
-    : '—';
+  const reportsReady = monitoring ? monitoring.reports.ready : '—';
 
   const systemHealthLabel = (() => {
     if (!system) return 'Unknown';
@@ -106,7 +104,7 @@ export function PlatformDashboard() {
             <StatCard label="Total companies" value={monitoring.companies.total} icon={<Building2 className="h-5 w-5 text-accent" />} />
             <StatCard label="Active trials" value={activeTrials} icon={<Clock className="h-5 w-5 text-accent" />} />
             <StatCard label="Discovery (24h)" value={monitoring.discovery.conversations_last_24h} icon={<MessageSquare className="h-5 w-5 text-accent" />} />
-            <StatCard label="Reports" value={reportsTotal} icon={<FileText className="h-5 w-5 text-accent" />} />
+            <StatCard label="Reports ready" value={reportsReady} icon={<FileText className="h-5 w-5 text-accent" />} />
             <StatCard label="Avg readiness" value={`${monitoring.companies.avg_readiness}%`} icon={<Users className="h-5 w-5 text-accent" />} />
             <StatCard label="System" value={systemHealthLabel} icon={<Activity className="h-5 w-5 text-accent" />} />
           </>

@@ -365,9 +365,9 @@ export function ReviewerEvidenceGraph() {
                 </ul>
               </div>
               {graph?.coverage && (
-                <div className="rounded-md border border-border p-3 text-xs">
-                  <div>Signals covered: {String(graph.coverage.signals ?? '—')}</div>
-                  <div>Supported edges: {String(graph.coverage.supported_edges ?? '—')}</div>
+                <div className="rounded-md border border-border p-3 text-xs text-text-secondary">
+                  <div>Nodes: {String(graph.coverage.node_count ?? '—')}</div>
+                  <div>Edges: {String(graph.coverage.edge_count ?? '—')}</div>
                 </div>
               )}
             </div>
