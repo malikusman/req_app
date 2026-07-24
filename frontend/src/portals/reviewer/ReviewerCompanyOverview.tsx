@@ -8,7 +8,6 @@ import {
   ChevronRight,
   ClipboardCheck,
   MessagesSquare,
-  Network,
   FileText,
   Package,
 } from 'lucide-react';
@@ -188,11 +187,6 @@ export function ReviewerCompanyOverview() {
                 <Link to={`/reviewer/companies/${companyId}/catalog`}>
                   <Button variant="secondary" icon={<Package className="h-4 w-4" />}>
                     Catalog
-                  </Button>
-                </Link>
-                <Link to={`/reviewer/companies/${companyId}/evidence-graph`}>
-                  <Button variant="secondary" icon={<Network className="h-4 w-4" />}>
-                    Open evidence graph
                   </Button>
                 </Link>
               </div>

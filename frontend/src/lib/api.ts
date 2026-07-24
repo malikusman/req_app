@@ -447,13 +447,6 @@ export const api = {
       token
     ),
 
-  reviewerEvidenceGraph: (token: string, companyId: number) =>
-    request<{ graph: { nodes: Array<Record<string, unknown>>; edges: Array<Record<string, unknown>>; coverage: Record<string, unknown> } }>(
-      `/api/v1/reviewer/companies/${companyId}/evidence_graph`,
-      {},
-      token
-    ),
-
   reviewerReportFindings: (token: string, companyId: number, reportId: number) =>
     request<{ findings: Array<Record<string, unknown>> }>(
       `/api/v1/reviewer/companies/${companyId}/reports/${reportId}/review/findings`,
@@ -647,13 +640,6 @@ export const api = {
 
   intelligencePatterns: (token: string) =>
     request<{ patterns: CompanyPattern[] }>('/api/v1/company/intelligence/patterns', {}, token),
-
-  companyEvidenceGraph: (token: string) =>
-    request<{ graph: { nodes: unknown[]; edges: unknown[]; coverage: Record<string, unknown> } }>(
-      '/api/v1/company/evidence_graph',
-      {},
-      token
-    ),
 
   platformCompanyReports: (token: string, companyId: number) =>
     request<{ reports: PlatformReport[] }>(`/api/v1/platform/companies/${companyId}/reports`, {}, token),

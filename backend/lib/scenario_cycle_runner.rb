@@ -334,7 +334,7 @@ class ScenarioCycleRunner
   end
 
   def run_reviewer_eta!(appendix_only: false)
-    stage appendix_only ? "Reviewer appendix verify" : "Reviewer ETA (findings, outreach, meeting, graph)"
+    stage appendix_only ? "Reviewer appendix verify" : "Reviewer ETA (findings, outreach, meeting)"
     return check("Report available for ETA", false) unless @report
 
     review_a = @report.report_reviews.find_by!(reviewer_user: @reviewer_a)
@@ -343,16 +343,11 @@ class ScenarioCycleRunner
     blocked = ensure_review_a_submitted!(review_a)
     outreach = nil
     meeting = nil
-    graph = { nodes: [], edges: [] }
 
     prepare_review_b!(review_b)
     unless appendix_only
       outreach = deliver_review_b_outreach!
       meeting = run_meeting_path!
-      graph = Evidence::GraphBuilder.call(company: @company)
-      check "Evidence graph has nodes (#{graph[:nodes].size})", graph[:nodes].size.positive?
-      check "Evidence graph has employee node", graph[:nodes].any? { |n| n[:type] == "employee" }
-      check "Evidence graph has document node", graph[:nodes].any? { |n| n[:type] == "document" }
     end
 
     unless review_b.submitted?
@@ -377,8 +372,6 @@ class ScenarioCycleRunner
       "outreach_status" => outreach&.status,
       "meeting_id" => meeting&.id,
       "meeting_status" => meeting&.status,
-      "graph_nodes" => graph[:nodes].size,
-      "graph_edges" => graph[:edges].size,
       "overlay_findings" => findings.size,
       "submit_blocked_without_finding" => blocked,
       "appendix" => appendix,

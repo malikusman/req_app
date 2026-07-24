@@ -133,7 +133,6 @@ Rails.application.routes.draw do
           get "documents", to: "documents#index"
           get "documents/:id", to: "documents#show"
           get "documents/:id/download", to: "documents#download"
-          get "evidence_graph", to: "evidence_graph#show"
           resources :outreaches, only: %i[index create show], controller: "outreaches"
           resources :meeting_requests, only: %i[index create show], controller: "meeting_requests"
           get "catalog", to: "catalog#index"
@@ -175,7 +174,6 @@ Rails.application.routes.draw do
         get "intelligence/signals", to: "intelligence#signals"
         get "intelligence/patterns", to: "intelligence#patterns"
         get "intelligence/timeline", to: "intelligence#timeline"
-        get "evidence_graph", to: "evidence_graph#show"
         get "discovery_questions", to: "discovery_questions#index"
         post "discovery_questions/:id/feedback", to: "discovery_questions#feedback"
         resources :recommendations, only: %i[index] do

@@ -414,32 +414,9 @@ These implement the five stakeholder concerns. They are product-facing; sequence
 
 ## FEAT-CLUSTER — Employee relationship / "map with links" view
 
-- **Status:** Done (edges from `source_excerpts`; `signal_sources` join table deferred)
+- **Status:** Removed for phase-one launch (portal Clusters / evidence-graph UI + `Evidence::GraphBuilder` deleted; not shipping). May revisit later without the prior broken graph surface.
 - **Type:** Product / high perceived value. **~70% of the data already exists and is already served to the reviewer frontend — it's a presentation + edge-derivation gap, not a data gap.**
-- **Problem:** Reviewers and admins face 10+ employees with only flat tables and one-at-a-time transcripts. There's no way to see "these N employees share this pain point / department / pattern," so cross-employee links are missed. The existing Evidence Graph is close but its backend builder **never wires the important edges**.
-- **Evidence:**
-  - Employee↔signal provenance already computed and served: `CompanySignal.metadata["source_excerpts"]` with `{employee_id, conversation_id, excerpt}` built at [backend/app/services/intelligence/signal_extractor.rb:105](backend/app/services/intelligence/signal_extractor.rb#L105), exposed at [backend/app/controllers/api/v1/reviewer/intelligence_controller.rb:38](backend/app/controllers/api/v1/reviewer/intelligence_controller.rb#L38).
-  - Signals carry `departments`; patterns carry `linked_signal_ids` + `departments`; employees carry `department`/`role_title`/`seniority`.
-  - Evidence graph builder does **not** connect signals (zero edges), only pattern→recommendation: [backend/app/services/evidence/graph_builder.rb:136](backend/app/services/evidence/graph_builder.rb#L136).
-  - Frontend graph uses type-ring layout (position is meaningless): [frontend/src/portals/reviewer/ReviewerEvidenceGraph.tsx](frontend/src/portals/reviewer/ReviewerEvidenceGraph.tsx).
-  - Dishonest coverage stats: `supported_edges` counts edge types never generated; "signals covered" = node count. [backend/app/services/evidence/graph_builder.rb:212](backend/app/services/evidence/graph_builder.rb#L212).
-- **Design.** Deliver an **"Employee clusters" view**: pins = employees; edges = shared signal / shared department / shared pattern; node size = evidence contributed; clustering/force layout so groups read visually. Keep the existing filter/select/highlight UI and Pulse palette. Ship in the reviewer portal first, then reuse for company admins.
-- **Implementation:**
-  1. **(Optional but recommended) `signal_sources` join table.** Today employee↔signal lives in a JSONB `source_excerpts` capped at 10 (`MAX_EVIDENCE`, [signal_extractor.rb:14](backend/app/services/intelligence/signal_extractor.rb#L14)) — lossy and not SQL-queryable. Add `signal_sources (company_signal_id, employee_id, conversation_id, message_id, excerpt)` with indexes, populated by `signal_extractor`/`signal_upsert_service`. This makes clustering robust and queryable. If deferring, derive edges from `source_excerpts` for now.
-  2. **Wire edges in `Evidence::GraphBuilder`:**
-     - `signal → employee` (`extracted_from`) from `source_excerpts`/`signal_sources`.
-     - `signal → pattern` (`aggregates_into`) from `pattern.linked_signal_ids`.
-     - `recommendation → signal/pattern` (`derived_from`) where available.
-     - `employee ↔ employee` (`shares_signal`, weighted by count) computed from co-occurrence on the same signal; optionally `same_department`.
-     This also makes the existing `supported_edges` coverage stat truthful (those edge types finally exist).
-  3. **Fix the coverage stats** to count real edges (BLK-adjacent honesty; see FEAT-STATS).
-  4. **Frontend:** add a force-directed / clustering layout mode (e.g. a lightweight force simulation, or precompute clusters server-side by connected components over shared-signal edges and lay out clusters). Node size ∝ evidence count; color by department (Pulse `--chart-1..6`); edge thickness ∝ shared-signal count. Clicking an employee highlights their cluster and lists shared signals in the Selection panel (replace the raw `Type id → Type id` dump with human labels — already partly done in the recent evidence-graph re-skin).
-  5. **Company admin surface:** expose the same view (read-only) in the company portal intelligence section so admins get the same overview.
-- **Acceptance criteria:**
-  - Reviewer can open a cluster view showing employees grouped by shared pain points/departments, with visible links and per-link evidence.
-  - Clicking a link shows which employees share which signal and the supporting excerpts.
-  - Coverage stats reflect real edges (no phantom metrics).
-- **Tests:** `graph_builder` spec asserting signal↔employee and signal↔pattern edges exist and coverage counts match; a `signal_sources` model spec if added.
+- **Problem:** Reviewers and admins face 10+ employees with only flat tables and one-at-a-time transcripts. There's no way to see "these N employees share this pain point / department / pattern," so cross-employee links are missed.
 - **Note:** Signal extraction is regex/keyword-based ([signal_extractor.rb:5](backend/app/services/intelligence/signal_extractor.rb#L5)); clustering quality inherits that. Improving extraction (LLM-assisted) is a separate, larger effort — track under FEAT-AGENTS.
 
 ## FEAT-ENRICH — Company profile enrichment at onboarding
@@ -501,7 +478,7 @@ These implement the five stakeholder concerns. They are product-facing; sequence
 - **Type:** Trust / low-effort, high-signal.
 - **Problems & fixes:**
   1. Company dashboard **"Signals" tile capped at 5** (`top_pain_points.length`, capped at [backend/app/services/reports/snapshot_builder.rb:40](backend/app/services/reports/snapshot_builder.rb#L40)) — show the true signal count.
-  2. Evidence graph **"Signals covered"** = signal node count and **`supported_edges`** counts edge types never generated ([backend/app/services/evidence/graph_builder.rb:212](backend/app/services/evidence/graph_builder.rb#L212)) — fix once FEAT-CLUSTER wires real edges; until then, don't display them.
+  2. Evidence graph coverage metrics — **n/a for phase-one** (Clusters / evidence-graph UI removed).
   3. Platform **"Reports" tile** sums ready+generating+failed into one ambiguous number ([frontend/src/portals/platform/PlatformDashboard.tsx:79](frontend/src/portals/platform/PlatformDashboard.tsx#L79)) — split or label by state.
   4. Reviewer **"co-reviewers"** count includes the viewer themselves ([frontend/src/portals/reviewer/ReviewerCompanyOverview.tsx:102](frontend/src/portals/reviewer/ReviewerCompanyOverview.tsx#L102)) — count others only.
   5. Reviewer structured-findings `evidence_refs` are **free-text** strings not validated against real IDs ([frontend/src/portals/reviewer/workspace/ReviewerStructuredFindingsPanel.tsx:199](frontend/src/portals/reviewer/workspace/ReviewerStructuredFindingsPanel.tsx#L199)) — replace with a picker resolving to real signal/pattern IDs.
@@ -521,7 +498,7 @@ These implement the five stakeholder concerns. They are product-facing; sequence
 
 **Milestone 3 — Core product gap.** FEAT-ADDMORE (employees can always add more) — highest product priority; currently actively misleads employees.
 
-**Milestone 4 — Reviewer effectiveness.** FEAT-CLUSTER (employee relationship view) + FEAT-STATS (honest stats, incl. fixing the graph coverage metrics as a side effect).
+**Milestone 4 — Reviewer effectiveness.** FEAT-CLUSTER was removed for phase-one launch; FEAT-STATS (honest stats) remains Done.
 
 **Milestone 5 — Growth & quality.** FEAT-SIGNUP (self-serve + approval), FEAT-ENRICH (company profile), FEAT-AGENTS (agent robustness). FEAT-AGENTS #7 (Phase D: checkpointer, Gap Analyst, Reviewer Liaison) is a later, larger track.
 
@@ -573,7 +550,7 @@ Add missing entries to `.env.example` and `deploy/.env.production.example`. **Bo
 - **Billing:** `backend/app/controllers/api/v1/webhooks/stripe_controller.rb`, `billing/mock_checkout_controller.rb`, `services/billing/{checkout_service,stripe_webhook_handler}.rb`.
 - **Discovery flow:** `services/discovery/{process_turn_service,finalize_conversation_service,context_builder,proactive_start_service}.rb`; `services/whatsapp/{inbound_processor,discovery_handler}.rb`; `services/web/turn_router.rb`; `controllers/concerns/employee_web_authenticatable.rb`.
 - **Agent (Python):** `agent/app/{main,multi_agent_graph,orchestrator,router,multi_agent_llm,personas,state,config,circuit_breaker}.py`.
-- **Intelligence / evidence:** `services/intelligence/{signal_extractor,signal_upsert_service,aggregate_company_intelligence,pattern_detector}.rb`; `services/evidence/graph_builder.rb`; `controllers/api/v1/reviewer/intelligence_controller.rb`.
+- **Intelligence / evidence:** `services/intelligence/{signal_extractor,signal_upsert_service,aggregate_company_intelligence,pattern_detector}.rb`; `controllers/api/v1/reviewer/intelligence_controller.rb`.
 - **Catalog / market intel:** `services/catalog/{company_fit_service,hybrid_matcher,sync_source_service,analyze_candidate_service}.rb`; `services/market_intel/{employee_fit_service,match_and_notify_service,send_alert_service}.rb`.
 - **Auth / onboarding:** `controllers/api/v1/auth/*_sessions_controller.rb`; `controllers/api/v1/company/onboarding_controller.rb`; `models/{company,company_user,reviewer_user,demo_request}.rb`.
 - **Ops / deploy / config:** `docker-compose.prod.yml`, `scripts/deploy/*`, `.github/workflows/{ci,deploy}.yml`, `deploy/Caddyfile`, `backend/config/environments/production.rb`, `backend/config/initializers/{sidekiq,cors,filter_parameter_logging}.rb`, `backend/config/sidekiq.yml`, `backend/config/sidekiq_schedule.yml`.

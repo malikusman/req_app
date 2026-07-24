@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { Download, FileText } from 'lucide-react';
 import { api, type CompanyDocument } from '../../lib/api';
 import { useReviewerToken } from '../../lib/auth';
@@ -124,15 +124,7 @@ export function ReviewerDocuments() {
           }
         />
 
-        <Card
-          className="hidden lg:block"
-          title="Document detail"
-          action={
-            <Link to={`/reviewer/companies/${companyId}/evidence-graph`} className="text-xs text-primary hover:underline">
-              Evidence graph
-            </Link>
-          }
-        >
+        <Card className="hidden lg:block" title="Document detail">
           {!selected ? (
             <p className="text-sm text-text-secondary">Select a document to see AI-extracted context.</p>
           ) : (
