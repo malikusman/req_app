@@ -19,7 +19,7 @@ module Api
 
         def update_organization
           authorize :settings, :update_organization?
-          settings = current_company.settings.merge(organization_params)
+          settings = (current_company.settings || {}).merge(organization_params)
           current_company.update!(
             display_name: params[:display_name] || current_company.display_name,
             locale: params[:locale] || current_company.locale,
@@ -69,7 +69,8 @@ module Api
           ).to_h
           if permitted["engagement_mode"].present?
             mode = permitted["engagement_mode"].to_s
-            permitted.delete("engagement_mode") unless Company::ENGAGEMENT_MODES.include?(mode)
+            # Nested under Api::V1::Company — use top-level ::Company model constant.
+            permitted.delete("engagement_mode") unless ::Company::ENGAGEMENT_MODES.include?(mode)
           end
           permitted
         end
