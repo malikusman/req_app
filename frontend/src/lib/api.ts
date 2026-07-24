@@ -53,6 +53,9 @@ export const api = {
     role_title?: string;
     notes?: string;
     website?: string;
+    engagement_mode?: string;
+    company_profile?: CompanyProfile;
+    known_systems?: string[];
   }) =>
     request<{ ok: boolean; registration?: { id: number; status: string } }>(
       '/api/v1/public/company_registrations',
@@ -1778,6 +1781,8 @@ export interface CompanyRegistrationRow {
   company_id: number;
   company_approval_status?: string;
   admin_user_status?: string;
+  company_profile?: CompanyProfile;
+  engagement_mode?: string;
   created_at: string;
   reviewed_at?: string | null;
 }

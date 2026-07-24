@@ -21,7 +21,10 @@ module Api
             admin_name: params[:admin_name],
             admin_email: params[:admin_email],
             role_title: params[:role_title],
-            notes: params[:notes]
+            notes: params[:notes],
+            engagement_mode: params[:engagement_mode],
+            company_profile: profile_params,
+            known_systems: known_systems_param
           )
           render json: { ok: true, registration: { id: registration.id, status: registration.status } },
                  status: :created
@@ -37,6 +40,29 @@ module Api
           key = "company_registrations:#{request.remote_ip}"
           count = Rails.cache.increment(key, 1, expires_in: WINDOW)
           count.nil? ? false : count > MAX_PER_WINDOW
+        end
+
+        def profile_params
+          raw = params[:company_profile]
+          return {} if raw.blank?
+
+          permitted = raw.permit(
+            :industry, :sub_industry, :size_band, :region, :country,
+            :annual_revenue_band,
+            business_goals: [],
+            org_departments: []
+          )
+          # Also accept scalar business_goals for older clients
+          if raw[:business_goals].is_a?(String)
+            permitted[:business_goals] = raw[:business_goals]
+          end
+          permitted.to_h
+        end
+
+        def known_systems_param
+          return nil unless params.key?(:known_systems)
+
+          Array(params[:known_systems])
         end
       end
     end

@@ -31,6 +31,28 @@ RSpec.describe "Public company registrations", type: :request do
     expect(user.email).to eq("sam@northwind.test")
   end
 
+  it "seeds firmographics and engagement mode from signup" do
+    post "/api/v1/public/company_registrations", params: valid_params.merge(
+      engagement_mode: "documents",
+      company_profile: {
+        industry: "logistics",
+        size_band: "51-200",
+        region: "Middle East",
+        business_goals: %w[cut_cycle_time cost_visibility],
+        org_departments: %w[Finance Operations]
+      },
+      known_systems: %w[SAP Excel]
+    )
+
+    expect(response).to have_http_status(:created)
+    company = Company.last
+    expect(company.engagement_mode).to eq("documents")
+    expect(company.company_profile["industry"]).to eq("logistics")
+    expect(company.company_profile["size_band"]).to eq("51-200")
+    expect(company.company_profile["business_goals"]).to eq(%w[cut_cycle_time cost_visibility])
+    expect(company.company_systems.active.pluck(:name)).to include("SAP", "Excel")
+  end
+
   it "rejects duplicate emails" do
     create(:company_user, email: "sam@northwind.test")
     post "/api/v1/public/company_registrations", params: valid_params

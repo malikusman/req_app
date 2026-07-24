@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   FileBarChart,
@@ -6,6 +6,10 @@ import {
   Radio,
   AlertTriangle,
   PlayCircle,
+  Users,
+  CalendarClock,
+  Image,
+  MessageSquare,
 } from 'lucide-react';
 import { api, type CompanyDashboardPayload } from '../../lib/api';
 import { useAuth, useCompanyToken } from '../../lib/auth';
@@ -22,11 +26,50 @@ import {
   EmptyState,
 } from '../../components/ui';
 
+function ActionTile({
+  title,
+  description,
+  to,
+  icon,
+  badge,
+  primary,
+}: {
+  title: string;
+  description: string;
+  to: string;
+  icon: ReactNode;
+  badge?: number;
+  primary?: boolean;
+}) {
+  return (
+    <Link
+      to={to}
+      className={`block rounded-lg border p-4 transition-colors hover:border-primary/40 hover:bg-muted/40 ${
+        primary ? 'border-primary/30 bg-primary/5' : 'border-border bg-card'
+      }`}
+    >
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5 text-primary">{icon}</div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="m-0 font-medium text-foreground">{title}</p>
+            {badge != null && badge > 0 ? (
+              <Badge variant="warning">{badge}</Badge>
+            ) : null}
+          </div>
+          <p className="m-0 mt-1 text-sm text-muted-foreground">{description}</p>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
 export function CompanyDashboard() {
   const token = useCompanyToken();
   const { session } = useAuth();
   const navigate = useNavigate();
   const [data, setData] = useState<CompanyDashboardPayload | null>(null);
+  const [pendingMeetings, setPendingMeetings] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -45,6 +88,13 @@ export function CompanyDashboard() {
       .then(setData)
       .catch(() => setError('Could not load discovery dashboard.'))
       .finally(() => setLoading(false));
+    api
+      .companyMeetingRequests(token)
+      .then((d) => {
+        const list = d.meeting_requests || [];
+        setPendingMeetings(list.filter((m) => String(m.status) === 'pending_admin').length);
+      })
+      .catch(() => undefined);
   }, [token]);
 
   if (!loading && !data) {
@@ -67,22 +117,62 @@ export function CompanyDashboard() {
   const docsFirstPhase = Boolean(data?.docs_first_phase ?? data?.company.docs_first_phase);
   const docsFirstActive = docsFirstPhase && (readyDocs > 0 || score > 0 || signalCount > 0);
   const processingDocs = docsFirstPhase && readyDocs === 0 && score === 0 && signalCount === 0;
+  const interviewHeavy = (data?.engagement_mode || data?.company?.engagement_mode) === 'interview';
+
+  const actionTiles = (
+    <div className="space-y-4">
+      <div>
+        <h2 className="m-0 mb-2 text-sm font-medium text-muted-foreground">Get started</h2>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <ActionTile
+            primary
+            title="Upload documents"
+            description="SOPs, policies, and finance exports for a baseline."
+            to="/company/documents"
+            icon={<FileText className="h-5 w-5" />}
+          />
+          <ActionTile
+            primary
+            title="Invite employees"
+            description="Send access codes for WhatsApp or web discovery."
+            to="/company/employees"
+            icon={<Users className="h-5 w-5" />}
+          />
+        </div>
+      </div>
+      <div>
+        <h2 className="m-0 mb-2 text-sm font-medium text-muted-foreground">Capture & channels</h2>
+        <div className={`grid gap-3 ${interviewHeavy ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
+          <ActionTile
+            title="Meeting requests"
+            description="Review and schedule reviewer meeting asks."
+            to="/company/meeting-requests"
+            icon={<CalendarClock className="h-5 w-5" />}
+            badge={pendingMeetings}
+          />
+          <ActionTile
+            title="WhatsApp media"
+            description="Review inbound media from discovery chats."
+            to="/company/media"
+            icon={<Image className="h-5 w-5" />}
+          />
+          {interviewHeavy ? (
+            <ActionTile
+              title="Conversations"
+              description="Open employee discovery threads."
+              to="/company/conversations"
+              icon={<MessageSquare className="h-5 w-5" />}
+            />
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
 
   if (!loading && docsFirstPhase && processingDocs) {
     return (
       <DashboardShell title="Discovery intelligence" description="Start with documents or invite employees." loading={false}>
-        <Card>
-          <EmptyState
-            title="Start discovery"
-            description="Upload internal SOPs, policies, or finance exports for a baseline — or invite employees for live interviews. You can do both; intelligence accumulates."
-            action={{ label: 'Upload documents', onClick: () => navigate('/company/documents') }}
-          />
-          <div className="mt-4 flex justify-center">
-            <Button variant="secondary" onClick={() => navigate('/company/employees')}>
-              Invite employees later
-            </Button>
-          </div>
-        </Card>
+        {actionTiles}
       </DashboardShell>
     );
   }
@@ -150,18 +240,7 @@ export function CompanyDashboard() {
     >
       {data && snapshot && p && (
         <>
-          {docsOnlyView && (
-            <Card>
-              <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <p className="m-0 text-sm text-muted-foreground">
-                  No employees invited yet. Document intelligence is the baseline — interviews strengthen the same signals later.
-                </p>
-                <Button variant="secondary" className="shrink-0" onClick={() => navigate('/company/employees')}>
-                  Invite employees
-                </Button>
-              </div>
-            </Card>
-          )}
+          {actionTiles}
 
           {!docsOnlyView && data.employees_summary.stalled_count > 0 && (
             <Card title="Stalled employees">
@@ -248,7 +327,7 @@ export function CompanyDashboard() {
                         {snapshot.report_ready ? 'Generate report' : 'View reports'}
                       </Button>
                     </Link>
-                    <Link to="/company/recommendations" className="w-full sm:w-auto">
+                    <Link to="/company/intelligence#recommendations" className="w-full sm:w-auto">
                       <Button variant="secondary" className="w-full sm:w-auto">
                         Recommendations
                         {snapshot.recommendation_count > 0 ? ` (${snapshot.recommendation_count})` : ''}
@@ -282,7 +361,7 @@ export function CompanyDashboard() {
                 </div>
               )}
               <Link
-                to="/company/intelligence/signals"
+                to="/company/intelligence#signals"
                 className="mt-4 inline-block text-sm font-medium text-primary hover:underline"
               >
                 View all signals →
@@ -306,7 +385,7 @@ export function CompanyDashboard() {
                 </div>
               )}
               <Link
-                to="/company/intelligence/patterns"
+                to="/company/intelligence#patterns"
                 className="mt-4 inline-block text-sm font-medium text-primary hover:underline"
               >
                 View all patterns →
@@ -325,7 +404,7 @@ export function CompanyDashboard() {
                 }))}
               />
               <Link
-                to="/company/intelligence/timeline"
+                to="/company/intelligence#timeline"
                 className="mt-4 inline-block text-sm font-medium text-primary hover:underline"
               >
                 View full timeline →

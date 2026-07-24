@@ -75,10 +75,17 @@ module Api
         end
 
         def profile_params
-          params.fetch(:company_profile, {}).permit(
+          raw = params.fetch(:company_profile, {})
+          permitted = raw.permit(
             :industry, :sub_industry, :size_band, :region, :country,
-            :annual_revenue_band, :business_goals, org_departments: []
-          ).to_h
+            :annual_revenue_band,
+            business_goals: [],
+            org_departments: []
+          )
+          if raw[:business_goals].is_a?(String)
+            permitted[:business_goals] = raw[:business_goals]
+          end
+          permitted.to_h
         end
       end
     end

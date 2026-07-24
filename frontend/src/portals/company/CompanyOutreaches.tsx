@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
-import { PageHeader, Card, DataTable, Badge, Button, Textarea, EmptyState } from '../../components/ui';
+import { PageHeader, Card, DataTable, Badge, Button, Textarea, EmptyState, Modal } from '../../components/ui';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/shadcn/sheet';
 import { useMediaQuery } from '../../lib/useMediaQuery';
 
@@ -36,11 +36,14 @@ function statusVariant(status: string): 'info' | 'success' | 'warning' | 'error'
   return 'warning';
 }
 
+type PendingAction = { id: number; action: 'approve' | 'decline'; label: string };
+
 export function CompanyOutreaches() {
   const token = useCompanyToken();
   const isNarrow = useMediaQuery('(max-width: 1023px)');
   const [outreaches, setOutreaches] = useState<Outreach[]>([]);
   const [selected, setSelected] = useState<Outreach | null>(null);
+  const [pending, setPending] = useState<PendingAction | null>(null);
   const [note, setNote] = useState('');
   const [answer, setAnswer] = useState('');
   const [loading, setLoading] = useState(true);
@@ -66,13 +69,30 @@ export function CompanyOutreaches() {
     load();
   }, [token]);
 
-  const act = async (id: number, action: 'approve' | 'decline') => {
-    if (!token) return;
-    setActingId(id);
+  const openAction = (o: Outreach, action: 'approve' | 'decline') => {
+    setPending({
+      id: o.id,
+      action,
+      label: (o.edited_body || o.body).slice(0, 80) + ((o.edited_body || o.body).length > 80 ? '…' : ''),
+    });
+    setNote('');
+    setError('');
+  };
+
+  const closeModal = () => {
+    if (actingId != null) return;
+    setPending(null);
+    setNote('');
+  };
+
+  const confirmAction = async () => {
+    if (!token || !pending) return;
+    setActingId(pending.id);
     setError('');
     try {
-      if (action === 'approve') await api.approveOutreach(token, id, { note });
-      else await api.declineOutreach(token, id, { note });
+      if (pending.action === 'approve') await api.approveOutreach(token, pending.id, { note: note || undefined });
+      else await api.declineOutreach(token, pending.id, { note: note || undefined });
+      setPending(null);
       setNote('');
       load();
     } catch (err) {
@@ -106,7 +126,7 @@ export function CompanyOutreaches() {
         description="Questions from your assigned reviewer for your company. Answer portal clarifications here; approve employee WhatsApp or email outreach when needed."
       />
 
-      {error && <p className="text-sm text-status-error">{error}</p>}
+      {error && !pending && <p className="text-sm text-status-error">{error}</p>}
 
       {loadError && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-button border border-status-error/30 bg-status-errorBg px-4 py-3 text-sm text-status-error">
@@ -116,15 +136,6 @@ export function CompanyOutreaches() {
           </Button>
         </div>
       )}
-
-      <Card title="Admin note (optional)">
-        <Textarea
-          rows={3}
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder="Optional note for the audit trail when approving or declining"
-        />
-      </Card>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
         <DataTable
@@ -165,10 +176,10 @@ export function CompanyOutreaches() {
               render: (o: Outreach) =>
                 o.status === 'pending_admin_approval' ? (
                   <div className="flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
-                    <Button size="sm" loading={actingId === o.id} onClick={() => act(o.id, 'approve')}>
+                    <Button size="sm" onClick={() => openAction(o, 'approve')}>
                       Approve
                     </Button>
-                    <Button size="sm" variant="secondary" loading={actingId === o.id} onClick={() => act(o.id, 'decline')}>
+                    <Button size="sm" variant="secondary" onClick={() => openAction(o, 'decline')}>
                       Decline
                     </Button>
                   </div>
@@ -312,6 +323,42 @@ export function CompanyOutreaches() {
           </SheetContent>
         </Sheet>
       </div>
+
+      <Modal
+        open={Boolean(pending)}
+        onClose={closeModal}
+        title={pending?.action === 'approve' ? 'Approve clarification' : 'Decline clarification'}
+        footer={
+          <>
+            <Button variant="secondary" onClick={closeModal} disabled={actingId != null}>
+              Cancel
+            </Button>
+            <Button
+              variant={pending?.action === 'decline' ? 'danger' : 'primary'}
+              onClick={confirmAction}
+              loading={actingId === pending?.id}
+            >
+              {pending?.action === 'approve' ? 'Approve' : 'Decline'}
+            </Button>
+          </>
+        }
+      >
+        {pending ? (
+          <div className="space-y-4">
+            <p className="m-0 text-sm text-text-secondary">
+              {pending.action === 'approve' ? 'Approve' : 'Decline'} this request: <strong>{pending.label}</strong>
+            </p>
+            {error ? <p className="m-0 text-sm text-status-error">{error}</p> : null}
+            <Textarea
+              label="Admin note (optional)"
+              rows={3}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Optional note for the audit trail"
+            />
+          </div>
+        ) : null}
+      </Modal>
     </div>
   );
 }

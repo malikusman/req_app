@@ -1,30 +1,34 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api, type Employee } from '../../lib/api';
+import { api } from '../../lib/api';
 import { useCompanyToken, useAuth } from '../../lib/auth';
-import { PageHeader, Card, Input, Select, Button, ProgressBar, Textarea, Skeleton } from '../../components/ui';
+import { PageHeader, Card, Input, Select, Button, Skeleton } from '../../components/ui';
+import {
+  BUSINESS_GOAL_OPTIONS,
+  DEPARTMENT_OPTIONS,
+  ENGAGEMENT_MODE_OPTIONS,
+  INDUSTRY_OPTIONS,
+  REGION_OPTIONS,
+  REVENUE_BAND_OPTIONS,
+  SIZE_BAND_OPTIONS,
+  toggleMulti,
+} from '../../lib/companyProfileOptions';
 
 export function CompanyOnboarding() {
   const token = useCompanyToken();
   const { session, setSession } = useAuth();
   const navigate = useNavigate();
-  const [step, setStep] = useState(1);
   const [displayName, setDisplayName] = useState('');
   const [locale, setLocale] = useState('en');
   const [engagementMode, setEngagementMode] = useState('hybrid');
   const [industry, setIndustry] = useState('');
+  const [subIndustry, setSubIndustry] = useState('');
   const [sizeBand, setSizeBand] = useState('');
   const [region, setRegion] = useState('');
-  const [businessGoals, setBusinessGoals] = useState('');
+  const [revenueBand, setRevenueBand] = useState('');
+  const [departments, setDepartments] = useState<string[]>([]);
+  const [goals, setGoals] = useState<string[]>([]);
   const [knownSystems, setKnownSystems] = useState('');
-  const [phone, setPhone] = useState('');
-  const [name, setName] = useState('');
-  const [department, setDepartment] = useState('');
-  const [invited, setInvited] = useState<(Employee & { access_code?: string })[]>([]);
-  const [lastCode, setLastCode] = useState('');
-  const [bulkPhones, setBulkPhones] = useState('');
-  const [bulkInviting, setBulkInviting] = useState(false);
-  const [skippedInvites, setSkippedInvites] = useState(false);
   const [error, setError] = useState('');
   const [initialLoading, setInitialLoading] = useState(true);
   const [finishing, setFinishing] = useState(false);
@@ -34,18 +38,22 @@ export function CompanyOnboarding() {
     api
       .companyOnboarding(token)
       .then((d) => {
-        setStep(d.step);
         setDisplayName(d.company.display_name || '');
         setLocale(d.company.locale || 'en');
         if (d.company.engagement_mode) setEngagementMode(d.company.engagement_mode);
         const profile = d.company.company_profile || {};
         setIndustry(profile.industry || '');
+        setSubIndustry(profile.sub_industry || '');
         setSizeBand(profile.size_band || '');
         setRegion(profile.region || profile.country || '');
-        setBusinessGoals(
+        setRevenueBand(profile.annual_revenue_band || '');
+        setDepartments(Array.isArray(profile.org_departments) ? profile.org_departments : []);
+        setGoals(
           Array.isArray(profile.business_goals)
-            ? profile.business_goals.join(', ')
-            : profile.business_goals || ''
+            ? profile.business_goals
+            : profile.business_goals
+              ? [profile.business_goals]
+              : []
         );
         setKnownSystems((d.company.known_systems || []).join(', '));
       })
@@ -53,105 +61,45 @@ export function CompanyOnboarding() {
       .finally(() => setInitialLoading(false));
   }, [token]);
 
-  const saveProfile = async () => {
+  const finish = async () => {
     if (!token) return;
     setError('');
+    setFinishing(true);
     try {
-      const res = await api.updateOnboardingProfile(token, {
+      await api.updateOnboardingProfile(token, {
         display_name: displayName,
         locale,
         engagement_mode: engagementMode,
         company_profile: {
-          industry: industry.trim() || undefined,
+          industry: industry || undefined,
+          sub_industry: subIndustry.trim() || undefined,
           size_band: sizeBand || undefined,
           region: region.trim() || undefined,
-          business_goals: businessGoals.trim() || undefined,
+          annual_revenue_band: revenueBand || undefined,
+          org_departments: departments,
+          business_goals: goals,
         },
         known_systems: knownSystems
           .split(/[,;\n]+/)
           .map((s) => s.trim())
           .filter(Boolean),
       });
-      setStep(res.step);
-      if (res.engagement_mode) setEngagementMode(res.engagement_mode);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save');
-    }
-  };
-
-  const inviteEmployee = async () => {
-    if (!token || !phone) return;
-    setError('');
-    try {
-      const res = await api.inviteEmployee(token, phone, name || undefined, department || undefined);
-      setLastCode(res.access_code);
-      setInvited((prev) => [...prev, { ...res.employee, access_code: res.access_code }]);
-      setPhone('');
-      setName('');
-      setDepartment('');
-      setSkippedInvites(false);
-      setStep(3);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to invite');
-    }
-  };
-
-  const bulkInvite = async () => {
-    if (!token) return;
-    const phones = bulkPhones
-      .split(/[\n,]+/)
-      .map((p) => p.trim())
-      .filter(Boolean);
-    if (phones.length === 0) return;
-
-    setError('');
-    setBulkInviting(true);
-    try {
-      const res = await api.bulkInviteEmployees(
-        token,
-        phones.map((phone_e164) => ({ phone_e164, department: department || undefined }))
-      );
-      setInvited((prev) => [
-        ...prev,
-        ...res.employees.map((e) => ({ ...e, access_code: e.access_code })),
-      ]);
-      setBulkPhones('');
-      setSkippedInvites(false);
-      setStep(3);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Bulk invite failed');
-    } finally {
-      setBulkInviting(false);
-    }
-  };
-
-  const skipInvites = () => {
-    setSkippedInvites(true);
-    setStep(3);
-  };
-
-  const finish = async () => {
-    if (!token) return;
-    setError('');
-    setFinishing(true);
-    try {
       await api.completeOnboarding(token);
       if (session?.portal === 'company') {
         setSession({
           ...session,
-          company: { ...session.company, portal_onboarding_completed_at: new Date().toISOString() },
+          company: {
+            ...session.company,
+            portal_onboarding_completed_at: new Date().toISOString(),
+          },
         });
       }
-      navigate(skippedInvites || invited.length === 0 ? '/company/documents' : '/company/dashboard');
+      navigate('/company/dashboard', { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not complete onboarding. Please try again.');
+      setError(err instanceof Error ? err.message : 'Failed to complete setup');
     } finally {
       setFinishing(false);
     }
-  };
-
-  const copyCode = (code: string) => {
-    navigator.clipboard.writeText(code);
   };
 
   if (initialLoading) {
@@ -164,199 +112,132 @@ export function CompanyOnboarding() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-xl space-y-6">
       <PageHeader
-        title="Welcome — let's get started"
-        description="Start with internal documents, invite employees now, or add people later."
+        title="Confirm company details"
+        description="Review your profile from signup, then go to the dashboard to upload documents or invite employees."
       />
 
-      <div>
-        <p className="mb-2 text-sm text-text-secondary">Step {step} of 3</p>
-        <ProgressBar value={(step / 3) * 100} />
-      </div>
+      {error ? <p className="text-sm text-status-error">{error}</p> : null}
 
-      {error && <p className="text-sm text-status-error">{error}</p>}
+      <Card>
+        <div className="space-y-4">
+          <Input label="Display name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+          <Select
+            label="Locale (reports)"
+            value={locale}
+            onChange={(e) => setLocale(e.target.value)}
+            options={[
+              { value: 'en', label: 'English' },
+              { value: 'es', label: 'Spanish' },
+              { value: 'fr', label: 'French' },
+              { value: 'de', label: 'German' },
+            ]}
+          />
+          <Select
+            label="Discovery approach"
+            value={engagementMode}
+            onChange={(e) => setEngagementMode(e.target.value)}
+            options={[...ENGAGEMENT_MODE_OPTIONS]}
+          />
+          <Select
+            label="Industry"
+            value={industry}
+            onChange={(e) => setIndustry(e.target.value)}
+            options={[{ value: '', label: 'Select industry' }, ...INDUSTRY_OPTIONS]}
+          />
+          <Input
+            label="Sub-industry / focus (optional)"
+            value={subIndustry}
+            onChange={(e) => setSubIndustry(e.target.value)}
+          />
+          <Select
+            label="Company size"
+            value={sizeBand}
+            onChange={(e) => setSizeBand(e.target.value)}
+            options={[{ value: '', label: 'Prefer not to say' }, ...SIZE_BAND_OPTIONS]}
+          />
+          <Select
+            label="Region"
+            value={region}
+            onChange={(e) => setRegion(e.target.value)}
+            options={[
+              { value: '', label: 'Select region' },
+              ...REGION_OPTIONS.filter((r) => r.value !== 'Other'),
+              ...(region && !REGION_OPTIONS.some((r) => r.value === region)
+                ? [{ value: region, label: region }]
+                : []),
+              { value: 'Other', label: 'Other' },
+            ]}
+          />
+          <Select
+            label="Annual revenue (optional)"
+            value={revenueBand}
+            onChange={(e) => setRevenueBand(e.target.value)}
+            options={[...REVENUE_BAND_OPTIONS]}
+          />
 
-      {step === 1 && (
-        <Card title="Step 1 — Company profile">
-          <div className="max-w-md space-y-4">
-            <Input
-              label="Display name"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="Acme Corporation"
-            />
-            <Select
-              label="Default language (for reports)"
-              value={locale}
-              onChange={(e) => setLocale(e.target.value)}
-              options={[
-                { value: 'en', label: 'English' },
-                { value: 'es', label: 'Spanish' },
-                { value: 'fr', label: 'French' },
-                { value: 'de', label: 'German' },
-              ]}
-            />
-            <Select
-              label="How will you start discovery?"
-              value={engagementMode}
-              onChange={(e) => setEngagementMode(e.target.value)}
-              options={[
-                {
-                  value: 'hybrid',
-                  label: 'Docs now → people later (baseline report, then interviews strengthen it)',
-                },
-                {
-                  value: 'documents',
-                  label: 'Documents only (baseline PDF without invites)',
-                },
-                {
-                  value: 'interview',
-                  label: 'Employees first (WhatsApp / web interviews, docs optional)',
-                },
-              ]}
-            />
-            <Input
-              label="Industry (optional)"
-              value={industry}
-              onChange={(e) => setIndustry(e.target.value)}
-              placeholder="Logistics, manufacturing, SaaS…"
-            />
-            <Select
-              label="Company size (optional)"
-              value={sizeBand}
-              onChange={(e) => setSizeBand(e.target.value)}
-              options={[
-                { value: '', label: 'Prefer not to say' },
-                { value: '1-10', label: '1–10' },
-                { value: '11-50', label: '11–50' },
-                { value: '51-200', label: '51–200' },
-                { value: '201-1000', label: '201–1,000' },
-                { value: '1000+', label: '1,000+' },
-              ]}
-            />
-            <Input
-              label="Region / country (optional)"
-              value={region}
-              onChange={(e) => setRegion(e.target.value)}
-              placeholder="UAE, GCC, US…"
-            />
-            <Textarea
-              label="Business goals (optional)"
-              value={businessGoals}
-              onChange={(e) => setBusinessGoals(e.target.value)}
-              placeholder="Reduce month-end close time, cut re-entry…"
-              rows={2}
-            />
-            <Input
-              label="Systems you already use (optional)"
-              value={knownSystems}
-              onChange={(e) => setKnownSystems(e.target.value)}
-              placeholder="SAP, Excel, Slack (comma-separated)"
-            />
-            <p className="text-xs text-text-secondary">
-              Next: optional invites, then a short checklist — documents path lands you on Documents to upload.
-            </p>
-            <Button onClick={saveProfile}>Continue</Button>
-          </div>
-        </Card>
-      )}
-
-      {step === 2 && (
-        <Card title="Step 2 — Invite employees (optional)">
-          <p className="text-sm text-text-secondary">
-            You can invite people now, or skip and upload ISO / procedure / finance documents first.
-            Interviews later will strengthen the same intelligence baseline — not replace it.
-          </p>
-          <div className="mt-4 max-w-md space-y-4">
-            <Input
-              label="Mobile number (with country code)"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="+1 415 555 1234"
-            />
-            <Input label="Name (optional)" value={name} onChange={(e) => setName(e.target.value)} />
-            <Input
-              label="Department (optional)"
-              value={department}
-              onChange={(e) => setDepartment(e.target.value)}
-              placeholder="finance"
-            />
-            <Button onClick={inviteEmployee} disabled={!phone}>
-              Invite & generate access code
-            </Button>
-
-            <div className="border-t border-border pt-4">
-              <Textarea
-                label="Bulk invite (one phone per line)"
-                value={bulkPhones}
-                onChange={(e) => setBulkPhones(e.target.value)}
-                placeholder={"+14155551001\n+14155551002\n+14155551003"}
-                rows={4}
-              />
-              <Button
-                variant="secondary"
-                className="mt-2"
-                loading={bulkInviting}
-                disabled={!bulkPhones.trim()}
-                onClick={bulkInvite}
-              >
-                Bulk invite
-              </Button>
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-medium text-text-primary">Primary departments</legend>
+            <div className="flex flex-wrap gap-2">
+              {DEPARTMENT_OPTIONS.map((dept) => {
+                const active = departments.includes(dept);
+                return (
+                  <button
+                    key={dept}
+                    type="button"
+                    onClick={() => setDepartments((prev) => toggleMulti(prev, dept))}
+                    className={`rounded-button border px-3 py-1.5 text-xs ${
+                      active
+                        ? 'border-accent bg-accent/10 text-accent'
+                        : 'border-border text-text-secondary hover:border-accent/40'
+                    }`}
+                  >
+                    {dept}
+                  </button>
+                );
+              })}
             </div>
+          </fieldset>
 
-            {lastCode && (
-              <div className="rounded-button border border-border bg-surface-muted p-4">
-                <p className="m-0 text-sm text-text-secondary">Latest access code (share privately):</p>
-                <p className="mt-2 font-mono text-lg font-semibold">{lastCode}</p>
-                <Button variant="secondary" size="sm" className="mt-2" onClick={() => copyCode(lastCode)}>
-                  Copy code
-                </Button>
-              </div>
-            )}
-            <div className="flex flex-wrap gap-2 pt-2">
-              {invited.length > 0 && (
-                <Button variant="secondary" onClick={() => setStep(3)}>
-                  Continue ({invited.length} invited)
-                </Button>
-              )}
-              <Button variant="ghost" onClick={skipInvites}>
-                Skip for now — start with documents
-              </Button>
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-medium text-text-primary">Business goals</legend>
+            <div className="flex flex-wrap gap-2">
+              {BUSINESS_GOAL_OPTIONS.map((goal) => {
+                const active = goals.includes(goal.value);
+                return (
+                  <button
+                    key={goal.value}
+                    type="button"
+                    onClick={() => setGoals((prev) => toggleMulti(prev, goal.value))}
+                    className={`rounded-button border px-3 py-1.5 text-xs ${
+                      active
+                        ? 'border-accent bg-accent/10 text-accent'
+                        : 'border-border text-text-secondary hover:border-accent/40'
+                    }`}
+                  >
+                    {goal.label}
+                  </button>
+                );
+              })}
             </div>
-          </div>
-        </Card>
-      )}
+          </fieldset>
 
-      {step >= 3 && (
-        <Card title={skippedInvites || invited.length === 0 ? 'Step 3 — Start with documents' : 'Step 3 — Share instructions'}>
-          {skippedInvites || invited.length === 0 ? (
-            <ul className="list-inside list-disc space-y-2 text-sm text-text-secondary">
-              <li>Upload ISO certificates, SOPs, and finance files from Documents</li>
-              <li>Tag documents with a department when possible for better coverage</li>
-              <li>Baseline intelligence builds from your corpus; invite employees later to strengthen it</li>
-            </ul>
-          ) : (
-            <ul className="list-inside list-disc space-y-2 text-sm text-text-secondary">
-              <li>Share the bot number with each invited employee</li>
-              <li>Send each person their unique access code via email or Slack</li>
-              <li>Never post access codes in public channels</li>
-            </ul>
-          )}
-          {invited.length > 0 && (
-            <ul className="mt-4 space-y-2 text-sm">
-              {invited.map((e) => (
-                <li key={e.id} className="rounded-button border border-border px-3 py-2">
-                  {e.display_name || e.phone_e164} — <code className="text-accent">{e.access_code}</code>
-                </li>
-              ))}
-            </ul>
-          )}
-          <Button className="mt-4" loading={finishing} onClick={finish}>
-            {skippedInvites || invited.length === 0 ? 'Go to documents' : 'Go to dashboard'}
+          <Input
+            label="Known systems"
+            value={knownSystems}
+            onChange={(e) => setKnownSystems(e.target.value)}
+            placeholder="SAP, Excel, Slack"
+          />
+
+          <Button className="w-full" loading={finishing} onClick={finish}>
+            Complete setup
           </Button>
-        </Card>
-      )}
+          <p className="m-0 text-center text-xs text-text-secondary">
+            Next: upload documents or invite employees from the dashboard.
+          </p>
+        </div>
+      </Card>
     </div>
   );
 }

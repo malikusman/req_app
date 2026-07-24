@@ -1,82 +1,60 @@
 import {
-  Clock,
+  CalendarClock,
   CreditCard,
   FileBarChart,
   FileText,
   HelpCircle,
   Image,
   LayoutDashboard,
-  Lightbulb,
   MessageSquare,
   Radio,
   Settings,
-  Shapes,
   ShieldCheck,
-  CalendarClock,
   Users,
   Wrench,
 } from 'lucide-react';
 import type { SidebarItem } from '../../components/layout/Sidebar';
+import type { LucideIcon } from 'lucide-react';
 
-/** Interview-centric destinations demoted (or badged) during docs-first phase.
- * Clarifications stay primary — reviewers can ask the CEO/admin without employees. */
-const INTERVIEW_ONLY = new Set([
-  '/company/conversations',
-  '/company/meeting-requests',
-  '/company/media',
-  '/company/discovery-questions',
-]);
+type NavDef = SidebarItem & { hideWhenOnboarded?: boolean };
 
-const SECTIONS = {
-  overview: 'Overview',
-  baseline: 'Baseline',
-  people: 'People',
-  intelligence: 'Intelligence',
-  delivery: 'Delivery',
-  admin: 'Admin',
-} as const;
-
-type NavDef = SidebarItem & { section: string; interviewOnly?: boolean };
-
-const BASE_NAV: NavDef[] = [
-  { to: '/company/dashboard', label: 'Dashboard', icon: LayoutDashboard, section: SECTIONS.overview },
-  { to: '/company/documents', label: 'Documents', icon: FileText, section: SECTIONS.baseline },
-  { to: '/company/employees', label: 'Employees', icon: Users, section: SECTIONS.people },
-  { to: '/company/conversations', label: 'Conversations', icon: MessageSquare, section: SECTIONS.people, interviewOnly: true },
-  { to: '/company/outreaches', label: 'Clarifications', icon: ShieldCheck, section: SECTIONS.delivery },
-  { to: '/company/meeting-requests', label: 'Meetings', icon: CalendarClock, section: SECTIONS.people, interviewOnly: true },
-  { to: '/company/media', label: 'WhatsApp media', icon: Image, section: SECTIONS.people, interviewOnly: true },
-  { to: '/company/intelligence/signals', label: 'Signals', icon: Radio, section: SECTIONS.intelligence },
-  { to: '/company/intelligence/patterns', label: 'Patterns', icon: Shapes, section: SECTIONS.intelligence },
-  { to: '/company/intelligence/timeline', label: 'Timeline', icon: Clock, section: SECTIONS.intelligence },
-  { to: '/company/recommendations', label: 'Recommendations', icon: Lightbulb, section: SECTIONS.intelligence },
-  { to: '/company/reports', label: 'Reports', icon: FileBarChart, section: SECTIONS.delivery },
-  { to: '/company/billing', label: 'Billing', icon: CreditCard, section: SECTIONS.admin },
-  { to: '/company/discovery-questions', label: 'Questions', icon: HelpCircle, section: SECTIONS.admin, interviewOnly: true },
-  { to: '/company/settings', label: 'Settings', icon: Settings, section: SECTIONS.admin },
-  { to: '/company/onboarding', label: 'Setup', icon: Wrench, section: SECTIONS.admin },
+const PRIMARY_NAV: NavDef[] = [
+  { to: '/company/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/company/documents', label: 'Documents', icon: FileText },
+  { to: '/company/employees', label: 'Employees', icon: Users },
+  { to: '/company/intelligence', label: 'Intelligence', icon: Radio },
+  { to: '/company/outreaches', label: 'Clarifications', icon: ShieldCheck },
+  { to: '/company/reports', label: 'Reports', icon: FileBarChart },
+  { to: '/company/settings', label: 'Settings', icon: Settings },
+  { to: '/company/onboarding', label: 'Setup', icon: Wrench, hideWhenOnboarded: true },
 ];
 
 /**
- * Grouped company nav. In docs-first phase, Documents stays early and interview-only
- * items are badged “Later” so admins know they apply after invites.
+ * Compact primary company nav. Intelligence is a single hub; Meetings / WhatsApp /
+ * Conversations / Billing are reached from Dashboard tiles or Settings links.
  */
 export function companyNavItems(opts?: { docsFirstPhase?: boolean; onboardingComplete?: boolean }): SidebarItem[] {
-  const docsFirst = Boolean(opts?.docsFirstPhase);
   const hideSetup = Boolean(opts?.onboardingComplete);
 
-  return BASE_NAV.filter((item) => !(hideSetup && item.to === '/company/onboarding')).map((item) => {
-    const next: SidebarItem = {
-      to: item.to,
-      label: item.label,
-      icon: item.icon,
-      section: item.section,
-    };
-    if (docsFirst && (item.interviewOnly || INTERVIEW_ONLY.has(item.to))) {
-      next.badge = 'Later';
-    }
-    return next;
-  });
+  return PRIMARY_NAV.filter((item) => !(hideSetup && item.hideWhenOnboarded)).map((item) => ({
+    to: item.to,
+    label: item.label,
+    icon: item.icon,
+  }));
 }
 
 export const navItems = companyNavItems();
+
+/** Secondary destinations linked from Settings (and dashboard capture tiles). */
+export const SETTINGS_SECONDARY_LINKS: {
+  to: string;
+  label: string;
+  description: string;
+  icon: LucideIcon;
+}[] = [
+  { to: '/company/billing', label: 'Billing', description: 'Trial usage and plan', icon: CreditCard },
+  { to: '/company/meeting-requests', label: 'Meetings', description: 'Reviewer meeting requests', icon: CalendarClock },
+  { to: '/company/media', label: 'WhatsApp media', description: 'Inbound discovery media', icon: Image },
+  { to: '/company/conversations', label: 'Conversations', description: 'Employee discovery threads', icon: MessageSquare },
+  { to: '/company/discovery-questions', label: 'Questions', description: 'Discovery question bank', icon: HelpCircle },
+];

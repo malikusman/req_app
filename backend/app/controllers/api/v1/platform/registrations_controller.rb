@@ -105,6 +105,8 @@ module Api
             company_id: registration.company_id,
             company_approval_status: registration.company.approval_status,
             admin_user_status: registration.company_user.status,
+            company_profile: registration.company.company_profile,
+            engagement_mode: registration.company.engagement_mode,
             created_at: registration.created_at,
             reviewed_at: registration.reviewed_at
           }

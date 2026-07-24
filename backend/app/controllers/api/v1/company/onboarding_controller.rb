@@ -29,7 +29,7 @@ module Api
           if params[:engagement_mode].present?
             mode = params[:engagement_mode].to_s
             mode = "hybrid" unless ::Company::ENGAGEMENT_MODES.include?(mode)
-            attrs[:settings] = current_company.settings.merge("engagement_mode" => mode)
+            attrs[:settings] = (current_company.settings || {}).merge("engagement_mode" => mode)
           end
           current_company.update!(attrs)
 
@@ -73,10 +73,17 @@ module Api
         end
 
         def profile_params
-          params.fetch(:company_profile, {}).permit(
+          raw = params.fetch(:company_profile, {})
+          permitted = raw.permit(
             :industry, :sub_industry, :size_band, :region, :country,
-            :annual_revenue_band, :business_goals, org_departments: []
-          ).to_h
+            :annual_revenue_band,
+            business_goals: [],
+            org_departments: []
+          )
+          if raw[:business_goals].is_a?(String)
+            permitted[:business_goals] = raw[:business_goals]
+          end
+          permitted.to_h
         end
 
         def known_systems_param

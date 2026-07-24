@@ -29,14 +29,11 @@ import { CompanyOnboarding } from './portals/company/CompanyOnboarding';
 import { CompanyEmployees } from './portals/company/CompanyEmployees';
 import { CompanyConversations } from './portals/company/CompanyConversations';
 import { CompanyConversationDetail } from './portals/company/CompanyConversationDetail';
-import { CompanySignals } from './portals/company/CompanySignals';
-import { CompanyPatterns } from './portals/company/CompanyPatterns';
+import { CompanyIntelligence } from './portals/company/CompanyIntelligence';
 import { CompanyDocuments } from './portals/company/CompanyDocuments';
 import { ReviewerDocuments } from './portals/reviewer/ReviewerDocuments';
 import { CompanyMediaLibrary } from './portals/company/CompanyMediaLibrary';
-import { CompanyTimeline } from './portals/company/CompanyTimeline';
 import { CompanyDiscoveryQuestions } from './portals/company/CompanyDiscoveryQuestions';
-import { CompanyRecommendations } from './portals/company/CompanyRecommendations';
 import { CompanyReports } from './portals/company/CompanyReports';
 import { CompanySettings } from './portals/company/CompanySettings';
 import { CompanyBilling } from './portals/company/CompanyBilling';
@@ -170,15 +167,16 @@ export default function App() {
               <Route path="employees" element={<CompanyEmployees />} />
               <Route path="conversations" element={<CompanyConversations />} />
               <Route path="conversations/:id" element={<CompanyConversationDetail />} />
-              <Route path="intelligence/signals" element={<CompanySignals />} />
-              <Route path="intelligence/patterns" element={<CompanyPatterns />} />
+              <Route path="intelligence" element={<CompanyIntelligence />} />
+              <Route path="intelligence/signals" element={<Navigate to="/company/intelligence#signals" replace />} />
+              <Route path="intelligence/patterns" element={<Navigate to="/company/intelligence#patterns" replace />} />
+              <Route path="intelligence/timeline" element={<Navigate to="/company/intelligence#timeline" replace />} />
               <Route path="documents" element={<CompanyDocuments />} />
               <Route path="outreaches" element={<CompanyOutreaches />} />
               <Route path="meeting-requests" element={<CompanyMeetingRequests />} />
               <Route path="media" element={<CompanyMediaLibrary />} />
-              <Route path="intelligence/timeline" element={<CompanyTimeline />} />
               <Route path="discovery-questions" element={<CompanyDiscoveryQuestions />} />
-              <Route path="recommendations" element={<CompanyRecommendations />} />
+              <Route path="recommendations" element={<Navigate to="/company/intelligence#recommendations" replace />} />
               <Route path="reports" element={<CompanyReports />} />
               <Route path="settings" element={<CompanySettings />} />
               <Route path="billing" element={<CompanyBilling />} />
