@@ -20,9 +20,9 @@ module Api
             display_name: params[:display_name],
             admin_name: params[:admin_name],
             admin_email: params[:admin_email],
+            admin_phone: params[:admin_phone] || params[:phone],
             role_title: params[:role_title],
             notes: params[:notes],
-            engagement_mode: params[:engagement_mode],
             company_profile: profile_params,
             known_systems: known_systems_param
           )
@@ -52,7 +52,6 @@ module Api
             business_goals: [],
             org_departments: []
           )
-          # Also accept scalar business_goals for older clients
           if raw[:business_goals].is_a?(String)
             permitted[:business_goals] = raw[:business_goals]
           end

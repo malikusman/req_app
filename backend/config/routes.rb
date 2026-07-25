@@ -151,6 +151,7 @@ Rails.application.routes.draw do
         get "expert_reviewers", to: "expert_reviewers#index"
         get "onboarding", to: "onboarding#show"
         patch "onboarding/profile", to: "onboarding#update_profile"
+        patch "onboarding/questionnaire", to: "onboarding#update_questionnaire"
         post "onboarding/complete", to: "onboarding#complete"
         resources :documents, only: %i[index show create update destroy] do
           member do

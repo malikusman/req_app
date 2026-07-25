@@ -15,8 +15,8 @@ export const SIZE_BAND_OPTIONS = [
   { value: '1-10', label: '1–10' },
   { value: '11-50', label: '11–50' },
   { value: '51-200', label: '51–200' },
-  { value: '201-1000', label: '201–1,000' },
-  { value: '1000+', label: '1,000+' },
+  { value: '201-500', label: '201–500' },
+  { value: '500+', label: '500+' },
 ] as const;
 
 export const REGION_OPTIONS = [

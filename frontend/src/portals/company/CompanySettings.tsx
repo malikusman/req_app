@@ -9,7 +9,6 @@ import { SETTINGS_SECONDARY_LINKS } from './nav';
 import {
   BUSINESS_GOAL_OPTIONS,
   DEPARTMENT_OPTIONS,
-  ENGAGEMENT_MODE_OPTIONS,
   INDUSTRY_OPTIONS,
   REGION_OPTIONS,
   REVENUE_BAND_OPTIONS,
@@ -22,7 +21,6 @@ export function CompanySettings() {
   const { toast } = useToast();
   const [displayName, setDisplayName] = useState('');
   const [locale, setLocale] = useState('en');
-  const [engagementMode, setEngagementMode] = useState('hybrid');
   const [industry, setIndustry] = useState('');
   const [subIndustry, setSubIndustry] = useState('');
   const [sizeBand, setSizeBand] = useState('');
@@ -43,8 +41,6 @@ export function CompanySettings() {
       .then((d) => {
         setDisplayName(d.company.display_name || '');
         setLocale(d.company.locale);
-        const mode = (d.settings?.engagement_mode as string) || 'hybrid';
-        setEngagementMode(mode);
         const profile = d.company.company_profile || {};
         setIndustry(profile.industry || '');
         setSubIndustry(profile.sub_industry || '');
@@ -79,7 +75,6 @@ export function CompanySettings() {
       await api.updateCompanySettings(token, {
         display_name: displayName,
         locale,
-        engagement_mode: engagementMode,
         company_profile: {
           industry: industry || undefined,
           sub_industry: subIndustry.trim() || undefined,
@@ -142,6 +137,17 @@ export function CompanySettings() {
 
       <Card title="More tools">
         <div className="grid gap-3 sm:grid-cols-2">
+          <Link
+            to="/company/onboarding"
+            className="flex items-start gap-3 rounded-lg border border-border p-3 transition-colors hover:border-primary/40 hover:bg-muted/40 sm:col-span-2"
+          >
+            <div className="min-w-0">
+              <p className="m-0 font-medium text-foreground">Company profile questionnaire</p>
+              <p className="m-0 text-sm text-muted-foreground">
+                Resume the guided profile — helps Worktruth analyze your business more accurately.
+              </p>
+            </div>
+          </Link>
           {SETTINGS_SECONDARY_LINKS.map((item) => {
             const Icon = item.icon;
             return (
@@ -175,15 +181,6 @@ export function CompanySettings() {
               { value: 'de', label: 'German' },
             ]}
           />
-          <Select
-            label="Discovery approach"
-            value={engagementMode}
-            onChange={(e) => setEngagementMode(e.target.value)}
-            options={[...ENGAGEMENT_MODE_OPTIONS]}
-          />
-          <p className="text-xs text-text-secondary">
-            Documents-only emphasizes the baseline path. Inviting employees automatically switches to hybrid.
-          </p>
           <Select
             label="Industry"
             value={industry}

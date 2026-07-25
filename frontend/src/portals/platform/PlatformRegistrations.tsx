@@ -99,6 +99,7 @@ export function PlatformRegistrations() {
                   <div>
                     <div>{r.admin_name}</div>
                     <div className="text-xs text-text-secondary">{r.admin_email}</div>
+                    {r.admin_phone ? <div className="text-xs text-text-secondary">{r.admin_phone}</div> : null}
                     {r.role_title ? <div className="text-xs text-text-secondary">{r.role_title}</div> : null}
                   </div>
                 ),

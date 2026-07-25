@@ -9,7 +9,7 @@ import {
   Users,
   CalendarClock,
   Image,
-  MessageSquare,
+  ClipboardList,
 } from 'lucide-react';
 import { api, type CompanyDashboardPayload } from '../../lib/api';
 import { useAuth, useCompanyToken } from '../../lib/auth';
@@ -117,10 +117,23 @@ export function CompanyDashboard() {
   const docsFirstPhase = Boolean(data?.docs_first_phase ?? data?.company.docs_first_phase);
   const docsFirstActive = docsFirstPhase && (readyDocs > 0 || score > 0 || signalCount > 0);
   const processingDocs = docsFirstPhase && readyDocs === 0 && score === 0 && signalCount === 0;
-  const interviewHeavy = (data?.engagement_mode || data?.company?.engagement_mode) === 'interview';
+  const qPercent = data?.questionnaire_completion_percent ?? 0;
+  const showProfileTile = !data?.questionnaire_completed_at && qPercent < 100;
 
   const actionTiles = (
     <div className="space-y-4">
+      {showProfileTile ? (
+        <div>
+          <h2 className="m-0 mb-2 text-sm font-medium text-muted-foreground">Company profile</h2>
+          <ActionTile
+            primary
+            title={`Complete company profile — ${qPercent}%`}
+            description="Help us understand your business so analysis is sharper. You can skip fields and finish anytime."
+            to="/company/onboarding"
+            icon={<ClipboardList className="h-5 w-5" />}
+          />
+        </div>
+      ) : null}
       <div>
         <h2 className="m-0 mb-2 text-sm font-medium text-muted-foreground">Get started</h2>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -142,7 +155,7 @@ export function CompanyDashboard() {
       </div>
       <div>
         <h2 className="m-0 mb-2 text-sm font-medium text-muted-foreground">Capture & channels</h2>
-        <div className={`grid gap-3 ${interviewHeavy ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
+        <div className="grid gap-3 sm:grid-cols-2">
           <ActionTile
             title="Meeting requests"
             description="Review and schedule reviewer meeting asks."
@@ -156,14 +169,6 @@ export function CompanyDashboard() {
             to="/company/media"
             icon={<Image className="h-5 w-5" />}
           />
-          {interviewHeavy ? (
-            <ActionTile
-              title="Conversations"
-              description="Open employee discovery threads."
-              to="/company/conversations"
-              icon={<MessageSquare className="h-5 w-5" />}
-            />
-          ) : null}
         </div>
       </div>
     </div>

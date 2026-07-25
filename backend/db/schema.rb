@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_23_010001) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_25_140000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -201,6 +201,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_23_010001) do
     t.string "approval_status", default: "approved", null: false
     t.datetime "approved_at"
     t.datetime "rejected_at"
+    t.jsonb "questionnaire_answers", default: {}, null: false
+    t.datetime "questionnaire_completed_at"
+    t.integer "questionnaire_step", default: 1, null: false
     t.index ["approval_status"], name: "index_companies_on_approval_status"
     t.index ["slug"], name: "index_companies_on_slug", unique: true
   end
@@ -261,6 +264,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_23_010001) do
     t.datetime "reviewed_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "admin_phone"
     t.index ["admin_email"], name: "index_company_registrations_on_admin_email"
     t.index ["company_id"], name: "index_company_registrations_on_company_id"
     t.index ["company_user_id"], name: "index_company_registrations_on_company_user_id"
@@ -317,6 +321,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_23_010001) do
     t.jsonb "notification_preferences", default: {}, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "phone"
     t.index ["company_id", "email"], name: "index_company_users_on_company_id_and_email", unique: true
     t.index ["company_id"], name: "index_company_users_on_company_id"
     t.index ["invited_by_id"], name: "index_company_users_on_invited_by_id"

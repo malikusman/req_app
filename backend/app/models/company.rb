@@ -69,7 +69,7 @@ class Company < ApplicationRecord
 
   ENGAGEMENT_MODES = %w[hybrid documents interview].freeze
 
-  SIZE_BANDS = %w[1-10 11-50 51-200 201-1000 1000+].freeze
+  SIZE_BANDS = %w[1-10 11-50 51-200 201-500 500+].freeze
 
   def merged_settings
     DEFAULT_SETTINGS.deep_merge(self[:settings] || {})

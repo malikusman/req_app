@@ -1,36 +1,224 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { api } from '../../lib/api';
 import { useCompanyToken, useAuth } from '../../lib/auth';
-import { PageHeader, Card, Input, Select, Button, Skeleton } from '../../components/ui';
+import { PageHeader, Card, Input, Button, Textarea, Skeleton, ProgressBar } from '../../components/ui';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/shadcn/sheet';
+import { useMediaQuery } from '../../lib/useMediaQuery';
 import {
-  BUSINESS_GOAL_OPTIONS,
-  DEPARTMENT_OPTIONS,
-  ENGAGEMENT_MODE_OPTIONS,
-  INDUSTRY_OPTIONS,
-  REGION_OPTIONS,
-  REVENUE_BAND_OPTIONS,
-  SIZE_BAND_OPTIONS,
-  toggleMulti,
-} from '../../lib/companyProfileOptions';
+  QUESTIONNAIRE_SECTIONS,
+  computeCompletionPercent,
+  fieldIsVisible,
+  sectionTouched,
+  type QuestionnaireAnswers,
+  type QuestionnaireField,
+} from '../../lib/questionnaireOptions';
+import { cn } from '../../lib/cn';
+
+function ChoiceButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'min-h-11 w-full rounded-lg border px-3 py-2.5 text-left text-sm transition-colors',
+        active
+          ? 'border-primary bg-primary/10 text-foreground'
+          : 'border-border text-muted-foreground hover:border-primary/40 hover:bg-muted/40'
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+function SearchableSelectField({
+  field,
+  value,
+  onChange,
+  isNarrow,
+}: {
+  field: QuestionnaireField;
+  value: string;
+  onChange: (v: string) => void;
+  isNarrow: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const options = field.options || [];
+  const filtered = options.filter((o) => o.toLowerCase().includes(query.toLowerCase()));
+
+  const pick = (opt: string) => {
+    onChange(opt);
+    setOpen(false);
+    setQuery('');
+  };
+
+  const list = (
+    <div className="space-y-2">
+      <Input
+        label="Search"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Type to filter…"
+        autoFocus
+      />
+      <ul className="max-h-64 space-y-1 overflow-y-auto">
+        {filtered.map((opt) => (
+          <li key={opt}>
+            <ChoiceButton active={value === opt} onClick={() => pick(opt)}>
+              {opt}
+            </ChoiceButton>
+          </li>
+        ))}
+        {filtered.length === 0 ? <li className="text-sm text-muted-foreground">No matches</li> : null}
+      </ul>
+    </div>
+  );
+
+  if (isNarrow) {
+    return (
+      <div className="space-y-2">
+        <p className="m-0 text-sm font-medium text-foreground">{field.label}</p>
+        <Button type="button" variant="secondary" className="w-full justify-between" onClick={() => setOpen(true)}>
+          <span className="truncate">{value || 'Select…'}</span>
+          <ChevronRight className="h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+        <Sheet open={open} onOpenChange={setOpen}>
+          <SheetContent side="bottom" className="max-h-[85dvh] overflow-y-auto">
+            <SheetHeader>
+              <SheetTitle>{field.label}</SheetTitle>
+            </SheetHeader>
+            <div className="mt-4">{list}</div>
+          </SheetContent>
+        </Sheet>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="m-0 text-sm font-medium text-foreground">{field.label}</p>
+      <Button type="button" variant="secondary" className="w-full justify-between" onClick={() => setOpen(!open)}>
+        <span className="truncate">{value || 'Select…'}</span>
+      </Button>
+      {open ? <Card className="p-3">{list}</Card> : null}
+    </div>
+  );
+}
+
+function FieldEditor({
+  field,
+  answers,
+  setAnswer,
+  isNarrow,
+}: {
+  field: QuestionnaireField;
+  answers: QuestionnaireAnswers;
+  setAnswer: (id: string, value: string | string[] | undefined) => void;
+  isNarrow: boolean;
+}) {
+  if (!fieldIsVisible(field, answers)) return null;
+  const raw = answers[field.id];
+
+  if (field.type === 'text') {
+    return (
+      <Input
+        label={field.label}
+        value={typeof raw === 'string' ? raw : ''}
+        onChange={(e) => setAnswer(field.id, e.target.value)}
+        placeholder={field.placeholder}
+      />
+    );
+  }
+
+  if (field.type === 'textarea') {
+    return (
+      <Textarea
+        label={field.label}
+        rows={4}
+        value={typeof raw === 'string' ? raw : ''}
+        onChange={(e) => setAnswer(field.id, e.target.value)}
+        placeholder={field.placeholder}
+      />
+    );
+  }
+
+  if (field.type === 'searchable_select') {
+    return (
+      <SearchableSelectField
+        field={field}
+        value={typeof raw === 'string' ? raw : ''}
+        onChange={(v) => setAnswer(field.id, v)}
+        isNarrow={isNarrow}
+      />
+    );
+  }
+
+  if (field.type === 'single_select') {
+    const value = typeof raw === 'string' ? raw : '';
+    return (
+      <fieldset className="space-y-2">
+        <legend className="text-sm font-medium text-foreground">{field.label}</legend>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {(field.options || []).map((opt) => (
+            <ChoiceButton key={opt} active={value === opt} onClick={() => setAnswer(field.id, opt)}>
+              {opt}
+            </ChoiceButton>
+          ))}
+        </div>
+      </fieldset>
+    );
+  }
+
+  // multi_select
+  const selected = Array.isArray(raw) ? raw : [];
+  const toggle = (opt: string) => {
+    if (selected.includes(opt)) {
+      setAnswer(
+        field.id,
+        selected.filter((s) => s !== opt)
+      );
+      return;
+    }
+    if (field.maxSelections && selected.length >= field.maxSelections) return;
+    setAnswer(field.id, [...selected, opt]);
+  };
+
+  return (
+    <fieldset className="space-y-2">
+      <legend className="text-sm font-medium text-foreground">{field.label}</legend>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {(field.options || []).map((opt) => (
+          <ChoiceButton key={opt} active={selected.includes(opt)} onClick={() => toggle(opt)}>
+            {opt}
+          </ChoiceButton>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
 
 export function CompanyOnboarding() {
   const token = useCompanyToken();
   const { session, setSession } = useAuth();
   const navigate = useNavigate();
-  const [displayName, setDisplayName] = useState('');
-  const [locale, setLocale] = useState('en');
-  const [engagementMode, setEngagementMode] = useState('hybrid');
-  const [industry, setIndustry] = useState('');
-  const [subIndustry, setSubIndustry] = useState('');
-  const [sizeBand, setSizeBand] = useState('');
-  const [region, setRegion] = useState('');
-  const [revenueBand, setRevenueBand] = useState('');
-  const [departments, setDepartments] = useState<string[]>([]);
-  const [goals, setGoals] = useState<string[]>([]);
-  const [knownSystems, setKnownSystems] = useState('');
+  const isNarrow = useMediaQuery('(max-width: 1023px)');
+  const [sectionId, setSectionId] = useState(1);
+  const [answers, setAnswers] = useState<QuestionnaireAnswers>({});
+  const [percent, setPercent] = useState(0);
   const [error, setError] = useState('');
-  const [initialLoading, setInitialLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [finishing, setFinishing] = useState(false);
 
   useEffect(() => {
@@ -38,53 +226,68 @@ export function CompanyOnboarding() {
     api
       .companyOnboarding(token)
       .then((d) => {
-        setDisplayName(d.company.display_name || '');
-        setLocale(d.company.locale || 'en');
-        if (d.company.engagement_mode) setEngagementMode(d.company.engagement_mode);
-        const profile = d.company.company_profile || {};
-        setIndustry(profile.industry || '');
-        setSubIndustry(profile.sub_industry || '');
-        setSizeBand(profile.size_band || '');
-        setRegion(profile.region || profile.country || '');
-        setRevenueBand(profile.annual_revenue_band || '');
-        setDepartments(Array.isArray(profile.org_departments) ? profile.org_departments : []);
-        setGoals(
-          Array.isArray(profile.business_goals)
-            ? profile.business_goals
-            : profile.business_goals
-              ? [profile.business_goals]
-              : []
-        );
-        setKnownSystems((d.company.known_systems || []).join(', '));
+        setAnswers((d.questionnaire_answers || {}) as QuestionnaireAnswers);
+        setSectionId(d.step || 1);
+        setPercent(d.completion_percent ?? computeCompletionPercent((d.questionnaire_answers || {}) as QuestionnaireAnswers));
       })
-      .catch(() => setError('Could not load onboarding progress — defaults shown.'))
-      .finally(() => setInitialLoading(false));
+      .catch(() => setError('Could not load questionnaire.'))
+      .finally(() => setLoading(false));
   }, [token]);
 
-  const finish = async () => {
+  const section = useMemo(
+    () => QUESTIONNAIRE_SECTIONS.find((s) => s.id === sectionId) || QUESTIONNAIRE_SECTIONS[0],
+    [sectionId]
+  );
+
+  const setAnswer = (id: string, value: string | string[] | undefined) => {
+    setAnswers((prev) => {
+      const next = { ...prev, [id]: value };
+      setPercent(computeCompletionPercent(next));
+      return next;
+    });
+  };
+
+  const persist = async (nextSection?: number, opts?: { markComplete?: boolean }) => {
     if (!token) return;
+    setSaving(true);
     setError('');
-    setFinishing(true);
     try {
-      await api.updateOnboardingProfile(token, {
-        display_name: displayName,
-        locale,
-        engagement_mode: engagementMode,
-        company_profile: {
-          industry: industry || undefined,
-          sub_industry: subIndustry.trim() || undefined,
-          size_band: sizeBand || undefined,
-          region: region.trim() || undefined,
-          annual_revenue_band: revenueBand || undefined,
-          org_departments: departments,
-          business_goals: goals,
-        },
-        known_systems: knownSystems
-          .split(/[,;\n]+/)
-          .map((s) => s.trim())
-          .filter(Boolean),
+      const cleaned: Record<string, string | string[] | undefined> = {};
+      Object.entries(answers).forEach(([k, v]) => {
+        cleaned[k] = v;
       });
-      await api.completeOnboarding(token);
+      const res = await api.updateOnboardingQuestionnaire(token, {
+        questionnaire_answers: cleaned,
+        questionnaire_step: nextSection ?? sectionId,
+      });
+      setPercent(res.completion_percent);
+      if (nextSection) setSectionId(nextSection);
+      if (opts?.markComplete) {
+        await finish(true);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const jumpTo = async (id: number) => {
+    await persist(id);
+  };
+
+  const finish = async (markQuestionnaireComplete = false) => {
+    if (!token) return;
+    setFinishing(true);
+    setError('');
+    try {
+      await api.updateOnboardingQuestionnaire(token, {
+        questionnaire_answers: answers,
+        questionnaire_step: sectionId,
+      });
+      await api.completeOnboarding(token, {
+        mark_questionnaire_complete: markQuestionnaireComplete || percent >= 100,
+      });
       if (session?.portal === 'company') {
         setSession({
           ...session,
@@ -96,13 +299,13 @@ export function CompanyOnboarding() {
       }
       navigate('/company/dashboard', { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to complete setup');
+      setError(err instanceof Error ? err.message : 'Could not finish setup');
     } finally {
       setFinishing(false);
     }
   };
 
-  if (initialLoading) {
+  if (loading) {
     return (
       <div className="space-y-6">
         <Skeleton variant="text" />
@@ -111,133 +314,140 @@ export function CompanyOnboarding() {
     );
   }
 
+  const sectionNav = (
+    <nav className={cn(isNarrow ? 'flex gap-2 overflow-x-auto pb-1' : 'space-y-1')} aria-label="Questionnaire sections">
+      {QUESTIONNAIRE_SECTIONS.map((s) => {
+        const touched = sectionTouched(s.id, answers);
+        const active = s.id === sectionId;
+        return (
+          <button
+            key={s.id}
+            type="button"
+            onClick={() => jumpTo(s.id)}
+            className={cn(
+              'flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors',
+              isNarrow ? 'whitespace-nowrap border' : 'w-full text-left',
+              active
+                ? 'border-primary bg-primary text-primary-foreground'
+                : 'border-border text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+            )}
+          >
+            <span
+              className={cn(
+                'flex h-5 w-5 items-center justify-center rounded-full text-[10px]',
+                active ? 'bg-primary-foreground/20' : touched ? 'bg-primary/15 text-primary' : 'bg-muted'
+              )}
+            >
+              {touched ? <Check className="h-3 w-3" /> : s.id}
+            </span>
+            {isNarrow ? s.shortTitle : s.title}
+          </button>
+        );
+      })}
+    </nav>
+  );
+
   return (
-    <div className="mx-auto max-w-xl space-y-6">
-      <PageHeader
-        title="Confirm company details"
-        description="Review your profile from signup, then go to the dashboard to upload documents or invite employees."
-      />
+    <div className="mx-auto flex min-h-[70vh] max-w-5xl flex-col gap-4 pb-28 lg:pb-8">
+      <div className="sticky top-0 z-20 -mx-1 space-y-3 bg-background/95 px-1 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        <PageHeader
+          title="Company profile"
+          description="This profile helps Worktruth understand your business and analyze it more accurately. Nothing is required — fill what you can."
+        />
+        <div className="flex items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <ProgressBar value={percent} />
+          </div>
+          <span className="shrink-0 text-sm font-semibold tabular-nums text-foreground">{percent}%</span>
+        </div>
+        {isNarrow ? sectionNav : null}
+      </div>
 
       {error ? <p className="text-sm text-status-error">{error}</p> : null}
 
-      <Card>
-        <div className="space-y-4">
-          <Input label="Display name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
-          <Select
-            label="Locale (reports)"
-            value={locale}
-            onChange={(e) => setLocale(e.target.value)}
-            options={[
-              { value: 'en', label: 'English' },
-              { value: 'es', label: 'Spanish' },
-              { value: 'fr', label: 'French' },
-              { value: 'de', label: 'German' },
-            ]}
-          />
-          <Select
-            label="Discovery approach"
-            value={engagementMode}
-            onChange={(e) => setEngagementMode(e.target.value)}
-            options={[...ENGAGEMENT_MODE_OPTIONS]}
-          />
-          <Select
-            label="Industry"
-            value={industry}
-            onChange={(e) => setIndustry(e.target.value)}
-            options={[{ value: '', label: 'Select industry' }, ...INDUSTRY_OPTIONS]}
-          />
-          <Input
-            label="Sub-industry / focus (optional)"
-            value={subIndustry}
-            onChange={(e) => setSubIndustry(e.target.value)}
-          />
-          <Select
-            label="Company size"
-            value={sizeBand}
-            onChange={(e) => setSizeBand(e.target.value)}
-            options={[{ value: '', label: 'Prefer not to say' }, ...SIZE_BAND_OPTIONS]}
-          />
-          <Select
-            label="Region"
-            value={region}
-            onChange={(e) => setRegion(e.target.value)}
-            options={[
-              { value: '', label: 'Select region' },
-              ...REGION_OPTIONS.filter((r) => r.value !== 'Other'),
-              ...(region && !REGION_OPTIONS.some((r) => r.value === region)
-                ? [{ value: region, label: region }]
-                : []),
-              { value: 'Other', label: 'Other' },
-            ]}
-          />
-          <Select
-            label="Annual revenue (optional)"
-            value={revenueBand}
-            onChange={(e) => setRevenueBand(e.target.value)}
-            options={[...REVENUE_BAND_OPTIONS]}
-          />
+      <div className="grid gap-4 lg:grid-cols-[220px_1fr]">
+        {!isNarrow ? (
+          <aside className="lg:sticky lg:top-36 lg:self-start">
+            <Card className="p-2">{sectionNav}</Card>
+          </aside>
+        ) : null}
 
-          <fieldset className="space-y-2">
-            <legend className="text-sm font-medium text-text-primary">Primary departments</legend>
-            <div className="flex flex-wrap gap-2">
-              {DEPARTMENT_OPTIONS.map((dept) => {
-                const active = departments.includes(dept);
-                return (
-                  <button
-                    key={dept}
-                    type="button"
-                    onClick={() => setDepartments((prev) => toggleMulti(prev, dept))}
-                    className={`rounded-button border px-3 py-1.5 text-xs ${
-                      active
-                        ? 'border-accent bg-accent/10 text-accent'
-                        : 'border-border text-text-secondary hover:border-accent/40'
-                    }`}
-                  >
-                    {dept}
-                  </button>
-                );
-              })}
-            </div>
-          </fieldset>
+        <Card className="space-y-6 p-4 sm:p-6">
+          <div>
+            <p className="m-0 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Section {section.id} of {QUESTIONNAIRE_SECTIONS.length}
+            </p>
+            <h2 className="m-0 mt-1 text-xl font-medium text-foreground">{section.title}</h2>
+          </div>
 
-          <fieldset className="space-y-2">
-            <legend className="text-sm font-medium text-text-primary">Business goals</legend>
-            <div className="flex flex-wrap gap-2">
-              {BUSINESS_GOAL_OPTIONS.map((goal) => {
-                const active = goals.includes(goal.value);
-                return (
-                  <button
-                    key={goal.value}
-                    type="button"
-                    onClick={() => setGoals((prev) => toggleMulti(prev, goal.value))}
-                    className={`rounded-button border px-3 py-1.5 text-xs ${
-                      active
-                        ? 'border-accent bg-accent/10 text-accent'
-                        : 'border-border text-text-secondary hover:border-accent/40'
-                    }`}
-                  >
-                    {goal.label}
-                  </button>
-                );
-              })}
-            </div>
-          </fieldset>
+          <div className="space-y-6">
+            {section.fields.map((field) => (
+              <FieldEditor
+                key={field.id}
+                field={field}
+                answers={answers}
+                setAnswer={setAnswer}
+                isNarrow={isNarrow}
+              />
+            ))}
+          </div>
 
-          <Input
-            label="Known systems"
-            value={knownSystems}
-            onChange={(e) => setKnownSystems(e.target.value)}
-            placeholder="SAP, Excel, Slack"
-          />
+          <div className="hidden flex-wrap gap-2 border-t border-border pt-4 lg:flex">
+            <Button
+              variant="secondary"
+              disabled={sectionId <= 1 || saving}
+              onClick={() => jumpTo(sectionId - 1)}
+            >
+              <ChevronLeft className="mr-1 h-4 w-4" />
+              Back
+            </Button>
+            {sectionId < 10 ? (
+              <Button loading={saving} onClick={() => persist(sectionId + 1)}>
+                Save & continue
+                <ChevronRight className="ml-1 h-4 w-4" />
+              </Button>
+            ) : (
+              <Button loading={finishing || saving} onClick={() => persist(10, { markComplete: true })}>
+                Finish profile
+              </Button>
+            )}
+            <Button variant="secondary" loading={finishing} onClick={() => finish(false)}>
+              Skip for now
+            </Button>
+          </div>
+        </Card>
+      </div>
 
-          <Button className="w-full" loading={finishing} onClick={finish}>
-            Complete setup
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 p-3 backdrop-blur lg:hidden">
+        <div className="mx-auto flex max-w-5xl flex-wrap gap-2">
+          <Button
+            size="sm"
+            variant="secondary"
+            className="flex-1"
+            disabled={sectionId <= 1 || saving}
+            onClick={() => jumpTo(sectionId - 1)}
+          >
+            Back
           </Button>
-          <p className="m-0 text-center text-xs text-text-secondary">
-            Next: upload documents or invite employees from the dashboard.
-          </p>
+          {sectionId < 10 ? (
+            <Button size="sm" className="flex-[2]" loading={saving} onClick={() => persist(sectionId + 1)}>
+              Save & continue
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              className="flex-[2]"
+              loading={finishing || saving}
+              onClick={() => persist(10, { markComplete: true })}
+            >
+              Finish
+            </Button>
+          )}
+          <Button size="sm" variant="secondary" loading={finishing} onClick={() => finish(false)}>
+            Skip
+          </Button>
         </div>
-      </Card>
+      </div>
     </div>
   );
 }

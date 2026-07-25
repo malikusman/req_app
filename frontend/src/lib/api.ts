@@ -50,6 +50,7 @@ export const api = {
     display_name?: string;
     admin_name: string;
     admin_email: string;
+    admin_phone?: string;
     role_title?: string;
     notes?: string;
     website?: string;
@@ -185,6 +186,11 @@ export const api = {
   companyOnboarding: (token: string) =>
     request<{
       step: number;
+      portal_onboarding_completed_at?: string | null;
+      questionnaire_completed_at?: string | null;
+      questionnaire_answers?: Record<string, string | string[]>;
+      completion_percent?: number;
+      section_status?: Record<string, { touched: boolean; complete: boolean }>;
       company: {
         display_name: string;
         locale: string;
@@ -205,7 +211,7 @@ export const api = {
       known_systems?: string[];
     }
   ) =>
-    request<{ ok: boolean; step: number; engagement_mode?: string; company_profile?: CompanyProfile }>(
+    request<{ ok: boolean; step?: number; engagement_mode?: string; company_profile?: CompanyProfile }>(
       '/api/v1/company/onboarding/profile',
       {
         method: 'PATCH',
@@ -214,8 +220,28 @@ export const api = {
       token
     ),
 
-  completeOnboarding: (token: string) =>
-    request<{ ok: boolean }>('/api/v1/company/onboarding/complete', { method: 'POST' }, token),
+  updateOnboardingQuestionnaire: (
+    token: string,
+    payload: {
+      questionnaire_answers: Record<string, string | string[] | undefined>;
+      questionnaire_step?: number;
+    }
+  ) =>
+    request<{
+      ok: boolean;
+      questionnaire_answers: Record<string, string | string[]>;
+      questionnaire_step: number;
+      questionnaire_completed_at?: string | null;
+      completion_percent: number;
+      section_status?: Record<string, { touched: boolean; complete: boolean }>;
+    }>('/api/v1/company/onboarding/questionnaire', { method: 'PATCH', body: JSON.stringify(payload) }, token),
+
+  completeOnboarding: (token: string, payload?: { mark_questionnaire_complete?: boolean }) =>
+    request<{ ok: boolean; redirect_to?: string; completion_percent?: number }>(
+      '/api/v1/company/onboarding/complete',
+      { method: 'POST', body: JSON.stringify(payload || {}) },
+      token
+    ),
 
   companyEmployees: (token: string) =>
     request<{ employees: Employee[] }>('/api/v1/company/employees', {}, token),
@@ -1488,6 +1514,8 @@ export interface CompanyDashboardPayload {
   report_readiness_breakdown: Record<string, number>;
   engagement_mode?: string;
   docs_first_phase?: boolean;
+  questionnaire_completed_at?: string | null;
+  questionnaire_completion_percent?: number;
   usage: { conversations_used: number; conversation_limit: number | null; remaining: number | null; limit_reached: boolean };
   latest_report: Report | null;
   employees_summary: {
@@ -1775,6 +1803,7 @@ export interface CompanyRegistrationRow {
   company_name: string;
   admin_name: string;
   admin_email: string;
+  admin_phone?: string | null;
   role_title?: string | null;
   notes?: string | null;
   review_note?: string | null;

@@ -6,8 +6,14 @@ module Api
       class OnboardingController < BaseController
         def show
           authorize :onboarding, :show?
+          progress = Companies::QuestionnaireProgress.call(current_company.questionnaire_answers)
           render json: {
-            step: current_step,
+            step: current_company.questionnaire_step.to_i.clamp(1, 10),
+            portal_onboarding_completed_at: current_company.portal_onboarding_completed_at,
+            questionnaire_completed_at: current_company.questionnaire_completed_at,
+            questionnaire_answers: current_company.questionnaire_answers || {},
+            completion_percent: progress[:completion_percent],
+            section_status: progress[:section_status],
             company: {
               display_name: current_company.display_name,
               locale: current_company.locale,
@@ -26,11 +32,6 @@ module Api
             display_name: params[:display_name].presence || current_company.name,
             locale: params[:locale].presence || "en"
           }
-          if params[:engagement_mode].present?
-            mode = params[:engagement_mode].to_s
-            mode = "hybrid" unless ::Company::ENGAGEMENT_MODES.include?(mode)
-            attrs[:settings] = (current_company.settings || {}).merge("engagement_mode" => mode)
-          end
           current_company.update!(attrs)
 
           Companies::ProfileUpdater.call(
@@ -41,36 +42,60 @@ module Api
 
           render json: {
             ok: true,
-            step: 2,
-            engagement_mode: current_company.engagement_mode,
             company_profile: current_company.reload.company_profile
+          }
+        end
+
+        def update_questionnaire
+          authorize :onboarding, :update_profile?
+          answers = (current_company.questionnaire_answers || {}).merge(questionnaire_answers_param)
+          step = params[:questionnaire_step].presence&.to_i
+          step = step.clamp(1, 10) if step
+
+          attrs = { questionnaire_answers: answers }
+          attrs[:questionnaire_step] = step if step
+          current_company.update!(attrs)
+
+          Companies::QuestionnaireSync.call(company: current_company, answers: answers)
+
+          progress = Companies::QuestionnaireProgress.call(answers)
+          if progress[:completion_percent] >= 100 && current_company.questionnaire_completed_at.blank?
+            current_company.update!(questionnaire_completed_at: Time.current)
+          end
+
+          render json: {
+            ok: true,
+            questionnaire_answers: current_company.reload.questionnaire_answers,
+            questionnaire_step: current_company.questionnaire_step,
+            questionnaire_completed_at: current_company.questionnaire_completed_at,
+            completion_percent: progress[:completion_percent],
+            section_status: progress[:section_status]
           }
         end
 
         def complete
           authorize :onboarding, :complete?
-          settings = current_company.settings.presence || {}
-          settings = settings.merge("engagement_mode" => "hybrid") if settings["engagement_mode"].blank?
-          # Docs-first: if finishing with zero employees, stay hybrid/docs — never force interview mode.
-          if current_company.employees.none? && settings["engagement_mode"] == "interview"
-            settings = settings.merge("engagement_mode" => "hybrid")
-          end
-          current_company.update!(
+          settings = (current_company.settings.presence || {}).merge("engagement_mode" => "hybrid")
+
+          progress = Companies::QuestionnaireProgress.call(current_company.questionnaire_answers)
+          attrs = {
             portal_onboarding_completed_at: Time.current,
             settings: settings
-          )
+          }
+          if params[:mark_questionnaire_complete].present? || progress[:completion_percent] >= 100
+            attrs[:questionnaire_completed_at] = Time.current
+          end
+
+          current_company.update!(attrs)
           current_company_user.update!(onboarding_completed_at: Time.current)
-          render json: { ok: true, redirect_to: "/company/dashboard" }
+          render json: {
+            ok: true,
+            redirect_to: "/company/dashboard",
+            completion_percent: progress[:completion_percent]
+          }
         end
 
         private
-
-        def current_step
-          return 3 if current_company.portal_onboarding_completed_at.present?
-          return 2 if current_company.display_name.present?
-
-          1
-        end
 
         def profile_params
           raw = params.fetch(:company_profile, {})
@@ -90,6 +115,14 @@ module Api
           return nil unless params.key?(:known_systems)
 
           Array(params[:known_systems])
+        end
+
+        def questionnaire_answers_param
+          raw = params[:questionnaire_answers] || params[:answers] || {}
+          return {} unless raw.respond_to?(:to_unsafe_h) || raw.is_a?(Hash)
+
+          hash = raw.respond_to?(:to_unsafe_h) ? raw.to_unsafe_h : raw.to_h
+          hash.stringify_keys.slice(*Companies::QuestionnaireProgress::FIELD_IDS)
         end
       end
     end

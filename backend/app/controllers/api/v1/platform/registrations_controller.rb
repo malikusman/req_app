@@ -99,6 +99,7 @@ module Api
             company_name: registration.company_name,
             admin_name: registration.admin_name,
             admin_email: registration.admin_email,
+            admin_phone: registration.admin_phone,
             role_title: registration.role_title,
             notes: registration.notes,
             review_note: registration.review_note,
