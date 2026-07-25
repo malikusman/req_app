@@ -80,7 +80,11 @@ Rails.application.routes.draw do
         post "registrations/companies/:id/reject", to: "registrations#reject_company"
         post "registrations/reviewers/:id/approve", to: "registrations#approve_reviewer"
         post "registrations/reviewers/:id/reject", to: "registrations#reject_reviewer"
-        resources :reviewers, only: %i[index show create update]
+        resources :reviewers, only: %i[index show create update] do
+          member do
+            get :cv
+          end
+        end
         get "companies/:company_id/reviewer_assignments", to: "reviewer_assignments#index"
         post "companies/:company_id/reviewer_assignments", to: "reviewer_assignments#create"
         delete "companies/:company_id/reviewer_assignments/:id", to: "reviewer_assignments#destroy"
@@ -93,7 +97,10 @@ Rails.application.routes.draw do
         get "followups", to: "followups#index"
         get "profile", to: "profile#show"
         patch "profile", to: "profile#update"
+        patch "profile/questionnaire", to: "profile#update_questionnaire"
         post "profile/avatar", to: "profile#avatar"
+        post "profile/cv", to: "profile#cv"
+        get "profile/cv", to: "profile#show_cv"
         resources :notifications, only: %i[index update] do
           collection do
             post :mark_all_read

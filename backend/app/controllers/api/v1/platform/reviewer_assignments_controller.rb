@@ -7,7 +7,9 @@ module Api
         def index
           company = policy_scope(::Company).find(params[:company_id])
           authorize ReviewerAssignment, :index?
-          assignments = company.reviewer_assignments.includes(:reviewer_user, :assigned_by_platform_user).order(assigned_at: :desc)
+          assignments = company.reviewer_assignments
+            .includes(:assigned_by_platform_user, reviewer_user: :reviewer_experiences)
+            .order(assigned_at: :desc)
           render json: {
             assignments: assignments.map { |a| assignment_json(a) },
             active_count: assignments.active.count

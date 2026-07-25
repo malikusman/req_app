@@ -6,7 +6,7 @@ module Api
       class ExpertReviewersController < BaseController
         def index
           reviewers = current_company.reviewer_assignments.active
-            .includes(:reviewer_user)
+            .includes(reviewer_user: :reviewer_experiences)
             .map(&:reviewer_user)
             .select(&:published_profile?)
 

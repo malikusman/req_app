@@ -88,11 +88,17 @@ module Api
         end
 
         def company_detail_json(company)
+          progress = Companies::QuestionnaireProgress.call(company.questionnaire_answers)
           company_json(company).merge(
             settings: company.merged_settings,
             company_users: company.company_users.map do |u|
               { id: u.id, email: u.email, name: u.name, role: u.role, status: u.status }
-            end
+            end,
+            company_profile: company.company_profile || {},
+            questionnaire_answers: company.questionnaire_answers || {},
+            questionnaire_step: company.questionnaire_step,
+            questionnaire_completed_at: company.questionnaire_completed_at,
+            questionnaire_completion_percent: progress[:completion_percent]
           )
         end
 

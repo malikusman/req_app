@@ -60,9 +60,10 @@ RSpec.describe "Api::V1::Reviewer::Profile", type: :request do
       expect(reviewer.reload.profile_status).to eq("published")
     end
 
-    it "rejects publish when incomplete" do
+    it "publishes even when incomplete" do
       patch "/api/v1/reviewer/profile", params: { publish: true }, headers: headers, as: :json
-      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response).to have_http_status(:ok)
+      expect(reviewer.reload.profile_status).to eq("published")
     end
   end
 end

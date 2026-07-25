@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api, type ReviewerUser } from '../../lib/api';
 import { usePlatformToken } from '../../lib/auth';
 import { PageHeader, Button, DataTable, Input, Modal, Badge, EmptyState } from '../../components/ui';
@@ -11,6 +12,7 @@ function generatePassword() {
 
 export function PlatformReviewers() {
   const token = usePlatformToken();
+  const navigate = useNavigate();
   const [reviewers, setReviewers] = useState<ReviewerUser[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ email: '', name: '', password: generatePassword() });
@@ -94,6 +96,7 @@ export function PlatformReviewers() {
           },
         ]}
         rows={reviewers as ReviewerUser[]}
+        onRowClick={(r) => navigate(`/platform/reviewers/${r.id}`)}
         emptyState={<EmptyState title="No reviewers" description="Create a reviewer account to assign to companies." />}
       />
 

@@ -21,9 +21,6 @@ module Reviewers
         sync_completion_timestamp!
 
         if @publish == true
-          result = Reviewers::ProfileCompleteness.call(@reviewer)
-          raise ArgumentError, "Profile incomplete: #{result.missing.join(', ')}" unless result.complete
-
           @reviewer.update!(profile_status: "published", profile_completed_at: Time.current)
         elsif @publish == false
           @reviewer.update!(profile_status: "draft")

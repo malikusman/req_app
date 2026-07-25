@@ -9,6 +9,7 @@ module Reviewers
         id: reviewer.id,
         name: reviewer.name,
         headline: reviewer.headline,
+        bio: reviewer.bio,
         avatar_url: avatar_path(reviewer, request),
         expertise_tags: reviewer.expertise_tags,
         industries: reviewer.industries,
@@ -17,12 +18,16 @@ module Reviewers
         location: reviewer.location,
         linkedin_url: reviewer.linkedin_url,
         profile_status: reviewer.profile_status,
-        platform_verified: reviewer.platform_verified_at.present?
+        platform_verified: reviewer.platform_verified_at.present?,
+        experiences: reviewer.reviewer_experiences.order(:sort_order, :start_year).map { |e| experience_json(e) }
       }
     end
 
     def full(reviewer, request: nil, include_account: false)
       completeness = Reviewers::ProfileCompleteness.call(reviewer)
+      progress = Reviewers::QuestionnaireProgress.call(reviewer.questionnaire_answers, reviewer: reviewer)
+      verification_signals = reviewer.cv_storage_key.present?
+
       json = {
         headline: reviewer.headline,
         bio: reviewer.bio,
@@ -39,12 +44,16 @@ module Reviewers
         profile_completed_at: reviewer.profile_completed_at,
         platform_verified_at: reviewer.platform_verified_at,
         avatar_url: avatar_path(reviewer, request),
+        cv_url: cv_path(reviewer, request),
+        has_cv: reviewer.cv_storage_key.present?,
+        verification_signals: verification_signals,
         experiences: reviewer.reviewer_experiences.order(:sort_order, :start_year).map { |e| experience_json(e) },
         completeness: {
           percent: completeness.percent,
           complete: completeness.complete,
           missing: completeness.missing,
-          checks: completeness.checks
+          checks: completeness.checks,
+          questionnaire_percent: progress[:completion_percent]
         },
         suggested_expertise_tags: Reviewers::ExpertiseCatalog::SUGGESTED
       }
@@ -71,10 +80,16 @@ module Reviewers
       }
     end
 
-    def avatar_path(reviewer, request)
-      return nil if reviewer.avatar_storage_key.blank? || request.nil?
+    def avatar_path(reviewer, request = nil)
+      return nil if reviewer.avatar_storage_key.blank?
 
-      "#{request.base_url}/api/v1/reviewer_users/#{reviewer.id}/avatar"
+      "/api/v1/reviewer_users/#{reviewer.id}/avatar"
+    end
+
+    def cv_path(reviewer, request = nil)
+      return nil if reviewer.cv_storage_key.blank?
+
+      "/api/v1/reviewer/profile/cv"
     end
   end
 end

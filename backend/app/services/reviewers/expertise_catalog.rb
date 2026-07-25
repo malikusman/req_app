@@ -17,7 +17,13 @@ module Reviewers
       "Customer operations",
       "Data & analytics",
       "HR operations",
-      "Legal & compliance"
+      "Legal & compliance",
+      "Sales & revenue operations",
+      "Marketing operations",
+      "IT infrastructure",
+      "Cybersecurity",
+      "M&A/integration",
+      "Strategic planning"
     ].freeze
   end
 end

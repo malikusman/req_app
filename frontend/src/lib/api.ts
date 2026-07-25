@@ -988,6 +988,17 @@ export const api = {
 
   platformReviewers: (token: string) => request<{ reviewers: ReviewerUser[] }>('/api/v1/platform/reviewers', {}, token),
 
+  platformReviewer: (token: string, id: number) =>
+    request<{ reviewer: ReviewerUser }>(`/api/v1/platform/reviewers/${id}`, {}, token),
+
+  platformReviewerCvUrl: async (token: string, id: number) => {
+    const res = await fetch(`${API_URL}/api/v1/platform/reviewers/${id}/cv`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error(res.status === 404 ? 'No CV on file' : 'Could not load CV');
+    return URL.createObjectURL(await res.blob());
+  },
+
   createPlatformReviewer: (token: string, payload: { email: string; name: string; password: string }) =>
     request<{ reviewer: ReviewerUser }>('/api/v1/platform/reviewers', { method: 'POST', body: JSON.stringify({ reviewer: payload }) }, token),
 
@@ -1009,11 +1020,16 @@ export const api = {
     request<void>(`/api/v1/platform/companies/${companyId}/reviewer_assignments/${assignmentId}`, { method: 'DELETE' }, token),
 
   reviewerProfile: (token: string) =>
-    request<{ ok: boolean; user: { id: number; email: string; name: string }; profile: ReviewerProfile }>(
-      '/api/v1/reviewer/profile',
-      {},
-      token
-    ),
+    request<{
+      ok: boolean;
+      user: { id: number; email: string; name: string };
+      profile: ReviewerProfile;
+      questionnaire_answers?: Record<string, unknown>;
+      questionnaire_step?: number;
+      questionnaire_completed_at?: string | null;
+      completion_percent?: number;
+      section_status?: Record<string, { touched: boolean; complete: boolean }>;
+    }>('/api/v1/reviewer/profile', {}, token),
 
   updateReviewerProfile: (
     token: string,
@@ -1024,6 +1040,23 @@ export const api = {
       { method: 'PATCH', body: JSON.stringify(payload) },
       token
     ),
+
+  updateReviewerQuestionnaire: (
+    token: string,
+    payload: {
+      questionnaire_answers: Record<string, unknown>;
+      questionnaire_step?: number;
+    }
+  ) =>
+    request<{
+      ok: boolean;
+      user: { id: number; email: string; name: string };
+      profile: ReviewerProfile;
+      questionnaire_answers: Record<string, unknown>;
+      questionnaire_step: number;
+      completion_percent: number;
+      section_status?: Record<string, { touched: boolean; complete: boolean }>;
+    }>('/api/v1/reviewer/profile/questionnaire', { method: 'PATCH', body: JSON.stringify(payload) }, token),
 
   uploadReviewerAvatar: async (token: string, file: File) => {
     const headers: Record<string, string> = {};
@@ -1036,7 +1069,39 @@ export const api = {
       const err = (data as ApiError).error || res.statusText;
       throw new Error(err);
     }
-    return data as { ok: boolean; user: { id: number; email: string; name: string }; profile: ReviewerProfile };
+    return data as {
+      ok: boolean;
+      user: { id: number; email: string; name: string };
+      profile: ReviewerProfile;
+      completion_percent?: number;
+    };
+  },
+
+  /** Avatar endpoint requires Authorization — use blob URL for <img>, not raw avatar_url. */
+  fetchReviewerAvatarPreview: async (token: string, avatarUrl: string) => {
+    const path = avatarUrl.startsWith('http') ? avatarUrl : `${API_URL}${avatarUrl}`;
+    const res = await fetch(path, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) throw new Error('Could not load photo');
+    return URL.createObjectURL(await res.blob());
+  },
+
+  uploadReviewerCv: async (token: string, file: File) => {
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const body = new FormData();
+    body.append('file', file);
+    const res = await fetch(`${API_URL}/api/v1/reviewer/profile/cv`, { method: 'POST', headers, body });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const err = (data as ApiError).error || res.statusText;
+      throw new Error(err);
+    }
+    return data as {
+      ok: boolean;
+      user: { id: number; email: string; name: string };
+      profile: ReviewerProfile;
+      completion_percent?: number;
+    };
   },
 
   companyExpertReviewers: (token: string) =>
@@ -1245,6 +1310,7 @@ export interface ReviewerProfileCompleteness {
   complete: boolean;
   missing: string[];
   checks: Record<string, boolean>;
+  questionnaire_percent?: number;
 }
 
 export interface ReviewerExperience {
@@ -1273,6 +1339,9 @@ export interface ReviewerProfile {
   profile_completed_at: string | null;
   platform_verified_at: string | null;
   avatar_url: string | null;
+  cv_url?: string | null;
+  has_cv?: boolean;
+  verification_signals?: boolean;
   experiences: ReviewerExperience[];
   completeness: ReviewerProfileCompleteness;
   suggested_expertise_tags: string[];
@@ -1297,6 +1366,7 @@ export interface ReviewerPublicCard {
   id: number;
   name: string;
   headline: string | null;
+  bio?: string | null;
   avatar_url: string | null;
   expertise_tags: string[];
   industries: string[];
@@ -1306,6 +1376,7 @@ export interface ReviewerPublicCard {
   linkedin_url: string | null;
   profile_status: string;
   platform_verified: boolean;
+  experiences?: ReviewerExperience[];
 }
 
 export interface ReviewerUser {
@@ -1318,8 +1389,10 @@ export interface ReviewerUser {
   headline?: string | null;
   expertise_tags?: string[];
   avatar_url?: string | null;
+  has_cv?: boolean;
   profile?: ReviewerProfile;
   public_card?: ReviewerPublicCard;
+  assignments?: { company_id: number; company_name: string }[];
 }
 
 export interface ReviewerAssignment {
@@ -1836,6 +1909,12 @@ export interface CompanyDetail extends Company {
   onboarding_complete: boolean;
   completed_count?: number;
   invited_count?: number;
+  company_profile?: Record<string, unknown>;
+  questionnaire_answers?: Record<string, unknown>;
+  questionnaire_step?: number;
+  questionnaire_completed_at?: string | null;
+  questionnaire_completion_percent?: number;
+  company_users?: { id: number; email: string; name: string; role: string; status: string }[];
 }
 
 export interface CompanyUser {

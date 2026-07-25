@@ -5,7 +5,7 @@ module Api
     module Platform
       class ReviewersController < BaseController
         def index
-          reviewers = policy_scope(ReviewerUser).order(:name)
+          reviewers = policy_scope(ReviewerUser).includes(:reviewer_experiences).order(:name)
           render json: { reviewers: reviewers.map { |r| reviewer_json(r) } }
         end
 
@@ -13,6 +13,17 @@ module Api
           reviewer = ReviewerUser.find(params[:id])
           authorize reviewer, :show?
           render json: { reviewer: reviewer_json(reviewer, detailed: true) }
+        end
+
+        def cv
+          reviewer = ReviewerUser.find(params[:id])
+          authorize reviewer, :show?
+          return head :not_found if reviewer.cv_storage_key.blank?
+
+          data = Storage::MinioClient.new.download(reviewer.cv_storage_key)
+          send_data data, type: "application/pdf", disposition: "inline", filename: "#{reviewer.name.parameterize}-cv.pdf"
+        rescue Aws::S3::Errors::NoSuchKey
+          head :not_found
         end
 
         def create
@@ -101,7 +112,12 @@ module Api
             public_card: Reviewers::ProfileSerializer.public_card(reviewer, request: request)
           }
           if detailed
-            json[:profile] = Reviewers::ProfileSerializer.full(reviewer, request: request, include_account: true)
+            profile = Reviewers::ProfileSerializer.full(reviewer, request: request, include_account: true)
+            if reviewer.cv_storage_key.present?
+              profile[:cv_url] = "/api/v1/platform/reviewers/#{reviewer.id}/cv"
+            end
+            json[:profile] = profile
+            json[:has_cv] = reviewer.cv_storage_key.present?
             json[:assignments] = reviewer.reviewer_assignments.active.includes(:company).map do |a|
               { company_id: a.company_id, company_name: a.company.display_name || a.company.name }
             end

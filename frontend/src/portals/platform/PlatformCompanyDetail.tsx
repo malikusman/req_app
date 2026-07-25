@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { ChatMessageList, type ChatMessageItem } from '../../components/motion';
 import {
   api,
-  type Company,
+  type CompanyDetail,
   type CompanyConversation,
   type CompanyConversationMessage,
   type DiscoveryProvenanceEntry,
@@ -37,11 +37,102 @@ import { ConversationMediaCard, ConversationMediaList } from '../../components/C
 import { CompanyStackPanel } from './CompanyStackPanel';
 import { AgenticIdeasPanel } from '../shared/AgenticIdeasPanel';
 
+const PROFILE_FIELD_LABELS: Record<string, string> = {
+  company_industry: 'Industry',
+  company_size: 'Company size',
+  company_location: 'Location',
+  business_model: 'Business model',
+  annual_revenue: 'Annual revenue',
+  departments_present: 'Departments',
+  operational_structure: 'Operational structure',
+  num_locations: 'Locations',
+  department_pain_point: 'Department pain points',
+  erp_system: 'ERP',
+  crm_system: 'CRM',
+  accounting_software: 'Accounting',
+  hr_software: 'HR software',
+  communication_tools: 'Communication tools',
+  tech_stack_maturity: 'Tech stack maturity',
+  primary_goals: 'Primary goals',
+  timeline: 'Timeline',
+  budget_range: 'Budget range',
+  additional_context: 'Additional context',
+  current_ai_usage: 'Current AI usage',
+  ai_openness: 'AI openness',
+  data_hosting: 'Data hosting',
+  top_bottlenecks: 'Top bottlenecks',
+};
+
+const PROFILE_FIELD_ORDER = Object.keys(PROFILE_FIELD_LABELS);
+
+function formatProfileValue(value: unknown): string | null {
+  if (value == null) return null;
+  if (typeof value === 'string') return value.trim() || null;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (Array.isArray(value)) {
+    const parts = value.map((v) => String(v).trim()).filter(Boolean);
+    return parts.length ? parts.join(', ') : null;
+  }
+  return null;
+}
+
+function CompanyProfileSummary({ company }: { company: CompanyDetail }) {
+  const answers = company.questionnaire_answers || {};
+  const profile = company.company_profile || {};
+  const rows: { label: string; value: string }[] = [];
+
+  for (const id of PROFILE_FIELD_ORDER) {
+    const fromAnswers = formatProfileValue(answers[id]);
+    if (fromAnswers) {
+      rows.push({ label: PROFILE_FIELD_LABELS[id], value: fromAnswers });
+    }
+  }
+
+  const profileFallbacks: { key: string; label: string }[] = [
+    { key: 'industry', label: 'Industry (synced)' },
+    { key: 'size_band', label: 'Size band' },
+    { key: 'region', label: 'Region' },
+    { key: 'country', label: 'Country' },
+    { key: 'annual_revenue_band', label: 'Revenue band' },
+  ];
+  for (const { key, label } of profileFallbacks) {
+    if (rows.some((r) => r.label.startsWith(label.split(' ')[0]))) continue;
+    const value = formatProfileValue(profile[key]);
+    if (value) rows.push({ label, value });
+  }
+
+  const goals = formatProfileValue(profile.business_goals);
+  if (goals && !rows.some((r) => r.label === 'Primary goals')) {
+    rows.push({ label: 'Primary goals', value: goals });
+  }
+  const depts = formatProfileValue(profile.org_departments);
+  if (depts && !rows.some((r) => r.label === 'Departments')) {
+    rows.push({ label: 'Departments', value: depts });
+  }
+
+  return (
+    <Card title="Company profile">
+      {rows.length === 0 ? (
+        <p className="m-0 text-sm text-text-secondary">No questionnaire answers yet.</p>
+      ) : (
+        <dl className="m-0 grid gap-3 sm:grid-cols-2">
+          {rows.map((row) => (
+            <div key={row.label}>
+              <dt className="text-xs font-medium uppercase tracking-wide text-text-secondary">{row.label}</dt>
+              <dd className="mt-0.5 text-sm text-text-primary">{row.value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+    </Card>
+  );
+}
+
 export function PlatformCompanyDetail() {
   const { id } = useParams();
   const companyId = Number(id);
   const token = usePlatformToken();
-  const [company, setCompany] = useState<Company | null>(null);
+  const [company, setCompany] = useState<CompanyDetail | null>(null);
   const [reports, setReports] = useState<PlatformReport[]>([]);
   const [conversations, setConversations] = useState<CompanyConversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<CompanyConversation | null>(null);
@@ -278,20 +369,31 @@ export function PlatformCompanyDetail() {
       />
 
       {tab === 'overview' && (
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card title="Readiness">
-            <p className="m-0 text-3xl font-semibold text-text-primary">{Math.round(company.report_readiness_score)}%</p>
-          </Card>
-          <Card title="Subscription">
-            <p className="m-0 text-sm text-text-primary">
-              {company.subscription ? `${company.subscription.plan} · ${company.subscription.status}` : 'None'}
-            </p>
-          </Card>
-          <Card title="Onboarding">
-            <Badge variant={company.portal_onboarding_completed_at ? 'success' : 'warning'}>
-              {company.portal_onboarding_completed_at ? 'Complete' : 'Pending'}
-            </Badge>
-          </Card>
+        <div className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card title="Readiness">
+              <p className="m-0 text-3xl font-semibold text-text-primary">{Math.round(company.report_readiness_score)}%</p>
+            </Card>
+            <Card title="Subscription">
+              <p className="m-0 text-sm text-text-primary">
+                {company.subscription ? `${company.subscription.plan} · ${company.subscription.status}` : 'None'}
+              </p>
+            </Card>
+            <Card title="Onboarding">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant={company.portal_onboarding_completed_at ? 'success' : 'warning'}>
+                  {company.portal_onboarding_completed_at ? 'Complete' : 'Pending'}
+                </Badge>
+                {typeof company.questionnaire_completion_percent === 'number' ? (
+                  <span className="text-sm text-text-secondary">
+                    Questionnaire {company.questionnaire_completion_percent}%
+                  </span>
+                ) : null}
+              </div>
+            </Card>
+          </div>
+
+          <CompanyProfileSummary company={company} />
         </div>
       )}
 

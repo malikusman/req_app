@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_25_140000) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_25_150000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -1092,6 +1092,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_25_140000) do
     t.datetime "rejected_at"
     t.text "application_notes"
     t.text "expertise_summary"
+    t.jsonb "questionnaire_answers", default: {}, null: false
+    t.integer "questionnaire_step", default: 1, null: false
+    t.datetime "questionnaire_completed_at"
+    t.string "cv_storage_key"
     t.index ["email"], name: "index_reviewer_users_on_email", unique: true
     t.index ["jti"], name: "index_reviewer_users_on_jti", unique: true
     t.index ["profile_status"], name: "index_reviewer_users_on_profile_status"

@@ -24,13 +24,13 @@ export function CompanyExpertReviewers() {
     <Card title="Worktruth expert reviewers">
       <p className="mb-4 text-sm text-text-secondary">
         {reviewers.length === 0
-          ? 'Reviewers appear here when a report enters expert review. Platform operators assign up to two experts per company.'
+          ? 'Reviewers appear here when Worktruth assigns experts to your company and they publish their profile.'
           : 'Independent experts shaping your transformation report — verified by Worktruth.'}
       </p>
       {reviewers.length > 0 && (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 lg:grid-cols-2">
           {reviewers.map((r) => (
-            <ExpertReviewerCard key={r.id} reviewer={r} />
+            <ExpertReviewerCard key={r.id} reviewer={r} token={token} />
           ))}
         </div>
       )}

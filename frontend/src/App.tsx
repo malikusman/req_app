@@ -22,6 +22,7 @@ import { PlatformSolutions } from './portals/platform/PlatformSolutions';
 import { PlatformSystem } from './portals/platform/PlatformSystem';
 import { PlatformMonitoringPage } from './portals/platform/PlatformMonitoring';
 import { PlatformReviewers } from './portals/platform/PlatformReviewers';
+import { PlatformReviewerDetail } from './portals/platform/PlatformReviewerDetail';
 import { PlatformRegistrations } from './portals/platform/PlatformRegistrations';
 import { CompanyLayout } from './portals/company/CompanyLayout';
 import { CompanyDashboard } from './portals/company/CompanyDashboard';
@@ -131,6 +132,7 @@ export default function App() {
               <Route path="system" element={<PlatformSystem />} />
               <Route path="monitoring" element={<PlatformMonitoringPage />} />
               <Route path="reviewers" element={<PlatformReviewers />} />
+              <Route path="reviewers/:id" element={<PlatformReviewerDetail />} />
             </Route>
             <Route
               path="/reviewer"
