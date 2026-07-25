@@ -26,21 +26,29 @@ const PRIMARY_NAV: NavDef[] = [
   { to: '/company/outreaches', label: 'Clarifications', icon: ShieldCheck },
   { to: '/company/reports', label: 'Reports', icon: FileBarChart },
   { to: '/company/settings', label: 'Settings', icon: Settings },
-  { to: '/company/onboarding', label: 'Setup', icon: Wrench, hideWhenOnboarded: true },
+  { to: '/company/onboarding', label: 'Company profile', icon: Wrench, hideWhenOnboarded: true },
 ];
 
 /**
  * Compact primary company nav. Intelligence is a single hub; Meetings / WhatsApp /
  * Conversations / Billing are reached from Dashboard tiles or Settings links.
+ * When impersonating, keep Company profile visible so platform support can open the questionnaire.
  */
-export function companyNavItems(opts?: { docsFirstPhase?: boolean; onboardingComplete?: boolean }): SidebarItem[] {
-  const hideSetup = Boolean(opts?.onboardingComplete);
+export function companyNavItems(opts?: {
+  docsFirstPhase?: boolean;
+  onboardingComplete?: boolean;
+  impersonating?: boolean;
+}): SidebarItem[] {
+  const hideSetup = Boolean(opts?.onboardingComplete) && !opts?.impersonating;
 
-  return PRIMARY_NAV.filter((item) => !(hideSetup && item.hideWhenOnboarded)).map((item) => ({
-    to: item.to,
-    label: item.label,
-    icon: item.icon,
-  }));
+  return PRIMARY_NAV.filter((item) => !(hideSetup && item.hideWhenOnboarded)).map((item) => {
+    const next: SidebarItem = {
+      to: item.to,
+      label: item.to === '/company/onboarding' ? 'Company profile' : item.label,
+      icon: item.icon,
+    };
+    return next;
+  });
 }
 
 export const navItems = companyNavItems();

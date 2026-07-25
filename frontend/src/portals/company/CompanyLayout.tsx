@@ -17,6 +17,8 @@ export function CompanyLayout() {
   const [onboardingComplete, setOnboardingComplete] = useState(false);
   const [integrations, setIntegrations] = useState<CompanyDashboardPayload['integrations']>();
 
+  const impersonating = Boolean(session?.portal === 'company' && session.impersonating);
+
   useEffect(() => {
     if (!token) return;
     api
@@ -30,8 +32,8 @@ export function CompanyLayout() {
   }, [token]);
 
   const nav = useMemo(
-    () => companyNavItems({ docsFirstPhase, onboardingComplete }),
-    [docsFirstPhase, onboardingComplete]
+    () => companyNavItems({ docsFirstPhase, onboardingComplete, impersonating }),
+    [docsFirstPhase, onboardingComplete, impersonating]
   );
 
   const integrationWarnings = useMemo(() => {
@@ -63,7 +65,6 @@ export function CompanyLayout() {
 
   if (session?.portal !== 'company') return null;
 
-  const impersonating = session.impersonating;
   const companyName = session.company.name;
 
   const handleLogout = () => {
@@ -91,7 +92,7 @@ export function CompanyLayout() {
       <PortalShell
         portal="company"
         logo={companyName}
-        navItems={nav.filter((item) => !impersonating || item.to !== '/company/onboarding')}
+        navItems={nav}
         title={title}
         subtitle={companyName}
         topBarActions={<NotificationBell />}
