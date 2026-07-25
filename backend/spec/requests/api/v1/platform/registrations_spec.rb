@@ -10,7 +10,8 @@ RSpec.describe "Platform registrations", type: :request do
     Registrations::CreateCompanyRegistration.call(
       company_name: "Pending Co",
       admin_name: "Pat Pending",
-      admin_email: "pat@pending.test"
+      admin_email: "pat@pending.test",
+      admin_phone: "+971500000001"
     )
   end
 
