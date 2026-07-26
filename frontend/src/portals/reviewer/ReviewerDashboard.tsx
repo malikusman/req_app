@@ -53,6 +53,24 @@ export function ReviewerDashboard() {
       .finally(() => setLoading(false));
   }, [token]);
 
+  const companies = data?.companies;
+  const readinessByCompany = useMemo(
+    () =>
+      (companies ?? []).map((c) => ({
+        name: c.name,
+        value: Math.round(c.report_readiness_score ?? 0),
+      })),
+    [companies]
+  );
+  const participationByCompany = useMemo(
+    () =>
+      (companies ?? []).map((c) => ({
+        name: c.name,
+        value: companyCompletionRate(c),
+      })),
+    [companies]
+  );
+
   if (!loading && error && !data) {
     return (
       <DashboardShell title="Dashboard" description="Portfolio overview and pending actions." loading={false}>
@@ -62,23 +80,6 @@ export function ReviewerDashboard() {
   }
 
   const stats = data?.stats;
-  const companies = data?.companies ?? [];
-  const readinessByCompany = useMemo(
-    () =>
-      companies.map((c) => ({
-        name: c.name,
-        value: Math.round(c.report_readiness_score ?? 0),
-      })),
-    [companies]
-  );
-  const participationByCompany = useMemo(
-    () =>
-      companies.map((c) => ({
-        name: c.name,
-        value: companyCompletionRate(c),
-      })),
-    [companies]
-  );
   const actionQueue = data
     ? [
         ...data.attention_items.map((item) => ({
@@ -251,14 +252,14 @@ export function ReviewerDashboard() {
 
           <section className="space-y-4">
             <h2 className="m-0 text-lg font-medium text-foreground">Assigned companies</h2>
-            {companies.length === 0 ? (
+            {(companies ?? []).length === 0 ? (
               <EmptyState
                 title="No companies assigned yet"
                 description="Contact your platform administrator."
               />
             ) : (
               <Stagger className="grid gap-4 md:grid-cols-2 lg:grid-cols-3" staggerDelay={0.08}>
-                {companies.map((c) => {
+                {(companies ?? []).map((c) => {
                   const rate = companyCompletionRate(c);
                   return (
                     <Link key={c.id} to={`/reviewer/companies/${c.id}`} className="block no-underline">
