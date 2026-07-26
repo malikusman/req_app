@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "nokogiri"
-require "net/http"
 require "resolv"
 require "ipaddr"
 require "uri"
@@ -14,6 +13,18 @@ module Companies
     MAX_BYTES = 500_000
     FETCH_TIMEOUT = 12
     TEXT_LIMIT = 12_000
+
+    PRODUCT_HEADERS = {
+      "User-Agent" => "WorktruthCompanyResearch/1.0 (+https://req.pebbleintelligentsolutions.com)",
+      "Accept" => "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      "Accept-Language" => "en-US,en;q=0.9"
+    }.freeze
+
+    BROWSER_HEADERS = {
+      "User-Agent" => "Mozilla/5.0 (compatible; WorktruthCompanyResearch/1.0; +https://req.pebbleintelligentsolutions.com) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+      "Accept" => "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      "Accept-Language" => "en-US,en;q=0.9"
+    }.freeze
 
     def self.call(company:, force: false)
       new(company: company, force: force).call
@@ -41,15 +52,15 @@ module Companies
         return { ok: true, skipped: true, reason: "fresh" } if fresh
       end
 
-      html = fetch_html(url)
-      return { ok: false, error: "fetch_failed" } if html.blank?
+      fetch = fetch_html(url)
+      return { ok: false, error: fetch[:error], status_code: fetch[:status_code], final_url: fetch[:final_url] } if fetch[:html].blank?
 
-      text = extract_text(html)
-      return { ok: false, error: "empty_content" } if text.blank?
+      text = extract_text(fetch[:html])
+      return { ok: false, error: "empty_content", final_url: fetch[:final_url] } if text.blank?
 
-      summary = summarize(text, url)
-      entry = persist_entry!(url: url, summary: summary, raw_excerpt: text.truncate(2000))
-      { ok: true, entry_id: entry.id, url: url }
+      summary = summarize(text, fetch[:final_url] || url)
+      entry = persist_entry!(url: url, summary: summary, raw_excerpt: text.truncate(2000), final_url: fetch[:final_url])
+      { ok: true, entry_id: entry.id, url: url, final_url: fetch[:final_url] }
     rescue StandardError => e
       Rails.logger.warn("[WebResearchService] company=#{@company.id} #{e.class}: #{e.message}")
       { ok: false, error: e.message }
@@ -84,18 +95,37 @@ module Companies
     end
 
     def fetch_html(url)
-      uri = URI.parse(url)
-      http = Net::HTTP.new(uri.host, uri.port)
-      http.use_ssl = uri.scheme == "https"
-      http.open_timeout = FETCH_TIMEOUT
-      http.read_timeout = FETCH_TIMEOUT
-      request = Net::HTTP::Get.new(uri)
-      request["User-Agent"] = "WorktruthCompanyResearch/1.0"
-      response = http.request(request)
-      return nil unless response.is_a?(Net::HTTPSuccess)
+      result = get_with_headers(url, PRODUCT_HEADERS)
+      if !result.success? && blocked_status?(result.status_code)
+        result = get_with_headers(url, BROWSER_HEADERS)
+      end
 
-      body = response.body.to_s
-      body.bytesize > MAX_BYTES ? body.byteslice(0, MAX_BYTES) : body
+      unless result.success?
+        error = if blocked_status?(result.status_code)
+                  "blocked_by_site"
+                else
+                  result.error.presence || "fetch_failed"
+                end
+        return { html: nil, error: error, status_code: result.status_code, final_url: result.final_url }
+      end
+
+      body = result.body
+      body = body.bytesize > MAX_BYTES ? body.byteslice(0, MAX_BYTES) : body
+      { html: body, error: nil, status_code: result.status_code, final_url: result.final_url }
+    end
+
+    def get_with_headers(url, headers)
+      Http::GetWithRedirects.call(
+        url,
+        headers: headers,
+        open_timeout: FETCH_TIMEOUT,
+        read_timeout: FETCH_TIMEOUT,
+        validate: method(:safe_public_http_url?)
+      )
+    end
+
+    def blocked_status?(code)
+      [401, 403, 429].include?(code.to_i)
     end
 
     def extract_text(html)
@@ -118,7 +148,7 @@ module Companies
       text.truncate(600)
     end
 
-    def persist_entry!(url:, summary:, raw_excerpt:)
+    def persist_entry!(url:, summary:, raw_excerpt:, final_url: nil)
       title = "Website research: #{@company.display_name || @company.name}"
       content_hash = Digest::SHA256.hexdigest("#{url}|#{summary}")[0, 32]
 
@@ -137,6 +167,7 @@ module Companies
         metadata: {
           "source" => "web_research",
           "url" => url,
+          "final_url" => final_url,
           "fetched_at" => Time.current.iso8601,
           "raw_excerpt" => raw_excerpt
         }

@@ -17,24 +17,29 @@ module Multimodal
 
     def call
       chunks = split_text(@text)
-      @document.document_chunks.delete_all
+      embeddings = chunks.map { |content| @openai.embedding(content) }
 
-      chunks.each_with_index do |content, index|
-        embedding = @openai.embedding(content)
-        DocumentChunk.create!(
-          document: @document,
-          chunk_index: index,
-          content: content,
-          embedding: embedding,
-          metadata: {
-            "char_count" => content.length,
-            "document_id" => @document.id,
-            "filename" => @document.filename,
-            "source" => @document.source,
-            "department" => @document.department,
-            "chunk_index" => index
-          }
-        )
+      # Lock the document so concurrent ingest/analysis jobs cannot interleave
+      # delete_all + create! and hit the unique (document_id, chunk_index) index.
+      @document.with_lock do
+        @document.document_chunks.delete_all
+
+        chunks.each_with_index do |content, index|
+          DocumentChunk.create!(
+            document: @document,
+            chunk_index: index,
+            content: content,
+            embedding: embeddings[index],
+            metadata: {
+              "char_count" => content.length,
+              "document_id" => @document.id,
+              "filename" => @document.filename,
+              "source" => @document.source,
+              "department" => @document.department,
+              "chunk_index" => index
+            }
+          )
+        end
       end
 
       chunks.size

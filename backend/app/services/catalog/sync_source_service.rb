@@ -120,18 +120,18 @@ module Catalog
     end
 
     def fetch_from_api
-      uri = URI(@source.endpoint_url)
-      raise "Unsupported URL scheme" unless uri.is_a?(URI::HTTP)
+      result = Http::GetWithRedirects.call(
+        @source.endpoint_url,
+        headers: {
+          "User-Agent" => "WorktruthCatalogSync/1.0",
+          "Accept" => "application/json"
+        },
+        open_timeout: 10,
+        read_timeout: 20
+      )
+      raise "HTTP fetch failed: #{result.error}" unless result.success?
 
-      response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: uri.scheme == "https", open_timeout: 10, read_timeout: 20) do |http|
-        req = Net::HTTP::Get.new(uri)
-        req["User-Agent"] = "WorktruthCatalogSync/1.0"
-        req["Accept"] = "application/json"
-        http.request(req)
-      end
-      raise "HTTP #{response.code}" unless response.is_a?(Net::HTTPSuccess)
-
-      parse_api_json(response.body.to_s)
+      parse_api_json(result.body)
     end
 
     def parse_api_json(body)
@@ -163,18 +163,18 @@ module Catalog
     end
 
     def fetch_from_endpoint
-      uri = URI(@source.endpoint_url)
-      raise "Unsupported URL scheme" unless uri.is_a?(URI::HTTP)
+      result = Http::GetWithRedirects.call(
+        @source.endpoint_url,
+        headers: {
+          "User-Agent" => "WorktruthCatalogSync/1.0",
+          "Accept" => "application/rss+xml, application/atom+xml, application/xml, text/xml, */*"
+        },
+        open_timeout: 10,
+        read_timeout: 20
+      )
+      raise "HTTP fetch failed: #{result.error}" unless result.success?
 
-      response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: uri.scheme == "https", open_timeout: 10, read_timeout: 20) do |http|
-        req = Net::HTTP::Get.new(uri)
-        req["User-Agent"] = "WorktruthCatalogSync/1.0"
-        req["Accept"] = "application/rss+xml, application/atom+xml, application/xml, text/xml, */*"
-        http.request(req)
-      end
-      raise "HTTP #{response.code}" unless response.is_a?(Net::HTTPSuccess)
-
-      parse_feed(response.body.to_s)
+      parse_feed(result.body)
     end
 
     def parse_feed(body)

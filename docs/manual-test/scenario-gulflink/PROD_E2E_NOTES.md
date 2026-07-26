@@ -46,17 +46,15 @@ More lines: [FINANCE_IC_WHATSAPP_TEST.md](./FINANCE_IC_WHATSAPP_TEST.md).
 
 ## Bugs found on prod
 
-1. **CRITICAL — blank `OPENAI_BASE_URL` breaks embeddings**  
-   Compose `${OPENAI_BASE_URL:-}` injects `""`, so `Openai::Client` uses empty base → `ArgumentError: not an HTTP URI` on embed → all docs failed Analyze.  
-   **Mitigated:** set `OPENAI_BASE_URL` / `EMBEDDING_BASE_URL` to `https://api.openai.com/v1` in `.env.production`. Compose defaults should be updated in repo.
+1. **CRITICAL — blank `OPENAI_BASE_URL` breaks embeddings** — **FIXED + pushed** (`6797fef`). Compose defaults blank base URLs to `https://api.openai.com/v1`.
 
-2. **RSS sync redirects** — some seed feed URLs return 301/307/308; sync client does not follow redirects. Candidates still ingested from other sources.
+2. **RSS sync redirects** — **FIXED**. Catalog sync / article fetch use `Http::GetWithRedirects`; seed feed URLs updated to final destinations.
 
-3. **Concurrent DocumentAnalysisRunJob** — double-enqueue caused `PG::UniqueViolation` on `document_chunks (document_id, chunk_index)`. Re-ingest recovered.
+3. **Concurrent DocumentAnalysisRunJob** — **FIXED**. Company row lock + partial unique index on one active run per company; chunk embedder locks the document around delete/recreate.
 
-4. **Website research** — `Companies::WebResearchService` returned `fetch_failed` for aramex.com.
+4. **Website research** — **HARDENED**. Follows redirects with SSRF re-check, browser-like Accept headers, clearer errors (`blocked_by_site` for 403). Sites behind aggressive WAFs (e.g. Aramex/Akamai) can still block automated fetch — that is expected, not a silent `fetch_failed`.
 
-5. **Upload MIME** — curl without explicit `type=` rejected XLSX/DOCX; with correct MIME they upload fine.
+5. **Upload MIME** — curl needs explicit `type=` for XLSX/DOCX; product upload path is fine.
 
 ## Next checks after you finish WhatsApp
 

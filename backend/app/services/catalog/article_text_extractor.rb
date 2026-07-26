@@ -15,18 +15,18 @@ module Catalog
     def call
       return "" if @url.blank?
 
-      uri = URI.parse(@url)
-      return "" unless uri.is_a?(URI::HTTP)
+      result = Http::GetWithRedirects.call(
+        @url,
+        headers: {
+          "User-Agent" => "WorktruthCatalogSync/1.0",
+          "Accept" => "text/html,application/xhtml+xml"
+        },
+        open_timeout: 5,
+        read_timeout: 10
+      )
+      return "" unless result.success?
 
-      response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: uri.scheme == "https", open_timeout: 5, read_timeout: 10) do |http|
-        req = Net::HTTP::Get.new(uri)
-        req["User-Agent"] = "WorktruthCatalogSync/1.0"
-        req["Accept"] = "text/html,application/xhtml+xml"
-        http.request(req)
-      end
-      return "" unless response.is_a?(Net::HTTPSuccess)
-
-      body = response.body.to_s
+      body = result.body
       text = body
              .gsub(%r{<script\b[^>]*>.*?</script>}mi, " ")
              .gsub(%r{<style\b[^>]*>.*?</style>}mi, " ")

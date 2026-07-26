@@ -47,6 +47,30 @@ RSpec.describe Catalog::SyncSourceService do
     expect(AnalyzeCatalogCandidateJob).to have_been_enqueued.with(acme.id)
   end
 
+  it "follows HTTP redirects to the feed" do
+    feed = <<~XML
+      <?xml version="1.0"?>
+      <rss><channel>
+        <item>
+          <title>Redirected Tool</title>
+          <link>https://example.com/tool</link>
+          <description>Followed redirect</description>
+        </item>
+      </channel></rss>
+    XML
+
+    stub_request(:get, "https://example.com/feed.xml")
+      .to_return(status: 307, headers: { "Location" => "/news/feed.xml" })
+    stub_request(:get, "https://example.com/news/feed.xml")
+      .to_return(status: 200, body: feed, headers: { "Content-Type" => "application/rss+xml" })
+
+    run = described_class.call(catalog_source: source)
+
+    expect(run.status).to eq("success")
+    expect(run.candidates_created).to eq(1)
+    expect(CatalogCandidate.last.name).to eq("Redirected Tool")
+  end
+
   it "uses stub candidates when no endpoint is configured" do
     source.update!(endpoint_url: nil)
     run = described_class.call(catalog_source: source)

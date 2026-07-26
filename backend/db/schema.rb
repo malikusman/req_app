@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_26_140000) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_26_150000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -495,6 +495,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_26_140000) do
     t.index ["company_id", "created_at"], name: "index_document_analysis_runs_on_company_id_and_created_at"
     t.index ["company_id", "status"], name: "index_document_analysis_runs_on_company_id_and_status"
     t.index ["company_id"], name: "index_document_analysis_runs_on_company_id"
+    t.index ["company_id"], name: "index_document_analysis_runs_one_active_per_company", unique: true, where: "((status)::text = ANY ((ARRAY['queued'::character varying, 'running'::character varying])::text[]))"
     t.index ["triggered_by_company_user_id"], name: "index_document_analysis_runs_on_triggered_by_company_user_id"
   end
 
