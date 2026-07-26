@@ -1,15 +1,35 @@
-GulfLink Logistics LLC — Accounts Payable Approval Matrix (Dubai HQ)
-Effective: 2026-01-01  Currency: AED
+GulfLink Logistics LLC — Accounts Payable Approval Matrix
+Document ID: GL-FIN-AP-2026-01 | Effective: 2026-01-01 | Currency: AED | Owner: Finance Controller
+Location: Dubai HQ / Jebel Ali Free Zone operations
 
-Vendor payments and freight-cost settlements follow this matrix.
-Manual spreadsheet trackers are still used when TMS and SAP are out of sync.
+PURPOSE
+Vendor payments, freight-cost settlements, demurrage invoices, and warehouse opex follow this matrix.
+When TMS (CargoWise) and SAP S/4HANA are out of sync, AP clerks still use a manual Excel AP workbook
+and copy-paste invoice lines from carrier PDFs. This re-entry is slow, error-prone, and creates
+approval bottlenecks when the CFO is travelling.
 
-Threshold (AED) | Approver | System
-0 – 5,000 | AP Clerk | Excel AP workbook + email
-5,001 – 25,000 | Finance Controller | SAP FB60 + SharePoint folder
-25,001 – 100,000 | CFO | Dual approval in SAP + wet-ink backup
-100,001+ | CEO | Board memo + SAP release
+APPROVAL THRESHOLDS (AED)
+Threshold (AED)     | Approver              | System of record                         | SLA
+0 – 5,000           | AP Clerk              | Excel AP workbook + Outlook email        | Same day
+5,001 – 25,000      | Finance Controller    | SAP FB60 + SharePoint AP folder          | 2 business days
+25,001 – 100,000    | CFO                   | Dual approval in SAP + wet-ink backup    | 5 business days
+100,001+            | CEO                   | Board memo + SAP release                 | 10 business days
 
-Friction: AP clerks re-enter carrier invoices into SAP after checking PDF PODs.
-Approval bottlenecks when CFO is travelling. Data silos between TMS lane costs and Excel opex.
-Repetitive copy-paste from warehouse cost sheet into month-end close pack.
+KNOWN FRICTION
+1. Manual data entry: AP clerks re-enter carrier invoices into SAP after checking PDF and scanned PODs.
+2. Approval bottlenecks: invoices over 25,000 AED queue for CFO sign-off; average wait is 4–7 days.
+3. Data silos: TMS lane costs (CargoWise) do not reconcile automatically with Excel opex or SAP GL.
+4. Spreadsheet dependency: month-end close pack is assembled by repetitive copy-paste from the warehouse
+   cost sheet into Excel. Controllers spend 15–40 hours/month matching duplicates.
+5. Coordination overhead: email and WhatsApp handoffs between warehouse, customs, and finance delay
+   exception resolution (damaged carton / short ship notes on PODs).
+
+EXCEPTIONS
+- Demurrage and storage invoices at Jebel Ali often exceed 25,000 AED and require CFO dual approval.
+- Spot-rate freight billing exceptions must attach the freight-billing SOP checklist before SAP posting.
+- Handwritten POD exceptions must be typed into Excel before payment release (OCR not yet trusted).
+
+CONTROLS
+- Dual approval above 5,000 AED is mandatory (no single-person release).
+- Wet-ink backup retained for audits (ISO 27001 / local data residency).
+- Quarterly review of Excel trackers vs SAP postings by Finance Controller.

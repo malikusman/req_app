@@ -5,8 +5,9 @@ module Api
     module Auth
       class CompanySessionsController < ApplicationController
         def create
-          user = CompanyUser.find_by(email: params[:email]&.downcase, status: "active")
-          unless user&.authenticate(params[:password])
+          email = params[:email].to_s.strip.downcase
+          user = CompanyUser.find_by(email: email, status: "active")
+          unless user&.authenticate(params[:password].to_s)
             return render json: { error: "Invalid email or password" }, status: :unauthorized
           end
 

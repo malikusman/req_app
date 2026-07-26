@@ -5,7 +5,8 @@
 <% completed = participation["completed"].to_i %>
 <% rate = participation["completion_rate"] %>
 <% rate_pct = rate.nil? ? (invited.positive? ? ((completed.to_f / invited) * 100).round : 0) : report_pct(rate) %>
-<section class="page">
+<% coverage = Array(snapshot["department_coverage"]) %>
+<section class="page" id="participation">
   <div class="eyebrow">03 — Participation</div>
   <h1 style="font-size:28pt;margin:4mm 0 3mm;">Who took part</h1>
   <div class="split">
@@ -13,7 +14,32 @@
       <p class="lead">
         <%= completed %> of <%= invited %> invited employees completed the discovery interview<%= invited.positive? ? ", a #{rate_pct}% completion rate" : "" %>.
       </p>
-      <p>Participation underpins readiness. Broader department coverage and completed interviews produce a clearer, more actionable picture of how work really happens.</p>
+      <% if invited.positive? && completed.zero? %>
+        <p>Employees have been invited; intelligence and readiness will strengthen as interviews complete. Document-based findings remain the current baseline.</p>
+      <% else %>
+        <p>Participation underpins readiness. Broader department coverage and completed interviews produce a clearer, more actionable picture of how work really happens.</p>
+      <% end %>
+      <% if coverage.any? %>
+        <h3 style="margin-top:4mm;">Coverage by department</h3>
+        <table class="simple" style="width:100%;border-collapse:collapse;font-size:10pt;">
+          <thead>
+            <tr>
+              <th style="text-align:left;padding:1.5mm;border-bottom:1px solid #ccc;">Department</th>
+              <th style="text-align:right;padding:1.5mm;border-bottom:1px solid #ccc;">Completed</th>
+              <th style="text-align:right;padding:1.5mm;border-bottom:1px solid #ccc;">Target</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% coverage.first(12).each do |row| %>
+              <tr>
+                <td style="padding:1.5mm;border-bottom:1px solid #eee;"><%= h row["department"].presence || "Unspecified" %></td>
+                <td style="text-align:right;padding:1.5mm;border-bottom:1px solid #eee;"><%= row["completed"].to_i %></td>
+                <td style="text-align:right;padding:1.5mm;border-bottom:1px solid #eee;"><%= row["target"].to_i %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      <% end %>
     </div>
     <div class="exhibit">
       <div class="exlabel">Exhibit 2 · Interview participation</div>

@@ -26,6 +26,8 @@
   <%= render "reports/readiness", snapshot: snapshot, report_version: report_version %>
 <% end %>
 
+<%= render "reports/company_context", snapshot: snapshot, report_version: report_version %>
+
 <% participation = snapshot["participation"] || {} %>
 <% if participation["invited"].to_i.positive? || participation["completed"].to_i.positive? %>
   <%= render "reports/participation", snapshot: snapshot, report_version: report_version %>

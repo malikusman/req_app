@@ -12,7 +12,7 @@ export function CompanyLogin() {
       portal="company"
       portalName="Worktruth — Company"
       tagline="Run workflow discovery and intelligence for your organization."
-      defaultEmail="admin@acme.local"
+      defaultEmail=""
       forgotPasswordTo="/auth/forgot-password?portal=company"
       footer={
         <>

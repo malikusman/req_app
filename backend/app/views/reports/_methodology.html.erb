@@ -14,6 +14,9 @@
             (<%= doc_count %> supporting <%= doc_count == 1 ? "document" : "documents" %> cited)
           <% end %>.
           Signals and patterns are produced by rule-based extraction over document text (and specialist interview agents when conversations are added later). Recommendations are synthesized from those signals against the solution catalog — not free-form generative research.
+          <% if participation["invited"].to_i.positive? && participation["completed"].to_i.zero? %>
+            <%= participation["invited"].to_i %> employees have been invited; readiness will reweight toward interviews as they complete discovery.
+          <% end %>
         </p>
       <% else %>
         <p class="method" style="margin-top:0;">

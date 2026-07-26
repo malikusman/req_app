@@ -5,8 +5,8 @@ module Api
     module Auth
       class PlatformSessionsController < ApplicationController
         def create
-          user = PlatformUser.find_by(email: params[:email]&.downcase)
-          unless user&.authenticate(params[:password])
+          user = PlatformUser.find_by(email: params[:email].to_s.strip.downcase)
+          unless user&.authenticate(params[:password].to_s)
             return render json: { error: "Invalid email or password" }, status: :unauthorized
           end
 

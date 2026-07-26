@@ -146,9 +146,16 @@ module ReportsHelper
     if snapshot.dig("readiness", "score").present?
       add.call("Readiness", "Score and its weighted breakdown", "rule-blue")
     end
+    profile = snapshot.dig("company", "profile") || {}
+    stack = Array(snapshot["client_stack"])
+    kb = Array(snapshot["knowledge_base"])
+    website = snapshot.dig("company", "website_url").presence || profile["website_url"].presence
+    if profile.present? || stack.any? || kb.any? || website.present?
+      add.call("Company context", "Firmographics, systems, and research", "rule-blue")
+    end
     participation = snapshot["participation"] || {}
     if participation["invited"].to_i.positive? || participation["completed"].to_i.positive?
-      add.call("Participation", "Invited, started, completed", "rule-teal")
+      add.call("Participation", "Invited, started, completed, by department", "rule-teal")
     end
     add.call("What changed", "Delta versus the previous version", "rule-teal") if report_has_delta?(snapshot["delta_from_previous"])
     add.call("Signals", "Recurring pain points with evidence", "rule-magenta") if Array(snapshot["signals"]).any?
@@ -156,7 +163,11 @@ module ReportsHelper
     add.call("Implications", "What the findings mean if left unaddressed", "rule-magenta") if Array(snapshot["implications"]).any?
     add.call("Recommendations", "Prioritized actions, catalog-matched", "rule-blue") if Array(snapshot["recommendations"]).any?
     add.call("Opportunities", "Published agentic ideas for this company", "rule-blue") if Array(snapshot["agentic_ideas"]).any?
-    add.call("Supporting media & method", "Evidence base and how we measured", "rule-teal")
+    if Array(snapshot.dig("tools_catalog", "curated_matches")).any? || Array(snapshot["supporting_documents"]).any?
+      add.call("Capabilities & evidence", "Catalog matches and supporting documents", "rule-teal")
+    end
+    add.call("Supporting media", "Multimodal evidence from discovery", "rule-teal") if Array(snapshot["supporting_media"]).any?
+    add.call("Methodology", "How readiness and findings were measured", "rule-teal")
     entries
   end
 

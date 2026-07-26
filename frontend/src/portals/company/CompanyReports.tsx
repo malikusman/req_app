@@ -20,6 +20,8 @@ export function CompanyReports() {
     docsFirst: false,
     breakdown: {},
   });
+  const [reportStale, setReportStale] = useState(false);
+  const [intelUpdatedAt, setIntelUpdatedAt] = useState<string | null>(null);
 
   const load = () => {
     if (!token) return;
@@ -27,6 +29,8 @@ export function CompanyReports() {
       .companyReports(token)
       .then((d) => {
         setReports(d.reports);
+        setReportStale(Boolean(d.report_stale));
+        setIntelUpdatedAt(d.intelligence_updated_at ?? null);
         setLoadError('');
       })
       .catch(() => setLoadError('Could not load reports.'))
@@ -118,6 +122,19 @@ export function CompanyReports() {
       )}
 
       <CompanyExpertReviewers />
+
+      {reportStale && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-button border border-status-warning/40 bg-status-warningBg px-4 py-3 text-sm text-text-primary">
+          <span>
+            Intelligence has updated
+            {intelUpdatedAt ? ` (${new Date(intelUpdatedAt).toLocaleString()})` : ''} since your latest
+            report. Regenerate to include the newest signals and findings.
+          </span>
+          <Button size="sm" loading={generating} disabled={generating || readiness.score < 100} onClick={generate}>
+            Regenerate report
+          </Button>
+        </div>
+      )}
 
       <Card>
         <p className="mb-3 text-sm text-text-secondary">

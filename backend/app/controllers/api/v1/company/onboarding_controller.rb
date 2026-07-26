@@ -18,6 +18,7 @@ module Api
               display_name: current_company.display_name,
               locale: current_company.locale,
               logo_storage_key: current_company.logo_storage_key,
+              website_url: current_company.website_url,
               engagement_mode: current_company.engagement_mode,
               company_profile: current_company.company_profile,
               known_systems: current_company.company_systems.active.order(:name).pluck(:name)
@@ -37,12 +38,15 @@ module Api
           Companies::ProfileUpdater.call(
             company: current_company,
             profile_params: profile_params,
-            known_systems: known_systems_param
+            known_systems: known_systems_param,
+            website_url: params.key?(:website_url) ? params[:website_url] : :omit
           )
+          current_company.update!(docs_profile_stale_at: Time.current) if current_company.documents.ready.exists?
 
           render json: {
             ok: true,
-            company_profile: current_company.reload.company_profile
+            company_profile: current_company.reload.company_profile,
+            website_url: current_company.website_url
           }
         end
 
@@ -61,6 +65,9 @@ module Api
           progress = Companies::QuestionnaireProgress.call(answers)
           if progress[:completion_percent] >= 100 && current_company.questionnaire_completed_at.blank?
             current_company.update!(questionnaire_completed_at: Time.current)
+          end
+          if current_company.documents.ready.exists?
+            current_company.update!(docs_profile_stale_at: Time.current)
           end
 
           render json: {

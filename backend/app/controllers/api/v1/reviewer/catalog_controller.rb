@@ -12,6 +12,8 @@ module Api
 
           render json: {
             matches: matches.map { |m| match_json(m) },
+            last_matched_at: matches.maximum(:matched_at),
+            note: "These are promoted catalog tools matched to this company — not the live web scrape queue.",
             endorsements: CatalogEndorsement
               .where(company_id: company.id)
               .includes(:solution_catalog_entry, :reviewer_user)

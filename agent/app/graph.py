@@ -36,6 +36,9 @@ def _run_turn(state: TurnState) -> TurnState:
         industry=state.get("industry"),
         size_band=state.get("size_band"),
         region=state.get("region"),
+        business_goals=state.get("business_goals"),
+        website_url=state.get("website_url"),
+        known_systems=state.get("known_systems"),
     )
     return {
         **state,

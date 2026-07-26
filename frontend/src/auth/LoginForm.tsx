@@ -11,7 +11,7 @@ type Props = {
   portal: AuthPortal;
   portalName: string;
   tagline: string;
-  defaultEmail: string;
+  defaultEmail?: string;
   footer?: React.ReactNode;
   forgotPasswordTo?: string;
   onSubmit: (email: string, password: string) => Promise<void>;
@@ -21,7 +21,7 @@ export function LoginForm({
   portal,
   portalName,
   tagline,
-  defaultEmail,
+  defaultEmail = '',
   footer,
   forgotPasswordTo,
   onSubmit,
@@ -37,7 +37,7 @@ export function LoginForm({
     setError('');
     setLoading(true);
     try {
-      await onSubmit(email, password);
+      await onSubmit(email.trim(), password);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     } finally {

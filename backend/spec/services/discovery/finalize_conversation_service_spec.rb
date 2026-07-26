@@ -12,7 +12,7 @@ RSpec.describe Discovery::FinalizeConversationService do
   it "marks the conversation and employee completed and enqueues aggregation jobs" do
     expect do
       described_class.call(conversation: conversation, employee: employee)
-    end.to have_enqueued_job(AggregateIntelligenceJob).with(company.id, "finance")
+    end.to have_enqueued_job(AggregateIntelligenceJob).with(company.id)
       .and have_enqueued_job(MemoryPromotionJob).with(conversation.id)
 
     conversation.reload

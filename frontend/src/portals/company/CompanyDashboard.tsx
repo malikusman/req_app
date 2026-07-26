@@ -7,9 +7,11 @@ import {
   AlertTriangle,
   PlayCircle,
   Users,
-  CalendarClock,
   Image,
   ClipboardList,
+  Layers,
+  HelpCircle,
+  Lightbulb,
 } from 'lucide-react';
 import { api, type CompanyDashboardPayload } from '../../lib/api';
 import { useAuth, useCompanyToken } from '../../lib/auth';
@@ -24,7 +26,18 @@ import {
   Badge,
   Button,
   EmptyState,
+  SimpleBarChart,
 } from '../../components/ui';
+
+const BREAKDOWN_CHART_LABELS: Record<string, string> = {
+  employees_interviewed: 'Employees',
+  departments_represented: 'Departments',
+  confirmed_patterns: 'Patterns',
+  multimodal_contributions: 'Multimodal',
+  insights_count: 'Insights',
+  ready_documents: 'Docs ready',
+  document_departments: 'Doc depts',
+};
 
 function ActionTile({
   title,
@@ -69,7 +82,6 @@ export function CompanyDashboard() {
   const { session } = useAuth();
   const navigate = useNavigate();
   const [data, setData] = useState<CompanyDashboardPayload | null>(null);
-  const [pendingMeetings, setPendingMeetings] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -88,13 +100,6 @@ export function CompanyDashboard() {
       .then(setData)
       .catch(() => setError('Could not load discovery dashboard.'))
       .finally(() => setLoading(false));
-    api
-      .companyMeetingRequests(token)
-      .then((d) => {
-        const list = d.meeting_requests || [];
-        setPendingMeetings(list.filter((m) => String(m.status) === 'pending_admin').length);
-      })
-      .catch(() => undefined);
   }, [token]);
 
   if (!loading && !data) {
@@ -112,13 +117,29 @@ export function CompanyDashboard() {
   const p = snapshot?.participation;
   const score = Math.round(data?.report_readiness_score ?? 0);
   const breakdown = data?.report_readiness_breakdown ?? {};
-  const readyDocs = Number(breakdown.ready_documents ?? 0);
-  const signalCount = snapshot?.signal_count ?? snapshot?.top_pain_points.length ?? 0;
+  const intel = data?.intel_counts;
+  const readyDocs = Number(intel?.ready_documents ?? breakdown.ready_documents ?? 0);
+  const signalCount = intel?.signal_count ?? snapshot?.signal_count ?? snapshot?.top_pain_points.length ?? 0;
+  const patternCount = intel?.pattern_count ?? snapshot?.emerging_patterns?.length ?? 0;
+  const openClarifications = intel?.open_clarifications ?? 0;
+  const recommendationCount = intel?.recommendation_count ?? snapshot?.recommendation_count ?? 0;
   const docsFirstPhase = Boolean(data?.docs_first_phase ?? data?.company.docs_first_phase);
   const docsFirstActive = docsFirstPhase && (readyDocs > 0 || score > 0 || signalCount > 0);
   const processingDocs = docsFirstPhase && readyDocs === 0 && score === 0 && signalCount === 0;
   const qPercent = data?.questionnaire_completion_percent ?? 0;
   const showProfileTile = !data?.questionnaire_completed_at && qPercent < 100;
+
+  const readinessChartData = Object.entries(breakdown)
+    .filter(([, value]) => Number(value) > 0)
+    .map(([key, value]) => ({
+      name: BREAKDOWN_CHART_LABELS[key] ?? key.replace(/_/g, ' '),
+      value: Number(value),
+    }));
+
+  const departmentChartData = (snapshot?.department_coverage ?? []).map((d) => ({
+    name: d.department || 'Unassigned',
+    value: d.completed,
+  }));
 
   const actionTiles = (
     <div className="space-y-4">
@@ -156,13 +177,6 @@ export function CompanyDashboard() {
       <div>
         <h2 className="m-0 mb-2 text-sm font-medium text-muted-foreground">Capture & channels</h2>
         <div className="grid gap-3 sm:grid-cols-2">
-          <ActionTile
-            title="Meeting requests"
-            description="Review and schedule reviewer meeting asks."
-            to="/company/meeting-requests"
-            icon={<CalendarClock className="h-5 w-5" />}
-            badge={pendingMeetings}
-          />
           <ActionTile
             title="WhatsApp media"
             description="Review inbound media from discovery chats."
@@ -221,23 +235,25 @@ export function CompanyDashboard() {
                 icon={<PlayCircle className="h-5 w-5 text-primary" />}
               />
             )}
-            {docsOnlyView ? (
-              <StatCard
-                label="Doc departments"
-                value={Number(breakdown.document_departments ?? 0)}
-                icon={<FileText className="h-5 w-5 text-primary" />}
-              />
-            ) : (
-              <StatCard
-                label="Stalled"
-                value={data.employees_summary.stalled_count}
-                icon={<AlertTriangle className="h-5 w-5 text-primary" />}
-              />
-            )}
             <StatCard
               label="Signals"
               value={signalCount}
               icon={<Radio className="h-5 w-5 text-primary" />}
+            />
+            <StatCard
+              label="Patterns"
+              value={patternCount}
+              icon={<Layers className="h-5 w-5 text-primary" />}
+            />
+            <StatCard
+              label="Open clarifications"
+              value={openClarifications}
+              icon={<HelpCircle className="h-5 w-5 text-primary" />}
+            />
+            <StatCard
+              label="Recommendations"
+              value={recommendationCount}
+              icon={<Lightbulb className="h-5 w-5 text-primary" />}
             />
           </>
         ) : undefined
@@ -335,12 +351,35 @@ export function CompanyDashboard() {
                     <Link to="/company/intelligence#recommendations" className="w-full sm:w-auto">
                       <Button variant="secondary" className="w-full sm:w-auto">
                         Recommendations
-                        {snapshot.recommendation_count > 0 ? ` (${snapshot.recommendation_count})` : ''}
+                        {recommendationCount > 0 ? ` (${recommendationCount})` : ''}
                       </Button>
                     </Link>
                   </div>
                 </div>
               </div>
+            </Card>
+          </div>
+
+          <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+            <Card title="Readiness breakdown" className="min-w-0">
+              <SimpleBarChart
+                data={readinessChartData}
+                emptyLabel="Breakdown appears once readiness factors are scored."
+                layout="horizontal"
+                height={Math.max(180, readinessChartData.length * 36)}
+              />
+            </Card>
+            <Card title="Department coverage" className="min-w-0">
+              <SimpleBarChart
+                data={departmentChartData}
+                emptyLabel={
+                  docsOnlyView
+                    ? 'Tag documents by department to see coverage here.'
+                    : 'Invite employees by department to see coverage here.'
+                }
+                layout="horizontal"
+                height={Math.max(180, departmentChartData.length * 36)}
+              />
             </Card>
           </div>
 

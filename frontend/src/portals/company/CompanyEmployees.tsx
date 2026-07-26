@@ -172,7 +172,7 @@ export function CompanyEmployees() {
     <div className="space-y-8">
       <PageHeader
         title="Employees"
-        description="Invite employees, nudge stalled interviews, and manage private value digests."
+        description="Invite employees by WhatsApp number to start discovery. Intelligence and readiness update when interviews complete — not at invite time."
       />
 
       {loadError && (

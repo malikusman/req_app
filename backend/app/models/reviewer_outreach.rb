@@ -11,13 +11,12 @@ class ReviewerOutreach < ApplicationRecord
   belongs_to :reviewer_info_request, optional: true
 
   has_many :reviewer_outreach_replies, dependent: :destroy
-  has_many :meeting_requests, dependent: :nullify
 
   STATUSES = %w[
     draft pending_admin_approval approved declined queued sent replied closed failed
   ].freeze
   RECIPIENT_TYPES = %w[employee company_admin].freeze
-  PURPOSES = %w[clarification evidence_request meeting_request].freeze
+  PURPOSES = %w[clarification evidence_request].freeze
   CHANNELS = %w[whatsapp email portal].freeze
 
   validates :status, inclusion: { in: STATUSES }

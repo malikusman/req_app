@@ -18,14 +18,20 @@ module Companies
       "warehouse" => /\b(wms|warehouse)\b/i
     }.freeze
 
-    def self.call(company:, profile_params: {}, known_systems: nil)
-      new(company: company, profile_params: profile_params, known_systems: known_systems).call
+    def self.call(company:, profile_params: {}, known_systems: nil, website_url: :omit)
+      new(
+        company: company,
+        profile_params: profile_params,
+        known_systems: known_systems,
+        website_url: website_url
+      ).call
     end
 
-    def initialize(company:, profile_params: {}, known_systems: nil)
+    def initialize(company:, profile_params: {}, known_systems: nil, website_url: :omit)
       @company = company
       @profile_params = profile_params
       @known_systems = known_systems
+      @website_url = website_url
     end
 
     def call
@@ -37,12 +43,31 @@ module Companies
         profile[key] = normalize_value(key, value)
       end
 
-      @company.update!(company_profile: profile)
+      attrs = { company_profile: profile }
+      previous_website = @company.website_url
+      if @website_url != :omit
+        attrs[:website_url] = normalize_website(@website_url)
+      end
+
+      @company.update!(attrs)
       sync_known_systems! if !@known_systems.nil?
+
+      if @website_url != :omit && @company.website_url.present? && @company.website_url != previous_website
+        CompanyWebResearchJob.perform_later(@company.id)
+      end
+
       @company
     end
 
     private
+
+    def normalize_website(value)
+      url = value.to_s.strip.presence
+      return nil if url.blank?
+
+      url = "https://#{url}" unless url.match?(%r{\Ahttps?://}i)
+      url
+    end
 
     def normalize_value(key, value)
       case key

@@ -36,10 +36,15 @@ module Intelligence
         report_readiness_breakdown: @company.report_readiness_breakdown.merge(
           "confirmed_patterns" => confirmed_patterns
         ),
-        intelligence_snapshot: SnapshotBuilder.call(company: @company.reload)
+        intelligence_snapshot: SnapshotBuilder.call(company: @company.reload),
+        intelligence_updated_at: Time.current
       )
 
       CompanyReadinessRefresher.call(@company)
+      TimelineRecorder.intelligence_refreshed!(
+        company: @company,
+        summary: "Updated #{signals.size} signals, #{patterns.size} patterns, #{recommendations.size} recommendations"
+      )
       NotificationService.notify_pattern_detected(company: @company) if patterns.any?
 
       {

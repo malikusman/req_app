@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Check, ChevronRight, Circle, FileText, MessageSquare } from 'lucide-react';
 import { api, type ReviewerReportWorkspacePayload } from '../../../lib/api';
 import { useAuth, useReviewerToken } from '../../../lib/auth';
-import { Badge, Button, Card, ConfirmDialog, PageHeader, Skeleton, StatCard, Textarea } from '../../../components/ui';
+import { Badge, Button, Card, ConfirmDialog, EmptyState, PageHeader, Skeleton, StatCard, Textarea } from '../../../components/ui';
 import { AnimatedNumber } from '../../../components/motion';
 import { cn } from '../../../lib/cn';
 import { ReviewerAnnotationRail } from './ReviewerAnnotationRail';
@@ -39,6 +39,7 @@ function sectionsComplete(states: { section_key: string; status: string }[]) {
 
 export function ReviewerReportWorkspace() {
   const { companyId, reportId } = useParams();
+  const navigate = useNavigate();
   const token = useReviewerToken();
   const { session } = useAuth();
   const currentReviewerUserId =
@@ -549,6 +550,16 @@ export function ReviewerReportWorkspace() {
                 )}
               </Card>
               <Card title="Interview roster">
+                {workspace.conversations.length === 0 ? (
+                  <EmptyState
+                    title="No interviews yet — docs-first baseline"
+                    description="This report was built from documents. Source evidence and agent synthesis steps stay empty until employees complete discovery. Review Documents, Intelligence, Catalog matches, and Agentic ideas from the company overview."
+                    action={{
+                      label: 'Open company overview',
+                      onClick: () => navigate(`/reviewer/companies/${companyId}`),
+                    }}
+                  />
+                ) : (
                 <ul className="m-0 list-none space-y-2 p-0">
                   {workspace.conversations.map((c, index) => (
                     <li key={c.id}>
@@ -574,12 +585,23 @@ export function ReviewerReportWorkspace() {
                     </li>
                   ))}
                 </ul>
+                )}
               </Card>
             </div>
           )}
 
-          {activeStep === 'evidence' && activeConversation && token && (
-            <div className="space-y-4">
+          {activeStep === 'evidence' && !activeConversation && (
+            <EmptyState
+              title="No interview transcripts yet"
+              description="Source evidence shows employee profiles and WhatsApp/web discovery transcripts. This company is still on a document baseline — open Documents or Intelligence from the company page, or wait for interviews to complete."
+              action={{
+                label: 'Browse documents',
+                onClick: () => navigate(`/reviewer/companies/${companyId}/documents`),
+              }}
+            />
+          )}
+
+          {activeStep === 'evidence' && activeConversation && token && (            <div className="space-y-4">
               <ReviewerEmployeeProfileCard
                 employeeName={activeConversation.employee_name}
                 department={activeConversation.department}
@@ -645,6 +667,17 @@ export function ReviewerReportWorkspace() {
                 readOnly={submitted}
               />
             </div>
+          )}
+
+          {activeStep === 'synthesis' && !activeConversation && (
+            <EmptyState
+              title="No agent synthesis from interviews"
+              description="Shared findings and conversation reasoning appear after discovery interviews. For this docs-first report, use Report sections, Catalog (endorse matched tools), and Agentic ideas on the company overview."
+              action={{
+                label: 'Open catalog matches',
+                onClick: () => navigate(`/reviewer/companies/${companyId}/catalog`),
+              }}
+            />
           )}
 
           {activeStep === 'synthesis' && activeConversation && (

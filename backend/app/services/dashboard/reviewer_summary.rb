@@ -41,7 +41,18 @@ module Dashboard
     def company_row(company)
       latest_report = company.reports.where(status: "ready").order(version: :desc).first
       my_review = latest_report && ReportReview.find_by(report: latest_report, reviewer_user: @reviewer_user)
-      participation = Intelligence::SnapshotBuilder.call(company: company)["participation"]
+      snapshot = Intelligence::SnapshotBuilder.call(company: company)
+      participation = snapshot["participation"] || {}
+      invited = participation["invited"].to_i
+      completed = participation["completed"].to_i
+      completion_rate =
+        if participation["completion_rate"].present?
+          participation["completion_rate"].to_f
+        elsif invited.positive?
+          (completed.to_f / invited * 100).round
+        else
+          0.0
+        end
 
       {
         id: company.id,
@@ -50,6 +61,8 @@ module Dashboard
         completed_count: company.completed_count,
         invited_count: company.invited_count,
         participation: participation,
+        completion_rate: completion_rate,
+        ready_documents: company.documents.where(purged_at: nil).ready.count,
         latest_report: latest_report ? {
           id: latest_report.id,
           version: latest_report.version,
@@ -94,7 +107,8 @@ module Dashboard
         total_completed: company_rows.sum { |row| row[:completed_count] },
         total_invited: company_rows.sum { |row| row[:invited_count] },
         pending_reviews: company_rows.count { |row| row[:review_pending] },
-        open_followups: followups.count { |row| OPEN_FOLLOWUP_STATUSES.include?(row[:status]) }
+        open_followups: followups.count { |row| OPEN_FOLLOWUP_STATUSES.include?(row[:status]) },
+        total_ready_documents: company_rows.sum { |row| row[:ready_documents].to_i }
       }
     end
 

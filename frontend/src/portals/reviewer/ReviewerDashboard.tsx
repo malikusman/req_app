@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Building2,
@@ -6,7 +6,7 @@ import {
   Users,
   ClipboardList,
   MessageSquare,
-  Bell,
+  FileText,
 } from 'lucide-react';
 import { api, type ReviewerDashboardPayload } from '../../lib/api';
 import { useReviewerToken } from '../../lib/auth';
@@ -18,6 +18,7 @@ import {
   EmptyState,
   StatCard,
   Button,
+  SimpleBarChart,
 } from '../../components/ui';
 
 function reviewStatusVariant(status: string | null): 'success' | 'warning' | 'info' | 'neutral' {
@@ -25,6 +26,14 @@ function reviewStatusVariant(status: string | null): 'success' | 'warning' | 'in
   if (status === 'in_review' || status === 'needs_info') return 'info';
   if (status === 'approved') return 'success';
   return 'neutral';
+}
+
+function companyCompletionRate(c: ReviewerDashboardPayload['companies'][number]): number {
+  if (typeof c.completion_rate === 'number') return Math.round(c.completion_rate);
+  const fromParticipation = c.participation?.completion_rate;
+  if (typeof fromParticipation === 'number') return Math.round(fromParticipation);
+  if (c.invited_count > 0) return Math.round((c.completed_count / c.invited_count) * 100);
+  return 0;
 }
 
 export function ReviewerDashboard() {
@@ -54,6 +63,22 @@ export function ReviewerDashboard() {
 
   const stats = data?.stats;
   const companies = data?.companies ?? [];
+  const readinessByCompany = useMemo(
+    () =>
+      companies.map((c) => ({
+        name: c.name,
+        value: Math.round(c.report_readiness_score ?? 0),
+      })),
+    [companies]
+  );
+  const participationByCompany = useMemo(
+    () =>
+      companies.map((c) => ({
+        name: c.name,
+        value: companyCompletionRate(c),
+      })),
+    [companies]
+  );
   const actionQueue = data
     ? [
         ...data.attention_items.map((item) => ({
@@ -122,13 +147,38 @@ export function ReviewerDashboard() {
             />
             <StatCard label="Reviews pending" value={<AnimatedNumber value={stats.pending_reviews} />} icon={<ClipboardList className="h-5 w-5 text-accent" />} />
             <StatCard label="Open follow-ups" value={<AnimatedNumber value={stats.open_followups} />} icon={<MessageSquare className="h-5 w-5 text-accent" />} />
-            <StatCard label="Unread notifications" value={<AnimatedNumber value={data?.unread_count ?? 0} />} icon={<Bell className="h-5 w-5 text-accent" />} />
+            <StatCard
+              label="Ready documents"
+              value={<AnimatedNumber value={stats.total_ready_documents ?? 0} />}
+              icon={<FileText className="h-5 w-5 text-accent" />}
+            />
           </>
         ) : undefined
       }
     >
       {data && (
         <>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Card title="Readiness by company">
+              <SimpleBarChart
+                data={readinessByCompany}
+                emptyLabel="Assign companies to see portfolio readiness."
+                valueSuffix="%"
+                layout="horizontal"
+                height={Math.max(200, readinessByCompany.length * 40)}
+              />
+            </Card>
+            <Card title="Participation rate by company">
+              <SimpleBarChart
+                data={participationByCompany}
+                emptyLabel="Participation appears once employees are invited."
+                valueSuffix="%"
+                layout="horizontal"
+                height={Math.max(200, participationByCompany.length * 40)}
+              />
+            </Card>
+          </div>
+
           <div className="grid gap-4 lg:grid-cols-2">
             <Card title={`Action queue (${actionQueue.length})`}>
               {actionQueue.length === 0 ? (
@@ -208,37 +258,44 @@ export function ReviewerDashboard() {
               />
             ) : (
               <Stagger className="grid gap-4 md:grid-cols-2 lg:grid-cols-3" staggerDelay={0.08}>
-                {companies.map((c) => (
-                  <Link key={c.id} to={`/reviewer/companies/${c.id}`} className="block no-underline">
-                    <AnimatedCard>
-                      <Card className="h-full transition-shadow hover:shadow-md">
-                        <h3 className="m-0 font-medium text-foreground">{c.name}</h3>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          <Badge variant="info">{c.report_readiness_score}% readiness</Badge>
-                          <Badge variant="neutral">
-                            {c.completed_count}/{c.invited_count} completed
-                          </Badge>
-                          {c.latest_report && (
-                            <Badge variant={c.latest_report.status === 'ready' ? 'success' : 'neutral'}>
-                              v{c.latest_report.version} — {c.latest_report.status}
+                {companies.map((c) => {
+                  const rate = companyCompletionRate(c);
+                  return (
+                    <Link key={c.id} to={`/reviewer/companies/${c.id}`} className="block no-underline">
+                      <AnimatedCard>
+                        <Card className="h-full transition-shadow hover:shadow-md">
+                          <h3 className="m-0 font-medium text-foreground">{c.name}</h3>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <Badge variant="info">{c.report_readiness_score}% readiness</Badge>
+                            <Badge variant="neutral">{rate}% participation</Badge>
+                            <Badge variant="neutral">
+                              {c.completed_count}/{c.invited_count} completed
                             </Badge>
+                            {(c.ready_documents ?? 0) > 0 && (
+                              <Badge variant="neutral">{c.ready_documents} docs ready</Badge>
+                            )}
+                            {c.latest_report && (
+                              <Badge variant={c.latest_report.status === 'ready' ? 'success' : 'neutral'}>
+                                v{c.latest_report.version} — {c.latest_report.status}
+                              </Badge>
+                            )}
+                            {c.latest_report && (
+                              <Badge variant={reviewStatusVariant(c.my_review_status ?? null)}>
+                                Review: {c.my_review_status || 'pending'}
+                              </Badge>
+                            )}
+                          </div>
+                          {c.co_reviewer_count > 0 && (
+                            <p className="mt-2 text-xs text-muted-foreground">
+                              {c.co_reviewer_count} co-reviewer{c.co_reviewer_count === 1 ? '' : 's'}
+                            </p>
                           )}
-                          {c.latest_report && (
-                            <Badge variant={reviewStatusVariant(c.my_review_status ?? null)}>
-                              Review: {c.my_review_status || 'pending'}
-                            </Badge>
-                          )}
-                        </div>
-                        {c.co_reviewer_count > 0 && (
-                          <p className="mt-2 text-xs text-muted-foreground">
-                            {c.co_reviewer_count} co-reviewer{c.co_reviewer_count === 1 ? '' : 's'}
-                          </p>
-                        )}
-                        <p className="mt-3 text-sm font-medium text-accent">Open company →</p>
-                      </Card>
-                    </AnimatedCard>
-                  </Link>
-                ))}
+                          <p className="mt-3 text-sm font-medium text-accent">Open company →</p>
+                        </Card>
+                      </AnimatedCard>
+                    </Link>
+                  );
+                })}
               </Stagger>
             )}
           </section>

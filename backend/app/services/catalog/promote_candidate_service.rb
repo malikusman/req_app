@@ -46,6 +46,10 @@ module Catalog
         )
       end
 
+      # Rematch so promoted tools reach company catalog (and reviewers) without waiting
+      # for the next full intelligence aggregate.
+      RematchCompanyCatalogJob.perform_later
+
       entry
     end
 

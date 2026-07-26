@@ -11,12 +11,12 @@ import time
 from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI
 
 from app.circuit_breaker import record_failure, record_success
 from app.config import settings
 from app.json_parse import LlmJsonParseError, extract_json_object
 from app.llm import OpenAIUnavailable
+from app.openai_factory import build_chat_openai, llm_configured
 from app.orchestrator import needs_summary_refresh
 from app.personas import mock_question_for, persona_for
 
@@ -51,17 +51,40 @@ def _company_profile_blurb(state: dict[str, Any]) -> str:
     size = state.get("size_band") or profile.get("size_band")
     region = state.get("region") or profile.get("region") or profile.get("country")
     goals = state.get("business_goals") or profile.get("business_goals")
+    sub = profile.get("sub_industry")
+    revenue = profile.get("annual_revenue_band")
+    depts = profile.get("org_departments")
+    website = state.get("website_url") or profile.get("website_url")
+    systems = (
+        state.get("known_systems")
+        or profile.get("known_systems")
+        or [s.get("name") for s in (profile.get("client_stack") or []) if isinstance(s, dict)]
+    )
     bits = []
     if industry:
         bits.append(f"industry={industry}")
+    if sub:
+        bits.append(f"sub_industry={sub}")
     if size:
         bits.append(f"size={size}")
     if region:
         bits.append(f"region={region}")
+    if revenue:
+        bits.append(f"revenue_band={revenue}")
     if goals:
         goal_text = ", ".join(goals) if isinstance(goals, list) else str(goals)
         if goal_text.strip():
             bits.append(f"goals={goal_text[:160]}")
+    if depts:
+        dept_text = ", ".join(depts) if isinstance(depts, list) else str(depts)
+        if dept_text.strip():
+            bits.append(f"departments={dept_text[:120]}")
+    if website:
+        bits.append(f"website={website}")
+    if systems:
+        sys_text = ", ".join(str(s) for s in systems[:12])
+        if sys_text.strip():
+            bits.append(f"systems_in_use={sys_text[:160]}")
     if not bits:
         return ""
     return (
@@ -73,7 +96,7 @@ def _company_profile_blurb(state: dict[str, Any]) -> str:
 
 def run_agent_turn(state: dict[str, Any]) -> dict[str, Any]:
     """Returns the structured llm_output consumed by orchestrator.finalize_turn."""
-    if not settings.openai_api_key:
+    if not llm_configured():
         return _mock_agent_turn(state)
 
     system = _build_system_prompt(state)
@@ -87,12 +110,7 @@ def run_agent_turn(state: dict[str, Any]) -> dict[str, Any]:
             messages.append(HumanMessage(content=content))
     messages.append(HumanMessage(content=state["user_message"]))
 
-    llm = ChatOpenAI(
-        model=settings.openai_model,
-        api_key=settings.openai_api_key,
-        temperature=0.4,
-        model_kwargs={"response_format": {"type": "json_object"}},
-    )
+    llm = build_chat_openai(temperature=0.4, json_mode=True)
 
     last_error = None
     for attempt in range(settings.max_openai_retries + 1):
@@ -175,6 +193,12 @@ def _build_system_prompt(state: dict[str, Any]) -> str:
         lines = "\n".join(f"- {s[:300]}" for s in snippets[:2])
         snippets_block = f"\nRelevant company document excerpts:\n{lines}\n"
 
+    knowledge = state.get("knowledge_snippets") or []
+    knowledge_block = ""
+    if knowledge:
+        lines = "\n".join(f"- {s[:300]}" for s in knowledge[:5])
+        knowledge_block = f"\nCompany knowledge base (from document analysis):\n{lines}\n"
+
     media_ctx = state.get("media_context")
     media_block = ""
     if media_ctx:
@@ -238,7 +262,7 @@ Conversation so far (summary): {summary}
 
 Findings shared by all interviewers so far:
 {findings_block}
-{facts_block}{snippets_block}{media_block}{media_snippets_block}
+{facts_block}{snippets_block}{knowledge_block}{media_block}{media_snippets_block}
 Interview state:
 - Total questions asked: {state.get('question_count', 0)} of {state.get('question_target', 12)} max.
 - Your remaining question budget: {remaining}.

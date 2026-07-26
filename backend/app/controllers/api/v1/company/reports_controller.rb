@@ -8,7 +8,16 @@ module Api
 
         def index
           reports = policy_scope(Report).order(version: :desc)
-          render json: { reports: reports.map { |r| report_json(r) } }
+          latest_ready = reports.find { |r| r.status == "ready" }
+          intel_at = current_company.intelligence_updated_at
+          stale = intel_at.present? && latest_ready&.generated_at.present? && intel_at > latest_ready.generated_at
+
+          render json: {
+            reports: reports.map { |r| report_json(r) },
+            intelligence_updated_at: intel_at,
+            report_stale: stale,
+            latest_ready_generated_at: latest_ready&.generated_at
+          }
         end
 
         def show

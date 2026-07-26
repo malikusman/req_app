@@ -33,6 +33,16 @@ module Intelligence
               summary: "Discovery reopened (addendum ##{addendum}) with more questions available")
     end
 
+    def self.intelligence_refreshed!(company:, summary: nil)
+      create!(
+        company: company,
+        event_type: "intelligence_refreshed",
+        target: company,
+        title: "Intelligence refreshed",
+        summary: summary.presence || "Signals, patterns, and readiness recomputed from current evidence"
+      )
+    end
+
     def self.create!(company:, event_type:, target:, title:, summary:)
       InsightTimelineEvent.create!(
         company: company,

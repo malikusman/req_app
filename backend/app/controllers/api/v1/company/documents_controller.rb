@@ -6,7 +6,10 @@ module Api
       class DocumentsController < BaseController
         def index
           authorize Document, :index?
-          documents = policy_scope(Document).order(created_at: :desc).limit(100)
+          documents = policy_scope(Document)
+            .where(purged_at: nil)
+            .order(updated_at: :desc)
+            .limit(100)
           render json: { documents: documents.map { |d| document_json(d) } }
         end
 
@@ -48,7 +51,7 @@ module Api
             content_type: content_type,
             byte_size: body.bytesize,
             storage_key: storage_key,
-            status: "pending",
+            status: "uploaded",
             retained_until: retention_until_from(params[:retention_days]),
             metadata: {
               "uploaded_by" => current_company_user.id,
@@ -56,8 +59,45 @@ module Api
             }
           )
 
-          ParseDocumentJob.perform_later(document.id)
           render json: { document: document_json(document) }, status: :created
+        end
+
+        def replace
+          document = policy_scope(Document).find(params[:id])
+          authorize document, :update?
+          file = params[:file]
+          return render json: { error: "file required" }, status: :unprocessable_entity unless file.respond_to?(:read)
+
+          filename = file.original_filename.presence || document.filename
+          content_type = file.content_type.to_s
+          body = file.read
+          unless Document.allowed_content_type?(content_type)
+            return render json: { error: "unsupported file type" }, status: :unprocessable_entity
+          end
+          if body.bytesize > Document::MAX_BYTES
+            return render json: { error: "file too large" }, status: :unprocessable_entity
+          end
+
+          storage_key = "documents/#{current_company.id}/#{SecureRandom.uuid}/#{filename}"
+          Storage::MinioClient.new.upload(key: storage_key, body: body, content_type: content_type)
+          document.document_chunks.delete_all
+          current_company.company_knowledge_entries.active
+            .where("? = ANY(source_document_ids)", document.id)
+            .update_all(status: "superseded") # rubocop:disable Rails/SkipsModelValidations
+          Documents::StaleClarificationQuestions.for_document!(document: document)
+
+          document.update!(
+            filename: filename,
+            content_type: content_type,
+            byte_size: body.bytesize,
+            storage_key: storage_key,
+            status: "uploaded",
+            processing_error: nil,
+            insights_preview: {},
+            version_number: document.version_number.to_i + 1,
+            metadata: (document.metadata || {}).except("content_sha256")
+          )
+          render json: { document: document_json(document) }
         end
 
         def update

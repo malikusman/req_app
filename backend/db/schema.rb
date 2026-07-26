@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_25_150000) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_26_140000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -204,6 +204,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_25_150000) do
     t.jsonb "questionnaire_answers", default: {}, null: false
     t.datetime "questionnaire_completed_at"
     t.integer "questionnaire_step", default: 1, null: false
+    t.datetime "docs_profile_stale_at"
+    t.datetime "intelligence_updated_at"
+    t.string "website_url"
     t.index ["approval_status"], name: "index_companies_on_approval_status"
     t.index ["slug"], name: "index_companies_on_slug", unique: true
   end
@@ -229,6 +232,49 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_25_150000) do
     t.index ["solution_catalog_entry_id"], name: "index_company_catalog_matches_on_solution_catalog_entry_id"
   end
 
+  create_table "company_clarification_questions", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "document_analysis_run_id"
+    t.text "body", null: false
+    t.string "status", default: "open", null: false
+    t.text "answer"
+    t.string "answer_source"
+    t.jsonb "citations", default: [], null: false
+    t.bigint "answered_by_company_user_id"
+    t.bigint "dismissed_by_reviewer_user_id"
+    t.datetime "answered_at"
+    t.datetime "dismissed_at"
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id", "status"], name: "index_company_clarification_questions_on_company_id_and_status"
+    t.index ["company_id"], name: "index_company_clarification_questions_on_company_id"
+    t.index ["document_analysis_run_id"], name: "idx_on_document_analysis_run_id_0dfb5e96c7"
+  end
+
+  create_table "company_knowledge_entries", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "document_analysis_run_id"
+    t.string "entry_type", default: "other", null: false
+    t.string "title", null: false
+    t.text "content", null: false
+    t.float "confidence", default: 0.5, null: false
+    t.string "department"
+    t.string "status", default: "active", null: false
+    t.string "content_hash"
+    t.bigint "source_document_ids", default: [], null: false, array: true
+    t.bigint "source_chunk_ids", default: [], null: false, array: true
+    t.vector "embedding", limit: 768
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id", "content_hash"], name: "index_company_knowledge_entries_on_company_id_and_content_hash"
+    t.index ["company_id", "entry_type"], name: "index_company_knowledge_entries_on_company_id_and_entry_type"
+    t.index ["company_id", "status"], name: "index_company_knowledge_entries_on_company_id_and_status"
+    t.index ["company_id"], name: "index_company_knowledge_entries_on_company_id"
+    t.index ["document_analysis_run_id"], name: "index_company_knowledge_entries_on_document_analysis_run_id"
+  end
+
   create_table "company_memory_facts", force: :cascade do |t|
     t.bigint "company_id", null: false
     t.bigint "employee_id"
@@ -238,7 +284,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_25_150000) do
     t.text "content", null: false
     t.float "confidence"
     t.string "source_agent"
-    t.vector "embedding", limit: 1536
+    t.vector "embedding", limit: 768
     t.jsonb "metadata", default: {}, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
@@ -417,11 +463,46 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_25_150000) do
     t.index ["message_id"], name: "index_discovery_question_feedbacks_on_message_id"
   end
 
+  create_table "document_analysis_events", force: :cascade do |t|
+    t.bigint "document_analysis_run_id", null: false
+    t.string "agent_name", null: false
+    t.string "event_type", default: "step", null: false
+    t.string "phase"
+    t.text "message"
+    t.jsonb "payload", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["document_analysis_run_id", "created_at"], name: "index_doc_analysis_events_on_run_and_created"
+    t.index ["document_analysis_run_id"], name: "index_document_analysis_events_on_document_analysis_run_id"
+  end
+
+  create_table "document_analysis_runs", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "triggered_by_company_user_id"
+    t.string "run_kind", default: "full", null: false
+    t.string "status", default: "queued", null: false
+    t.string "phase"
+    t.string "model_tier", default: "fast"
+    t.bigint "document_ids", default: [], null: false, array: true
+    t.jsonb "profile_snapshot", default: {}, null: false
+    t.jsonb "summary", default: {}, null: false
+    t.jsonb "counters", default: {}, null: false
+    t.text "error_message"
+    t.datetime "started_at"
+    t.datetime "finished_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id", "created_at"], name: "index_document_analysis_runs_on_company_id_and_created_at"
+    t.index ["company_id", "status"], name: "index_document_analysis_runs_on_company_id_and_status"
+    t.index ["company_id"], name: "index_document_analysis_runs_on_company_id"
+    t.index ["triggered_by_company_user_id"], name: "index_document_analysis_runs_on_triggered_by_company_user_id"
+  end
+
   create_table "document_chunks", force: :cascade do |t|
     t.bigint "document_id", null: false
     t.integer "chunk_index", null: false
     t.text "content", null: false
-    t.vector "embedding", limit: 1536
+    t.vector "embedding", limit: 768
     t.jsonb "metadata", default: {}, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
@@ -674,32 +755,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_25_150000) do
     t.index ["employee_id"], name: "index_media_attachments_on_employee_id"
     t.index ["message_id"], name: "index_media_attachments_on_message_id"
     t.index ["meta_media_id"], name: "index_media_attachments_on_meta_media_id", unique: true, where: "(meta_media_id IS NOT NULL)"
-  end
-
-  create_table "meeting_requests", force: :cascade do |t|
-    t.bigint "company_id", null: false
-    t.bigint "report_id"
-    t.bigint "reviewer_user_id", null: false
-    t.bigint "reviewer_outreach_id"
-    t.text "purpose", null: false
-    t.string "desired_roles", default: [], array: true
-    t.integer "duration_minutes", default: 30
-    t.string "urgency", default: "normal"
-    t.jsonb "proposed_windows", default: [], null: false
-    t.string "status", default: "pending_admin", null: false
-    t.bigint "approved_by_company_user_id"
-    t.jsonb "selected_participant_ids", default: [], null: false
-    t.datetime "scheduled_at"
-    t.string "meeting_link"
-    t.text "admin_note"
-    t.text "outcome_note"
-    t.jsonb "audit_trail", default: [], null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["company_id"], name: "index_meeting_requests_on_company_id"
-    t.index ["report_id"], name: "index_meeting_requests_on_report_id"
-    t.index ["reviewer_outreach_id"], name: "index_meeting_requests_on_reviewer_outreach_id"
-    t.index ["reviewer_user_id"], name: "index_meeting_requests_on_reviewer_user_id"
   end
 
   create_table "messages", force: :cascade do |t|
@@ -1132,7 +1187,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_25_150000) do
     t.datetime "last_verified_at"
     t.jsonb "match_profile", default: {}, null: false
     t.jsonb "metadata", default: {}, null: false
-    t.vector "embedding", limit: 1536
+    t.vector "embedding", limit: 768
     t.index ["slug"], name: "index_solution_catalog_on_slug", unique: true, where: "(slug IS NOT NULL)"
   end
 
@@ -1191,6 +1246,12 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_25_150000) do
   add_foreign_key "company_catalog_matches", "companies"
   add_foreign_key "company_catalog_matches", "recommendations"
   add_foreign_key "company_catalog_matches", "solution_catalog", column: "solution_catalog_entry_id"
+  add_foreign_key "company_clarification_questions", "companies"
+  add_foreign_key "company_clarification_questions", "company_users", column: "answered_by_company_user_id"
+  add_foreign_key "company_clarification_questions", "document_analysis_runs"
+  add_foreign_key "company_clarification_questions", "reviewer_users", column: "dismissed_by_reviewer_user_id"
+  add_foreign_key "company_knowledge_entries", "companies"
+  add_foreign_key "company_knowledge_entries", "document_analysis_runs"
   add_foreign_key "company_memory_facts", "companies"
   add_foreign_key "company_memory_facts", "conversations"
   add_foreign_key "company_memory_facts", "employees"
@@ -1211,6 +1272,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_25_150000) do
   add_foreign_key "discovery_question_feedbacks", "companies"
   add_foreign_key "discovery_question_feedbacks", "company_users"
   add_foreign_key "discovery_question_feedbacks", "messages"
+  add_foreign_key "document_analysis_events", "document_analysis_runs"
+  add_foreign_key "document_analysis_runs", "companies"
+  add_foreign_key "document_analysis_runs", "company_users", column: "triggered_by_company_user_id"
   add_foreign_key "document_chunks", "documents"
   add_foreign_key "documents", "companies"
   add_foreign_key "documents", "company_users", column: "uploaded_by_company_user_id"
@@ -1244,11 +1308,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_25_150000) do
   add_foreign_key "media_attachments", "documents"
   add_foreign_key "media_attachments", "employees"
   add_foreign_key "media_attachments", "messages"
-  add_foreign_key "meeting_requests", "companies"
-  add_foreign_key "meeting_requests", "company_users", column: "approved_by_company_user_id"
-  add_foreign_key "meeting_requests", "reports"
-  add_foreign_key "meeting_requests", "reviewer_outreaches"
-  add_foreign_key "meeting_requests", "reviewer_users"
   add_foreign_key "messages", "conversations"
   add_foreign_key "notifications", "companies"
   add_foreign_key "patterns", "companies"

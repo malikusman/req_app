@@ -1,0 +1,75 @@
+<% company_name = snapshot.dig("company", "name") %>
+<% profile = snapshot.dig("company", "profile") || {} %>
+<% website = snapshot.dig("company", "website_url").presence || profile["website_url"].presence %>
+<% stack = Array(snapshot["client_stack"]) %>
+<% kb = Array(snapshot["knowledge_base"]) %>
+<% web_research = kb.select { |e| e["source"].to_s == "web_research" }.first(3) %>
+<% kb_themes = kb.reject { |e| e["source"].to_s == "web_research" }.first(6) %>
+<% goals = profile["business_goals"] %>
+<% goal_list = goals.is_a?(Array) ? goals : (goals.present? ? [goals] : []) %>
+<% depts = Array(profile["org_departments"]) %>
+<% has_firmographics = %w[industry sub_industry size_band region country annual_revenue_band].any? { |k| profile[k].present? } %>
+<% show = has_firmographics || website.present? || stack.any? || goal_list.any? || depts.any? || web_research.any? || kb_themes.any? %>
+<% if show %>
+<section class="page" id="company-context">
+  <div class="eyebrow">Company context</div>
+  <h1 style="font-size:28pt;margin:4mm 0 3mm;">Who this organization is</h1>
+  <div class="split">
+    <div>
+      <p class="lead">Firmographics, stated goals, systems in use, and public research grounding this report.</p>
+      <% if has_firmographics || website.present? %>
+        <ul class="plain" style="margin:3mm 0;padding-left:4mm;">
+          <% if profile["industry"].present? %><li><strong>Industry:</strong> <%= h profile["industry"] %><%= " / #{h profile['sub_industry']}" if profile["sub_industry"].present? %></li><% end %>
+          <% if profile["size_band"].present? %><li><strong>Size:</strong> <%= h profile["size_band"] %></li><% end %>
+          <% loc = [profile["region"], profile["country"]].compact.reject(&:blank?).join(", ") %>
+          <% if loc.present? %><li><strong>Location:</strong> <%= h loc %></li><% end %>
+          <% if profile["annual_revenue_band"].present? %><li><strong>Revenue band:</strong> <%= h profile["annual_revenue_band"] %></li><% end %>
+          <% if website.present? %><li><strong>Website:</strong> <%= h website %></li><% end %>
+        </ul>
+      <% end %>
+      <% if goal_list.any? %>
+        <h3 style="margin-top:4mm;">Business goals</h3>
+        <ul class="plain" style="padding-left:4mm;">
+          <% goal_list.first(6).each do |g| %>
+            <li><%= h g %></li>
+          <% end %>
+        </ul>
+      <% end %>
+      <% if depts.any? %>
+        <p style="margin-top:3mm;"><strong>Departments:</strong> <%= h depts.first(10).join(", ") %></p>
+      <% end %>
+    </div>
+    <div class="exhibit">
+      <div class="exlabel">Exhibit · Systems &amp; knowledge</div>
+      <% if stack.any? %>
+        <h3>Applications in use</h3>
+        <ul class="plain" style="padding-left:4mm;margin-bottom:4mm;">
+          <% stack.first(12).each do |sys| %>
+            <li><%= h sys["name"] %><% if sys["category"].present? %> <span class="muted">(<%= h sys["category"] %>)</span><% end %></li>
+          <% end %>
+        </ul>
+      <% end %>
+      <% if web_research.any? %>
+        <h3>Website research</h3>
+        <% web_research.each do |entry| %>
+          <p style="margin:2mm 0;"><%= h entry["content"].to_s.truncate(280) %></p>
+          <% if entry["url"].present? %><div class="caption"><%= h entry["url"] %></div><% end %>
+        <% end %>
+      <% end %>
+      <% if kb_themes.any? && stack.empty? && web_research.empty? %>
+        <h3>Knowledge themes</h3>
+        <ul class="plain" style="padding-left:4mm;">
+          <% kb_themes.each do |e| %>
+            <li><%= h e["title"] %></li>
+          <% end %>
+        </ul>
+      <% elsif kb_themes.any? %>
+        <div class="caption" style="margin-top:3mm;"><%= kb_themes.size %> knowledge themes from documents also inform this report.</div>
+      <% end %>
+      <div class="caption"><%= h report_source_caption(company_name, version: report_version) %></div>
+      <div class="mark">Worktruth</div>
+    </div>
+  </div>
+  <%= render "reports/page_footer", company_name: company_name %>
+</section>
+<% end %>

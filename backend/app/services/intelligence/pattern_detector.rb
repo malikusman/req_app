@@ -5,7 +5,6 @@ module Intelligence
     # Align with SignalExtractor's floor so single-source keyword hits still
     # participate in combo / co-occurrence rules.
     MIN_STRENGTH = 0.35
-    # At least one signal in a combo must be this strong to avoid noise-only patterns.
     ANCHOR_STRENGTH = 0.65
 
     def self.call(company:)

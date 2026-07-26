@@ -5,8 +5,8 @@ module Api
     module Auth
       class ReviewerSessionsController < ApplicationController
         def create
-          user = ReviewerUser.active.find_by(email: params[:email]&.downcase)
-          unless user&.authenticate(params[:password])
+          user = ReviewerUser.active.find_by(email: params[:email].to_s.strip.downcase)
+          unless user&.authenticate(params[:password].to_s)
             return render json: { error: "Invalid email or password" }, status: :unauthorized
           end
 

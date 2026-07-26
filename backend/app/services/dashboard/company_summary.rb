@@ -44,6 +44,7 @@ module Dashboard
         usage: enforcer.usage_summary,
         latest_report: latest_report_json(latest_report),
         employees_summary: employees_summary,
+        intel_counts: intel_counts,
         integrations: integrations_status,
         impersonating: @impersonating,
         impersonation_expires_at: @impersonation_session&.expires_at
@@ -51,6 +52,21 @@ module Dashboard
     end
 
     private
+
+    def intel_counts
+      docs = @company.documents.where(purged_at: nil)
+      snapshot = @company.intelligence_snapshot.is_a?(Hash) ? @company.intelligence_snapshot : {}
+
+      {
+        total_documents: docs.count,
+        ready_documents: docs.ready.count,
+        open_clarifications: @company.company_clarification_questions.open_for_admin.count,
+        signal_count: (snapshot["signal_count"].presence || Array(snapshot["top_pain_points"]).size).to_i,
+        pattern_count: Array(snapshot["emerging_patterns"]).size,
+        recommendation_count: snapshot["recommendation_count"].to_i,
+        systems_count: @company.company_systems.count
+      }
+    end
 
     def integrations_status
       {

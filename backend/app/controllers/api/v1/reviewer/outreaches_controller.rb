@@ -6,13 +6,19 @@ module Api
       class OutreachesController < BaseController
         def index
           company = find_assigned_company!
-          outreaches = ::ReviewerOutreach.where(company_id: company.id).order(created_at: :desc)
+          outreaches = ::ReviewerOutreach
+            .where(company_id: company.id)
+            .includes(:reviewer_outreach_replies, :reviewer_user, :employee)
+            .order(created_at: :desc)
           render json: { outreaches: outreaches.map { |o| outreach_json(o) } }
         end
 
         def show
           company = find_assigned_company!
-          outreach = ::ReviewerOutreach.where(company_id: company.id).find(params[:id])
+          outreach = ::ReviewerOutreach
+            .where(company_id: company.id)
+            .includes(:reviewer_outreach_replies, :reviewer_user, :employee)
+            .find(params[:id])
           render json: { outreach: outreach_json(outreach) }
         end
 
@@ -75,8 +81,20 @@ module Api
             declined_at: o.declined_at,
             sent_at: o.sent_at,
             admin_note: o.admin_note,
+            replies: o.reviewer_outreach_replies.sort_by(&:received_at).map { |r| reply_json(r) },
             created_at: o.created_at,
             updated_at: o.updated_at
+          }
+        end
+
+        def reply_json(r)
+          {
+            id: r.id,
+            channel: r.channel,
+            body: r.body,
+            company_user_id: r.company_user_id,
+            received_at: r.received_at,
+            created_at: r.created_at
           }
         end
 

@@ -9,6 +9,7 @@ class InsightTimelineEvent < ApplicationRecord
     signal_strengthened
     interview_completed
     conversation_reopened
+    intelligence_refreshed
   ].freeze
 
   validates :event_type, :title, :occurred_at, presence: true

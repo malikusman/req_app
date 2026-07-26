@@ -32,7 +32,9 @@ import { CompanyConversations } from './portals/company/CompanyConversations';
 import { CompanyConversationDetail } from './portals/company/CompanyConversationDetail';
 import { CompanyIntelligence } from './portals/company/CompanyIntelligence';
 import { CompanyDocuments } from './portals/company/CompanyDocuments';
+import { CompanyKnowledge } from './portals/company/CompanyKnowledge';
 import { ReviewerDocuments } from './portals/reviewer/ReviewerDocuments';
+import { ReviewerDocumentAnalysis } from './portals/reviewer/ReviewerDocumentAnalysis';
 import { CompanyMediaLibrary } from './portals/company/CompanyMediaLibrary';
 import { CompanyDiscoveryQuestions } from './portals/company/CompanyDiscoveryQuestions';
 import { CompanyReports } from './portals/company/CompanyReports';
@@ -49,7 +51,6 @@ import { ReviewerEmployeeFollowup } from './portals/reviewer/ReviewerEmployeeFol
 import { ReviewerProfile } from './portals/reviewer/ReviewerProfile';
 import { DevUiShowcase } from './dev/DevUiShowcase';
 import { CompanyOutreaches } from './portals/company/CompanyOutreaches';
-import { CompanyMeetingRequests } from './portals/company/CompanyMeetingRequests';
 import { PlatformCatalogCandidates } from './portals/platform/PlatformCatalogCandidates';
 import { PlatformCatalogSources } from './portals/platform/PlatformCatalogSources';
 import { OutreachReplyPage } from './portals/public/OutreachReplyPage';
@@ -153,6 +154,7 @@ export default function App() {
               <Route path="companies/:companyId/conversations/:conversationId" element={<ReviewerConversationDetail />} />
               <Route path="companies/:companyId/employees/:employeeId/followup" element={<ReviewerEmployeeFollowup />} />
               <Route path="companies/:companyId/documents" element={<ReviewerDocuments />} />
+              <Route path="companies/:companyId/analysis" element={<ReviewerDocumentAnalysis />} />
               <Route path="companies/:companyId/catalog" element={<ReviewerCatalog />} />
             </Route>
             <Route
@@ -174,8 +176,8 @@ export default function App() {
               <Route path="intelligence/patterns" element={<Navigate to="/company/intelligence#patterns" replace />} />
               <Route path="intelligence/timeline" element={<Navigate to="/company/intelligence#timeline" replace />} />
               <Route path="documents" element={<CompanyDocuments />} />
+              <Route path="knowledge" element={<CompanyKnowledge />} />
               <Route path="outreaches" element={<CompanyOutreaches />} />
-              <Route path="meeting-requests" element={<CompanyMeetingRequests />} />
               <Route path="media" element={<CompanyMediaLibrary />} />
               <Route path="discovery-questions" element={<CompanyDiscoveryQuestions />} />
               <Route path="recommendations" element={<Navigate to="/company/intelligence#recommendations" replace />} />

@@ -1,6 +1,12 @@
 # frozen_string_literal: true
 
 module Outreaches
+  # Creates reviewer → company_admin (portal) or reviewer → employee (WhatsApp) outreaches.
+  # Employee outreaches require company-admin approval before DeliverOutreachJob.
+  #
+  # Note: workspace "Ask employee" via ReviewDiscussions may use ReviewerFollowup::SendService
+  # (ReviewerInfoRequest) instead. Prefer this service for admin-gated employee asks;
+  # prefer SendService for evidence-anchored direct follow-ups until those paths are merged.
   class CreateService
     def self.call(**kwargs)
       new(**kwargs).call

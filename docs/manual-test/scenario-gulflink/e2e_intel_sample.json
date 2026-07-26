@@ -1,0 +1,38 @@
+{
+  "signals": [
+    {
+      "label": "Manual data entry and spreadsheets",
+      "strength": 0.58,
+      "excerpts": [
+
+      ]
+    },
+    {
+      "label": "Core system dependency",
+      "strength": 0.43,
+      "excerpts": [
+
+      ]
+    },
+    {
+      "label": "Approval bottlenecks",
+      "strength": 0.35,
+      "excerpts": [
+
+      ]
+    }
+  ],
+  "patterns": [
+    {
+      "title": "Approval bottleneck across manual workflows",
+      "confidence": 0.82,
+      "status": "confirmed"
+    }
+  ],
+  "recommendations": [
+    {
+      "title": "Automate manual data entry",
+      "priority": "medium"
+    }
+  ]
+}

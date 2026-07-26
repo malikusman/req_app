@@ -33,4 +33,20 @@ RSpec.describe Documents::PurgeService do
     expect(document.purged_at).to be_present
     expect(AggregateIntelligenceJob).to have_received(:perform_later).with(company.id)
   end
+
+  it "orphans knowledge entries that only cited the purged document" do
+    entry = company.company_knowledge_entries.create!(
+      entry_type: "policy",
+      title: "Only this doc",
+      content: "Rule from policy.pdf",
+      status: "active",
+      source_document_ids: [document.id]
+    )
+    allow(Storage::MinioClient).to receive(:new).and_return(instance_double(Storage::MinioClient, delete: true))
+    allow(AggregateIntelligenceJob).to receive(:perform_later)
+
+    described_class.call(document: document)
+
+    expect(entry.reload.status).to eq("orphaned")
+  end
 end

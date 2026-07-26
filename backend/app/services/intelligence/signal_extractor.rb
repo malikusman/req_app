@@ -66,7 +66,16 @@ module Intelligence
       doc_texts = @company.documents.where(status: "ready").flat_map { |d| document_text_blobs(d) }
       fact_texts = @company.company_memory_facts.limit(200).pluck(:content)
       message_texts = gather_message_sources.map { |m| m[:body] }
-      (insight_texts + doc_texts + fact_texts + message_texts).compact_blank
+      knowledge_texts = gather_knowledge_texts
+      (insight_texts + doc_texts + fact_texts + message_texts + knowledge_texts).compact_blank
+    end
+
+    def gather_knowledge_texts
+      return [] unless @company.respond_to?(:company_knowledge_entries)
+
+      @company.company_knowledge_entries.active.limit(200).map do |entry|
+        [entry.entry_type, entry.title, entry.content.to_s.truncate(600), entry.department].compact.join(" ")
+      end
     end
 
     def document_text_blobs(document)

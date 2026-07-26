@@ -1,35 +1,31 @@
 # frozen_string_literal: true
 
-class MeetingRequestPolicy < ApplicationPolicy
+class CompanyClarificationQuestionPolicy < ApplicationPolicy
   def index?
-    reviewer? || company?
+    company_admin? || reviewer?
   end
 
   def show?
+    return true if company_admin? && record.company_id == company_id
     return true if reviewer? && assigned_company?(record.company_id)
-    return true if company? && record.company_id == company_id
 
     false
   end
 
-  def create?
-    reviewer? && assigned_company?(record.company_id)
-  end
-
-  def approve?
+  def answer?
     company_admin? && record.company_id == company_id
   end
 
-  def decline?
-    approve?
+  def dismiss?
+    reviewer? && assigned_company?(record.company_id)
   end
 
   class Scope < Scope
     def resolve
-      if reviewer?
-        scope.where(company_id: assigned_company_ids)
-      elsif company?
+      if company?
         scope.where(company_id: company_id)
+      elsif reviewer?
+        scope.where(company_id: assigned_company_ids)
       else
         scope.none
       end

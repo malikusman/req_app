@@ -9,7 +9,7 @@ class Document < ApplicationRecord
   has_many :document_chunks, dependent: :destroy
 
   SOURCES = %w[whatsapp_upload company_portal_upload admin_upload web_upload].freeze
-  STATUSES = %w[pending processing ready failed].freeze
+  STATUSES = %w[uploaded pending processing ready failed].freeze
   DOCUMENT_TYPES = %w[sop org_chart policy process other].freeze
   SENSITIVITIES = %w[internal confidential restricted].freeze
 
@@ -35,6 +35,8 @@ class Document < ApplicationRecord
   validates :sensitivity, inclusion: { in: SENSITIVITIES }, allow_nil: true
 
   scope :ready, -> { where(status: "ready") }
+  scope :uploaded, -> { where(status: "uploaded") }
+  scope :awaiting_analysis, -> { where(status: %w[uploaded failed]) }
   scope :portal, -> { where(source: "company_portal_upload") }
   scope :reviewer_visible, -> { where(reviewer_visible: true) }
 

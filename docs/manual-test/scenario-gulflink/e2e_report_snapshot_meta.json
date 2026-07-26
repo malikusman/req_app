@@ -1,0 +1,17 @@
+{
+  "id": 36,
+  "version": 1,
+  "kind": "baseline",
+  "website": "https://example.com",
+  "stack": 11,
+  "signals": 6,
+  "patterns": 1,
+  "recs": 1,
+  "tools": 5,
+  "exec": "This other organization (about 11-50 people, operating in United Arab Emirates, website https://example.com) is the focus of this report. Baseline discovery from 5 internal documents across finance, operations. The strongest cross-cutting themes are Approval bottleneck across manual workflows. Underlying friction shows up as Manual data entry and spreadsheets and Core system dependency. 1 cross...",
+  "company_context_goals": [
+    "Reduce operational costs",
+    "Increase productivity",
+    "Improve data accuracy"
+  ]
+}

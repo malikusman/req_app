@@ -2,11 +2,11 @@ import time
 from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI
 
 from app.circuit_breaker import record_failure, record_success
 from app.config import settings
 from app.json_parse import LlmJsonParseError, extract_json_object
+from app.openai_factory import build_chat_openai, llm_configured
 
 
 class OpenAIUnavailable(Exception):
@@ -96,8 +96,11 @@ def run_discovery_turn(
     industry: str | None = None,
     size_band: str | None = None,
     region: str | None = None,
+    business_goals: list[str] | str | None = None,
+    website_url: str | None = None,
+    known_systems: list[str] | None = None,
 ) -> dict[str, Any]:
-    if not settings.openai_api_key:
+    if not llm_configured():
         return _mock_turn(
             preferred_language=preferred_language,
             question_count=question_count,
@@ -113,6 +116,14 @@ def run_discovery_turn(
         profile_bits.append(f"size={size_band}")
     if region:
         profile_bits.append(f"region={region}")
+    if business_goals:
+        goal_text = ", ".join(business_goals) if isinstance(business_goals, list) else str(business_goals)
+        if goal_text.strip():
+            profile_bits.append(f"goals={goal_text[:160]}")
+    if website_url:
+        profile_bits.append(f"website={website_url}")
+    if known_systems:
+        profile_bits.append(f"systems_in_use={', '.join(str(s) for s in known_systems[:12])[:160]}")
     profile_line = (
         f"Company profile: {'; '.join(profile_bits)}.\n" if profile_bits else ""
     )
@@ -148,12 +159,7 @@ Set completed to true only when the interview should end (reached target or natu
             messages.append(HumanMessage(content=content))
     messages.append(HumanMessage(content=user_message))
 
-    llm = ChatOpenAI(
-        model=settings.openai_model,
-        api_key=settings.openai_api_key,
-        temperature=0.4,
-        model_kwargs={"response_format": {"type": "json_object"}},
-    )
+    llm = build_chat_openai(temperature=0.4, json_mode=True)
 
     last_error = None
     for attempt in range(settings.max_openai_retries + 1):

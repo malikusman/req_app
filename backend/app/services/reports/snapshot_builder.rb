@@ -23,10 +23,11 @@ module Reports
           "name" => @company.display_name || @company.name,
           "locale" => @company.locale,
           "engagement_mode" => @company.engagement_mode,
+          "website_url" => @company.try(:website_url),
           "profile" => @company.company_profile.slice(
             "industry", "sub_industry", "size_band", "region", "country",
             "annual_revenue_band", "business_goals", "org_departments"
-          )
+          ).merge("website_url" => @company.try(:website_url)).compact
         },
         "readiness" => {
           "score" => @company.report_readiness_score,
@@ -44,6 +45,7 @@ module Reports
         "sections" => ReportSections::DEFINITIONS,
         "supporting_media" => supporting_media_json,
         "supporting_documents" => supporting_documents_json,
+        "knowledge_base" => knowledge_base_json,
         "client_stack" => client_stack_json,
         "tools_catalog" => tools_catalog_json,
         "agentic_ideas" => agentic_ideas_json
@@ -186,7 +188,9 @@ module Reports
       end
 
       parts << "Employee interviews can be added later to strengthen this baseline with live evidence."
-      parts.join(" ")
+      parts << goals_framing_sentence
+      parts << departments_framing_sentence
+      parts.compact.join(" ")
     end
 
     def interview_executive_summary
@@ -196,6 +200,8 @@ module Reports
       parts = [profile_framing_sentence].compact
       parts << if completed.zero? && invited.zero?
                  "Discovery interviews have not started yet."
+               elsif completed.zero? && invited.positive?
+                 "#{invited} employees have been invited; interviews are in progress and will strengthen this baseline."
                else
                  "#{completed} of #{[invited, completed].max} employees completed discovery interviews."
                end
@@ -209,7 +215,9 @@ module Reports
       pattern_count = @company.patterns.count
       parts << "#{pattern_count} cross-team #{'pattern'.pluralize(pattern_count)} inform the recommendations below." if pattern_count.positive?
 
-      parts.join(" ")
+      parts << goals_framing_sentence
+      parts << departments_framing_sentence
+      parts.compact.join(" ")
     end
 
     def profile_framing_sentence
@@ -217,7 +225,8 @@ module Reports
       industry = profile["industry"].presence
       size = profile["size_band"].presence
       region = profile["region"].presence || profile["country"].presence
-      return nil if industry.blank? && size.blank? && region.blank?
+      website = @company.try(:website_url).presence
+      return nil if industry.blank? && size.blank? && region.blank? && website.blank?
 
       subject = if industry
                   "This #{industry} organization"
@@ -227,7 +236,27 @@ module Reports
       details = []
       details << "about #{size} people" if size
       details << "operating in #{region}" if region
+      details << "website #{website}" if website
       details.any? ? "#{subject} (#{details.join(', ')}) is the focus of this report." : "#{subject} is the focus of this report."
+    end
+
+    def goals_framing_sentence
+      goals = @company.company_profile["business_goals"]
+      goal_text = if goals.is_a?(Array)
+                    goals.map(&:to_s).reject(&:blank?).first(4).join("; ")
+                  else
+                    goals.to_s.strip
+                  end
+      return nil if goal_text.blank?
+
+      "Stated priorities include #{goal_text}."
+    end
+
+    def departments_framing_sentence
+      depts = Array(@company.company_profile["org_departments"]).map(&:to_s).reject(&:blank?).first(8)
+      return nil if depts.empty?
+
+      "Departments in scope: #{depts.join(', ')}."
     end
 
     def normalize_excerpts(raw)
@@ -311,6 +340,22 @@ module Reports
           "summary" => doc.insights_preview.is_a?(Hash) ? doc.insights_preview["summary"] : nil,
           "chunk_count" => doc.insights_preview.is_a?(Hash) ? doc.insights_preview["chunk_count"] : nil
         }
+      end
+    end
+
+    def knowledge_base_json
+      @company.company_knowledge_entries.active.order(updated_at: :desc).limit(40).map do |e|
+        {
+          "id" => e.id,
+          "entry_type" => e.entry_type,
+          "title" => e.title,
+          "content" => e.content.to_s.truncate(500),
+          "confidence" => e.confidence,
+          "department" => e.department,
+          "source_document_ids" => e.source_document_ids,
+          "source" => e.metadata["source"],
+          "url" => e.metadata["url"]
+        }.compact
       end
     end
 

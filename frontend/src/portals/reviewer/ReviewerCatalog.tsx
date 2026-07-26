@@ -7,6 +7,7 @@ import { PageHeader, Card, Badge, Button, EmptyState, Skeleton, Textarea } from 
 type Match = {
   id: number;
   score?: number;
+  matched_at?: string;
   why_it_fits?: string;
   solution_catalog_entry?: {
     id: number;
@@ -32,6 +33,7 @@ export function ReviewerCatalog() {
   const token = useReviewerToken();
   const [matches, setMatches] = useState<Match[]>([]);
   const [endorsements, setEndorsements] = useState<Endorsement[]>([]);
+  const [lastMatchedAt, setLastMatchedAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [actingId, setActingId] = useState<number | null>(null);
@@ -46,6 +48,7 @@ export function ReviewerCatalog() {
       .then((d) => {
         setMatches((d.matches || []) as Match[]);
         setEndorsements((d.endorsements || []) as Endorsement[]);
+        setLastMatchedAt((d as { last_matched_at?: string | null }).last_matched_at || null);
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load catalog'))
       .finally(() => setLoading(false));
@@ -88,7 +91,7 @@ export function ReviewerCatalog() {
     <div className="space-y-6">
       <PageHeader
         title="Catalog matches"
-        description="Review curated tool matches for this company and add publishable endorsements for the report."
+        description="Promoted solutions matched to this company (not the live web scrape queue). Endorse items to publish into the report tools section."
         breadcrumbs={[
           { label: 'Dashboard', href: '/reviewer/dashboard' },
           { label: 'Company', href: `/reviewer/companies/${companyId}` },
@@ -101,6 +104,10 @@ export function ReviewerCatalog() {
         <p className="rounded-button bg-status-successBg px-4 py-2 text-sm text-status-success">{message}</p>
       )}
 
+      <p className="m-0 text-sm text-muted-foreground">
+        Platform curates new tools from the web; after approval they are rematched here for this company.
+        {lastMatchedAt ? ` Last matched ${new Date(lastMatchedAt).toLocaleString()}.` : ''}
+      </p>
       <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
         <div className="space-y-3">
           {matches.length === 0 ? (
@@ -122,6 +129,7 @@ export function ReviewerCatalog() {
                   <div className="space-y-3 text-sm">
                     <div className="text-xs text-text-secondary">
                       {[entry?.vendor, entry?.category].filter(Boolean).join(' · ') || '—'}
+                      {m.matched_at ? ` · matched ${new Date(m.matched_at).toLocaleDateString()}` : ''}
                     </div>
                     {m.why_it_fits && <p className="m-0">{m.why_it_fits}</p>}
                     {entry?.description && (

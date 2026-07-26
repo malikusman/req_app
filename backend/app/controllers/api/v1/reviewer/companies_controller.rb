@@ -26,7 +26,7 @@ module Api
               company_admins: company.company_users.where(role: "company_admin", status: "active").order(:name).map { |u|
                 { id: u.id, name: u.name, email: u.email }
               }
-            )
+            ).merge(Companies::AgentContext.reviewer_profile_json(company))
           }
         end
 

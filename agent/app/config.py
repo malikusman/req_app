@@ -3,7 +3,11 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     openai_api_key: str = ""
-    openai_model: str = "gpt-4o-mini"
+    openai_model: str = "gpt-4.1-mini"
+    # Empty → LangChain default (api.openai.com). Set for LM Studio e.g. http://host.docker.internal:1234/v1
+    openai_base_url: str = ""
+    # Disable strict JSON response_format for local servers that reject it
+    openai_json_mode: bool = True
     rails_internal_url: str = "http://rails:3000"
     internal_api_token: str = "dev-internal-token"
     redis_url: str = "redis://redis:6379/0"

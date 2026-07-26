@@ -35,16 +35,17 @@ module Langgraph
         body[:limits] = multi_agent[:limits]
         body[:memory_facts] = multi_agent[:memory_facts] || []
         body[:document_snippets] = multi_agent[:document_snippets] || []
+        body[:knowledge_snippets] = multi_agent[:knowledge_snippets] || []
         body[:media_context] = multi_agent[:media_context]
         body[:media_snippets] = multi_agent[:media_snippets] || []
         body[:company_profile] = multi_agent[:company_profile] if multi_agent[:company_profile].present?
       end
 
       post("/v1/threads/#{thread_id}/turn", body)
-    rescue UnavailableError
+    rescue Langgraph::UnavailableError
       raise
     rescue StandardError => e
-      raise UnavailableError.new(e.message, retryable: true)
+      raise Langgraph::UnavailableError.new(e.message, retryable: true)
     end
 
     def route!(thread_id:, profile:, limits:, context: {})
@@ -54,20 +55,32 @@ module Langgraph
         question_target: context.fetch(:question_target, 12)
       }
       post("/v1/threads/#{thread_id}/route", body)
-    rescue UnavailableError
+    rescue Langgraph::UnavailableError
       raise
     rescue StandardError => e
-      raise UnavailableError.new(e.message, retryable: true)
+      raise Langgraph::UnavailableError.new(e.message, retryable: true)
+    end
+
+    def run_docs_analysis!(payload)
+      post(
+        "/v1/docs_analysis/runs",
+        payload,
+        read_timeout: Integer(ENV.fetch("LANGGRAPH_DOCS_READ_TIMEOUT", "180"))
+      )
+    rescue Langgraph::UnavailableError
+      raise
+    rescue StandardError => e
+      raise Langgraph::UnavailableError.new(e.message, retryable: true)
     end
 
     private
 
-    def post(path, body)
+    def post(path, body, read_timeout: READ_TIMEOUT)
       uri = URI.parse("#{@base_url}#{path}")
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = uri.scheme == "https"
       http.open_timeout = 5
-      http.read_timeout = READ_TIMEOUT
+      http.read_timeout = read_timeout
 
       request = Net::HTTP::Post.new(uri)
       request["Content-Type"] = "application/json"
@@ -82,14 +95,14 @@ module Langgraph
 
       code = response.code.to_i
       if code == 503 || code >= 500
-        raise UnavailableError.new(
+        raise Langgraph::UnavailableError.new(
           parsed.dig("detail", "error") || parsed["detail"] || parsed["error"] || "openai_unavailable",
           retryable: true
         )
       end
 
       if code >= 400
-        raise UnavailableError.new(
+        raise Langgraph::UnavailableError.new(
           parsed["detail"] || parsed["error"] || "agent_request_failed_#{code}",
           retryable: false
         )

@@ -41,7 +41,8 @@ module Discovery
       end
 
       # Always re-aggregate / promote memory so late addendum insights are included (FEAT-ADDMORE).
-      AggregateIntelligenceJob.perform_later(@company.id, @employee.department)
+      # Company-scoped so obsolete signals can be pruned as the employee cohort grows.
+      AggregateIntelligenceJob.perform_later(@company.id)
       MemoryPromotionJob.perform_later(@conversation.id)
     end
   end

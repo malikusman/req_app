@@ -404,6 +404,36 @@ export const api = {
       token
     ),
 
+  replaceCompanyDocument: async (token: string, id: number, file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    const res = await fetch(`${API_URL}/api/v1/company/documents/${id}/replace`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error((data as ApiError).error || res.statusText);
+    return data as { document: CompanyDocument };
+  },
+
+  deleteCompanyDocument: (token: string, id: number) =>
+    request<void>(`/api/v1/company/documents/${id}`, { method: 'DELETE' }, token),
+
+  downloadCompanyDocument: async (token: string, id: number, filename: string) => {
+    const res = await fetch(`${API_URL}/api/v1/company/documents/${id}/download`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error('Download failed');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
+
   reviewerDocuments: (token: string, companyId: number) =>
     request<{ documents: CompanyDocument[] }>(`/api/v1/reviewer/companies/${companyId}/documents`, {}, token),
 
@@ -495,46 +525,6 @@ export const api = {
       token
     ),
 
-  companyMeetingRequests: (token: string) =>
-    request<{ meeting_requests: Array<Record<string, unknown>> }>('/api/v1/company/meeting_requests', {}, token),
-
-  approveMeetingRequest: (
-    token: string,
-    id: number,
-    payload: {
-      admin_note?: string;
-      scheduled_at?: string;
-      meeting_link?: string;
-      selected_participant_ids?: number[];
-    } = {}
-  ) =>
-    request<{ meeting_request: Record<string, unknown> }>(
-      `/api/v1/company/meeting_requests/${id}/approve`,
-      { method: 'POST', body: JSON.stringify(payload) },
-      token
-    ),
-
-  declineMeetingRequest: (token: string, id: number, payload: { admin_note?: string } = {}) =>
-    request<{ meeting_request: Record<string, unknown> }>(
-      `/api/v1/company/meeting_requests/${id}/decline`,
-      { method: 'POST', body: JSON.stringify(payload) },
-      token
-    ),
-
-  reviewerMeetingRequests: (token: string, companyId: number) =>
-    request<{ meeting_requests: Array<Record<string, unknown>> }>(
-      `/api/v1/reviewer/companies/${companyId}/meeting_requests`,
-      {},
-      token
-    ),
-
-  createReviewerMeetingRequest: (token: string, companyId: number, payload: Record<string, unknown>) =>
-    request<{ meeting_request: Record<string, unknown> }>(
-      `/api/v1/reviewer/companies/${companyId}/meeting_requests`,
-      { method: 'POST', body: JSON.stringify(payload) },
-      token
-    ),
-
   platformCatalogCandidates: (
     token: string,
     opts?: {
@@ -606,11 +596,12 @@ export const api = {
     ),
 
   reviewerCatalog: (token: string, companyId: number) =>
-    request<{ matches: Array<Record<string, unknown>>; endorsements: Array<Record<string, unknown>> }>(
-      `/api/v1/reviewer/companies/${companyId}/catalog`,
-      {},
-      token
-    ),
+    request<{
+      matches: Array<Record<string, unknown>>;
+      endorsements: Array<Record<string, unknown>>;
+      last_matched_at?: string | null;
+      note?: string;
+    }>(`/api/v1/reviewer/companies/${companyId}/catalog`, {}, token),
 
   endorseReviewerCatalogMatch: (
     token: string,
@@ -653,6 +644,64 @@ export const api = {
     if (!res.ok) throw new Error((data as ApiError).error || res.statusText);
     return data as { document: CompanyDocument };
   },
+
+  startDocumentAnalysis: (
+    token: string,
+    payload?: { run_kind?: string; document_ids?: number[] }
+  ) =>
+    request<{ run: DocumentAnalysisRun }>(
+      '/api/v1/company/document_analysis_runs',
+      { method: 'POST', body: JSON.stringify(payload || {}) },
+      token
+    ),
+
+  documentAnalysisRuns: (token: string) =>
+    request<{
+      runs: DocumentAnalysisRun[];
+      awaiting_analysis_count: number;
+      profile_stale: boolean;
+      active_run: DocumentAnalysisRun | null;
+    }>('/api/v1/company/document_analysis_runs', {}, token),
+
+  documentAnalysisRun: (token: string, id: number) =>
+    request<{ run: DocumentAnalysisRun; events: DocumentAnalysisEvent[] }>(
+      `/api/v1/company/document_analysis_runs/${id}`,
+      {},
+      token
+    ),
+
+  companyKnowledgeEntries: (token: string) =>
+    request<{ knowledge_entries: CompanyKnowledgeEntry[] }>('/api/v1/company/knowledge_entries', {}, token),
+
+  companyClarificationQuestions: (token: string) =>
+    request<{ clarification_questions: CompanyClarificationQuestion[] }>(
+      '/api/v1/company/clarification_questions',
+      {},
+      token
+    ),
+
+  answerClarificationQuestion: (token: string, id: number, answer: string) =>
+    request<{ clarification_question: CompanyClarificationQuestion }>(
+      `/api/v1/company/clarification_questions/${id}/answer`,
+      { method: 'POST', body: JSON.stringify({ answer }) },
+      token
+    ),
+
+  reviewerDocumentAnalysis: (token: string, companyId: number) =>
+    request<{
+      company_id: number;
+      latest_run: DocumentAnalysisRun | null;
+      events: DocumentAnalysisEvent[];
+      knowledge_entries: CompanyKnowledgeEntry[];
+      clarification_questions: CompanyClarificationQuestion[];
+    }>(`/api/v1/reviewer/companies/${companyId}/document_analysis`, {}, token),
+
+  dismissClarificationQuestion: (token: string, companyId: number, id: number) =>
+    request<{ clarification_question: CompanyClarificationQuestion }>(
+      `/api/v1/reviewer/companies/${companyId}/clarification_questions/${id}/dismiss`,
+      { method: 'POST', body: JSON.stringify({}) },
+      token
+    ),
 
   intelligenceSnapshot: (token: string) =>
     request<{ snapshot: IntelligenceSnapshot; report_readiness_score: number; report_readiness_breakdown: Record<string, number> }>(
@@ -869,7 +918,13 @@ export const api = {
   companyAgenticIdeas: (token: string) =>
     request<{ agentic_ideas: AgenticIdea[] }>('/api/v1/company/agentic_ideas', {}, token),
 
-  companyReports: (token: string) => request<{ reports: Report[] }>('/api/v1/company/reports', {}, token),
+  companyReports: (token: string) =>
+    request<{
+      reports: Report[];
+      intelligence_updated_at?: string | null;
+      report_stale?: boolean;
+      latest_ready_generated_at?: string | null;
+    }>('/api/v1/company/reports', {}, token),
 
   generateReport: (token: string) =>
     request<{ report: Report }>('/api/v1/company/reports', { method: 'POST' }, token),
@@ -903,6 +958,7 @@ export const api = {
       company: {
         display_name: string;
         locale: string;
+        website_url?: string | null;
         company_profile?: CompanyProfile;
         known_systems?: string[];
       };
@@ -917,17 +973,21 @@ export const api = {
     payload: {
       display_name?: string;
       locale?: string;
+      website_url?: string | null;
       engagement_mode?: string;
       department_targets?: Record<string, number>;
       company_profile?: CompanyProfile;
       known_systems?: string[];
     }
   ) =>
-    request<{ ok: boolean; settings?: Record<string, unknown>; company_profile?: CompanyProfile }>(
+    request<{ ok: boolean; settings?: Record<string, unknown>; company_profile?: CompanyProfile; website_url?: string | null }>(
       '/api/v1/company/settings/organization',
       { method: 'PATCH', body: JSON.stringify(payload) },
       token
     ),
+
+  refreshCompanyWebResearch: (token: string) =>
+    request<{ ok: boolean; queued?: boolean }>('/api/v1/company/settings/organization/web_research', { method: 'POST' }, token),
 
   companySettingsSecurity: (token: string) =>
     request<{ security_snapshot: Record<string, unknown>; active_access_codes: number; pin_rotated_at: string | null }>(
@@ -1411,11 +1471,30 @@ export interface ReviewerCompanySummary {
 }
 
 export interface ReviewerCompanyDetail extends ReviewerCompanySummary {
-  participation: Record<string, unknown>;
+  participation: {
+    invited?: number;
+    started?: number;
+    completed?: number;
+    completion_rate?: number;
+  } & Record<string, unknown>;
+  completion_rate?: number;
+  ready_documents?: number;
   latest_report: { id: number; version: number; status: string } | null;
   my_review_status: string | null;
   co_reviewer_count: number;
+  review_pending?: boolean;
   company_admins?: { id: number; name: string; email: string }[];
+  website_url?: string | null;
+  company_profile?: CompanyProfile;
+  company_systems?: { name: string; category?: string; source?: string; confidence?: number }[];
+  web_research?: { id: number; title: string; content: string; url?: string; fetched_at?: string; confidence?: number }[];
+  questionnaire_summary?: {
+    industry?: string;
+    size_band?: string;
+    business_goals?: string | string[];
+    org_departments?: string[];
+    systems?: string[];
+  };
 }
 
 export interface ReviewerReportDetail {
@@ -1603,6 +1682,15 @@ export interface CompanyDashboardPayload {
       can_nudge: boolean;
     }[];
   };
+  intel_counts?: {
+    total_documents: number;
+    ready_documents: number;
+    open_clarifications: number;
+    signal_count: number;
+    pattern_count: number;
+    recommendation_count: number;
+    systems_count: number;
+  };
   impersonating: boolean;
   impersonation_expires_at: string | null;
   integrations?: {
@@ -1622,6 +1710,7 @@ export interface ReviewerDashboardPayload {
     total_invited: number;
     pending_reviews: number;
     open_followups: number;
+    total_ready_documents?: number;
   };
   attention_items: {
     company_id: number;
@@ -1843,6 +1932,59 @@ export interface CompanyDocument {
   processing_error: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface DocumentAnalysisRun {
+  id: number;
+  run_kind: string;
+  status: string;
+  phase?: string | null;
+  model_tier?: string | null;
+  document_ids?: number[];
+  summary?: Record<string, unknown>;
+  counters?: Record<string, unknown>;
+  error_message?: string | null;
+  started_at?: string | null;
+  finished_at?: string | null;
+  created_at: string;
+}
+
+export interface DocumentAnalysisEvent {
+  id: number;
+  agent_name: string;
+  event_type: string;
+  phase?: string | null;
+  message?: string | null;
+  payload?: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface CompanyKnowledgeEntry {
+  id: number;
+  entry_type: string;
+  title: string;
+  content: string;
+  confidence: number;
+  department?: string | null;
+  status: string;
+  source_document_ids?: number[];
+  analysis_run_id?: number | null;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface CompanyClarificationQuestion {
+  id: number;
+  body: string;
+  status: string;
+  answer?: string | null;
+  answer_source?: string | null;
+  citations?: unknown[];
+  answered_at?: string | null;
+  dismissed_at?: string | null;
+  analysis_run_id?: number | null;
+  created_at: string;
+  updated_at?: string;
 }
 
 export interface Playbook {

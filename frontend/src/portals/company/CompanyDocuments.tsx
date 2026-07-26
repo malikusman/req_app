@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { api, type CompanyDocument } from '../../lib/api';
+import { Link, useNavigate } from 'react-router-dom';
+import { api, type CompanyDocument, type DocumentAnalysisRun } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
 import { PageHeader, Card, Input, DataTable, Badge, FileDropzone, EmptyState, Button } from '../../components/ui';
 import { useToast } from '../../components/ui/ToastProvider';
@@ -17,11 +17,22 @@ export function CompanyDocuments() {
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [togglingId, setTogglingId] = useState<number | null>(null);
+  const [actingId, setActingId] = useState<number | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [awaitingCount, setAwaitingCount] = useState(0);
+  const [profileStale, setProfileStale] = useState(false);
+  const [activeRun, setActiveRun] = useState<DocumentAnalysisRun | null>(null);
+  const [latestRun, setLatestRun] = useState<DocumentAnalysisRun | null>(null);
+  const [intelUpdating, setIntelUpdating] = useState(false);
   const celebratedReady = useRef(false);
+  const celebratedRunId = useRef<number | null>(null);
+  const prevActiveRunId = useRef<number | null>(null);
+  const replaceInputRef = useRef<HTMLInputElement>(null);
+  const replaceTargetId = useRef<number | null>(null);
 
-  const load = () => {
-    if (!token) return;
-    api
+  const loadDocs = () => {
+    if (!token) return Promise.resolve();
+    return api
       .companyDocuments(token)
       .then((d) => {
         setDocuments(d.documents);
@@ -32,14 +43,52 @@ export function CompanyDocuments() {
           if (readyCount === 1) {
             toast({
               variant: 'success',
-              title: 'First document ready',
-              description: 'Text extracted — check Signals next, or upload more for coverage.',
+              title: 'First document analyzed',
+              description: 'Open Knowledge to review the knowledge base and any clarification questions.',
             });
           }
         }
       })
-      .catch(() => setLoadError('Could not load documents.'))
-      .finally(() => setLoading(false));
+      .catch(() => setLoadError('Could not load documents.'));
+  };
+
+  const loadRuns = () => {
+    if (!token) return Promise.resolve();
+    return api
+      .documentAnalysisRuns(token)
+      .then((d) => {
+        setAwaitingCount(d.awaiting_analysis_count);
+        setProfileStale(d.profile_stale);
+        const hadActive = prevActiveRunId.current != null;
+        setActiveRun(d.active_run);
+        prevActiveRunId.current = d.active_run?.id ?? null;
+        setLatestRun(d.runs[0] || null);
+
+        const finished = d.runs[0];
+        const justFinished =
+          hadActive &&
+          !d.active_run &&
+          finished &&
+          ['completed', 'completed_with_errors'].includes(finished.status) &&
+          celebratedRunId.current !== finished.id;
+
+        if (justFinished && finished) {
+          celebratedRunId.current = finished.id;
+          setIntelUpdating(true);
+          toast({
+            variant: 'success',
+            title: 'Analysis complete',
+            description: 'Intelligence is refreshing from your documents (signals, patterns, readiness).',
+          });
+          window.setTimeout(() => setIntelUpdating(false), 12_000);
+        }
+      })
+      .catch(() => undefined);
+  };
+
+  const load = () => {
+    if (!token) return;
+    Promise.all([loadDocs(), loadRuns()]).finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -48,11 +97,13 @@ export function CompanyDocuments() {
 
   useEffect(() => {
     if (!token) return;
-    const processing = documents.some((d) => d.status === 'processing' || d.status === 'pending');
-    if (!processing) return;
+    const busy =
+      Boolean(activeRun) ||
+      documents.some((d) => d.status === 'processing' || d.status === 'pending');
+    if (!busy) return;
     const id = window.setInterval(load, 3000);
     return () => window.clearInterval(id);
-  }, [token, documents]);
+  }, [token, documents, activeRun]);
 
   const onUpload = async (file: File) => {
     if (!token) return;
@@ -60,7 +111,7 @@ export function CompanyDocuments() {
     const lower = file.name.toLowerCase();
     if (/\.(pptx|jpg|jpeg|png|webp)$/i.test(lower)) {
       setError(
-        'Images and PowerPoint files often have little extractable text. Prefer PDF, DOCX, XLSX, CSV, or Markdown for readiness and signals.'
+        'Images and PowerPoint files often have little extractable text. Prefer PDF, DOCX, XLSX, CSV, or Markdown.'
       );
     }
     if (!department.trim()) {
@@ -76,11 +127,36 @@ export function CompanyDocuments() {
         department: department.trim() || undefined,
         reviewer_visible: reviewerVisible,
       });
+      toast({
+        variant: 'success',
+        title: 'Uploaded',
+        description: 'Document stored. Upload more, then click Analyze when ready.',
+      });
       load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
       setUploading(false);
+    }
+  };
+
+  const startAnalysis = async (runKind?: string) => {
+    if (!token) return;
+    setError('');
+    setAnalyzing(true);
+    try {
+      const { run } = await api.startDocumentAnalysis(token, runKind ? { run_kind: runKind } : {});
+      setActiveRun(run);
+      toast({
+        variant: 'success',
+        title: 'Analysis started',
+        description: `Run #${run.id} (${run.run_kind}) is processing your documents.`,
+      });
+      load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not start analysis');
+    } finally {
+      setAnalyzing(false);
     }
   };
 
@@ -99,11 +175,109 @@ export function CompanyDocuments() {
     }
   };
 
+  const requestReplace = (doc: CompanyDocument) => {
+    replaceTargetId.current = doc.id;
+    replaceInputRef.current?.click();
+  };
+
+  const onReplaceFile = async (file: File | null) => {
+    if (!token || !file || replaceTargetId.current == null) return;
+    const id = replaceTargetId.current;
+    replaceTargetId.current = null;
+    setActingId(id);
+    setError('');
+    try {
+      await api.replaceCompanyDocument(token, id, file);
+      toast({
+        variant: 'success',
+        title: 'Document replaced',
+        description: 'File queued for analysis — click Update analysis when ready.',
+      });
+      load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Replace failed');
+    } finally {
+      setActingId(null);
+      if (replaceInputRef.current) replaceInputRef.current.value = '';
+    }
+  };
+
+  const onDelete = async (doc: CompanyDocument) => {
+    if (!token) return;
+    if (!window.confirm(`Remove ${doc.filename}? Related knowledge entries will be orphaned or superseded.`)) {
+      return;
+    }
+    setActingId(doc.id);
+    setError('');
+    try {
+      await api.deleteCompanyDocument(token, doc.id);
+      toast({ variant: 'success', title: 'Document removed', description: 'Intelligence will refresh shortly.' });
+      load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Delete failed');
+    } finally {
+      setActingId(null);
+    }
+  };
+
+  const onDownload = async (doc: CompanyDocument) => {
+    if (!token) return;
+    setActingId(doc.id);
+    setError('');
+    try {
+      await api.downloadCompanyDocument(token, doc.id, doc.filename);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Download failed');
+    } finally {
+      setActingId(null);
+    }
+  };
+
+  const hasPriorAnalysis = Boolean(
+    latestRun && ['completed', 'completed_with_errors'].includes(latestRun.status)
+  );
+  const analyzeLabel = !hasPriorAnalysis
+    ? 'Analyze documents'
+    : awaitingCount > 0
+      ? `Update analysis (${awaitingCount})`
+      : profileStale
+        ? 'Refresh grounding'
+        : 'Update analysis';
+  const canAnalyze =
+    !activeRun &&
+    !analyzing &&
+    (awaitingCount > 0 || profileStale || (!hasPriorAnalysis && documents.length > 0));
+
   return (
     <div className="space-y-6">
+      <input
+        ref={replaceInputRef}
+        type="file"
+        className="hidden"
+        accept=".pdf,.txt,.md,.csv,.docx,.xlsx,.pptx,.jpg,.jpeg,.png,.webp"
+        onChange={(e) => void onReplaceFile(e.target.files?.[0] || null)}
+      />
+
       <PageHeader
         title="Documents"
-        description="Upload SOPs, policies, and finance exports to build a discovery baseline. Tag departments for readiness coverage. Control what assigned reviewers can see."
+        description="Upload SOPs, policies, and finance exports, then run analysis to build your company knowledge base. Tag departments for readiness coverage."
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <Link to="/company/knowledge">
+              <Button variant="secondary" size="sm">
+                Knowledge & gaps
+              </Button>
+            </Link>
+            <Button
+              size="sm"
+              loading={analyzing}
+              disabled={!canAnalyze}
+              onClick={() => startAnalysis()}
+            >
+              {activeRun ? `Analyzing… (${activeRun.phase || activeRun.status})` : analyzeLabel}
+            </Button>
+          </div>
+        }
       />
 
       {error && <p className="text-sm text-status-error">{error}</p>}
@@ -116,6 +290,76 @@ export function CompanyDocuments() {
           </Button>
         </div>
       )}
+
+      <Card title="How analysis works">
+        <p className="m-0 text-sm text-text-secondary">
+          Upload as many relevant documents as you can. Files stay as <strong>uploaded</strong> until you click{' '}
+          <strong>Analyze documents</strong>. Analysis extracts text, builds a knowledge base, and may ask
+          clarification questions when the documents leave gaps. After analysis finishes, intelligence
+          (signals, patterns, readiness) refreshes automatically.
+        </p>
+        {activeRun && (
+          <p className="mt-3 text-sm text-text-primary">
+            Run #{activeRun.id} · {activeRun.run_kind} · phase{' '}
+            <Badge variant="info">{activeRun.phase || activeRun.status}</Badge>
+          </p>
+        )}
+        {intelUpdating && !activeRun && (
+          <p className="mt-3 text-sm text-text-primary">
+            <Badge variant="info">Intelligence updating…</Badge> Refreshing signals and readiness from your
+            documents.
+          </p>
+        )}
+        {!activeRun && latestRun && (
+          <p className="mt-3 text-sm text-text-secondary">
+            Last run #{latestRun.id}: {latestRun.status}
+            {latestRun.error_message ? ` — ${latestRun.error_message}` : ''}
+          </p>
+        )}
+        {awaitingCount > 0 && !activeRun && (
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-button border border-border bg-surface-muted px-4 py-3 text-sm">
+            <span>
+              {awaitingCount} document{awaitingCount === 1 ? '' : 's'} not analyzed yet
+            </span>
+            <Button size="sm" loading={analyzing} onClick={() => startAnalysis('incremental_docs')}>
+              Update analysis
+            </Button>
+          </div>
+        )}
+        {profileStale && !activeRun && (
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-button border border-border bg-surface-muted px-4 py-3 text-sm">
+            <span>Company profile updated — refresh analysis grounding</span>
+            <Button
+              size="sm"
+              variant="secondary"
+              loading={analyzing}
+              onClick={() => startAnalysis('profile_reground')}
+            >
+              Refresh grounding
+            </Button>
+          </div>
+        )}
+        {hasPriorAnalysis && !activeRun && (
+          <div className="mt-3">
+            <Button
+              size="sm"
+              variant="ghost"
+              loading={analyzing}
+              onClick={() => {
+                if (
+                  window.confirm(
+                    'Rebuild the knowledge base from all documents? Open clarification questions will be marked stale; answered questions are kept.'
+                  )
+                ) {
+                  startAnalysis('full');
+                }
+              }}
+            >
+              Rebuild knowledge base…
+            </Button>
+          </div>
+        )}
+      </Card>
 
       <Card title="Upload document">
         <div className="mb-4 flex flex-wrap items-end gap-4">
@@ -140,7 +384,7 @@ export function CompanyDocuments() {
         <FileDropzone accept=".pdf,.txt,.md,.csv,.docx,.xlsx,.pptx,.jpg,.jpeg,.png,.webp" onFile={onUpload} />
         {uploading && <p className="mt-2 text-sm text-text-secondary">Uploading…</p>}
         <p className="mt-2 text-xs text-text-secondary">
-          Best: PDF, DOCX, XLSX, CSV, Markdown. PPTX and images are accepted but often fail text extraction (min 40 characters required for Ready).
+          Best: PDF, DOCX, XLSX, CSV, Markdown. Analysis does not start automatically on upload.
         </p>
       </Card>
 
@@ -153,7 +397,17 @@ export function CompanyDocuments() {
             key: 'status',
             header: 'Status',
             render: (d) => (
-              <Badge variant={d.status === 'ready' ? 'success' : d.status === 'failed' ? 'error' : 'info'}>
+              <Badge
+                variant={
+                  d.status === 'ready'
+                    ? 'success'
+                    : d.status === 'failed'
+                      ? 'error'
+                      : d.status === 'uploaded'
+                        ? 'warning'
+                        : 'info'
+                }
+              >
                 {d.status}
               </Badge>
             ),
@@ -182,16 +436,66 @@ export function CompanyDocuments() {
             header: 'Preview',
             render: (d) => (
               <span className="text-xs text-text-secondary">
-                {d.insights_preview?.summary || (d.status === 'processing' ? 'Processing…' : '—')}
+                {d.insights_preview?.summary ||
+                  (d.status === 'failed' && d.processing_error
+                    ? d.processing_error
+                    : d.status === 'uploaded'
+                      ? 'Waiting for Analyze'
+                      : d.status === 'processing'
+                        ? 'Processing…'
+                        : '—')}
               </span>
             ),
+          },
+          {
+            key: 'updated_at',
+            header: 'Updated',
+            render: (d) => (
+              <span className="whitespace-nowrap text-xs text-text-secondary">
+                {d.updated_at ? new Date(d.updated_at).toLocaleString() : '—'}
+              </span>
+            ),
+          },
+          {
+            key: 'actions',
+            header: '',
+            render: (d) =>
+              d.status === 'failed' && d.processing_error === 'purged' ? null : (
+                <div className="flex flex-wrap gap-1">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    loading={actingId === d.id}
+                    disabled={d.status === 'failed'}
+                    onClick={() => void onDownload(d)}
+                  >
+                    Download
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    loading={actingId === d.id}
+                    onClick={() => requestReplace(d)}
+                  >
+                    Replace
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    loading={actingId === d.id}
+                    onClick={() => onDelete(d)}
+                  >
+                    Delete
+                  </Button>
+                </div>
+              ),
           },
         ]}
         rows={documents as CompanyDocument[]}
         emptyState={
           <EmptyState
             title="No documents yet"
-            description="Drop your first SOP, policy, or export above to start a document baseline — no employees required."
+            description="Drop your first SOP, policy, or export above — then Analyze when you have uploaded what you need."
             action={{ label: 'Invite employees later', onClick: () => navigate('/company/employees') }}
           />
         }

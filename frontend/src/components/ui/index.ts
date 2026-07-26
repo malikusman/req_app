@@ -24,6 +24,7 @@ export { ParticipationSummary, type ParticipationStats } from './ParticipationSu
 export { DiscoveryProvenancePanel, agentLabel } from './DiscoveryProvenancePanel';
 export { DepartmentHeatmap, type HeatmapCell } from './DepartmentHeatmap';
 export { FunnelChart, type FunnelStage } from './FunnelChart';
+export { SimpleBarChart, type SimpleBarDatum } from './SimpleBarChart';
 export { Toast, type ToastItem, type ToastVariant } from './Toast';
 export { ToastProvider, useToast } from './ToastProvider';
 export { DropdownMenu, type DropdownMenuItem } from './DropdownMenu';

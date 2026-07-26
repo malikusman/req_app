@@ -203,10 +203,8 @@ class ScenarioCycleRunner
       # Clear ETA FKs that block conversation/employee purge
       ReviewerOutreach.where(employee_id: prior.id).or(ReviewerOutreach.where(conversation_id: prior.conversation_ids)).find_each do |o|
         o.reviewer_outreach_replies.delete_all
-        MeetingRequest.where(reviewer_outreach_id: o.id).update_all(reviewer_outreach_id: nil)
         o.delete
       end
-      MeetingRequest.where(company_id: @company.id, reviewer_user_id: [@reviewer_a.id, @reviewer_b.id]).delete_all
       DiscoverySimulator.purge_employee!(prior, company: @company)
       check "Prior scenario employee purged", Employee.find_by(phone_e164: phone).nil?
     else
@@ -334,7 +332,7 @@ class ScenarioCycleRunner
   end
 
   def run_reviewer_eta!(appendix_only: false)
-    stage appendix_only ? "Reviewer appendix verify" : "Reviewer ETA (findings, outreach, meeting)"
+    stage appendix_only ? "Reviewer appendix verify" : "Reviewer ETA (findings, outreach)"
     return check("Report available for ETA", false) unless @report
 
     review_a = @report.report_reviews.find_by!(reviewer_user: @reviewer_a)
@@ -342,12 +340,10 @@ class ScenarioCycleRunner
 
     blocked = ensure_review_a_submitted!(review_a)
     outreach = nil
-    meeting = nil
 
     prepare_review_b!(review_b)
     unless appendix_only
       outreach = deliver_review_b_outreach!
-      meeting = run_meeting_path!
     end
 
     unless review_b.submitted?
@@ -370,8 +366,6 @@ class ScenarioCycleRunner
       "review_b_id" => review_b.id,
       "outreach_id" => outreach&.id,
       "outreach_status" => outreach&.status,
-      "meeting_id" => meeting&.id,
-      "meeting_status" => meeting&.status,
       "overlay_findings" => findings.size,
       "submit_blocked_without_finding" => blocked,
       "appendix" => appendix,
@@ -505,33 +499,6 @@ class ScenarioCycleRunner
     end
     check "Outreach replied", outreach.status == "replied"
     outreach
-  end
-
-  def run_meeting_path!
-    existing = MeetingRequest.where(company: @company, reviewer_user: @reviewer_a, report_id: @report.id)
-      .where(status: %w[approved scheduled]).order(created_at: :desc).first
-    if existing
-      check "Meeting request already approved/scheduled", true
-      return existing
-    end
-
-    meeting = MeetingRequests::CreateService.call(
-      reviewer: @reviewer_a,
-      company: @company,
-      purpose: "Clarify freeze-window controls with finance lead",
-      report_id: @report.id,
-      desired_roles: %w[finance_lead],
-      duration_minutes: 30
-    )
-    MeetingRequests::ApproveService.call(
-      meeting_request: meeting,
-      company_user: @admin,
-      admin_note: "Scenario approved",
-      scheduled_at: 3.days.from_now,
-      meeting_link: "https://meet.example.com/scenario-freeze"
-    )
-    check "Meeting request approved", meeting.reload.status.in?(%w[approved scheduled])
-    meeting
   end
 
   def ensure_publishable_finding!(review, finding_type:, severity:, body:, disposition:, evidence_refs:)

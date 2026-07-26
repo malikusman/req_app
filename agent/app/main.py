@@ -60,6 +60,7 @@ class TurnRequest(BaseModel):
     limits: dict[str, int] | None = None
     memory_facts: list[dict[str, Any]] = Field(default_factory=list)
     document_snippets: list[str] = Field(default_factory=list)
+    knowledge_snippets: list[str] = Field(default_factory=list)
     media_context: dict[str, Any] | None = None
     company_profile: dict[str, Any] | None = None
     media_snippets: list[str] = Field(default_factory=list)
@@ -92,7 +93,7 @@ class RouteResponse(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "openai_configured": bool(settings.openai_api_key)}
+    return {"status": "ok", "openai_configured": bool(settings.openai_api_key or settings.openai_base_url)}
 
 
 @app.post("/v1/threads/{thread_id}/turn", response_model=TurnResponse)
@@ -129,6 +130,7 @@ def run_turn(thread_id: str, body: TurnRequest):
                 "limits": body.limits or {},
                 "memory_facts": body.memory_facts,
                 "document_snippets": body.document_snippets,
+                "knowledge_snippets": body.knowledge_snippets,
                 "media_context": body.media_context,
                 "media_snippets": body.media_snippets,
                 "company_profile": body.company_profile or body.context.company_profile or {},
@@ -166,6 +168,28 @@ def route_agents(thread_id: str, body: RouteRequest):
 @app.post("/v1/threads", response_model=dict)
 def create_thread():
     return {"thread_id": str(uuid.uuid4())}
+
+
+class DocsAnalysisRequest(BaseModel):
+    run_id: int | None = None
+    run_kind: str = "full"
+    company_profile: dict[str, Any] = Field(default_factory=dict)
+    documents: list[dict[str, Any]] = Field(default_factory=list)
+    existing_knowledge: list[dict[str, Any]] = Field(default_factory=list)
+    existing_questions: list[dict[str, Any]] = Field(default_factory=list)
+    limits: dict[str, Any] = Field(default_factory=dict)
+
+
+@app.post("/v1/docs_analysis/runs")
+def run_docs_analysis(body: DocsAnalysisRequest):
+    if is_open():
+        raise HTTPException(status_code=503, detail={"error": "circuit_open"})
+    from app.docs_analysis_graph import execute_docs_analysis
+
+    try:
+        return execute_docs_analysis(body.model_dump())
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail={"error": str(exc)}) from exc
 
 
 @app.get("/v1/playbooks/active")

@@ -1,1 +1,1 @@
-POD scan sample (image): handwritten exception 'damaged carton / short ship' — AP retypes into Excel. Expected product gap: image OCR may yield insufficient text.
+POD scan sample: damaged carton / short ship exception. AP must retype into Excel before dual approval above AED 5,000. Mentions CargoWise, SAP, SharePoint, approval bottlenecks, data silos.

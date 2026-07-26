@@ -11,6 +11,7 @@ module Api
             company: {
               display_name: current_company.display_name,
               locale: current_company.locale,
+              website_url: current_company.website_url,
               company_profile: current_company.company_profile,
               known_systems: current_company.company_systems.active.order(:name).pluck(:name)
             }
@@ -26,18 +27,20 @@ module Api
             settings: settings
           )
 
-          if params.key?(:company_profile) || params.key?(:known_systems)
+          if params.key?(:company_profile) || params.key?(:known_systems) || params.key?(:website_url)
             Companies::ProfileUpdater.call(
               company: current_company,
               profile_params: profile_params,
-              known_systems: params.key?(:known_systems) ? Array(params[:known_systems]) : nil
+              known_systems: params.key?(:known_systems) ? Array(params[:known_systems]) : nil,
+              website_url: params.key?(:website_url) ? params[:website_url] : :omit
             )
           end
 
           render json: {
             ok: true,
             settings: current_company.merged_settings,
-            company_profile: current_company.reload.company_profile
+            company_profile: current_company.reload.company_profile,
+            website_url: current_company.website_url
           }
         end
 
@@ -56,6 +59,16 @@ module Api
           count = AccessCodes::RotateAllService.call(company: current_company, rotated_by: current_company_user)
           current_company.update!(pin_rotated_at: Time.current)
           render json: { ok: true, codes_rotated: count }
+        end
+
+        def refresh_web_research
+          authorize :settings, :update_organization?
+          if current_company.website_url.blank?
+            return render json: { error: "Set a website URL before refreshing research." }, status: :unprocessable_entity
+          end
+
+          CompanyWebResearchJob.perform_later(current_company.id, force: true)
+          render json: { ok: true, queued: true }
         end
 
         private

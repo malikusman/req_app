@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 module ReviewerFollowup
+  # Direct WhatsApp follow-up via ReviewerInfoRequest (no admin approval gate).
+  # Prefer Outreaches::CreateService for admin-gated employee asks from Clarifications.
   class SendService
     def self.call(reviewer:, employee:, body:, report: nil)
       new(reviewer: reviewer, employee: employee, body: body, report: report).call

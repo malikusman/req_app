@@ -66,7 +66,7 @@ module Discovery
 
     def build_context(playbook)
       target = @conversation.effective_question_target
-      profile = @company.company_profile
+      agent_profile = Companies::AgentContext.for_agents(@company)
       {
         preferred_language: @employee.preferred_language.presence || @company.locale,
         company_name: @company.display_name || @company.name,
@@ -74,14 +74,13 @@ module Discovery
         department: @employee.department.presence || "default",
         question_count: @conversation.question_count,
         question_target: target,
-        industry: profile["industry"],
-        size_band: profile["size_band"],
-        region: profile["region"].presence || profile["country"],
-        business_goals: profile["business_goals"],
-        company_profile: profile.slice(
-          "industry", "sub_industry", "size_band", "region", "country",
-          "annual_revenue_band", "business_goals", "org_departments"
-        )
+        industry: agent_profile["industry"],
+        size_band: agent_profile["size_band"],
+        region: agent_profile["region"].presence || agent_profile["country"],
+        business_goals: agent_profile["business_goals"],
+        website_url: agent_profile["website_url"],
+        known_systems: agent_profile["known_systems"],
+        company_profile: agent_profile
       }.compact
     end
 
@@ -117,6 +116,7 @@ module Discovery
         limits: context[:limits],
         memory_facts: context[:memory_facts],
         document_snippets: context[:document_snippets],
+        knowledge_snippets: context[:knowledge_snippets],
         media_context: context[:media_context],
         media_snippets: context[:media_snippets],
         company_profile: context[:company_profile]

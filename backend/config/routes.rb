@@ -140,8 +140,9 @@ Rails.application.routes.draw do
           get "documents", to: "documents#index"
           get "documents/:id", to: "documents#show"
           get "documents/:id/download", to: "documents#download"
+          get "document_analysis", to: "document_analysis#show"
+          post "clarification_questions/:id/dismiss", to: "document_analysis#dismiss_question"
           resources :outreaches, only: %i[index create show], controller: "outreaches"
-          resources :meeting_requests, only: %i[index create show], controller: "meeting_requests"
           get "catalog", to: "catalog#index"
           post "catalog/:id/endorse", to: "catalog#endorse"
           resources :agentic_ideas, only: %i[index create update], controller: "agentic_ideas" do
@@ -163,6 +164,14 @@ Rails.application.routes.draw do
         resources :documents, only: %i[index show create update destroy] do
           member do
             get :download
+            post :replace
+          end
+        end
+        resources :document_analysis_runs, only: %i[index show create]
+        resources :knowledge_entries, only: %i[index]
+        resources :clarification_questions, only: %i[index] do
+          member do
+            post :answer
           end
         end
         resources :outreaches, only: %i[index show], controller: "outreaches" do
@@ -170,12 +179,6 @@ Rails.application.routes.draw do
             post :approve
             post :decline
             post :answer
-          end
-        end
-        resources :meeting_requests, only: %i[index show], controller: "meeting_requests" do
-          member do
-            post :approve
-            post :decline
           end
         end
         get "intelligence/snapshot", to: "intelligence#snapshot"
@@ -198,6 +201,7 @@ Rails.application.routes.draw do
         end
         get "settings/organization", to: "settings#organization"
         patch "settings/organization", to: "settings#update_organization"
+        post "settings/organization/web_research", to: "settings#refresh_web_research"
         get "settings/security", to: "settings#security"
         post "settings/security/rotate_codes", to: "settings#rotate_access_codes"
         resources :notifications, only: %i[index update] do

@@ -51,9 +51,17 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
+    volumes:
+      - ./agent/app:/app/app
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      OPENAI_MODEL: gpt-4o-mini
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
+      OPENAI_JSON_MODE: ${OPENAI_JSON_MODE:-true}
+      DOCS_MODEL_FAST: ${DOCS_MODEL_FAST:-gpt-4.1-mini}
+      DOCS_MODEL_REASONING: ${DOCS_MODEL_REASONING:-o4-mini}
       RAILS_INTERNAL_URL: http://rails:3000
       INTERNAL_API_TOKEN: dev-internal-token
       REDIS_URL: redis://redis:6379/0
@@ -73,6 +81,8 @@ services:
       - ./docs/manual-test:/docs/manual-test:ro
     ports:
       - "3000:3000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       DATABASE_URL: postgres://req_app:req_app@postgres:5432/req_app_development
       REDIS_URL: redis://redis:6379/0
@@ -83,12 +93,22 @@ services:
       SMTP_PORT: 1025
       META_VERIFY_TOKEN: req_app_verify_token
       LANGGRAPH_URL: http://langgraph:8000
+      LANGGRAPH_DOCS_READ_TIMEOUT: ${LANGGRAPH_DOCS_READ_TIMEOUT:-180}
       INTERNAL_API_TOKEN: dev-internal-token
       MINIO_ENDPOINT: http://minio:9000
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin
       MINIO_BUCKET: req-app
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
+      OPENAI_VISION_MODEL: ${OPENAI_VISION_MODEL:-gpt-4.1-mini}
+      DOCS_MODEL_FAST: ${DOCS_MODEL_FAST:-gpt-4.1-mini}
+      DOCS_MODEL_REASONING: ${DOCS_MODEL_REASONING:-o4-mini}
+      EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-}
+      EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-768}
+      OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-}
       AI_CATALOG_SYNC_INTERVAL_HOURS: ${AI_CATALOG_SYNC_INTERVAL_HOURS:-12}
       AI_CATALOG_MAX_CANDIDATES_PER_RUN: ${AI_CATALOG_MAX_CANDIDATES_PER_RUN:-25}
       AI_MARKET_ALERT_MAX_PER_MONTH: ${AI_MARKET_ALERT_MAX_PER_MONTH:-2}
@@ -114,17 +134,29 @@ services:
     command: bash -c "bundle install && bundle exec sidekiq"
     volumes:
       - ./backend:/app
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       DATABASE_URL: postgres://req_app:req_app@postgres:5432/req_app_development
       REDIS_URL: redis://redis:6379/0
       JWT_SECRET: dev-jwt-secret-change-in-production
       LANGGRAPH_URL: http://langgraph:8000
+      LANGGRAPH_DOCS_READ_TIMEOUT: ${LANGGRAPH_DOCS_READ_TIMEOUT:-180}
       INTERNAL_API_TOKEN: dev-internal-token
       MINIO_ENDPOINT: http://minio:9000
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin
       MINIO_BUCKET: req-app
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
+      OPENAI_VISION_MODEL: ${OPENAI_VISION_MODEL:-gpt-4.1-mini}
+      DOCS_MODEL_FAST: ${DOCS_MODEL_FAST:-gpt-4.1-mini}
+      DOCS_MODEL_REASONING: ${DOCS_MODEL_REASONING:-o4-mini}
+      EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-}
+      EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-768}
+      OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-}
       AI_CATALOG_SYNC_INTERVAL_HOURS: ${AI_CATALOG_SYNC_INTERVAL_HOURS:-12}
       AI_CATALOG_MAX_CANDIDATES_PER_RUN: ${AI_CATALOG_MAX_CANDIDATES_PER_RUN:-25}
       AI_MARKET_ALERT_MAX_PER_MONTH: ${AI_MARKET_ALERT_MAX_PER_MONTH:-2}

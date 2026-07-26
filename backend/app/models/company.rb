@@ -7,6 +7,9 @@ class Company < ApplicationRecord
   has_many :conversations, dependent: :destroy
   has_many :conversation_insights, dependent: :destroy
   has_many :documents, dependent: :destroy
+  has_many :document_analysis_runs, dependent: :destroy
+  has_many :company_knowledge_entries, dependent: :destroy
+  has_many :company_clarification_questions, dependent: :destroy
   has_many :media_attachments, dependent: :destroy
   has_many :company_signals, dependent: :destroy
   has_many :patterns, dependent: :destroy
@@ -29,6 +32,7 @@ class Company < ApplicationRecord
 
   validates :name, :slug, presence: true
   validates :slug, uniqueness: true, format: { with: /\A[a-z0-9\-]+\z/ }
+  validates :website_url, format: { with: %r{\Ahttps?://}i, allow_blank: true }
 
   APPROVAL_STATUSES = %w[pending_approval approved rejected].freeze
 

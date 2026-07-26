@@ -9,7 +9,7 @@ RSpec.configure do |config|
     stub_request(:post, "https://api.openai.com/v1/embeddings")
       .to_return(
         status: 200,
-        body: { data: [{ embedding: Array.new(1536, 0.0) }] }.to_json,
+        body: { data: [{ embedding: Array.new(768, 0.0) }] }.to_json,
         headers: { "Content-Type" => "application/json" }
       )
   end

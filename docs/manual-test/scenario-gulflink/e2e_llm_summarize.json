@@ -1,0 +1,19 @@
+{
+  "summary": "The GulfLink freight AP team manages accounts payable and logistics through a hybrid of ERP and manual tools, currently experiencing significant process bottlenecks and data fragmentation across communication and cost-tracking channels.",
+  "workflows": [
+    "Accounts Payable (AP) processing",
+    "Customs clearance communication",
+    "Warehouse cost tracking"
+  ],
+  "friction_points": [
+    "Approval delays of 8–12 days",
+    "Fragmented/unstructured communication (customs notes stored in WhatsApp)",
+    "Data integrity issues (warehouse cost sheets lack headers)"
+  ],
+  "tools_mentioned": [
+    "Excel",
+    "SAP",
+    "WhatsApp"
+  ],
+  "confidence": 0.95
+}

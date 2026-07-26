@@ -1,0 +1,82 @@
+{
+  "notes": [
+    {
+      "reviewer": "Rev Verify",
+      "section_key": null,
+      "body": "Local E2E review: docs-first baseline looks coherent; recommend validating AP approval bottleneck with finance interviews.",
+      "kind": "overall_note",
+      "resolved": false,
+      "publishable": true
+    },
+    {
+      "reviewer": "Rev Verify",
+      "section_key": "recommendations",
+      "body": "E2E: Please confirm whether Automate manual data entry should target SAP AP or Excel trackers first.",
+      "kind": "section_comment",
+      "resolved": false,
+      "publishable": true
+    }
+  ],
+  "section_dispositions": [
+    {
+      "reviewer": "Rev Verify",
+      "section_key": "executive_summary",
+      "disposition": "approved",
+      "comment": null
+    },
+    {
+      "reviewer": "Rev Verify",
+      "section_key": "readiness",
+      "disposition": "approved",
+      "comment": null
+    },
+    {
+      "reviewer": "Rev Verify",
+      "section_key": "participation",
+      "disposition": "approved",
+      "comment": null
+    },
+    {
+      "reviewer": "Rev Verify",
+      "section_key": "delta",
+      "disposition": "approved",
+      "comment": null
+    },
+    {
+      "reviewer": "Rev Verify",
+      "section_key": "signals",
+      "disposition": "approved",
+      "comment": null
+    },
+    {
+      "reviewer": "Rev Verify",
+      "section_key": "patterns",
+      "disposition": "approved",
+      "comment": null
+    },
+    {
+      "reviewer": "Rev Verify",
+      "section_key": "recommendations",
+      "disposition": "needs_info",
+      "comment": null
+    }
+  ],
+  "structured_findings": [
+    {
+      "reviewer": "Rev Verify",
+      "kind": "executive_conclusion",
+      "finding_type": "executive_conclusion",
+      "title": "Executive conclusion",
+      "section_key": null,
+      "disposition": "approve",
+      "severity": "material",
+      "body": "E2E publishable finding: Document evidence supports an AP approval bottleneck across finance and operations.",
+      "recommendation": null,
+      "target_type": null,
+      "target_id": null,
+      "evidence_refs": [
+        "signal:1"
+      ]
+    }
+  ]
+}

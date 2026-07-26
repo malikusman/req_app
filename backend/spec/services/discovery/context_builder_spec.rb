@@ -45,6 +45,18 @@ RSpec.describe Discovery::ContextBuilder do
       context = described_class.call(conversation: conversation, employee: employee, user_message: "hello")
       expect(context[:memory_facts]).to eq([])
       expect(context[:document_snippets]).to eq([])
+      expect(context[:knowledge_snippets]).to eq([])
+    end
+
+    it "includes active knowledge snippets without requiring retrieval flag" do
+      company.company_knowledge_entries.create!(
+        entry_type: "process",
+        title: "AP dual approval",
+        content: "Invoices over 5k need two approvers",
+        status: "active"
+      )
+      context = described_class.call(conversation: conversation, employee: employee, user_message: "hello")
+      expect(context[:knowledge_snippets].first).to include("AP dual approval")
     end
 
     it "filters memory facts below the cosine similarity threshold" do
@@ -52,7 +64,7 @@ RSpec.describe Discovery::ContextBuilder do
       allow(ENV).to receive(:[]).and_call_original
       allow(ENV).to receive(:[]).with("OPENAI_API_KEY").and_return("test-key")
 
-      openai = instance_double(Openai::Client, embedding: Array.new(1536, 0.1))
+      openai = instance_double(Openai::Client, embedding: Array.new(768, 0.1))
       allow(Openai::Client).to receive(:new).and_return(openai)
 
       close = double(
@@ -95,7 +107,7 @@ RSpec.describe Discovery::ContextBuilder do
       allow(ENV).to receive(:[]).and_call_original
       allow(ENV).to receive(:[]).with("OPENAI_API_KEY").and_return("test-key")
 
-      openai = instance_double(Openai::Client, embedding: Array.new(1536, 0.1))
+      openai = instance_double(Openai::Client, embedding: Array.new(768, 0.1))
       allow(Openai::Client).to receive(:new).and_return(openai)
 
       doc = company.documents.create!(
@@ -112,7 +124,7 @@ RSpec.describe Discovery::ContextBuilder do
         document: doc,
         chunk_index: 0,
         content: "Manual SAP re-entry every morning",
-        embedding: Array.new(1536, 0.1)
+        embedding: Array.new(768, 0.1)
       )
 
       allow(DocumentChunk).to receive(:joins).and_call_original
@@ -126,7 +138,7 @@ RSpec.describe Discovery::ContextBuilder do
       allow(ENV).to receive(:[]).and_call_original
       allow(ENV).to receive(:[]).with("OPENAI_API_KEY").and_return("test-key")
 
-      openai = instance_double(Openai::Client, embedding: Array.new(1536, 0.1))
+      openai = instance_double(Openai::Client, embedding: Array.new(768, 0.1))
       allow(Openai::Client).to receive(:new).and_return(openai)
 
       inbound = create(:message, conversation: conversation, direction: "inbound", message_type: "image")
@@ -156,7 +168,7 @@ RSpec.describe Discovery::ContextBuilder do
         document: doc,
         chunk_index: 0,
         content: "Earlier voice note about invoice delays",
-        embedding: Array.new(1536, 0.1)
+        embedding: Array.new(768, 0.1)
       )
 
       context = described_class.call(

@@ -20,7 +20,6 @@ const titles: Record<string, string> = {
   '/company/intelligence/timeline': 'Intelligence',
   '/company/documents': 'Documents',
   '/company/outreaches': 'Clarifications',
-  '/company/meeting-requests': 'Meetings',
   '/company/media': 'WhatsApp media',
   '/company/recommendations': 'Intelligence',
   '/company/reports': 'Reports',

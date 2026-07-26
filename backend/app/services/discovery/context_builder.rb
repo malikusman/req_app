@@ -39,12 +39,10 @@ module Discovery
         limits: self.class.limits_for(@company),
         memory_facts: memory_facts,
         document_snippets: document_snippets,
+        knowledge_snippets: knowledge_snippets,
         media_context: media_context,
         media_snippets: media_snippets,
-        company_profile: @company.company_profile.slice(
-          "industry", "sub_industry", "size_band", "region", "country",
-          "annual_revenue_band", "business_goals", "org_departments"
-        )
+        company_profile: Companies::AgentContext.for_agents(@company)
       }
     end
 
@@ -98,6 +96,15 @@ module Discovery
       snippets.uniq
     rescue StandardError => e
       Rails.logger.warn("[ContextBuilder] chunk retrieval failed: #{e.message}")
+      []
+    end
+
+    def knowledge_snippets
+      @company.company_knowledge_entries.active.order(updated_at: :desc).limit(5).map do |e|
+        "#{e.entry_type}: #{e.title} — #{e.content.to_s.truncate(300)}"
+      end
+    rescue StandardError => e
+      Rails.logger.warn("[ContextBuilder] knowledge retrieval failed: #{e.message}")
       []
     end
 

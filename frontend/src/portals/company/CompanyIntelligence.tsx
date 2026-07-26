@@ -354,7 +354,7 @@ export function CompanyIntelligence() {
 
           {tab === 'overview' && (
             <p className="text-sm text-muted-foreground">
-              Need billing, meetings, or WhatsApp tools?{' '}
+              Need billing or WhatsApp tools?{' '}
               <Link to="/company/settings" className="font-medium text-primary hover:underline">
                 Open Settings
               </Link>
