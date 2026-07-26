@@ -34,11 +34,7 @@ const PRIMARY_NAV: NavDef[] = [
  * Compact primary company nav. Intelligence is a single hub; WhatsApp /
  * Conversations / Billing are reached from Dashboard tiles or Settings links.
  */
-export function companyNavItems(_opts?: {
-  docsFirstPhase?: boolean;
-  onboardingComplete?: boolean;
-  impersonating?: boolean;
-}): SidebarItem[] {
+export function companyNavItems(): SidebarItem[] {
   return PRIMARY_NAV.map((item) => ({
     to: item.to,
     label: item.label,

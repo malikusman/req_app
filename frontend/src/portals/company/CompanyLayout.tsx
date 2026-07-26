@@ -13,8 +13,6 @@ export function CompanyLayout() {
   const token = useCompanyToken();
   const navigate = useNavigate();
   const { title } = usePageMeta('Company');
-  const [docsFirstPhase, setDocsFirstPhase] = useState(false);
-  const [onboardingComplete, setOnboardingComplete] = useState(false);
   const [integrations, setIntegrations] = useState<CompanyDashboardPayload['integrations']>();
 
   const impersonating = Boolean(session?.portal === 'company' && session.impersonating);
@@ -24,17 +22,13 @@ export function CompanyLayout() {
     api
       .companyDashboard(token)
       .then((d) => {
-        setDocsFirstPhase(Boolean(d.docs_first_phase ?? d.company.docs_first_phase));
-        setOnboardingComplete(Boolean(d.company.onboarding_complete));
         setIntegrations(d.integrations);
       })
       .catch(() => undefined);
   }, [token]);
 
-  const nav = useMemo(
-    () => companyNavItems({ docsFirstPhase, onboardingComplete, impersonating }),
-    [docsFirstPhase, onboardingComplete, impersonating]
-  );
+  const nav = useMemo(() => companyNavItems(), []);
+
 
   const integrationWarnings = useMemo(() => {
     if (!integrations) return [];
