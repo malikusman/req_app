@@ -7,11 +7,16 @@ Bot WhatsApp: **+971 55 290 9236**
 
 | Role | Login |
 |------|--------|
-| Company admin | `pilot-admin@gulflink-pilot.test` / `PilotPass1!` |
+| Platform admin | `masood.albastaki@pebbleintelligentsolutions.com` / `PebbleIntl@2026!` |
+| Company admin (client) | `pilot-admin@gulflink-pilot.test` / `PilotPass1!` |
 | Reviewer (100% profile) | `nadia.pilot@reqapp.review` / `ReviewerPass1!` |
 | Employee (WhatsApp) | Phone **+971526187620** · Access code **`OGZP7MZJ`** · Name on file: Sara Al Mansouri |
 
 Company: **GulfLink Freight Pilot** (`id=5`, slug `gulflink-freight-pilot`)
+
+### Why the access code is not on the portal
+
+Full access codes are shown **once** right after invite (green banner on Employees). After that the portal only keeps a bcrypt hash + last-two hint — by design, so codes cannot be read back from the employee list. Reply to WhatsApp with **`OGZP7MZJ`** (still active / hint `ZJ`).
 
 ## What was provisioned
 
