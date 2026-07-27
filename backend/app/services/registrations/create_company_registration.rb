@@ -16,6 +16,7 @@ module Registrations
       notes: nil,
       display_name: nil,
       admin_phone: nil,
+      website_url: nil,
       company_profile: nil,
       known_systems: nil,
       engagement_mode: nil # ignored — always hybrid via Company::DEFAULT_SETTINGS
@@ -25,6 +26,7 @@ module Registrations
       @admin_name = admin_name.to_s.strip
       @admin_email = admin_email.to_s.strip.downcase
       @admin_phone = normalize_phone(admin_phone)
+      @website_url = normalize_website(website_url)
       @role_title = role_title.to_s.strip.presence
       @notes = notes.to_s.strip.presence
       @company_profile = company_profile
@@ -39,9 +41,11 @@ module Registrations
         company = Company.create!(
           name: @company_name,
           display_name: @display_name,
+          website_url: @website_url,
           approval_status: "pending_approval",
           settings: {}
         )
+
         user = CompanyUser.create!(
           company: company,
           email: @admin_email,
@@ -75,6 +79,9 @@ module Registrations
 
       SignupMailer.company_registration_received(registration).deliver_later
       SignupMailer.company_registration_admin_notice(registration).deliver_later
+      if @website_url.present? && registration.company_id
+        CompanyWebResearchJob.perform_later(registration.company_id)
+      end
       registration
     end
 
@@ -86,6 +93,14 @@ module Registrations
 
       digits = raw.gsub(/[^\d+]/, "")
       digits.presence
+    end
+
+    def normalize_website(value)
+      url = value.to_s.strip.presence
+      return nil if url.blank?
+
+      url = "https://#{url}" unless url.match?(%r{\Ahttps?://}i)
+      url
     end
 
     def validate!

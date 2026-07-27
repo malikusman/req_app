@@ -11,17 +11,9 @@ export function CompanyReports() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [reports, setReports] = useState<Report[]>([]);
-  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
   const [loadError, setLoadError] = useState('');
   const [loading, setLoading] = useState(true);
-  const [readiness, setReadiness] = useState<{ score: number; docsFirst: boolean; breakdown: Record<string, number> }>({
-    score: 0,
-    docsFirst: false,
-    breakdown: {},
-  });
-  const [reportStale, setReportStale] = useState(false);
-  const [intelUpdatedAt, setIntelUpdatedAt] = useState<string | null>(null);
 
   const load = () => {
     if (!token) return;
@@ -29,8 +21,6 @@ export function CompanyReports() {
       .companyReports(token)
       .then((d) => {
         setReports(d.reports);
-        setReportStale(Boolean(d.report_stale));
-        setIntelUpdatedAt(d.intelligence_updated_at ?? null);
         setLoadError('');
       })
       .catch(() => setLoadError('Could not load reports.'))
@@ -42,34 +32,6 @@ export function CompanyReports() {
     const interval = setInterval(load, 5000);
     return () => clearInterval(interval);
   }, [token]);
-
-  useEffect(() => {
-    if (!token) return;
-    api
-      .companyDashboard(token)
-      .then((d) => {
-        setReadiness({
-          score: Math.round(d.report_readiness_score ?? 0),
-          docsFirst: Boolean(d.docs_first_phase ?? d.company.docs_first_phase),
-          breakdown: d.report_readiness_breakdown ?? {},
-        });
-      })
-      .catch(() => undefined);
-  }, [token]);
-
-  const generate = async () => {
-    if (!token) return;
-    setError('');
-    setGenerating(true);
-    try {
-      await api.generateReport(token);
-      load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Generate failed');
-    } finally {
-      setGenerating(false);
-    }
-  };
 
   const share = async (id: number) => {
     if (!token) return;
@@ -92,23 +54,11 @@ export function CompanyReports() {
     await api.downloadReport(token, id);
   };
 
-  const canDownloadOrShare = (report: Report) =>
-    report.status === 'ready' && report.visibility === 'shared_with_company';
-
-  const reviewStatusLabel = (report: Report) => {
-    if (report.visibility === 'shared_with_company') return null;
-    if (report.review_workflow_status === 'awaiting_reviewers') return 'Awaiting expert review';
-    if (report.review_workflow_status === 'in_review') return 'In expert review';
-    if (report.review_workflow_status === 'reviews_complete') return 'Awaiting platform approval';
-    if (report.visibility === 'internal_only') return 'Not yet shared';
-    return null;
-  };
-
   return (
     <div className="space-y-6">
       <PageHeader
         title="Reports"
-        description="Generate versioned PDF reports with deltas vs previous versions."
+        description="Reports shared with your company by your reviewer or platform. Download or create an external share link."
       />
 
       {error && <p className="text-sm text-status-error">{error}</p>}
@@ -123,41 +73,10 @@ export function CompanyReports() {
 
       <CompanyExpertReviewers />
 
-      {reportStale && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-button border border-status-warning/40 bg-status-warningBg px-4 py-3 text-sm text-text-primary">
-          <span>
-            Intelligence has updated
-            {intelUpdatedAt ? ` (${new Date(intelUpdatedAt).toLocaleString()})` : ''} since your latest
-            report. Regenerate to include the newest signals and findings.
-          </span>
-          <Button size="sm" loading={generating} disabled={generating || readiness.score < 100} onClick={generate}>
-            Regenerate report
-          </Button>
-        </div>
-      )}
-
       <Card>
-        <p className="mb-3 text-sm text-text-secondary">
-          Current readiness: <span className="font-medium text-text-primary">{readiness.score}%</span>
-          {readiness.docsFirst
-            ? ' (document baseline — need ready docs, department tags, and patterns).'
-            : ' (blended document + interview dimensions).'}
-          {readiness.score < 100 && readiness.docsFirst && (
-            <>
-              {' '}
-              Ready docs: {readiness.breakdown.ready_documents ?? 0}, departments:{' '}
-              {readiness.breakdown.document_departments ?? 0}, patterns:{' '}
-              {readiness.breakdown.confirmed_patterns ?? 0}.
-            </>
-          )}
-        </p>
-        <Button onClick={generate} loading={generating} disabled={generating}>
-          {generating ? 'Generating…' : 'Generate new report'}
-        </Button>
-        <p className="mt-2 text-sm text-text-secondary">
-          {readiness.score >= 100
-            ? 'Ready to generate — report will use your current document and interview evidence.'
-            : 'Generation unlocks at 100% readiness. Keep uploading tagged documents or completing interviews.'}
+        <p className="m-0 text-sm text-text-secondary">
+          Company admins can view and download shared reports. Report generation is handled by your assigned
+          reviewer and platform team.
         </p>
       </Card>
 
@@ -200,18 +119,13 @@ export function CompanyReports() {
           {
             key: 'review',
             header: 'Availability',
-            render: (r) => {
-              const label = reviewStatusLabel(r);
-              if (label) return <Badge variant="warning">{label}</Badge>;
-              if (r.visibility === 'shared_with_company') return <Badge variant="success">Shared</Badge>;
-              return '—';
-            },
+            render: () => <Badge variant="success">Shared</Badge>,
           },
           {
             key: 'actions',
             header: '',
             render: (r) =>
-              r.status === 'ready' && canDownloadOrShare(r) ? (
+              r.status === 'ready' ? (
                 <div className="flex gap-2">
                   <Button variant="secondary" size="sm" onClick={() => download(r.id)}>
                     Download
@@ -220,28 +134,18 @@ export function CompanyReports() {
                     Share
                   </Button>
                 </div>
-              ) : r.status === 'ready' ? (
-                <span className="text-xs text-text-secondary">Available after approval</span>
               ) : null,
           },
         ]}
         rows={reports as Report[]}
         emptyState={
           <EmptyState
-            title="No reports yet"
-            description={
-              readiness.score >= 100
-                ? 'Generate your first discovery or baseline report.'
-                : 'Reach 100% readiness, then generate a versioned report.'
-            }
-            action={
-              readiness.score >= 100
-                ? { label: 'Generate report', onClick: () => void generate() }
-                : {
-                    label: readiness.docsFirst ? 'Upload documents' : 'Check dashboard',
-                    onClick: () => navigate(readiness.docsFirst ? '/company/documents' : '/company/dashboard'),
-                  }
-            }
+            title="No shared reports yet"
+            description="When your reviewer or platform shares a report with your company, it will appear here."
+            action={{
+              label: 'Back to dashboard',
+              onClick: () => navigate('/company/dashboard'),
+            }}
           />
         }
       />

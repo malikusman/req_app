@@ -13,7 +13,7 @@ module Api
           render json: {
             subscription: subscription_json(sub),
             usage: enforcer.usage_summary,
-            plans: Billing::CheckoutService::PLANS.keys.map { |p| plan_json(p) },
+            plans: ::Billing::CheckoutService::PLANS.keys.map { |p| plan_json(p) },
             stripe_configured: ENV["STRIPE_SECRET_KEY"].present?
           }
         end
@@ -21,7 +21,7 @@ module Api
         def checkout
           authorize :billing, :checkout?
           plan = params.require(:plan)
-          result = Billing::CheckoutService.create_session(company: current_company, plan: plan)
+          result = ::Billing::CheckoutService.create_session(company: current_company, plan: plan)
           render json: result
         rescue ArgumentError => e
           render json: { error: e.message }, status: :unprocessable_entity
@@ -42,7 +42,7 @@ module Api
         end
 
         def plan_json(plan)
-          config = Billing::CheckoutService::PLANS[plan]
+          config = ::Billing::CheckoutService::PLANS[plan]
           {
             id: plan,
             conversations: config[:conversations],

@@ -12,6 +12,8 @@ import {
   EmptyState,
   Modal,
 } from '../../components/ui';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import { useToast } from '../../components/ui/ToastProvider';
 import { EmployeeDigestModal } from './EmployeeDigestModal';
 
 function participationBadge(status: string) {
@@ -37,6 +39,7 @@ function nudgeStatusLabel(employee: Employee): string | null {
 
 export function CompanyEmployees() {
   const token = useCompanyToken();
+  const { toast } = useToast();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
@@ -55,6 +58,10 @@ export function CompanyEmployees() {
   const [editPhone, setEditPhone] = useState('');
   const [savingPhone, setSavingPhone] = useState(false);
   const [digestEmployee, setDigestEmployee] = useState<Employee | null>(null);
+  const [rotateOpen, setRotateOpen] = useState(false);
+  const [rotating, setRotating] = useState(false);
+  const [reissueEmployee, setReissueEmployee] = useState<Employee | null>(null);
+  const [reissuing, setReissuing] = useState(false);
   const [usage, setUsage] = useState<{
     conversations_used: number;
     conversation_limit: number | null;
@@ -145,6 +152,55 @@ export function CompanyEmployees() {
 
   const copyCode = (code: string) => {
     navigator.clipboard.writeText(code);
+    toast({ variant: 'success', title: 'Copied', description: 'Access code copied to clipboard.' });
+  };
+
+  const rotateAll = async () => {
+    if (!token) return;
+    setRotating(true);
+    try {
+      const res = await api.rotateAccessCodes(token);
+      setRotateOpen(false);
+      toast({
+        variant: 'success',
+        title: 'Access codes rotated',
+        description: `${res.codes_rotated} new codes issued. Share them with employees who have not verified yet.`,
+      });
+      load();
+    } catch (err) {
+      setRotateOpen(false);
+      toast({
+        variant: 'error',
+        title: 'Rotation failed',
+        description: err instanceof Error ? err.message : 'Could not rotate access codes.',
+      });
+    } finally {
+      setRotating(false);
+    }
+  };
+
+  const reissueCode = async () => {
+    if (!token || !reissueEmployee) return;
+    setReissuing(true);
+    try {
+      const res = await api.reissueEmployeeAccessCode(token, reissueEmployee.id);
+      setReissueEmployee(null);
+      setNewCode(res.access_code);
+      toast({
+        variant: 'success',
+        title: 'New access code issued',
+        description: 'The previous unused code no longer works for this employee.',
+      });
+      load();
+    } catch (err) {
+      toast({
+        variant: 'error',
+        title: 'Reissue failed',
+        description: err instanceof Error ? err.message : 'Could not reissue access code.',
+      });
+    } finally {
+      setReissuing(false);
+    }
   };
 
   const startPhoneEdit = (employee: Employee) => {
@@ -247,6 +303,19 @@ export function CompanyEmployees() {
       </Card>
 
       <Card title="Participation funnel">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <p className="m-0 text-sm text-text-secondary">
+            Access codes appear in the table below. Rotate when you need to invalidate unused invite codes.
+          </p>
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={employees.length === 0}
+            onClick={() => setRotateOpen(true)}
+          >
+            Rotate all access codes
+          </Button>
+        </div>
         <FunnelChart stages={funnelStages} />
       </Card>
 
@@ -296,6 +365,33 @@ export function CompanyEmployees() {
             ),
           },
           { key: 'department', header: 'Department', render: (e) => e.department || '—' },
+          {
+            key: 'access_code',
+            header: 'Access code',
+            render: (e) =>
+              e.access_code ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <code className="rounded bg-muted px-2 py-1 font-mono text-sm font-semibold text-foreground">
+                    {e.access_code}
+                  </code>
+                  <Button size="sm" variant="secondary" onClick={() => copyCode(e.access_code!)}>
+                    Copy
+                  </Button>
+                  <Button size="sm" variant="secondary" onClick={() => setReissueEmployee(e)}>
+                    Reissue
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-text-secondary">
+                    {e.access_code_hint ? `Ends in ${e.access_code_hint}` : 'No active code'}
+                  </span>
+                  <Button size="sm" variant="secondary" onClick={() => setReissueEmployee(e)}>
+                    Issue code
+                  </Button>
+                </div>
+              ),
+          },
           {
             key: 'status',
             header: 'Status',
@@ -364,6 +460,32 @@ export function CompanyEmployees() {
             description="You can build a document baseline first, then invite employees later to strengthen the same signals."
           />
         }
+      />
+
+      <ConfirmDialog
+        open={rotateOpen}
+        onClose={() => setRotateOpen(false)}
+        onConfirm={rotateAll}
+        title="Rotate all access codes?"
+        description="This invalidates every unused access code. Employees who have not authenticated yet will need the new codes — their old codes will stop working. Employees who already verified are unaffected."
+        confirmLabel="Rotate all codes"
+        variant="danger"
+        loading={rotating}
+      />
+
+      <ConfirmDialog
+        open={reissueEmployee != null}
+        onClose={() => setReissueEmployee(null)}
+        onConfirm={reissueCode}
+        title="Reissue access code?"
+        description={
+          reissueEmployee
+            ? `Issue a new code for ${reissueEmployee.display_name || reissueEmployee.phone_e164}? Their previous unused code will stop working immediately.`
+            : ''
+        }
+        confirmLabel="Reissue code"
+        variant="danger"
+        loading={reissuing}
       />
 
       <Modal

@@ -220,6 +220,10 @@ export function CompanyOnboarding() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [finishing, setFinishing] = useState(false);
+  const [websiteUrl, setWebsiteUrl] = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [locale, setLocale] = useState('en');
+  const [savingWebsite, setSavingWebsite] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -229,6 +233,9 @@ export function CompanyOnboarding() {
         setAnswers((d.questionnaire_answers || {}) as QuestionnaireAnswers);
         setSectionId(d.step || 1);
         setPercent(d.completion_percent ?? computeCompletionPercent((d.questionnaire_answers || {}) as QuestionnaireAnswers));
+        setWebsiteUrl(d.company?.website_url || '');
+        setDisplayName(d.company?.display_name || '');
+        setLocale(d.company?.locale || 'en');
       })
       .catch(() => setError('Could not load questionnaire.'))
       .finally(() => setLoading(false));
@@ -274,6 +281,24 @@ export function CompanyOnboarding() {
 
   const jumpTo = async (id: number) => {
     await persist(id);
+  };
+
+  const saveWebsite = async () => {
+    if (!token) return;
+    setSavingWebsite(true);
+    setError('');
+    try {
+      const res = await api.updateOnboardingProfile(token, {
+        display_name: displayName || (session?.portal === 'company' ? session.company?.name : undefined) || 'Company',
+        locale,
+        website_url: websiteUrl.trim() || null,
+      });
+      if (res.website_url !== undefined) setWebsiteUrl(res.website_url || '');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save website');
+    } finally {
+      setSavingWebsite(false);
+    }
   };
 
   const finish = async (markQuestionnaireComplete = false) => {
@@ -364,6 +389,28 @@ export function CompanyOnboarding() {
       </div>
 
       {error ? <p className="text-sm text-status-error">{error}</p> : null}
+
+      <Card className="space-y-3 p-4 sm:p-5">
+        <div>
+          <h2 className="m-0 text-base font-medium text-foreground">Company website</h2>
+          <p className="m-0 mt-1 text-sm text-muted-foreground">
+            Used by discovery agents and optional website research for reports.
+          </p>
+        </div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <div className="min-w-0 flex-1">
+            <Input
+              label="Website URL"
+              value={websiteUrl}
+              onChange={(e) => setWebsiteUrl(e.target.value)}
+              placeholder="https://example.com"
+            />
+          </div>
+          <Button type="button" variant="secondary" loading={savingWebsite} onClick={saveWebsite}>
+            Save website
+          </Button>
+        </div>
+      </Card>
 
       <div className="grid gap-4 lg:grid-cols-[220px_1fr]">
         {!isNarrow ? (

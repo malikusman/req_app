@@ -21,6 +21,7 @@ module Api
             admin_name: params[:admin_name],
             admin_email: params[:admin_email],
             admin_phone: params[:admin_phone] || params[:phone],
+            website_url: params[:website_url],
             role_title: params[:role_title],
             notes: params[:notes],
             company_profile: profile_params,

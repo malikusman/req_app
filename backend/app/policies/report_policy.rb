@@ -14,7 +14,8 @@ class ReportPolicy < ApplicationPolicy
   end
 
   def create?
-    company? && company_admin?
+    # Company portal is view/download of shared reports only; generation is reviewer/platform.
+    false
   end
 
   def download?
@@ -26,7 +27,7 @@ class ReportPolicy < ApplicationPolicy
   end
 
   def share?
-    create?
+    company? && company_admin? && record.visibility == "shared_with_company"
   end
 
   def approve?

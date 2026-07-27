@@ -54,6 +54,7 @@ export const api = {
     role_title?: string;
     notes?: string;
     website?: string;
+    website_url?: string;
     engagement_mode?: string;
     company_profile?: CompanyProfile;
     known_systems?: string[];
@@ -197,6 +198,7 @@ export const api = {
         engagement_mode?: string;
         company_profile?: CompanyProfile;
         known_systems?: string[];
+        website_url?: string | null;
       };
       invited_count: number;
     }>('/api/v1/company/onboarding', {}, token),
@@ -204,14 +206,21 @@ export const api = {
   updateOnboardingProfile: (
     token: string,
     payload: {
-      display_name: string;
-      locale: string;
+      display_name?: string;
+      locale?: string;
       engagement_mode?: string;
       company_profile?: CompanyProfile;
       known_systems?: string[];
+      website_url?: string | null;
     }
   ) =>
-    request<{ ok: boolean; step?: number; engagement_mode?: string; company_profile?: CompanyProfile }>(
+    request<{
+      ok: boolean;
+      step?: number;
+      engagement_mode?: string;
+      company_profile?: CompanyProfile;
+      website_url?: string | null;
+    }>(
       '/api/v1/company/onboarding/profile',
       {
         method: 'PATCH',
@@ -998,6 +1007,13 @@ export const api = {
 
   rotateAccessCodes: (token: string) =>
     request<{ ok: boolean; codes_rotated: number }>('/api/v1/company/settings/security/rotate_codes', { method: 'POST' }, token),
+
+  reissueEmployeeAccessCode: (token: string, employeeId: number) =>
+    request<{ employee: Employee; access_code: string }>(
+      `/api/v1/company/employees/${employeeId}/reissue_access_code`,
+      { method: 'POST' },
+      token
+    ),
 
   companyNotifications: (token: string, page = 1) =>
     request<{ notifications: AppNotification[]; unread_count: number; page: number; per_page: number }>(
@@ -2115,7 +2131,9 @@ export interface Employee {
   last_active_at: string | null;
   last_nudged_at: string | null;
   consent_given_at?: string | null;
-  access_code?: string;
+  access_code?: string | null;
+  access_code_hint?: string | null;
+  access_code_expires_at?: string | null;
   can_nudge?: boolean;
   stalled?: boolean;
   invitation_status?: string;

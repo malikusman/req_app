@@ -98,7 +98,7 @@ module Whatsapp
       plain = text.gsub(/\s+/, "").upcase
 
       if code_record&.verify(plain)
-        code_record.update!(status: "used", used_at: Time.current)
+        code_record.update!(status: "used", used_at: Time.current, code_plaintext: nil)
         @employee.update!(onboarding_step: "awaiting_consent", verified_at: Time.current)
         log_verification(success: true)
         send_consent_message

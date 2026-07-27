@@ -1,7 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  FileBarChart,
   FileText,
   Radio,
   AlertTriangle,
@@ -10,7 +9,6 @@ import {
   Image,
   ClipboardList,
   Layers,
-  HelpCircle,
   Lightbulb,
 } from 'lucide-react';
 import { api, type CompanyDashboardPayload } from '../../lib/api';
@@ -19,7 +17,6 @@ import {
   DashboardShell,
   StatCard,
   Card,
-  ReadinessGauge,
   ParticipationSummary,
   StrengthBar,
   Timeline,
@@ -28,16 +25,6 @@ import {
   EmptyState,
   SimpleBarChart,
 } from '../../components/ui';
-
-const BREAKDOWN_CHART_LABELS: Record<string, string> = {
-  employees_interviewed: 'Employees',
-  departments_represented: 'Departments',
-  confirmed_patterns: 'Patterns',
-  multimodal_contributions: 'Multimodal',
-  insights_count: 'Insights',
-  ready_documents: 'Docs ready',
-  document_departments: 'Doc depts',
-};
 
 function ActionTile({
   title,
@@ -121,20 +108,12 @@ export function CompanyDashboard() {
   const readyDocs = Number(intel?.ready_documents ?? breakdown.ready_documents ?? 0);
   const signalCount = intel?.signal_count ?? snapshot?.signal_count ?? snapshot?.top_pain_points.length ?? 0;
   const patternCount = intel?.pattern_count ?? snapshot?.emerging_patterns?.length ?? 0;
-  const openClarifications = intel?.open_clarifications ?? 0;
   const recommendationCount = intel?.recommendation_count ?? snapshot?.recommendation_count ?? 0;
   const docsFirstPhase = Boolean(data?.docs_first_phase ?? data?.company.docs_first_phase);
   const docsFirstActive = docsFirstPhase && (readyDocs > 0 || score > 0 || signalCount > 0);
   const processingDocs = docsFirstPhase && readyDocs === 0 && score === 0 && signalCount === 0;
   const qPercent = data?.questionnaire_completion_percent ?? 0;
   const showProfileTile = !data?.questionnaire_completed_at && qPercent < 100;
-
-  const readinessChartData = Object.entries(breakdown)
-    .filter(([, value]) => Number(value) > 0)
-    .map(([key, value]) => ({
-      name: BREAKDOWN_CHART_LABELS[key] ?? key.replace(/_/g, ' '),
-      value: Number(value),
-    }));
 
   const departmentChartData = (snapshot?.department_coverage ?? []).map((d) => ({
     name: d.department || 'Unassigned',
@@ -217,11 +196,6 @@ export function CompanyDashboard() {
       kpiRow={
         p && data ? (
           <>
-            <StatCard
-              label="Readiness"
-              value={`${score}%`}
-              icon={<FileBarChart className="h-5 w-5 text-primary" />}
-            />
             {docsOnlyView ? (
               <StatCard
                 label="Documents"
@@ -244,11 +218,6 @@ export function CompanyDashboard() {
               label="Patterns"
               value={patternCount}
               icon={<Layers className="h-5 w-5 text-primary" />}
-            />
-            <StatCard
-              label="Open clarifications"
-              value={openClarifications}
-              icon={<HelpCircle className="h-5 w-5 text-primary" />}
             />
             <StatCard
               label="Recommendations"
@@ -315,73 +284,56 @@ export function CompanyDashboard() {
               <ParticipationSummary participation={p} departmentCoverage={snapshot.department_coverage} compact />
             </Card>
 
-            <Card title="Report readiness" className="min-w-0">
-              <div className="flex min-w-0 flex-col gap-6 md:flex-row md:items-start">
-                <div className="mx-auto w-full min-w-0 shrink-0 md:mx-0 md:w-auto">
-                  <ReadinessGauge score={score} breakdown={breakdown} docsFirstPhase={docsFirstPhase} />
-                </div>
-                <div className="min-w-0 flex-1 space-y-3">
-                  {data.latest_report && (
-                    <p className="text-sm text-foreground">
-                      Latest report:{' '}
-                      <Badge variant={data.latest_report.status === 'ready' ? 'success' : 'neutral'}>
-                        v{data.latest_report.version} — {data.latest_report.status}
-                      </Badge>
-                    </p>
-                  )}
-                  {data.usage && (
-                    <p className="text-sm text-muted-foreground">
-                      Trial conversations: {data.usage.conversations_used}
-                      {data.usage.conversation_limit != null ? ` / ${data.usage.conversation_limit}` : ''} used
-                    </p>
-                  )}
-                  <p className="text-sm text-muted-foreground">
-                    {snapshot.report_ready
-                      ? 'Your organization meets the readiness threshold to generate a discovery report.'
-                      : docsOnlyView
-                        ? 'Upload more department-tagged documents to increase baseline readiness.'
-                        : 'Continue interviews and document uploads to increase readiness.'}
+            <Card title="Shared reports" className="min-w-0">
+              <div className="min-w-0 flex-1 space-y-3">
+                {data.latest_report && data.latest_report.status === 'ready' ? (
+                  <p className="text-sm text-foreground">
+                    Latest report:{' '}
+                    <Badge variant="success">v{data.latest_report.version}</Badge>
                   </p>
-                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                    <Link to="/company/reports" className="w-full sm:w-auto">
-                      <Button className="w-full sm:w-auto">
-                        {snapshot.report_ready ? 'Generate report' : 'View reports'}
-                      </Button>
-                    </Link>
-                    <Link to="/company/intelligence#recommendations" className="w-full sm:w-auto">
-                      <Button variant="secondary" className="w-full sm:w-auto">
-                        Recommendations
-                        {recommendationCount > 0 ? ` (${recommendationCount})` : ''}
-                      </Button>
-                    </Link>
-                  </div>
+                ) : (
+                  <p className="m-0 text-sm text-muted-foreground">
+                    Reports appear here once your reviewer or platform shares them with your company.
+                  </p>
+                )}
+                {data.usage && (
+                  <p className="text-sm text-muted-foreground">
+                    Trial conversations: {data.usage.conversations_used}
+                    {data.usage.conversation_limit != null ? ` / ${data.usage.conversation_limit}` : ''} used
+                  </p>
+                )}
+                <p className="text-sm text-muted-foreground">
+                  {docsOnlyView
+                    ? 'Upload more department-tagged documents to strengthen your evidence baseline.'
+                    : 'Continue interviews and document uploads to strengthen signals and recommendations.'}
+                </p>
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                  <Link to="/company/reports" className="w-full sm:w-auto">
+                    <Button className="w-full sm:w-auto">View reports</Button>
+                  </Link>
+                  <Link to="/company/intelligence#recommendations" className="w-full sm:w-auto">
+                    <Button variant="secondary" className="w-full sm:w-auto">
+                      Recommendations
+                      {recommendationCount > 0 ? ` (${recommendationCount})` : ''}
+                    </Button>
+                  </Link>
                 </div>
               </div>
             </Card>
           </div>
 
-          <div className="grid min-w-0 gap-4 lg:grid-cols-2">
-            <Card title="Readiness breakdown" className="min-w-0">
-              <SimpleBarChart
-                data={readinessChartData}
-                emptyLabel="Breakdown appears once readiness factors are scored."
-                layout="horizontal"
-                height={Math.max(180, readinessChartData.length * 36)}
-              />
-            </Card>
-            <Card title="Department coverage" className="min-w-0">
-              <SimpleBarChart
-                data={departmentChartData}
-                emptyLabel={
-                  docsOnlyView
-                    ? 'Tag documents by department to see coverage here.'
-                    : 'Invite employees by department to see coverage here.'
-                }
-                layout="horizontal"
-                height={Math.max(180, departmentChartData.length * 36)}
-              />
-            </Card>
-          </div>
+          <Card title="Department coverage" className="min-w-0">
+            <SimpleBarChart
+              data={departmentChartData}
+              emptyLabel={
+                docsOnlyView
+                  ? 'Tag documents by department to see coverage here.'
+                  : 'Invite employees by department to see coverage here.'
+              }
+              layout="horizontal"
+              height={Math.max(180, departmentChartData.length * 36)}
+            />
+          </Card>
 
           <div className="grid min-w-0 gap-4 lg:grid-cols-2">
             <Card title="Top pain points" className="min-w-0">

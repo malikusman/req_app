@@ -17,10 +17,15 @@ class EmployeeAccessCode < ApplicationRecord
 
   def self.issue_for!(employee:, issued_by_type: "system")
     plain = generate_plain_code
-    employee.employee_access_codes.active.update_all(status: "revoked", revoked_at: Time.current)
+    employee.employee_access_codes.active.update_all(
+      status: "revoked",
+      revoked_at: Time.current,
+      code_plaintext: nil
+    )
     code = employee.employee_access_codes.create!(
       company: employee.company,
       code_digest: BCrypt::Password.create(plain),
+      code_plaintext: plain,
       code_hint_last_two: plain.last(2),
       expires_at: 14.days.from_now,
       issued_by_type: issued_by_type,

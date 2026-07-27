@@ -12,7 +12,8 @@ export function CompanySignupPage() {
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPhone, setAdminPhone] = useState('');
   const [roleTitle, setRoleTitle] = useState('');
-  const [website, setWebsite] = useState('');
+  const [websiteUrl, setWebsiteUrl] = useState('');
+  const [honeypot, setHoneypot] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
@@ -32,7 +33,8 @@ export function CompanySignupPage() {
         admin_email: adminEmail,
         admin_phone: adminPhone.trim(),
         role_title: roleTitle || undefined,
-        website: website || undefined,
+        website_url: websiteUrl.trim() || undefined,
+        website: honeypot || undefined,
       });
       setDone(true);
     } catch (err) {
@@ -112,11 +114,19 @@ export function CompanySignupPage() {
               value={roleTitle}
               onChange={(e) => setRoleTitle(e.target.value)}
             />
+            <Input
+              label="Company website (optional)"
+              id="website_url"
+              type="url"
+              value={websiteUrl}
+              onChange={(e) => setWebsiteUrl(e.target.value)}
+              placeholder="https://example.com"
+            />
             <input
               type="text"
               name="website"
-              value={website}
-              onChange={(e) => setWebsite(e.target.value)}
+              value={honeypot}
+              onChange={(e) => setHoneypot(e.target.value)}
               className="hidden"
               tabIndex={-1}
               autoComplete="off"

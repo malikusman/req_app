@@ -25,6 +25,10 @@ class EmployeePolicy < ApplicationPolicy
     company_admin?
   end
 
+  def reissue_access_code?
+    company_admin?
+  end
+
   class Scope < Scope
     def resolve
       if platform?

@@ -86,6 +86,20 @@ module Api
           render json: { error: e.message }, status: :unprocessable_entity
         end
 
+        def reissue_access_code
+          employee = policy_scope(Employee).find(params[:id])
+          authorize employee, :reissue_access_code?
+          _record, plain = EmployeeAccessCode.issue_for!(
+            employee: employee,
+            issued_by_type: "admin_reissue"
+          )
+
+          render json: {
+            employee: employee_json(employee.reload, include_nudge: true),
+            access_code: plain
+          }
+        end
+
         def nudge
           employee = policy_scope(Employee).find(params[:id])
           authorize employee, :nudge?
@@ -109,6 +123,7 @@ module Api
         private
 
         def employee_json(employee, include_nudge: false)
+          active_code = employee.employee_access_codes.active.order(created_at: :desc).first
           json = {
             id: employee.id,
             phone_e164: employee.phone_e164,
@@ -127,7 +142,10 @@ module Api
             completed_at: employee.completed_at,
             last_active_at: employee.last_active_at,
             last_nudged_at: employee.last_nudged_at,
-            consent_given_at: employee.consent_given_at
+            consent_given_at: employee.consent_given_at,
+            access_code: active_code&.code_plaintext,
+            access_code_hint: active_code&.code_hint_last_two,
+            access_code_expires_at: active_code&.expires_at
           }
 
           if include_nudge

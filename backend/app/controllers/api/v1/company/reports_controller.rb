@@ -7,7 +7,7 @@ module Api
         include Api::V1::ReportDownload
 
         def index
-          reports = policy_scope(Report).order(version: :desc)
+          reports = policy_scope(Report).where(visibility: "shared_with_company").order(version: :desc)
           latest_ready = reports.find { |r| r.status == "ready" }
           intel_at = current_company.intelligence_updated_at
           stale = intel_at.present? && latest_ready&.generated_at.present? && intel_at > latest_ready.generated_at

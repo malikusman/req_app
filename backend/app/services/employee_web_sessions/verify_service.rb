@@ -73,7 +73,7 @@ module EmployeeWebSessions
 
       if employee.onboarding_step == "awaiting_access_code"
         if code_record.verify(normalized)
-          code_record.update!(status: "used", used_at: Time.current)
+          code_record.update!(status: "used", used_at: Time.current, code_plaintext: nil)
           employee.update!(onboarding_step: "awaiting_consent", verified_at: Time.current)
           log_verification(employee, success: true)
           return

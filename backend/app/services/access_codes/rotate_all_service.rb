@@ -14,7 +14,11 @@ module AccessCodes
     def call
       count = 0
       @company.employees.find_each do |employee|
-        employee.employee_access_codes.active.update_all(status: "revoked", revoked_at: Time.current)
+        employee.employee_access_codes.active.update_all(
+          status: "revoked",
+          revoked_at: Time.current,
+          code_plaintext: nil
+        )
         EmployeeAccessCode.issue_for!(employee: employee, issued_by_type: "rotation")
         count += 1
       end

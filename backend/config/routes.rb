@@ -215,6 +215,7 @@ Rails.application.routes.draw do
           member do
             post :nudge
             patch :phone, action: :update_phone
+            post :reissue_access_code
           end
           collection do
             post :bulk_create
