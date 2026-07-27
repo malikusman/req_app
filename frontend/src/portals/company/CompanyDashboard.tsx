@@ -10,8 +10,12 @@ import {
   ClipboardList,
   Layers,
   Lightbulb,
+  MessageSquare,
+  HelpCircle,
+  UserCircle,
+  FileBarChart,
 } from 'lucide-react';
-import { api, type CompanyDashboardPayload } from '../../lib/api';
+import { api, type CompanyDashboardPayload, type ReviewerPublicCard } from '../../lib/api';
 import { useAuth, useCompanyToken } from '../../lib/auth';
 import {
   DashboardShell,
@@ -25,6 +29,7 @@ import {
   EmptyState,
   SimpleBarChart,
 } from '../../components/ui';
+import { ExpertReviewerCard } from '../../components/ExpertReviewerCard';
 
 function ActionTile({
   title,
@@ -71,6 +76,9 @@ export function CompanyDashboard() {
   const [data, setData] = useState<CompanyDashboardPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [reviewers, setReviewers] = useState<ReviewerPublicCard[]>([]);
+  const [conversationCount, setConversationCount] = useState(0);
+  const [unansweredQuestions, setUnansweredQuestions] = useState(0);
 
   useEffect(() => {
     if (session?.portal === 'company' && !session.impersonating && !session.company.portal_onboarding_completed_at) {
@@ -87,6 +95,21 @@ export function CompanyDashboard() {
       .then(setData)
       .catch(() => setError('Could not load discovery dashboard.'))
       .finally(() => setLoading(false));
+    api
+      .companyExpertReviewers(token)
+      .then((d) => setReviewers(d.expert_reviewers || []))
+      .catch(() => setReviewers([]));
+    api
+      .companyConversations(token)
+      .then((d) => setConversationCount(d.conversations?.length ?? 0))
+      .catch(() => setConversationCount(0));
+    api
+      .discoveryQuestions(token)
+      .then((d) => {
+        const qs = d.questions || [];
+        setUnansweredQuestions(qs.filter((q) => !q.feedback).length);
+      })
+      .catch(() => setUnansweredQuestions(0));
   }, [token]);
 
   if (!loading && !data) {
@@ -122,40 +145,74 @@ export function CompanyDashboard() {
 
   const actionTiles = (
     <div className="space-y-4">
-      {showProfileTile ? (
-        <div>
-          <h2 className="m-0 mb-2 text-sm font-medium text-muted-foreground">Company profile</h2>
+      <div>
+        <h2 className="m-0 mb-2 text-sm font-medium text-muted-foreground">Overview</h2>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           <ActionTile
-            primary
-            title={`Complete company profile — ${qPercent}%`}
-            description="Help us understand your business so analysis is sharper. You can skip fields and finish anytime."
+            primary={showProfileTile}
+            title={showProfileTile ? `Profile — ${qPercent}%` : 'Company profile'}
+            description={
+              showProfileTile
+                ? 'Complete key details so agents and reviewers see accurate context.'
+                : 'Industry, systems, website, and goals that shape analysis outcomes.'
+            }
             to="/company/onboarding"
             icon={<ClipboardList className="h-5 w-5" />}
           />
-        </div>
-      ) : null}
-      <div>
-        <h2 className="m-0 mb-2 text-sm font-medium text-muted-foreground">Get started</h2>
-        <div className="grid gap-3 sm:grid-cols-2">
           <ActionTile
-            primary
+            title={reviewers[0] ? reviewers[0].name : 'Assigned reviewer'}
+            description={
+              reviewers[0]
+                ? reviewers[0].headline || 'View your assigned Worktruth expert.'
+                : 'Experts appear when Worktruth assigns a published reviewer.'
+            }
+            to="/company/reviewers"
+            icon={<UserCircle className="h-5 w-5" />}
+          />
+          <ActionTile
+            title="Conversations"
+            description={
+              conversationCount > 0
+                ? `${conversationCount} discovery thread${conversationCount === 1 ? '' : 's'} with employees.`
+                : 'Employee WhatsApp and web discovery threads.'
+            }
+            to="/company/conversations"
+            icon={<MessageSquare className="h-5 w-5" />}
+            badge={conversationCount}
+          />
+          <ActionTile
+            title="Discovery questions"
+            description={
+              unansweredQuestions > 0
+                ? `${unansweredQuestions} question${unansweredQuestions === 1 ? '' : 's'} without admin feedback yet.`
+                : 'Review questions asked during employee discovery.'
+            }
+            to="/company/discovery-questions"
+            icon={<HelpCircle className="h-5 w-5" />}
+            badge={unansweredQuestions}
+          />
+          <ActionTile
+            title="Shared reports"
+            description={
+              data?.latest_report?.status === 'ready'
+                ? `Latest shared report v${data.latest_report.version} is available.`
+                : 'Reports shared by your reviewer or platform appear here.'
+            }
+            to="/company/reports"
+            icon={<FileBarChart className="h-5 w-5" />}
+          />
+          <ActionTile
             title="Upload documents"
             description="SOPs, policies, and finance exports for a baseline."
             to="/company/documents"
             icon={<FileText className="h-5 w-5" />}
           />
           <ActionTile
-            primary
             title="Invite employees"
             description="Send access codes for WhatsApp or web discovery."
             to="/company/employees"
             icon={<Users className="h-5 w-5" />}
           />
-        </div>
-      </div>
-      <div>
-        <h2 className="m-0 mb-2 text-sm font-medium text-muted-foreground">Capture & channels</h2>
-        <div className="grid gap-3 sm:grid-cols-2">
           <ActionTile
             title="WhatsApp media"
             description="Review inbound media from discovery chats."
@@ -164,6 +221,21 @@ export function CompanyDashboard() {
           />
         </div>
       </div>
+      {reviewers[0] ? (
+        <div>
+          <h2 className="m-0 mb-2 text-sm font-medium text-muted-foreground">Your reviewer</h2>
+          <ExpertReviewerCard
+            reviewer={reviewers[0]}
+            compact
+            token={token}
+            footer={
+              <Link to="/company/reviewers" className="text-sm font-medium text-primary hover:underline">
+                View reviewer profile →
+              </Link>
+            }
+          />
+        </div>
+      ) : null}
     </div>
   );
 

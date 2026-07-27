@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ClipboardList } from 'lucide-react';
 import { api } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
 import { PageHeader, Card, Input, Select, Button, StatCard, Skeleton } from '../../components/ui';
@@ -15,6 +14,7 @@ export function CompanySettings() {
     security_snapshot: Record<string, unknown>;
   } | null>(null);
   const [loadError, setLoadError] = useState('');
+  const [saved, setSaved] = useState(false);
 
   const load = () => {
     if (!token) return;
@@ -39,11 +39,13 @@ export function CompanySettings() {
   const saveOrg = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!token) return;
+    setSaved(false);
     try {
       await api.updateCompanySettings(token, {
         display_name: displayName,
         locale,
       });
+      setSaved(true);
     } catch {
       setLoadError('Could not update organization settings.');
     }
@@ -62,21 +64,6 @@ export function CompanySettings() {
         </div>
       )}
 
-      <Card title="Company profile">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <p className="m-0 text-sm text-muted-foreground">
-              Industry, systems, website, goals, and other business details are edited in the guided profile.
-            </p>
-          </div>
-          <Link to="/company/onboarding">
-            <Button variant="secondary" icon={<ClipboardList className="h-4 w-4" />}>
-              Open profile
-            </Button>
-          </Link>
-        </div>
-      </Card>
-
       <Card title="Organization">
         <form onSubmit={saveOrg} className="max-w-md space-y-4">
           <Input label="Display name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
@@ -91,7 +78,10 @@ export function CompanySettings() {
               { value: 'de', label: 'German' },
             ]}
           />
-          <Button type="submit">Save</Button>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button type="submit">Save</Button>
+            {saved ? <span className="text-sm text-status-success">Saved</span> : null}
+          </div>
         </form>
       </Card>
 

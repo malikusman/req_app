@@ -224,6 +224,9 @@ export function CompanyOnboarding() {
   const [displayName, setDisplayName] = useState('');
   const [locale, setLocale] = useState('en');
   const [savingWebsite, setSavingWebsite] = useState(false);
+  const [adminPhone, setAdminPhone] = useState('');
+  const [adminName, setAdminName] = useState('');
+  const [savingAccount, setSavingAccount] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -239,6 +242,13 @@ export function CompanyOnboarding() {
       })
       .catch(() => setError('Could not load questionnaire.'))
       .finally(() => setLoading(false));
+    api
+      .companyMe(token)
+      .then((d) => {
+        setAdminPhone(d.user.phone || '');
+        setAdminName(d.user.name || '');
+      })
+      .catch(() => undefined);
   }, [token]);
 
   const section = useMemo(
@@ -298,6 +308,24 @@ export function CompanyOnboarding() {
       setError(err instanceof Error ? err.message : 'Could not save website');
     } finally {
       setSavingWebsite(false);
+    }
+  };
+
+  const saveAccount = async () => {
+    if (!token) return;
+    setSavingAccount(true);
+    setError('');
+    try {
+      const res = await api.updateCompanyMe(token, {
+        name: adminName.trim() || undefined,
+        phone: adminPhone.trim() || null,
+      });
+      setAdminPhone(res.user.phone || '');
+      setAdminName(res.user.name || '');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save account details');
+    } finally {
+      setSavingAccount(false);
     }
   };
 
@@ -376,7 +404,7 @@ export function CompanyOnboarding() {
     <div className="mx-auto flex min-h-[70vh] max-w-5xl flex-col gap-4 pb-28 lg:pb-8">
       <div className="sticky top-0 z-20 -mx-1 space-y-3 bg-background/95 px-1 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <PageHeader
-          title="Company profile"
+          title="Profile"
           description="This profile helps Worktruth understand your business and analyze it more accurately. Nothing is required — fill what you can."
         />
         <div className="flex items-center gap-3">
@@ -389,6 +417,28 @@ export function CompanyOnboarding() {
       </div>
 
       {error ? <p className="text-sm text-status-error">{error}</p> : null}
+
+      <Card className="space-y-3 p-4 sm:p-5">
+        <div>
+          <h2 className="m-0 text-base font-medium text-foreground">Your account</h2>
+          <p className="m-0 mt-1 text-sm text-muted-foreground">
+            Update the name and phone number used for your company admin login.
+          </p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Input label="Your name" value={adminName} onChange={(e) => setAdminName(e.target.value)} />
+          <Input
+            label="Your phone"
+            type="tel"
+            value={adminPhone}
+            onChange={(e) => setAdminPhone(e.target.value)}
+            placeholder="+971 50 000 0000"
+          />
+        </div>
+        <Button type="button" variant="secondary" loading={savingAccount} onClick={saveAccount}>
+          Save account
+        </Button>
+      </Card>
 
       <Card className="space-y-3 p-4 sm:p-5">
         <div>

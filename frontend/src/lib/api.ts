@@ -181,6 +181,16 @@ export const api = {
       usage: { conversations_used: number; conversation_limit: number | null; remaining: number | null; limit_reached: boolean };
     }>('/api/v1/company/me', {}, token),
 
+  updateCompanyMe: (
+    token: string,
+    payload: { name?: string; phone?: string | null }
+  ) =>
+    request<{ ok: boolean; user: CompanyUser }>(
+      '/api/v1/company/me',
+      { method: 'PATCH', body: JSON.stringify(payload) },
+      token
+    ),
+
   companyDashboard: (token: string) =>
     request<CompanyDashboardPayload>('/api/v1/company/dashboard', {}, token),
 
@@ -2079,6 +2089,7 @@ export interface CompanyUser {
   id: number;
   email: string;
   name: string;
+  phone?: string | null;
   role: string;
   onboarding_completed_at: string | null;
 }

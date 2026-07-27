@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { api, type Report } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
 import { PageHeader, Card, Button, DataTable, Badge, EmptyState } from '../../components/ui';
-import { CompanyExpertReviewers } from './CompanyExpertReviewers';
 import { useToast } from '../../components/ui/ToastProvider';
 
 export function CompanyReports() {
@@ -71,12 +70,14 @@ export function CompanyReports() {
         </div>
       )}
 
-      <CompanyExpertReviewers />
-
       <Card>
         <p className="m-0 text-sm text-text-secondary">
           Company admins can view and download shared reports. Report generation is handled by your assigned
-          reviewer and platform team.
+          reviewer and platform team. See{' '}
+          <button type="button" className="font-medium text-primary hover:underline" onClick={() => navigate('/company/reviewers')}>
+            Reviewers
+          </button>{' '}
+          for assigned experts.
         </p>
       </Card>
 

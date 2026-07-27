@@ -12,7 +12,7 @@ export function CompanyLayout() {
   const { session, setSession, logout } = useAuth();
   const token = useCompanyToken();
   const navigate = useNavigate();
-  const { title } = usePageMeta('Company');
+  usePageMeta('Company');
   const [integrations, setIntegrations] = useState<CompanyDashboardPayload['integrations']>();
 
   const impersonating = Boolean(session?.portal === 'company' && session.impersonating);
@@ -87,8 +87,7 @@ export function CompanyLayout() {
         portal="company"
         logo={companyName}
         navItems={nav}
-        title={title}
-        subtitle={companyName}
+        title={companyName}
         topBarActions={<NotificationBell />}
         userMenu={{
           name: session.user.name,

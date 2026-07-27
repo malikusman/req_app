@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { api, type Employee } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
 import {
@@ -228,7 +229,14 @@ export function CompanyEmployees() {
     <div className="space-y-8">
       <PageHeader
         title="Employees"
-        description="Invite employees by WhatsApp number to start discovery. Intelligence and readiness update when interviews complete — not at invite time."
+        description="Invite employees and follow their discovery conversations. Intelligence updates when interviews complete — not at invite time."
+        actions={
+          <Link to="/company/conversations">
+            <Button variant="secondary" size="sm">
+              View conversations
+            </Button>
+          </Link>
+        }
       />
 
       {loadError && (

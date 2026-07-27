@@ -7,13 +7,7 @@ module Api
         def show
           enforcer = Subscriptions::ConversationLimitEnforcer.new(company: current_company)
           render json: {
-            user: {
-              id: current_company_user.id,
-              email: current_company_user.email,
-              name: current_company_user.name,
-              role: current_company_user.role,
-              onboarding_completed_at: current_company_user.onboarding_completed_at
-            },
+            user: user_json(current_company_user),
             company: company_json(current_company),
             impersonating: impersonating?,
             impersonation_expires_at: impersonation_session&.expires_at,
@@ -21,7 +15,41 @@ module Api
           }
         end
 
+        def update
+          attrs = {}
+          attrs[:name] = params[:name].to_s.strip if params.key?(:name)
+          if params.key?(:phone)
+            phone = normalize_phone(params[:phone])
+            if params[:phone].to_s.strip.present? && phone.blank?
+              return render json: { error: "Phone number is invalid" }, status: :unprocessable_entity
+            end
+            attrs[:phone] = phone
+          end
+          current_company_user.update!(attrs) if attrs.any?
+
+          render json: { ok: true, user: user_json(current_company_user.reload) }
+        end
+
         private
+
+        def user_json(user)
+          {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            phone: user.phone,
+            role: user.role,
+            onboarding_completed_at: user.onboarding_completed_at
+          }
+        end
+
+        def normalize_phone(value)
+          raw = value.to_s.strip
+          return nil if raw.blank?
+
+          digits = raw.gsub(/[^\d+]/, "")
+          digits.presence
+        end
 
         def company_json(company)
           {

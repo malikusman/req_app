@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Download, HelpCircle, Pencil, Trash2 } from 'lucide-react';
 import { api, type CompanyDocument, type DocumentAnalysisRun } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
 import { PageHeader, Card, Input, DataTable, Badge, FileDropzone, EmptyState, Button } from '../../components/ui';
@@ -263,6 +264,11 @@ export function CompanyDocuments() {
         description="Upload SOPs, policies, and finance exports, then run analysis to build your company knowledge base. Tag departments for readiness coverage."
         actions={
           <div className="flex flex-wrap gap-2">
+            <Link to="/company/discovery-questions">
+              <Button variant="secondary" size="sm" icon={<HelpCircle className="h-4 w-4" />}>
+                Discovery questions
+              </Button>
+            </Link>
             <Link to="/company/knowledge">
               <Button variant="secondary" size="sm">
                 Knowledge & gaps
@@ -464,26 +470,32 @@ export function CompanyDocuments() {
                 <div className="flex flex-wrap gap-1">
                   <Button
                     size="sm"
-                    variant="ghost"
+                    variant="secondary"
                     loading={actingId === d.id}
                     disabled={d.status === 'failed'}
+                    icon={<Download className="h-3.5 w-3.5" />}
                     onClick={() => void onDownload(d)}
+                    aria-label="Download"
                   >
                     Download
                   </Button>
                   <Button
                     size="sm"
-                    variant="ghost"
+                    variant="secondary"
                     loading={actingId === d.id}
+                    icon={<Pencil className="h-3.5 w-3.5" />}
                     onClick={() => requestReplace(d)}
+                    aria-label="Replace"
                   >
                     Replace
                   </Button>
                   <Button
                     size="sm"
-                    variant="ghost"
+                    variant="danger"
                     loading={actingId === d.id}
+                    icon={<Trash2 className="h-3.5 w-3.5" />}
                     onClick={() => onDelete(d)}
+                    aria-label="Delete"
                   >
                     Delete
                   </Button>

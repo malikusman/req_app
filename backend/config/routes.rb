@@ -155,6 +155,7 @@ Rails.application.routes.draw do
 
       namespace :company do
         get "me", to: "me#show"
+        patch "me", to: "me#update"
         get "dashboard", to: "dashboard#show"
         get "expert_reviewers", to: "expert_reviewers#index"
         get "onboarding", to: "onboarding#show"
