@@ -19,12 +19,13 @@
       <p class="lead">Firmographics, stated goals, systems in use, and public research grounding this report.</p>
       <% if has_firmographics || website.present? %>
         <ul class="plain" style="margin:3mm 0;padding-left:4mm;">
-          <% if profile["industry"].present? %><li><strong>Industry:</strong> <%= h profile["industry"] %><%= " / #{h profile['sub_industry']}" if profile["sub_industry"].present? %></li><% end %>
+          <% industry_label = report_industry_label(profile["industry"]) %>
+          <% if industry_label.present? %><li><strong>Industry:</strong> <%= h industry_label %><%= " / #{h profile['sub_industry']}" if profile["sub_industry"].present? %></li><% end %>
           <% if profile["size_band"].present? %><li><strong>Size:</strong> <%= h profile["size_band"] %></li><% end %>
-          <% loc = [profile["region"], profile["country"]].compact.reject(&:blank?).join(", ") %>
+          <% loc = [profile["region"], profile["country"]].compact.reject(&:blank?).uniq.join(", ") %>
           <% if loc.present? %><li><strong>Location:</strong> <%= h loc %></li><% end %>
           <% if profile["annual_revenue_band"].present? %><li><strong>Revenue band:</strong> <%= h profile["annual_revenue_band"] %></li><% end %>
-          <% if website.present? %><li><strong>Website:</strong> <%= h website %></li><% end %>
+          <% if website.present? && !report_placeholder_url?(website) %><li><strong>Website:</strong> <%= h website %></li><% end %>
         </ul>
       <% end %>
       <% if goal_list.any? %>

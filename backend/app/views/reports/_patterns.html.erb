@@ -6,7 +6,7 @@
   <p class="lead" style="max-width:200mm;">Each pattern connects several signals across departments. Confidence reflects how consistently the theme appeared across documents, interviews, and evidence.</p>
   <div class="patterns-3">
     <% Array(patterns).each do |pattern| %>
-      <% cat = report_pattern_category_class(pattern["title"]) %>
+      <% cat = report_pattern_category_class(pattern["title"], signal_types: pattern["linked_signal_types"]) %>
       <% conf = report_pct(pattern["confidence"]) %>
       <% depts = Array(pattern["departments"]).reject(&:blank?) %>
       <% labels = Array(pattern["linked_signal_labels"]).reject(&:blank?) %>
@@ -15,7 +15,7 @@
         <div>
           <div class="st"><%= h pattern["title"] %></div>
           <div class="meta">
-            Confidence <%= format("%.2f", pattern["confidence"].to_f) %>
+            <%= report_confidence_label(pattern["confidence"]) %> confidence <span class="muted">(<%= format("%.2f", pattern["confidence"].to_f) %>)</span>
             <% if depts.any? %> · <%= h depts.join(", ") %><% end %>
             <% if pattern["evidence_count"].to_i.positive? %> · <%= pattern["evidence_count"] %> evidence<% end %>
           </div>

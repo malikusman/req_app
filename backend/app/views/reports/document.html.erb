@@ -2,11 +2,12 @@
 <html lang="<%= snapshot.dig('company', 'locale') || 'en' %>">
 <head>
   <meta charset="utf-8"/>
-  <title>Workflow Discovery Report — <%= h snapshot.dig('company', 'name') %></title>
+  <title>Worktruth <%= report_kind_noun(snapshot) %> Report — <%= h snapshot.dig('company', 'name') %></title>
   <%= render "reports/styles" %>
 </head>
 <body>
 <% report_reset_page! %>
+<% @_report_snapshot = snapshot %>
 <% company_name = snapshot.dig("company", "name") %>
 <% signals = Array(snapshot["signals"]) %>
 <% patterns = Array(snapshot["patterns"]) %>

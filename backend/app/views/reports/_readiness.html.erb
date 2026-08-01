@@ -26,7 +26,7 @@
             <div class="bar-row">
               <span><%= h bar[:label] %></span>
               <span class="bar-track"><span class="bar-fill <%= bar[:cat] %>" style="width:<%= bar[:pct] %>%"></span></span>
-              <span class="bar-val"><%= bar[:display] %></span>
+              <span class="bar-val" title="<%= h bar[:caption] %>"><%= bar[:raw] %>/<%= bar[:target] %></span>
             </div>
           <% end %>
         </div>

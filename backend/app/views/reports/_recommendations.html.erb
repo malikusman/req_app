@@ -30,13 +30,28 @@
   <div class="eyebrow">07 — Prioritization<% if report_has_delta?(snapshot["delta_from_previous"]) %> · 04 — What changed<% end %></div>
   <h1 style="font-size:26pt;margin:4mm 0 4mm;">Where to start<% if report_has_delta?(snapshot["delta_from_previous"]) %>, and what moved<% end %></h1>
   <div class="split">
+    <% matrix_svg = report_priority_matrix_svg(recommendations) %>
+    <% if matrix_svg.present? %>
     <div class="exhibit">
       <div class="exlabel">Exhibit 4 · Impact vs feasibility</div>
       <h3>Prioritize high-impact, high-feasibility moves first.</h3>
-      <%= report_priority_matrix_svg(recommendations) %>
+      <%= matrix_svg %>
+      <div class="caption">Impact reflects evidence weight; feasibility reflects implementation effort and existing systems. <%= h report_source_caption(company_name, version: report_version) %></div>
+      <div class="mark">Worktruth</div>
+    </div>
+    <% else %>
+    <div class="exhibit">
+      <div class="exlabel">Exhibit 4 · Where to start</div>
+      <h3>Recommendations, ordered by priority.</h3>
+      <ol class="plain" style="padding-left:5mm;">
+        <% Array(recommendations).sort_by { |r| { "high" => 0, "medium" => 1, "med" => 1 }.fetch(r["priority"].to_s.downcase, 2) }.first(6).each do |r| %>
+          <li style="margin-bottom:2mm;"><strong><%= h r["title"] %></strong> <span class="muted">(<%= h report_priority_label(r["priority"]) %>)</span></li>
+        <% end %>
+      </ol>
       <div class="caption"><%= h report_source_caption(company_name, version: report_version) %></div>
       <div class="mark">Worktruth</div>
     </div>
+    <% end %>
     <% if report_has_delta?(snapshot["delta_from_previous"]) %>
       <% delta = snapshot["delta_from_previous"] || {} %>
       <div>

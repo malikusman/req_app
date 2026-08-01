@@ -25,7 +25,7 @@
       <% overall.each do |note| %>
         <div class="reviewer-note">
           <div class="who"><%= h note["reviewer"] %></div>
-          <div class="role">Expert reviewer</div>
+          <div class="role"><%= h note["reviewer_credential"].presence || "Independent expert reviewer" %></div>
           <p><%= h note["body"] %></p>
         </div>
       <% end %>

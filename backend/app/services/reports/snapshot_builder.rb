@@ -23,11 +23,11 @@ module Reports
           "name" => @company.display_name || @company.name,
           "locale" => @company.locale,
           "engagement_mode" => @company.engagement_mode,
-          "website_url" => @company.try(:website_url),
+          "website_url" => clean_website(@company.try(:website_url)),
           "profile" => @company.company_profile.slice(
             "industry", "sub_industry", "size_band", "region", "country",
             "annual_revenue_band", "business_goals", "org_departments"
-          ).merge("website_url" => @company.try(:website_url)).compact
+          ).merge("website_url" => clean_website(@company.try(:website_url))).compact
         },
         "readiness" => {
           "score" => @company.report_readiness_score,
@@ -86,24 +86,68 @@ module Reports
           "departments" => Array(p.departments).presence || linked.flat_map { |s| Array(s.departments) }.uniq,
           "linked_signal_ids" => Array(p.linked_signal_ids),
           "linked_signal_labels" => linked.map(&:label),
+          "linked_signal_types" => linked.map(&:signal_type).uniq,
           "evidence_count" => linked.sum { |s| s.evidence_count.to_i }
         }
       end
     end
 
     def recommendations_json
-      @company.recommendations.published.visible_to_company.map do |r|
+      recs = @company.recommendations.published.visible_to_company.to_a
+      signals_by_id = @company.company_signals.index_by(&:id)
+      stack_names = client_stack_json.map { |s| s["name"].to_s.downcase }
+
+      # First pass: raw evidence weight per recommendation (real data only).
+      raw_impacts = recs.map do |r|
+        linked = Array(r.related_signal_ids).filter_map { |id| signals_by_id[id.to_i] }
+        weight = linked.sum { |s| s.strength.to_f } + 0.15 * linked.sum { |s| s.evidence_count.to_i }
+        # Fall back to the priority tier when a rec has no linked signals, so a
+        # bare "high" rec still lands high rather than at zero.
+        weight = [weight, priority_floor(r.priority)].max
+        weight
+      end
+      max_impact = raw_impacts.max.to_f
+
+      recs.each_with_index.map do |r, i|
+        matches = Array(r.catalog_matches)
+        impact_score = max_impact.positive? ? (raw_impacts[i] / max_impact).round(3) : nil
         {
           "id" => r.id,
           "title" => r.title,
           "description" => r.description,
           "implementation_outline" => r.implementation_outline,
-          "catalog_matches" => Array(r.catalog_matches),
+          "catalog_matches" => matches,
           "priority" => r.priority,
           "related_signal_ids" => Array(r.related_signal_ids),
-          "related_pattern_ids" => Array(r.related_pattern_ids)
+          "related_pattern_ids" => Array(r.related_pattern_ids),
+          "impact_score" => impact_score,
+          "feasibility_score" => feasibility_score(r, matches, stack_names)
         }
       end
+    end
+
+    # Coarse floor so priority still orders recs that lack linked-signal evidence.
+    def priority_floor(priority)
+      case priority.to_s.downcase
+      when "high" then 1.0
+      when "low" then 0.2
+      else 0.5
+      end
+    end
+
+    # Feasibility from real signals: extending an owned system is easier than a
+    # greenfield build; a concrete implementation outline raises confidence.
+    def feasibility_score(rec, matches, stack_names)
+      score = matches.any? ? 0.6 : 0.5
+      extends_stack = matches.any? do |m|
+        next false unless m.is_a?(Hash)
+
+        name = (m["name"] || m["vendor"]).to_s.downcase
+        name.present? && stack_names.any? { |s| s.include?(name) || name.include?(s) }
+      end
+      score += 0.25 if extends_stack
+      score += 0.05 if rec.implementation_outline.to_s.strip.present?
+      score.clamp(0.15, 0.95).round(3)
     end
 
     def situation_json(docs_first)
@@ -222,10 +266,10 @@ module Reports
 
     def profile_framing_sentence
       profile = @company.company_profile
-      industry = profile["industry"].presence
+      industry = clean_industry(profile["industry"])
       size = profile["size_band"].presence
       region = profile["region"].presence || profile["country"].presence
-      website = @company.try(:website_url).presence
+      website = clean_website(@company.try(:website_url))
       return nil if industry.blank? && size.blank? && region.blank? && website.blank?
 
       subject = if industry
@@ -238,6 +282,23 @@ module Reports
       details << "operating in #{region}" if region
       details << "website #{website}" if website
       details.any? ? "#{subject} (#{details.join(', ')}) is the focus of this report." : "#{subject} is the focus of this report."
+    end
+
+    # Non-informative industry catch-alls should not print as "This other
+    # organization"; treat them as absent.
+    def clean_industry(value)
+      v = value.to_s.strip
+      return nil if v.blank? || %w[other unknown n/a na none general].include?(v.downcase)
+
+      v
+    end
+
+    # Placeholder/example domains must never reach a client deliverable.
+    def clean_website(value)
+      v = value.to_s.strip
+      return nil if v.blank? || v.match?(/\A(https?:\/\/)?(www\.)?(example\.(com|org|net)|test\.|localhost|placeholder)/i)
+
+      v
     end
 
     def goals_framing_sentence

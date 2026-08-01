@@ -15,7 +15,7 @@
           <span class="line <%= cat %>" style="width:<%= pct %>%"></span>
           <span class="dot <%= cat %>" style="left:<%= pct %>%"></span>
         </span>
-        <span class="val"><%= format("%.2f", signal["strength"].to_f) %></span>
+        <span class="val" title="<%= format("%.2f", signal["strength"].to_f) %>"><%= report_strength_label(signal["strength"]) %></span>
       </div>
     <% end %>
     <div class="caption"><%= h report_source_caption(company_name, version: report_version) %></div>
@@ -32,9 +32,12 @@
         <div class="meta"><%= h report_category_label(cat) %><% if depts.any? %> · <%= h depts.join(", ") %><% end %></div>
         <div class="st"><%= h signal["label"] %></div>
         <div class="strength"><i style="width:<%= pct %>%"></i></div>
-        <div class="meta">Strength <%= format("%.2f", signal["strength"].to_f) %></div>
-        <% if signal["evidence_count"].to_i.positive? %>
-          <p><%= signal["evidence_count"] %> supporting evidence item<%= "s" unless signal["evidence_count"].to_i == 1 %> across documents, interviews, and media.</p>
+        <div class="meta"><%= report_strength_label(signal["strength"]) %> strength <span class="muted">(<%= format("%.2f", signal["strength"].to_f) %>)</span></div>
+        <% ev = signal["evidence_count"].to_i %>
+        <% if excerpts.any? %>
+          <p>Seen in <%= ev.positive? ? ev : excerpts.size %> evidence point<%= "s" unless (ev.positive? ? ev : excerpts.size) == 1 %> across documents, interviews, and media.</p>
+        <% elsif ev.positive? %>
+          <p><%= ev %> supporting reference<%= "s" unless ev == 1 %> on record.</p>
         <% end %>
         <% if multimodal.any? %>
           <div class="meta" style="margin-top:2mm;">Also seen in: <%= h multimodal.join(", ") %></div>

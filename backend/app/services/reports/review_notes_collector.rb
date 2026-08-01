@@ -39,11 +39,28 @@ module Reports
 
     private
 
+    # Real reviewer credentials — the ex-consulting/PhD pedigree is the trust
+    # asset and must be surfaced, not a hardcoded "Expert reviewer".
+    def credential_for(review)
+      r = review.reviewer_user
+      parts = []
+      parts << r.headline.to_s.strip if r.respond_to?(:headline) && r.headline.present?
+      if parts.empty? && r.respond_to?(:years_experience) && r.years_experience.to_i.positive?
+        parts << "#{r.years_experience}+ years experience"
+      end
+      if r.respond_to?(:expertise_tags) && Array(r.expertise_tags).any?
+        parts << Array(r.expertise_tags).first(3).join(", ")
+      end
+      parts.reject(&:blank?).join(" · ").presence || "Independent expert reviewer"
+    end
+
     def notes_for(review)
+      credential = credential_for(review)
       notes = []
       if review.overall_note.present?
         notes << {
           "reviewer" => review.reviewer_user.name,
+          "reviewer_credential" => credential,
           "section_key" => nil,
           "body" => review.overall_note,
           "kind" => "overall_note",
@@ -57,6 +74,7 @@ module Reports
 
         notes << {
           "reviewer" => review.reviewer_user.name,
+          "reviewer_credential" => credential,
           "section_key" => comment.section_key,
           "body" => comment.body,
           "kind" => "section_comment",
@@ -83,9 +101,11 @@ module Reports
       return [] unless review.respond_to?(:report_review_findings)
       return [] unless ActiveRecord::Base.connection.data_source_exists?("report_review_findings")
 
+      credential = credential_for(review)
       review.report_review_findings.select(&:publishable?).map do |finding|
         {
           "reviewer" => review.reviewer_user.name,
+          "reviewer_credential" => credential,
           "kind" => finding.finding_type,
           "finding_type" => finding.finding_type,
           "title" => finding.try(:title).presence || finding.finding_type.to_s.humanize,

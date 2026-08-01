@@ -49,9 +49,25 @@ module ReportsHelper
     CATEGORY_BY_SIGNAL_TYPE.fetch(signal_type.to_s, "cat-process")
   end
 
-  def report_pattern_category_class(title)
-    digest = title.to_s.each_byte.sum
-    CATEGORY_CYCLE[digest % CATEGORY_CYCLE.size]
+  # Category from meaning, not a byte-hash of the title (which mislabeled
+  # "Approval bottleneck" as "Data"). Falls back to a stable default.
+  PATTERN_CATEGORY_KEYWORDS = {
+    "cat-people" => %w[approval sign-off handoff hand-off communication coordination escalation stakeholder manager],
+    "cat-tooling" => %w[tool system integration platform software erp crm spreadsheet legacy],
+    "cat-data" => %w[data report reconcil duplicate entry silo visibility tracking record],
+    "cat-process" => %w[process manual workflow bottleneck delay rework backlog cycle time step]
+  }.freeze
+
+  def report_pattern_category_class(title, signal_types: nil)
+    types = Array(signal_types).map(&:to_s)
+    mapped = types.filter_map { |t| CATEGORY_BY_SIGNAL_TYPE[t] }
+    return mapped.first if mapped.any?
+
+    t = title.to_s.downcase
+    PATTERN_CATEGORY_KEYWORDS.each do |css, words|
+      return css if words.any? { |w| t.include?(w) }
+    end
+    "cat-process"
   end
 
   def report_category_label(css_class)
@@ -62,8 +78,51 @@ module ReportsHelper
     CATEGORY_COLORS.fetch(css_class.to_s, "#1F40FF")
   end
 
-  def report_brand_footer(company_name)
-    "Worktruth · #{company_name} Discovery Report"
+  def report_brand_footer(company_name, snapshot = nil)
+    "Worktruth · #{company_name} #{report_kind_noun(snapshot || @_report_snapshot)} Report"
+  end
+
+  # "Baseline" for docs-only companies, "Discovery" once interviews contribute.
+  def report_kind_noun(snapshot)
+    kind = snapshot.is_a?(Hash) ? snapshot["report_kind"].to_s : ""
+    kind == "baseline" ? "Baseline" : "Discovery"
+  end
+
+  # Plain-language band for a 0..1 (or 0..100) score. Consulting readers want
+  # "High", not "0.58".
+  def report_score_band(value)
+    v = value.to_f
+    v /= 100.0 if v > 1.0
+    if v >= 0.66 then "High"
+    elsif v >= 0.4 then "Medium"
+    else "Low"
+    end
+  end
+  alias report_strength_label report_score_band
+  alias report_confidence_label report_score_band
+
+  # Placeholder/example domains must never reach a client deliverable.
+  PLACEHOLDER_URL_RE = /\A(https?:\/\/)?(www\.)?(example\.(com|org|net)|test\.|localhost|placeholder)/i
+  def report_placeholder_url?(url)
+    url.to_s.strip.match?(PLACEHOLDER_URL_RE)
+  end
+
+  # Strip internal match-debug fragments that leak into `why_it_fits`, e.g.
+  # "Match basis: tag_match:manual_process; keyword_match:manual".
+  def report_clean_reason(text)
+    s = text.to_s.dup
+    s = s.gsub(/match basis:.*?(?=(\.|\z))/i, "")
+    s = s.gsub(/\b(tag_match|keyword_match|semantic_match|required_system|already_in_stack)\s*:\s*\S+/i, "")
+    s = s.gsub(/[;,]\s*(?=[;,.]|\z)/, "").gsub(/\s{2,}/, " ").strip
+    s.sub(/\A[;,.\s]+/, "").presence
+  end
+
+  # Humanize a firmographic enum; hide non-informative catch-alls.
+  def report_industry_label(value)
+    v = value.to_s.strip
+    return nil if v.blank? || %w[other unknown n/a na none general].include?(v.downcase)
+
+    v.tr("_", " ").split.map(&:capitalize).join(" ")
   end
 
   def report_pct(value)
@@ -129,7 +188,11 @@ module ReportsHelper
         label: meta[:label],
         cat: meta[:cat],
         pct: pct,
-        display: pct
+        display: pct,
+        raw: raw.to_i,
+        target: meta[:target],
+        # Honest caption so an all-met breakdown doesn't read as a vanity 100%.
+        caption: "#{raw.to_i} of #{meta[:target]} target"
       }
     end
   end
@@ -243,22 +306,22 @@ module ReportsHelper
   end
   module_function :section_label
 
+  # Impact/feasibility matrix plotted from REAL per-recommendation scores that
+  # snapshot_builder derives from evidence weight and implementation effort.
+  # Returns "" when those scores are absent, so we never fabricate positions.
   def report_priority_matrix_svg(recommendations)
+    plottable = Array(recommendations).select do |rec|
+      rec["impact_score"].present? && rec["feasibility_score"].present?
+    end
+    return "".html_safe if plottable.empty?
+
     points = []
-    Array(recommendations).each_with_index do |rec, i|
-      pill = report_priority_pill(rec["priority"])
-      impact = case pill
-               when "high" then 80 - (i % 3) * 5
-               when "low" then 45
-               else 65 - (i % 3) * 4
-               end
-      feas = case pill
-             when "high" then 70 + (i % 3) * 5
-             when "low" then 55
-             else 60 + (i % 3) * 6
-             end
+    plottable.each do |rec|
+      impact = [[rec["impact_score"].to_f, 0.0].max, 1.0].min * 100
+      feas = [[rec["feasibility_score"].to_f, 0.0].max, 1.0].min * 100
       x = 40 + (feas / 100.0) * 320
       y = 300 - (impact / 100.0) * 260
+      pill = report_priority_pill(rec["priority"])
       color = { "high" => "#E6338A", "med" => "#00A9F4", "low" => "#8896A2" }[pill]
       label = rec["title"].to_s.split.first(2).join(" ")
       points << %(<circle cx="#{x.round}" cy="#{y.round}" r="7" fill="#{color}"/>)

@@ -16,7 +16,8 @@
           <div class="match"><%= h tool["category"] %><% if score_label %> · <%= h score_label %><% end %><% if tool["placement"] == "extends_stack" || tool["already_in_stack"] %> · Extends stack<% elsif tool["placement"] == "new_capability" %> · New capability<% end %></div>
           <h4><%= h tool["name"] %></h4>
           <% if tool["vendor"].present? %><p><%= h tool["vendor"] %></p><% end %>
-          <% if tool["reason"].present? %><p><%= h tool["reason"].to_s.truncate(220) %></p><% end %>
+          <% clean_reason = report_clean_reason(tool["reason"]) %>
+          <% if clean_reason.present? %><p><%= h clean_reason.truncate(220) %></p><% end %>
           <% if tool_endorsements.any? %>
             <% tool_endorsements.first(2).each do |en| %>
               <div class="endorsement-chip"><%= h en["disposition"].to_s.titleize %></div>

@@ -5,7 +5,7 @@
   <div class="meta-panel">
     <div class="logo">Worktruth<span>Workflow Discovery</span></div>
     <div>
-      <span class="tag">Discovery Report</span>
+      <span class="tag"><%= report_kind_noun(snapshot) %> Report</span>
       <h1><%= h company_name %></h1>
       <% if subtitle.present? %>
         <div class="sub"><%= h subtitle.truncate(120) %></div>
