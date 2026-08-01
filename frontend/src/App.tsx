@@ -38,6 +38,7 @@ import { ReviewerDocumentAnalysis } from './portals/reviewer/ReviewerDocumentAna
 import { CompanyMediaLibrary } from './portals/company/CompanyMediaLibrary';
 import { CompanyDiscoveryQuestions } from './portals/company/CompanyDiscoveryQuestions';
 import { CompanyReports } from './portals/company/CompanyReports';
+import { CompanyOwnedSolutions } from './portals/company/CompanyOwnedSolutions';
 import { CompanyReviewersPage } from './portals/company/CompanyReviewersPage';
 import { CompanySettings } from './portals/company/CompanySettings';
 import { CompanyBilling } from './portals/company/CompanyBilling';
@@ -182,6 +183,7 @@ export default function App() {
               <Route path="media" element={<CompanyMediaLibrary />} />
               <Route path="discovery-questions" element={<CompanyDiscoveryQuestions />} />
               <Route path="recommendations" element={<Navigate to="/company/intelligence#recommendations" replace />} />
+              <Route path="owned-solutions" element={<CompanyOwnedSolutions />} />
               <Route path="reports" element={<CompanyReports />} />
               <Route path="reviewers" element={<CompanyReviewersPage />} />
               <Route path="settings" element={<CompanySettings />} />

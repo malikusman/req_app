@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_02_130000) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_02_140000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -333,7 +333,14 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_02_130000) do
     t.text "notes"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "kind", default: "system", null: false
+    t.text "description"
+    t.text "capabilities"
+    t.boolean "reviewer_endorsed", default: false, null: false
+    t.text "reviewer_note"
+    t.bigint "reviewer_user_id"
     t.index ["company_id", "active"], name: "index_company_systems_on_company_id_and_active"
+    t.index ["company_id", "kind"], name: "index_company_systems_on_company_id_and_kind"
     t.index ["company_id", "normalized_name"], name: "index_company_systems_on_company_id_and_normalized_name", unique: true
     t.index ["company_id"], name: "index_company_systems_on_company_id"
   end
@@ -1246,6 +1253,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_02_130000) do
   add_foreign_key "company_registrations", "platform_users", column: "reviewed_by_platform_user_id"
   add_foreign_key "company_signals", "companies"
   add_foreign_key "company_systems", "companies"
+  add_foreign_key "company_systems", "reviewer_users"
   add_foreign_key "company_users", "companies"
   add_foreign_key "company_users", "company_users", column: "invited_by_id"
   add_foreign_key "conversation_insights", "companies"

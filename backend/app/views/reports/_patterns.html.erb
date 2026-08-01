@@ -1,9 +1,18 @@
 <% company_name = snapshot.dig("company", "name") %>
 <% implications = Array(snapshot["implications"]) %>
+<% heatmap = report_department_heatmap_svg(snapshot["signals"]) %>
 <section class="page">
   <div class="eyebrow">06 — Patterns</div>
   <h1 style="font-size:28pt;margin:4mm 0 3mm;">Cross-team themes</h1>
   <p class="lead" style="max-width:200mm;">Each pattern connects several signals across departments. Confidence reflects how consistently the theme appeared across documents, interviews, and evidence.</p>
+  <% if heatmap.present? %>
+    <div class="exhibit" style="margin:4mm 0;">
+      <div class="exlabel">Exhibit · Friction intensity by department</div>
+      <h3>Where each type of friction concentrates.</h3>
+      <%= heatmap %>
+      <div class="caption">Colour intensity reflects summed signal strength per department and category. <%= h report_source_caption(company_name, version: report_version) %></div>
+    </div>
+  <% end %>
   <div class="patterns-3">
     <% Array(patterns).each do |pattern| %>
       <% cat = report_pattern_category_class(pattern["title"], signal_types: pattern["linked_signal_types"]) %>

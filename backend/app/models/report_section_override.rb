@@ -12,7 +12,7 @@ class ReportSectionOverride < ApplicationRecord
   BUILT_IN_SECTIONS = %w[
     executive_summary readiness company_context participation delta
     signals patterns implications recommendations roadmap opportunities
-    tools_catalog supporting_media methodology
+    owned_capabilities tools_catalog supporting_media methodology
   ].freeze
 
   belongs_to :report

@@ -223,6 +223,7 @@ module ReportsHelper
     "What changed" => "delta", "Signals" => "signals", "Patterns" => "patterns",
     "Implications" => "patterns", "Recommendations" => "recommendations",
     "Roadmap" => "roadmap", "Opportunities" => "opportunities",
+    "Existing capabilities" => "owned_capabilities",
     "Capabilities & evidence" => "tools_catalog", "Supporting media" => "supporting_media",
     "Methodology" => "methodology"
   }.freeze
@@ -260,6 +261,7 @@ module ReportsHelper
     add.call("Recommendations", "Prioritized actions, catalog-matched", "rule-blue") if Array(snapshot["recommendations"]).any?
     add.call("Roadmap", "Sequenced now / next / later", "rule-blue") if snapshot.dig("narrative", "roadmap").present?
     add.call("Opportunities", "Published agentic ideas for this company", "rule-blue") if Array(snapshot["agentic_ideas"]).any?
+    add.call("Existing capabilities", "Owned solutions and their fit", "rule-teal") if Array(snapshot["owned_solutions"]).any?
     if Array(snapshot.dig("tools_catalog", "curated_matches")).any? || Array(snapshot["supporting_documents"]).any?
       add.call("Capabilities & evidence", "Catalog matches and supporting documents", "rule-teal")
     end
@@ -343,6 +345,52 @@ module ReportsHelper
   # Impact/feasibility matrix plotted from REAL per-recommendation scores that
   # snapshot_builder derives from evidence weight and implementation effort.
   # Returns "" when those scores are absent, so we never fabricate positions.
+  # Department × friction-category heatmap, built from real signal data
+  # (departments each signal touches, weighted by strength). Returns "" when
+  # there isn't enough dimensional data to be meaningful.
+  def report_department_heatmap_svg(signals)
+    rows = {} # dept => { category => summed strength }
+    Array(signals).each do |s|
+      cat = report_category_class(s["signal_type"])
+      strength = s["strength"].to_f
+      strength /= 100.0 if strength > 1.0
+      Array(s["departments"]).reject(&:blank?).each do |dept|
+        rows[dept] ||= Hash.new(0.0)
+        rows[dept][cat] += strength
+      end
+    end
+    return "".html_safe if rows.size < 2
+
+    cats = CATEGORY_CYCLE
+    max = rows.values.flat_map(&:values).max.to_f
+    max = 1.0 if max <= 0
+
+    cell = 46
+    left = 130
+    top = 30
+    width = left + cats.size * cell + 20
+    height = top + rows.size * cell + 30
+
+    svg = +%(<svg viewBox="0 0 #{width} #{height}" width="100%" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">)
+    cats.each_with_index do |cat, ci|
+      x = left + ci * cell + cell / 2
+      svg << %(<text x="#{x}" y="#{top - 10}" text-anchor="middle" font-size="8" fill="#5A6B78" font-family="Inter">#{report_category_label(cat)}</text>)
+    end
+    rows.each_with_index do |(dept, catmap), ri|
+      y = top + ri * cell
+      svg << %(<text x="#{left - 8}" y="#{y + cell / 2 + 3}" text-anchor="end" font-size="8" fill="#051C2C" font-family="Inter">#{ERB::Util.html_escape(dept.to_s.truncate(16))}</text>)
+      cats.each_with_index do |cat, ci|
+        x = left + ci * cell
+        intensity = (catmap[cat] / max).clamp(0.0, 1.0)
+        opacity = (0.08 + intensity * 0.9).round(2)
+        color = report_category_color(cat)
+        svg << %(<rect x="#{x}" y="#{y}" width="#{cell - 4}" height="#{cell - 4}" rx="3" fill="#{color}" fill-opacity="#{opacity}"/>)
+      end
+    end
+    svg << "</svg>"
+    svg.html_safe
+  end
+
   def report_priority_matrix_svg(recommendations)
     plottable = Array(recommendations).select do |rec|
       rec["impact_score"].present? && rec["feasibility_score"].present?

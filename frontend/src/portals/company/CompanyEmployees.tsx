@@ -412,7 +412,11 @@ export function CompanyEmployees() {
         )}
       </Modal>
 
-      <EmployeeDigestModal employee={digestEmployee} onClose={() => setDigestEmployee(null)} />
+      <EmployeeDigestModal
+        employee={digestEmployee}
+        open={digestEmployee !== null}
+        onClose={() => setDigestEmployee(null)}
+      />
     </div>
   );
 }

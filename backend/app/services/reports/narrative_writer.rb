@@ -51,6 +51,7 @@ module Reports
         "patterns" => Array(@snapshot["patterns"]).first(8).map { |p| p.slice("title", "description", "confidence", "departments", "linked_signal_labels") },
         "recommendations" => Array(@snapshot["recommendations"]).map { |r| r.slice("title", "description", "priority", "impact_score", "feasibility_score") },
         "client_stack" => Array(@snapshot["client_stack"]).map { |s| s["name"] }.compact,
+        "owned_solutions" => Array(@snapshot["owned_solutions"]).map { |s| s.slice("name", "description", "addresses_signals") },
         "document_count" => Array(@snapshot["supporting_documents"]).size
       }
     end

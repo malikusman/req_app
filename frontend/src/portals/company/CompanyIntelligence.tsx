@@ -343,7 +343,7 @@ export function CompanyIntelligence() {
                     events={(tab === 'overview' ? events.slice(0, 5) : events).map((e, i) => ({
                       id: String(e.id ?? i),
                       title: e.title,
-                      summary: e.summary,
+                      summary: e.summary ?? undefined,
                       occurredAt: e.occurred_at,
                     }))}
                   />
