@@ -17,6 +17,13 @@ RSpec.describe Reports::NarrativeWriter do
     }
   end
 
+  # The suite disables the narrative by default (see spec/support/report_narrative.rb);
+  # these examples opt back in.
+  before do
+    allow(ENV).to receive(:fetch).and_call_original
+    allow(ENV).to receive(:fetch).with("AI_REPORT_NARRATIVE", "true").and_return("true")
+  end
+
   def stub_client(configured:, payload: nil)
     client = instance_double(Openai::Client, configured?: configured)
     allow(client).to receive(:report_narrative).and_return(payload) if payload
