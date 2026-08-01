@@ -8,25 +8,43 @@
 <% docs_first = snapshot["docs_first_phase"] == true || snapshot["report_kind"].to_s == "baseline" %>
 <% doc_count = Array(snapshot["supporting_documents"]).size %>
 <% situation = snapshot["situation"].is_a?(Hash) ? snapshot["situation"] : {} %>
+<% narrative = snapshot["narrative"].is_a?(Hash) ? snapshot["narrative"] : {} %>
 <% summary = snapshot["executive_summary"].to_s %>
 <% paragraphs = summary.split(/(?<=\.)\s+/).reject(&:blank?) %>
 <% paragraphs = [summary] if paragraphs.empty? && summary.present? %>
+<% support = Array(narrative["supporting_points"]).reject(&:blank?) %>
 <section class="page">
   <div class="eyebrow">01 — Executive summary</div>
   <h1 style="font-size:32pt;margin:4mm 0 6mm;">The story <span class="serif-accent">in one read</span></h1>
-  <% if situation["headline"].present? %>
-    <p class="lead" style="max-width:220mm;margin-bottom:4mm;"><strong><%= h situation["headline"] %>.</strong> <%= h situation["context"] %></p>
-  <% end %>
-  <div class="cols-3">
-    <% paragraphs.first(3).each_with_index do |para, i| %>
-      <p class="<%= i.zero? ? 'dropcap' : '' %>"><%= h para %></p>
+  <% if narrative["governing_thought"].present? %>
+    <%# Pyramid: answer-first governing thought, then evidence-backed support. %>
+    <p class="lead" style="max-width:220mm;margin-bottom:4mm;"><strong><%= h narrative["governing_thought"] %></strong></p>
+    <div class="cols-3">
+      <p class="dropcap"><%= h narrative["executive_summary"] %></p>
+      <% if support.any? %>
+        <ul class="plain" style="padding-left:4mm;">
+          <% support.first(3).each do |pt| %><li><%= h pt %></li><% end %>
+        </ul>
+      <% end %>
+      <% if narrative["stakes"].present? %>
+        <p><strong>What's at stake:</strong> <%= h narrative["stakes"] %></p>
+      <% end %>
+    </div>
+  <% else %>
+    <% if situation["headline"].present? %>
+      <p class="lead" style="max-width:220mm;margin-bottom:4mm;"><strong><%= h situation["headline"] %>.</strong> <%= h situation["context"] %></p>
     <% end %>
-  </div>
-  <% if Array(situation["focus_areas"]).any? %>
-    <p class="method" style="margin-top:5mm;">Focus areas: <%= h Array(situation["focus_areas"]).first(4).join(" · ") %></p>
-  <% end %>
-  <% if situation["ask"].present? %>
-    <p class="method"><%= h situation["ask"] %></p>
+    <div class="cols-3">
+      <% paragraphs.first(3).each_with_index do |para, i| %>
+        <p class="<%= i.zero? ? 'dropcap' : '' %>"><%= h para %></p>
+      <% end %>
+    </div>
+    <% if Array(situation["focus_areas"]).any? %>
+      <p class="method" style="margin-top:5mm;">Focus areas: <%= h Array(situation["focus_areas"]).first(4).join(" · ") %></p>
+    <% end %>
+    <% if situation["ask"].present? %>
+      <p class="method"><%= h situation["ask"] %></p>
+    <% end %>
   <% end %>
   <div class="stat-row" style="margin-top:10mm;">
     <div class="stat"><div class="num"><%= readiness_score %></div><div class="lab">Readiness score, out of 100</div></div>

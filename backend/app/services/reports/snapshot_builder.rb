@@ -15,6 +15,14 @@ module Reports
       docs_first = docs_oriented?
       intel = Intelligence::SnapshotBuilder.call(company: @company)
 
+      snapshot = base_snapshot(docs_first, intel)
+      apply_narrative!(snapshot)
+      snapshot
+    end
+
+    private
+
+    def base_snapshot(docs_first, intel)
       {
         "generated_at" => Time.current.iso8601,
         "report_kind" => docs_first ? "baseline" : "discovery",
@@ -48,11 +56,33 @@ module Reports
         "knowledge_base" => knowledge_base_json,
         "client_stack" => client_stack_json,
         "tools_catalog" => tools_catalog_json,
-        "agentic_ideas" => agentic_ideas_json
+        "agentic_ideas" => agentic_ideas_json,
+        "narrative" => nil
       }
     end
 
-    private
+    # Enrich the deterministic snapshot with an LLM-written narrative when
+    # available. The deterministic prose stays as the honest fallback and as the
+    # source the writer is grounded on.
+    def apply_narrative!(snapshot)
+      narrative = NarrativeWriter.call(company: @company, snapshot: snapshot)
+      return unless narrative
+
+      snapshot["narrative"] = narrative
+
+      # Cover subtitle / one-read summary prefer the pyramid governing thought.
+      if narrative["executive_summary"].present?
+        snapshot["executive_summary"] = narrative["executive_summary"]
+      end
+
+      # Override each implication's "so what" with the LLM statement when it
+      # clearly maps to the same pattern; otherwise keep the deterministic one.
+      statements = narrative["implications"].to_h { |i| [i["pattern_title"].to_s.downcase, i["statement"]] }
+      Array(snapshot["implications"]).each do |imp|
+        match = statements[imp["title"].to_s.downcase]
+        imp["statement"] = match if match.present?
+      end
+    end
 
     # Documents-mode companies stay docs-oriented even if a contact was seeded for Q&A.
     def docs_oriented?

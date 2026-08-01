@@ -158,6 +158,55 @@ module Openai
       normalize_image_insights("summary" => content.to_s.truncate(500))
     end
 
+    # Consulting-grade report narrative, grounded strictly in the supplied
+    # evidence context. Returns parsed JSON or raises; callers fall back to
+    # deterministic prose. Works with local OpenAI-compatible models (Gemma via
+    # LM Studio/Ollama) through OPENAI_BASE_URL + a dummy OPENAI_API_KEY.
+    def report_narrative(context:, language: "en")
+      ensure_configured_or_mock!("OpenAI")
+      return mock_report_narrative unless configured?
+
+      body = {
+        model: ENV.fetch("REPORT_MODEL", ENV.fetch("OPENAI_MODEL", "gpt-4o-mini")),
+        messages: [
+          {
+            role: "system",
+            content: <<~SYS
+              You are a senior management consultant (McKinsey/BCG style) writing for the
+              leadership of a small or mid-sized business. Write in #{language}.
+              STRICT RULES:
+              - Use ONLY the evidence in the context. Never invent facts, company names,
+                tools, numbers, currencies, or percentages that are not present.
+              - Do NOT fabricate ROI or savings figures. Express cost-of-inaction
+                qualitatively (e.g. "compounding delay", "rising rework") unless a real
+                number is in the context.
+              - Follow the pyramid principle: lead with the answer, then support it.
+              - Be concise, concrete, and decision-oriented. No filler, no hype.
+              Respond as JSON only with this shape:
+              {
+                "governing_thought": "one-sentence answer-first thesis",
+                "executive_summary": "3-4 sentence summary a CEO can act on",
+                "supporting_points": ["3 short, evidence-backed points"],
+                "stakes": "1-2 sentence, hedged cost of inaction",
+                "implications": [{"pattern_title": "...", "statement": "so-what for this pattern"}],
+                "roadmap": {
+                  "now": [{"title": "...", "rationale": "why first / quick win"}],
+                  "next": [{"title": "...", "rationale": "..."}],
+                  "later": [{"title": "...", "rationale": "..."}]
+                }
+              }
+            SYS
+          },
+          {
+            role: "user",
+            content: "Evidence context (JSON):\n#{context.to_json.truncate(12_000)}"
+          }
+        ],
+        max_tokens: chat_max_tokens(1800)
+      }
+      parse_model_json(chat_json_content(body))
+    end
+
     def understand_document_structured(text:, language: "en")
       ensure_configured_or_mock!("OpenAI")
       return mock_document_structured(text, language) unless configured?
@@ -512,6 +561,27 @@ module Openai
 
     def mock_document_structured(text, language)
       mock_document_summary(text, language)
+    end
+
+    # Dev-only placeholder; NarrativeWriter only calls the model when configured,
+    # so this never runs in production without a key.
+    def mock_report_narrative
+      {
+        "governing_thought" => "Manual, approval-heavy workflows are the primary drag on throughput.",
+        "executive_summary" => "The evidence points to recurring manual effort and approval delays as the main friction. Addressing the highest-strength signals first will free capacity without new headcount.",
+        "supporting_points" => [
+          "Manual data entry recurs across teams.",
+          "Approvals introduce repeated multi-day waits.",
+          "Existing tools are underused rather than missing."
+        ],
+        "stakes" => "Left unaddressed, these frictions compound as volume grows.",
+        "implications" => [],
+        "roadmap" => {
+          "now" => [{ "title" => "Standardize the highest-friction approval", "rationale" => "Quick win with broad impact." }],
+          "next" => [{ "title" => "Automate repeated data entry", "rationale" => "Builds on the quick win." }],
+          "later" => [{ "title" => "Consolidate tooling", "rationale" => "Structural, once quick wins land." }]
+        }
+      }
     end
 
     def mock_scanned_pdf_text(language)

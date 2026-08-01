@@ -69,6 +69,10 @@
   <%= render "reports/recommendations", snapshot: snapshot, recommendations: recommendations, report_version: report_version %>
 <% end %>
 
+<% if snapshot.dig("narrative", "roadmap").present? %>
+  <%= render "reports/roadmap", snapshot: snapshot, report_version: report_version %>
+<% end %>
+
 <% if Array(snapshot["agentic_ideas"]).any? %>
   <%= render "reports/opportunities", snapshot: snapshot, report_version: report_version %>
 <% end %>
