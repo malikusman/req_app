@@ -315,11 +315,13 @@ module Openai
     end
 
     def chat_base_url
-      ENV.fetch("OPENAI_BASE_URL", DEFAULT_CHAT_BASE).to_s.chomp("/")
+      # Treat a present-but-blank env (docker-compose passes `${OPENAI_BASE_URL:-}`)
+      # as unset, so the OpenAI default is used instead of an invalid "" URL.
+      (ENV["OPENAI_BASE_URL"].presence || DEFAULT_CHAT_BASE).chomp("/")
     end
 
     def embedding_base_url
-      ENV.fetch("EMBEDDING_BASE_URL", chat_base_url).to_s.chomp("/")
+      (ENV["EMBEDDING_BASE_URL"].presence || chat_base_url).chomp("/")
     end
 
     def embedding_model
