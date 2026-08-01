@@ -20,8 +20,12 @@ module Reports
       overlay = collector.respond_to?(:overlay) ? collector.overlay : nil
       review_notes = overlay ? overlay["notes"] : collector.call
 
+      # Apply reviewer editorial overrides (hide / edit / add sections) to a copy
+      # of the stored snapshot — the persisted snapshot is untouched.
+      snapshot = SectionOverridesApplier.call(snapshot: @report.report_snapshot, report: @report)
+
       html = HtmlBuilder.call(
-        snapshot: @report.report_snapshot,
+        snapshot: snapshot,
         review_notes: review_notes,
         review_overlay: overlay,
         report_version: @report.version

@@ -19,27 +19,49 @@
 <%= render "reports/cover", snapshot: snapshot, generated_label: generated_label, report_version: report_version %>
 <%= render "reports/contents", snapshot: snapshot, toc_entries: toc_entries %>
 
-<% if snapshot["executive_summary"].present? %>
-  <%= render "reports/executive_summary", snapshot: snapshot, report_version: report_version %>
-<% end %>
+<%# Helper: render a reviewer edit-note (if any) before a section, and any custom
+    sections a reviewer anchored after it. %>
+<% edit_note = ->(key) { (ed = report_section_edit(snapshot, key)) ? render("reports/section_edit_note", edit: ed) : nil } %>
+<% custom_after = ->(key) { report_custom_sections(snapshot, after: key).map { |cs| render("reports/custom_section", snapshot: snapshot, section: cs) }.join.html_safe } %>
 
-<% if snapshot.dig("readiness", "score").present? %>
-  <%= render "reports/readiness", snapshot: snapshot, report_version: report_version %>
+<% unless report_section_hidden?(snapshot, "executive_summary") %>
+  <% if snapshot["executive_summary"].present? %>
+    <%= edit_note.call("executive_summary") %>
+    <%= render "reports/executive_summary", snapshot: snapshot, report_version: report_version %>
+  <% end %>
 <% end %>
+<%= custom_after.call("executive_summary") %>
 
-<%= render "reports/company_context", snapshot: snapshot, report_version: report_version %>
+<% unless report_section_hidden?(snapshot, "readiness") %>
+  <% if snapshot.dig("readiness", "score").present? %>
+    <%= edit_note.call("readiness") %>
+    <%= render "reports/readiness", snapshot: snapshot, report_version: report_version %>
+  <% end %>
+<% end %>
+<%= custom_after.call("readiness") %>
+
+<% unless report_section_hidden?(snapshot, "company_context") %>
+  <%= edit_note.call("company_context") %>
+  <%= render "reports/company_context", snapshot: snapshot, report_version: report_version %>
+<% end %>
+<%= custom_after.call("company_context") %>
 
 <% participation = snapshot["participation"] || {} %>
-<% if participation["invited"].to_i.positive? || participation["completed"].to_i.positive? %>
-  <%= render "reports/participation", snapshot: snapshot, report_version: report_version %>
+<% unless report_section_hidden?(snapshot, "participation") %>
+  <% if participation["invited"].to_i.positive? || participation["completed"].to_i.positive? %>
+    <%= edit_note.call("participation") %>
+    <%= render "reports/participation", snapshot: snapshot, report_version: report_version %>
+  <% end %>
 <% end %>
+<%= custom_after.call("participation") %>
 
-<% if report_has_delta?(delta) && recommendations.empty? %>
+<% if report_has_delta?(delta) && recommendations.empty? && !report_section_hidden?(snapshot, "delta") %>
   <%= render "reports/delta", snapshot: snapshot, report_version: report_version %>
 <% end %>
 
 <% docs_first = snapshot["docs_first_phase"] == true || snapshot["report_kind"].to_s == "baseline" %>
-<% if signals.any? %>
+<% if signals.any? && !report_section_hidden?(snapshot, "signals") %>
+  <%= edit_note.call("signals") %>
   <%= render "reports/divider",
         accent_label: "Signals & Patterns",
         accent_bg: "var(--magenta)",
@@ -60,32 +82,46 @@
   <% quote = excerpt.presence || "The strongest recurring theme is #{top&.dig('label') || 'operational friction'} across teams." %>
   <%= render "reports/pull_quote", snapshot: snapshot, quote: quote, accent_phrase: top&.dig("label") %>
 <% end %>
+<%= custom_after.call("signals") %>
 
-<% if patterns.any? %>
+<% if patterns.any? && !report_section_hidden?(snapshot, "patterns") %>
+  <%= edit_note.call("patterns") %>
   <%= render "reports/patterns", snapshot: snapshot, patterns: patterns, report_version: report_version %>
 <% end %>
+<%= custom_after.call("patterns") %>
 
-<% if recommendations.any? %>
+<% if recommendations.any? && !report_section_hidden?(snapshot, "recommendations") %>
+  <%= edit_note.call("recommendations") %>
   <%= render "reports/recommendations", snapshot: snapshot, recommendations: recommendations, report_version: report_version %>
 <% end %>
+<%= custom_after.call("recommendations") %>
 
-<% if snapshot.dig("narrative", "roadmap").present? %>
+<% if snapshot.dig("narrative", "roadmap").present? && !report_section_hidden?(snapshot, "roadmap") %>
+  <%= edit_note.call("roadmap") %>
   <%= render "reports/roadmap", snapshot: snapshot, report_version: report_version %>
 <% end %>
+<%= custom_after.call("roadmap") %>
 
-<% if Array(snapshot["agentic_ideas"]).any? %>
+<% if Array(snapshot["agentic_ideas"]).any? && !report_section_hidden?(snapshot, "opportunities") %>
   <%= render "reports/opportunities", snapshot: snapshot, report_version: report_version %>
 <% end %>
+<%= custom_after.call("opportunities") %>
 
-<% if Array(snapshot.dig("tools_catalog", "curated_matches")).any? || Array(snapshot.dig("tools_catalog", "endorsements")).any? || Array(snapshot["supporting_documents"]).any? %>
+<% if (Array(snapshot.dig("tools_catalog", "curated_matches")).any? || Array(snapshot.dig("tools_catalog", "endorsements")).any? || Array(snapshot["supporting_documents"]).any?) && !report_section_hidden?(snapshot, "tools_catalog") %>
+  <%= edit_note.call("tools_catalog") %>
   <%= render "reports/tools_catalog", snapshot: snapshot, report_version: report_version %>
 <% end %>
+<%= custom_after.call("tools_catalog") %>
 
-<% if supporting_media.any? %>
+<% if supporting_media.any? && !report_section_hidden?(snapshot, "supporting_media") %>
   <%= render "reports/supporting_media", snapshot: snapshot, supporting_media: supporting_media, report_version: report_version %>
 <% end %>
+<%= custom_after.call("supporting_media") %>
 
-<%= render "reports/methodology", snapshot: snapshot, report_version: report_version %>
+<% unless report_section_hidden?(snapshot, "methodology") %>
+  <%= render "reports/methodology", snapshot: snapshot, report_version: report_version %>
+<% end %>
+<%= custom_after.call("methodology") %>
 
 <% review_overlay = local_assigns.fetch(:review_overlay, nil) %>
 <% structured_findings = local_assigns.fetch(:structured_findings) { Array(review_overlay&.dig("structured_findings")) } %>

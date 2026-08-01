@@ -118,6 +118,7 @@ Rails.application.routes.draw do
               get :download
               get :workspace, to: "review_workspace#show"
             end
+            resources :section_overrides, only: %i[index create update destroy], controller: "report_section_overrides"
             resources :discussions, only: %i[index create], controller: "review_discussions" do
               member do
                 post :reply

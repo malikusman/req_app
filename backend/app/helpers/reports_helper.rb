@@ -36,6 +36,24 @@ module ReportsHelper
     "document_departments" => { label: "Document departments", cat: "cat-tooling", target: 1 }
   }.freeze
 
+  # --- Reviewer section overrides (applied at regenerate time) ---
+  def report_section_hidden?(snapshot, key)
+    Array(snapshot.dig("section_overrides", "hidden")).include?(key.to_s)
+  end
+
+  def report_section_edit(snapshot, key)
+    edits = snapshot.dig("section_overrides", "edits")
+    edits.is_a?(Hash) ? edits[key.to_s] : nil
+  end
+
+  # Custom sections a reviewer added, anchored after a given built-in section
+  # (or, when anchor is blank, only when `anchor` itself is nil — i.e. trailing).
+  def report_custom_sections(snapshot, after: nil)
+    Array(snapshot.dig("section_overrides", "custom")).select do |c|
+      c["anchor_section"].presence == after
+    end.sort_by { |c| c["position"].to_i }
+  end
+
   def report_reset_page!
     @_report_page = 0
   end
@@ -197,10 +215,25 @@ module ReportsHelper
     end
   end
 
+  # Maps a TOC title to the section_key a reviewer can hide, so a hidden section
+  # drops out of the contents page too.
+  TOC_TITLE_TO_KEY = {
+    "Executive summary" => "executive_summary", "Readiness" => "readiness",
+    "Company context" => "company_context", "Participation" => "participation",
+    "What changed" => "delta", "Signals" => "signals", "Patterns" => "patterns",
+    "Implications" => "patterns", "Recommendations" => "recommendations",
+    "Roadmap" => "roadmap", "Opportunities" => "opportunities",
+    "Capabilities & evidence" => "tools_catalog", "Supporting media" => "supporting_media",
+    "Methodology" => "methodology"
+  }.freeze
+
   def report_toc_entries(snapshot)
     entries = []
     n = 0
     add = lambda do |title, description, rule|
+      key = TOC_TITLE_TO_KEY[title]
+      next if key && report_section_hidden?(snapshot, key)
+
       n += 1
       entries << { n: format("%02d", n), title: title, description: description, rule: rule }
     end

@@ -1210,6 +1210,45 @@ export const api = {
       token
     ),
 
+  reviewerSectionOverrides: (token: string, companyId: number, reportId: number) =>
+    request<{ built_in_sections: string[]; overrides: ReportSectionOverride[] }>(
+      `/api/v1/reviewer/companies/${companyId}/reports/${reportId}/section_overrides`,
+      {},
+      token
+    ),
+
+  createReviewerSectionOverride: (
+    token: string,
+    companyId: number,
+    reportId: number,
+    payload: SectionOverrideInput
+  ) =>
+    request<{ override: ReportSectionOverride }>(
+      `/api/v1/reviewer/companies/${companyId}/reports/${reportId}/section_overrides`,
+      { method: 'POST', body: JSON.stringify({ section_override: payload }) },
+      token
+    ),
+
+  updateReviewerSectionOverride: (
+    token: string,
+    companyId: number,
+    reportId: number,
+    id: number,
+    payload: SectionOverrideInput
+  ) =>
+    request<{ override: ReportSectionOverride }>(
+      `/api/v1/reviewer/companies/${companyId}/reports/${reportId}/section_overrides/${id}`,
+      { method: 'PATCH', body: JSON.stringify({ section_override: payload }) },
+      token
+    ),
+
+  deleteReviewerSectionOverride: (token: string, companyId: number, reportId: number, id: number) =>
+    request<void>(
+      `/api/v1/reviewer/companies/${companyId}/reports/${reportId}/section_overrides/${id}`,
+      { method: 'DELETE' },
+      token
+    ),
+
   addReviewComment: (token: string, companyId: number, reportId: number, comment: { section_key: string; body: string }) =>
     request<{ comment: ReviewCommentPayload }>(
       `/api/v1/reviewer/companies/${companyId}/reports/${reportId}/review/comments`,
@@ -1530,6 +1569,31 @@ export interface ReviewCommentPayload {
   reviewer_user_id: number;
   reviewer_name?: string;
   created_at?: string;
+}
+
+export type SectionOverrideAction = 'hide' | 'edit' | 'add';
+
+export interface ReportSectionOverride {
+  id: number;
+  action: SectionOverrideAction;
+  section_key: string | null;
+  anchor_section: string | null;
+  title: string | null;
+  body: string | null;
+  position: number;
+  published: boolean;
+  reviewer_name: string | null;
+  editable: boolean;
+}
+
+export interface SectionOverrideInput {
+  action: SectionOverrideAction;
+  section_key?: string | null;
+  anchor_section?: string | null;
+  title?: string | null;
+  body?: string | null;
+  position?: number;
+  published?: boolean;
 }
 
 export interface ReviewerReviewSyncPayload {

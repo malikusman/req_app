@@ -6,6 +6,7 @@ class Report < ApplicationRecord
   belongs_to :reviewed_by_platform_user, class_name: "PlatformUser", optional: true
   has_many :report_share_accesses, dependent: :destroy
   has_many :report_reviews, dependent: :destroy
+  has_many :report_section_overrides, dependent: :destroy
   has_many :review_discussions, dependent: :destroy
 
   STATUSES = %w[queued generating ready failed].freeze

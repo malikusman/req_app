@@ -1,0 +1,7 @@
+<section class="page">
+  <div class="eyebrow">Reviewer note<% if edit["reviewer"].present? %> · <%= h edit["reviewer"] %><% end %></div>
+  <% if edit["title"].present? %>
+    <h1 style="font-size:24pt;margin:4mm 0 3mm;"><%= h edit["title"] %></h1>
+  <% end %>
+  <div class="lead" style="max-width:200mm;white-space:pre-wrap;border-left:3px solid var(--magenta);padding-left:5mm;"><%= h edit["body"] %></div>
+</section>

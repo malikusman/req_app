@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_01_120000) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_02_130000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -898,6 +898,24 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_01_120000) do
     t.index ["reviewer_user_id"], name: "index_report_reviews_on_reviewer_user_id"
   end
 
+  create_table "report_section_overrides", force: :cascade do |t|
+    t.bigint "report_id", null: false
+    t.bigint "reviewer_user_id", null: false
+    t.string "action", null: false
+    t.string "section_key"
+    t.string "anchor_section"
+    t.string "title"
+    t.text "body"
+    t.integer "position", default: 0, null: false
+    t.boolean "published", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["report_id", "action"], name: "index_report_section_overrides_on_report_id_and_action"
+    t.index ["report_id", "section_key"], name: "index_report_section_overrides_on_report_id_and_section_key"
+    t.index ["report_id"], name: "index_report_section_overrides_on_report_id"
+    t.index ["reviewer_user_id"], name: "index_report_section_overrides_on_reviewer_user_id"
+  end
+
   create_table "report_share_accesses", force: :cascade do |t|
     t.bigint "report_id", null: false
     t.string "share_token", null: false
@@ -1290,6 +1308,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_01_120000) do
   add_foreign_key "report_reviews", "companies"
   add_foreign_key "report_reviews", "reports"
   add_foreign_key "report_reviews", "reviewer_users"
+  add_foreign_key "report_section_overrides", "reports"
+  add_foreign_key "report_section_overrides", "reviewer_users"
   add_foreign_key "report_share_accesses", "reports"
   add_foreign_key "reports", "companies"
   add_foreign_key "reports", "platform_users", column: "reviewed_by_platform_user_id"

@@ -11,6 +11,7 @@ import { ReviewerChatDrawer } from './ReviewerChatDrawer';
 import { ReviewerEmployeeProfileCard } from './ReviewerEmployeeProfileCard';
 import { ReviewerPdfDrawer } from './ReviewerPdfDrawer';
 import { ReviewerSectionContent } from './ReviewerSectionContent';
+import { ReviewerSectionEditorPanel } from './ReviewerSectionEditorPanel';
 import { ReviewerSharedFindingsPanel } from './ReviewerSharedFindingsPanel';
 import { ReviewerStructuredFindingsPanel } from './ReviewerStructuredFindingsPanel';
 import { ReviewerTranscriptPanel } from './ReviewerTranscriptPanel';
@@ -831,6 +832,14 @@ export function ReviewerReportWorkspace() {
                   emptyMessage="No questions on this section yet. Use + to ask a co-reviewer or employee."
                 />
               </Card>
+              {token && companyId && reportId && (
+                <ReviewerSectionEditorPanel
+                  token={token}
+                  companyId={Number(companyId)}
+                  reportId={Number(reportId)}
+                  disabled={submitted}
+                />
+              )}
               <div className="flex justify-between">
                 <Button variant="secondary" size="sm" onClick={() => setStep('synthesis')}>
                   Back to synthesis
