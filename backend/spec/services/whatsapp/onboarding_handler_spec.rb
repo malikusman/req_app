@@ -18,6 +18,16 @@ RSpec.describe Whatsapp::OnboardingHandler do
   let(:handler) { described_class.new(employee: employee, conversation: conversation, client: client) }
 
   describe "awaiting_name" do
+    before do
+      ConsentTextVersion.create!(
+        version: "2026-06-20",
+        locale: "en",
+        active: true,
+        confirmation_keywords: %w[YES],
+        body: "Reply YES to continue."
+      )
+    end
+
     it "prompts for name on first message instead of saving it immediately" do
       handler.handle_inbound_text("Hi")
 
@@ -29,29 +39,27 @@ RSpec.describe Whatsapp::OnboardingHandler do
       expect(conversation.messages.where(direction: "outbound").last.body).to include("What's your name?")
     end
 
-    it "saves the name on the second message" do
+    it "saves the name on the second message and prompts consent" do
       handler.handle_inbound_text("Hi")
       handler.handle_inbound_text("Sam Tester")
 
       employee.reload
       expect(employee.display_name).to eq("Sam Tester")
-      expect(employee.onboarding_step).to eq("awaiting_access_code")
+      expect(employee.onboarding_step).to eq("awaiting_consent")
+      expect(conversation.messages.where(direction: "outbound").last.body).to include("YES")
     end
   end
 
-  describe "awaiting_access_code" do
+  describe "awaiting_consent when name was set at invite" do
     let(:employee) do
       create(:employee,
              company: company,
              phone_e164: "+14155550100",
              display_name: "Sam Tester",
              participation_status: "invited",
-             onboarding_step: "awaiting_access_code",
-             invited_at: Time.current)
-    end
-    let(:plain_code) do
-      _record, plain = EmployeeAccessCode.issue_for!(employee: employee, issued_by_type: "system")
-      plain
+             onboarding_step: "awaiting_consent",
+             invited_at: Time.current,
+             verified_at: Time.current)
     end
 
     before do
@@ -66,11 +74,12 @@ RSpec.describe Whatsapp::OnboardingHandler do
       allow(Subscriptions::ConversationLimitEnforcer).to receive(:record_discovery_started!)
     end
 
-    it "accepts the access code as the first message when name was set at invite" do
-      handler.handle_inbound_text(plain_code)
+    it "sends consent when the first message is not YES" do
+      handler.handle_inbound_text("Hi")
 
       employee.reload
       expect(employee.onboarding_step).to eq("awaiting_consent")
+      expect(conversation.messages.where(direction: "outbound").last.body).to include("YES")
     end
   end
 
@@ -83,11 +92,8 @@ RSpec.describe Whatsapp::OnboardingHandler do
              display_name: "Sam Tester",
              participation_status: "invited",
              onboarding_step: "awaiting_consent",
-             invited_at: Time.current)
-    end
-    let(:plain_code) do
-      _record, plain = EmployeeAccessCode.issue_for!(employee: employee, issued_by_type: "system")
-      plain
+             invited_at: Time.current,
+             verified_at: Time.current)
     end
 
     before do
@@ -105,7 +111,6 @@ RSpec.describe Whatsapp::OnboardingHandler do
     end
 
     it "starts discovery proactively after consent" do
-      handler.handle_inbound_text(plain_code)
       handler.handle_inbound_text("YES", external_id: "wamid.consent")
 
       employee.reload

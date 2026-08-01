@@ -10,25 +10,11 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_28_010000) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_01_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
   enable_extension "vector"
-
-  create_table "access_code_verification_attempts", force: :cascade do |t|
-    t.bigint "company_id", null: false
-    t.string "phone_e164", null: false
-    t.bigint "employee_id"
-    t.boolean "success", default: false, null: false
-    t.string "failure_reason"
-    t.string "ip_address"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["company_id", "created_at"], name: "idx_on_company_id_created_at_a49b557fa4"
-    t.index ["company_id"], name: "index_access_code_verification_attempts_on_company_id"
-    t.index ["employee_id"], name: "index_access_code_verification_attempts_on_employee_id"
-  end
 
   create_table "agentic_ideas", force: :cascade do |t|
     t.bigint "company_id", null: false
@@ -542,24 +528,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_28_010000) do
     t.index ["employee_id"], name: "index_documents_on_employee_id"
     t.index ["message_id"], name: "index_documents_on_message_id"
     t.index ["uploaded_by_company_user_id"], name: "index_documents_on_uploaded_by_company_user_id"
-  end
-
-  create_table "employee_access_codes", force: :cascade do |t|
-    t.bigint "employee_id", null: false
-    t.bigint "company_id", null: false
-    t.string "code_digest", null: false
-    t.string "code_hint_last_two"
-    t.string "status", default: "active", null: false
-    t.datetime "expires_at", null: false
-    t.datetime "used_at"
-    t.datetime "revoked_at"
-    t.string "issued_by_type", default: "system", null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.string "code_plaintext"
-    t.index ["company_id"], name: "index_employee_access_codes_on_company_id"
-    t.index ["employee_id", "status"], name: "index_employee_access_codes_on_employee_id_and_status"
-    t.index ["employee_id"], name: "index_employee_access_codes_on_employee_id"
   end
 
   create_table "employee_invitations", force: :cascade do |t|
@@ -1230,8 +1198,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_28_010000) do
     t.index ["hour_bucket", "metric_type"], name: "index_whatsapp_metrics_on_hour_and_type", unique: true
   end
 
-  add_foreign_key "access_code_verification_attempts", "companies"
-  add_foreign_key "access_code_verification_attempts", "employees"
   add_foreign_key "agentic_ideas", "companies"
   add_foreign_key "agentic_ideas", "solution_catalog", column: "solution_catalog_entry_id"
   add_foreign_key "catalog_candidates", "catalog_source_records"
@@ -1283,8 +1249,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_28_010000) do
   add_foreign_key "documents", "conversations"
   add_foreign_key "documents", "employees"
   add_foreign_key "documents", "messages"
-  add_foreign_key "employee_access_codes", "companies"
-  add_foreign_key "employee_access_codes", "employees"
   add_foreign_key "employee_invitations", "companies"
   add_foreign_key "employee_invitations", "company_users"
   add_foreign_key "employee_invitations", "employees"

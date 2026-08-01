@@ -36,8 +36,6 @@ module Whatsapp
         handle_name(text)
       when "awaiting_company"
         handle_company(text)
-      when "awaiting_access_code"
-        handle_access_code(text)
       when "awaiting_consent"
         handle_consent(text, external_id: external_id)
       when "verified"
@@ -69,8 +67,8 @@ module Whatsapp
       @employee.update!(display_name: text, onboarding_step: "awaiting_company")
       persist_message(direction: "inbound", body: text)
       if @employee.invited_at.present?
-        @employee.update!(onboarding_step: "awaiting_access_code")
-        send_text("Thanks, #{text}! Please enter your personal access code from your company admin.")
+        @employee.update!(onboarding_step: "awaiting_consent", verified_at: Time.current)
+        send_consent_message
       else
         send_text("Thanks! Which company do you work for?")
       end
@@ -87,32 +85,18 @@ module Whatsapp
         return
       end
 
-      @employee.update!(onboarding_step: "awaiting_access_code")
-      send_text("Great. Please enter your personal access code from your company admin.")
-    end
-
-    def handle_access_code(text)
-      persist_message(direction: "inbound", body: "[access code redacted]")
-
-      code_record = @employee.employee_access_codes.active.first
-      plain = text.gsub(/\s+/, "").upcase
-
-      if code_record&.verify(plain)
-        code_record.update!(status: "used", used_at: Time.current, code_plaintext: nil)
-        @employee.update!(onboarding_step: "awaiting_consent", verified_at: Time.current)
-        log_verification(success: true)
-        send_consent_message
-      else
-        reason = code_record.nil? ? "invalid_code" : (code_record.expires_at.past? ? "expired" : "invalid_code")
-        log_verification(success: false, reason: reason)
-        increment_security_snapshot
-        send_text("That code isn't valid. Check with your admin and try again.")
-      end
+      @employee.update!(onboarding_step: "awaiting_consent", verified_at: Time.current)
+      send_consent_message
     end
 
     def handle_consent(text, external_id: nil)
       persist_message(direction: "inbound", body: text, external_id: external_id)
       consent = active_consent
+
+      if !consent_already_sent? && !consent_confirmed?(text, consent)
+        send_consent_message
+        return
+      end
 
       if consent_confirmed?(text, consent)
         unless Subscriptions::ConversationLimitEnforcer.can_start_discovery?(company: @company)
@@ -252,24 +236,5 @@ module Whatsapp
       @channel == "web" ? :web : :whatsapp
     end
 
-    def log_verification(success:, reason: nil)
-      AccessCodeVerificationAttempt.create!(
-        company: @company,
-        employee: @employee,
-        phone_e164: @employee.phone_e164,
-        success: success,
-        failure_reason: reason
-      )
-    end
-
-    def increment_security_snapshot
-      count = AccessCodeVerificationAttempt.where(company: @company, success: false)
-                                           .where("created_at > ?", 7.days.ago)
-                                           .where(employee_id: nil)
-                                           .count
-      @company.update!(
-        security_snapshot: @company.security_snapshot.merge("unrecognized_verification_attempts_7d" => count)
-      )
-    end
   end
 end

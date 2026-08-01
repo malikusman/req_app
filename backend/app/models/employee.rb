@@ -3,7 +3,6 @@
 class Employee < ApplicationRecord
   belongs_to :company
   belongs_to :invited_by_company_user, class_name: "CompanyUser", optional: true
-  has_many :employee_access_codes, dependent: :destroy
   has_many :employee_invitations, dependent: :destroy
   has_many :employee_nudges, dependent: :destroy
   has_many :employee_web_sessions, dependent: :destroy
@@ -16,7 +15,7 @@ class Employee < ApplicationRecord
   has_many :employee_market_alerts, dependent: :destroy
 
   PARTICIPATION_STATUSES = %w[invited started completed declined].freeze
-  ONBOARDING_STEPS = %w[awaiting_name awaiting_company awaiting_access_code awaiting_consent verified].freeze
+  ONBOARDING_STEPS = %w[awaiting_name awaiting_company awaiting_consent verified].freeze
   PREFERRED_CHANNELS = %w[whatsapp web both].freeze
   SENIORITY_LEVELS = %w[individual_contributor team_lead manager director executive].freeze
 

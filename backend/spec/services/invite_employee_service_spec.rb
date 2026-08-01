@@ -7,7 +7,7 @@ RSpec.describe InviteEmployeeService do
     let(:company) { create(:company) }
     let(:invited_by) { create(:company_user, company: company) }
 
-    it "creates employee, access code, and invitation" do
+    it "creates employee and invitation without access codes" do
       expect {
         result = described_class.call(
           company: company,
@@ -21,7 +21,8 @@ RSpec.describe InviteEmployeeService do
         expect(result[:employee]).to be_persisted
         expect(result[:employee].phone_e164).to eq("+15551234567")
         expect(result[:employee].participation_status).to eq("invited")
-        expect(result[:access_code]).to be_present
+        expect(result[:employee].onboarding_step).to eq("awaiting_consent")
+        expect(result[:access_code]).to be_nil
         expect(result[:invitation]).to be_persisted
       }.to change(Employee, :count).by(1)
         .and change(EmployeeInvitation, :count).by(1)

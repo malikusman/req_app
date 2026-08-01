@@ -123,7 +123,7 @@ export const marketingContent = {
       {
         title: 'Interview the people who do the work',
         description:
-          'Invite employees with per-person access codes. They answer on WhatsApp or web chat — text, voice, photos, documents. Specialist interviewers adapt by role and department when advanced discovery is enabled.',
+          'Invite employees by phone or email. They answer on WhatsApp or web chat — text, voice, photos, documents. Specialist interviewers adapt by role and department when advanced discovery is enabled.',
         details: [
           'WhatsApp-primary; web chat when WhatsApp isn’t practical',
           'Consent capture and adaptive follow-ups',
@@ -322,7 +322,7 @@ export const marketingContent = {
       },
       {
         q: 'How do you handle privacy and access?',
-        a: 'Per-employee access codes, consent capture, JWT-scoped portals, and role separation between company admins and external reviewers. Report share links are tokenized with access logging. See our Privacy page for retention and contact details.',
+        a: 'Invite-only participation (bound phone or personal discover link), consent capture, JWT-scoped portals, and role separation between company admins and external reviewers. Report share links are tokenized with access logging. See our Privacy page for retention and contact details.',
       },
       {
         q: 'Can we upload existing process documents?',

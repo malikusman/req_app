@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
-import { PageHeader, Card, Input, Select, Button, StatCard, Skeleton } from '../../components/ui';
+import { PageHeader, Card, Input, Select, Button, Skeleton } from '../../components/ui';
 import { SETTINGS_SECONDARY_LINKS } from './nav';
 
 export function CompanySettings() {
@@ -10,7 +10,6 @@ export function CompanySettings() {
   const [displayName, setDisplayName] = useState('');
   const [locale, setLocale] = useState('en');
   const [security, setSecurity] = useState<{
-    active_access_codes: number;
     security_snapshot: Record<string, unknown>;
   } | null>(null);
   const [loadError, setLoadError] = useState('');
@@ -115,16 +114,11 @@ export function CompanySettings() {
         ) : (
           <div className="space-y-4">
             <p className="m-0 text-sm text-text-secondary">
-              Access codes unlock WhatsApp or web discovery for invited employees. View and rotate codes on the
-              Employees page.
-            </p>
-            <StatCard label="Active access codes" value={security.active_access_codes} />
-            <p className="text-sm text-text-secondary">
-              Unrecognized verification attempts (7d):{' '}
-              {String(security.security_snapshot?.unrecognized_verification_attempts_7d ?? 0)}
+              Employees join only after an admin invite. WhatsApp uses the invited phone number; browser
+              discovery uses the personal link from email.
             </p>
             <Link to="/company/employees">
-              <Button variant="secondary">Manage access codes</Button>
+              <Button variant="secondary">Manage employees</Button>
             </Link>
           </div>
         )}

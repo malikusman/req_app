@@ -5,7 +5,7 @@
 # Drives the REAL production path — Meta webhook payloads through
 # Whatsapp::InboundProcessor — for a simulated employee:
 #
-#   onboarding (name -> access code -> consent)
+#   onboarding (consent)
 #   -> profiling (multi-question state machine)
 #   -> agent routing (live agent service)
 #   -> multi-agent discovery turns until completion
@@ -205,8 +205,6 @@ class DiscoverySimulator
     end
     employee.conversations.delete_all
     EmployeeInvitation.where(employee_id: employee.id).delete_all
-    EmployeeAccessCode.where(employee_id: employee.id).delete_all
-    AccessCodeVerificationAttempt.where(employee_id: employee.id).delete_all
     EmployeeValueDigest.where(employee_id: employee.id).delete_all
     EmployeeValuePreference.where(employee_id: employee.id).delete_all
     EmployeeMarketAlert.where(employee_id: employee.id).delete_all
@@ -235,11 +233,9 @@ class DiscoverySimulator
 
   def run_onboarding!
     stage "Onboarding"
-    simulate @plain_code
     simulate "YES"
 
     @employee.reload
-    check "Access code verified", @employee.verified_at.present?
     check "Consent recorded", @employee.consent_given_at.present?
     check "Entered profiling", conversation.status == "profiling"
   end
@@ -330,10 +326,10 @@ class DiscoverySimulator
       phone_e164: @persona[:phone],
       display_name: @persona[:name],
       participation_status: "invited",
-      onboarding_step: "awaiting_access_code",
-      invited_at: Time.current
+      onboarding_step: "awaiting_consent",
+      invited_at: Time.current,
+      verified_at: Time.current
     )
-    _code, @plain_code = EmployeeAccessCode.issue_for!(employee: @employee, issued_by_type: "system")
   end
 
   def simulate(text)
@@ -350,7 +346,7 @@ class DiscoverySimulator
     }
     Whatsapp::InboundProcessor.new(payload).process
 
-    shown = text == @plain_code ? "[access code]" : text
+    shown = text
     agent = conversation.reload.blackboard["active_agent_id"]
     puts format("  %-10s %s| you: %s", conversation.status, agent ? "[#{agent}] " : "", truncate(shown, 60))
     puts format("  %-10s %s|  bot: %s", "", " " * (agent ? agent.length + 3 : 0), truncate(last_outbound.to_s, 90))

@@ -12,12 +12,10 @@ module Api
         def show
           employee = policy_scope(Employee).find(params[:id])
           authorize employee, :show?
-          active_code = employee.employee_access_codes.active.first
           latest_invitation = employee.employee_invitations.order(created_at: :desc).first
 
           render json: {
             employee: employee_json(employee, include_nudge: true).merge(
-              active_access_code_hint: active_code&.code_hint_last_two,
               invitation_status: latest_invitation&.delivery_status,
               recent_nudges: recent_nudges_json(employee)
             )
@@ -39,7 +37,6 @@ module Api
 
           render json: {
             employee: employee_json(result[:employee]),
-            access_code: result[:access_code],
             invitation_id: result[:invitation].id,
             discover_url: result[:discover_url]
           }, status: :created
@@ -61,7 +58,6 @@ module Api
             )
             result[:invitation].update!(batch_id: batch_id)
             created << employee_json(result[:employee]).merge(
-              access_code: result[:access_code],
               invitation_id: result[:invitation].id
             )
           end
@@ -79,25 +75,10 @@ module Api
           )
 
           render json: {
-            employee: employee_json(result[:employee]),
-            access_code: result[:access_code]
+            employee: employee_json(result[:employee])
           }
         rescue ArgumentError => e
           render json: { error: e.message }, status: :unprocessable_entity
-        end
-
-        def reissue_access_code
-          employee = policy_scope(Employee).find(params[:id])
-          authorize employee, :reissue_access_code?
-          _record, plain = EmployeeAccessCode.issue_for!(
-            employee: employee,
-            issued_by_type: "admin_reissue"
-          )
-
-          render json: {
-            employee: employee_json(employee.reload, include_nudge: true),
-            access_code: plain
-          }
         end
 
         def nudge
@@ -123,7 +104,6 @@ module Api
         private
 
         def employee_json(employee, include_nudge: false)
-          active_code = employee.employee_access_codes.active.order(created_at: :desc).first
           json = {
             id: employee.id,
             phone_e164: employee.phone_e164,
@@ -142,10 +122,7 @@ module Api
             completed_at: employee.completed_at,
             last_active_at: employee.last_active_at,
             last_nudged_at: employee.last_nudged_at,
-            consent_given_at: employee.consent_given_at,
-            access_code: active_code&.code_plaintext,
-            access_code_hint: active_code&.code_hint_last_two,
-            access_code_expires_at: active_code&.expires_at
+            consent_given_at: employee.consent_given_at
           }
 
           if include_nudge

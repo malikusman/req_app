@@ -204,7 +204,6 @@ Rails.application.routes.draw do
         patch "settings/organization", to: "settings#update_organization"
         post "settings/organization/web_research", to: "settings#refresh_web_research"
         get "settings/security", to: "settings#security"
-        post "settings/security/rotate_codes", to: "settings#rotate_access_codes"
         resources :notifications, only: %i[index update] do
           collection do
             post :mark_all_read
@@ -216,7 +215,6 @@ Rails.application.routes.draw do
           member do
             post :nudge
             patch :phone, action: :update_phone
-            post :reissue_access_code
           end
           collection do
             post :bulk_create

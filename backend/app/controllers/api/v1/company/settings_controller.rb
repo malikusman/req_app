@@ -46,19 +46,9 @@ module Api
 
         def security
           authorize :settings, :security?
-          active_codes = EmployeeAccessCode.where(company: current_company, status: "active").count
           render json: {
-            security_snapshot: current_company.security_snapshot,
-            pin_rotated_at: current_company.pin_rotated_at,
-            active_access_codes: active_codes
+            security_snapshot: current_company.security_snapshot
           }
-        end
-
-        def rotate_access_codes
-          authorize :settings, :rotate_access_codes?
-          count = AccessCodes::RotateAllService.call(company: current_company, rotated_by: current_company_user)
-          current_company.update!(pin_rotated_at: Time.current)
-          render json: { ok: true, codes_rotated: count }
         end
 
         def refresh_web_research

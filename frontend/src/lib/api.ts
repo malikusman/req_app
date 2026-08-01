@@ -312,7 +312,7 @@ export const api = {
     email?: string,
     preferred_channel?: 'whatsapp' | 'web' | 'both'
   ) =>
-    request<{ employee: Employee; access_code: string; discover_url?: string }>(
+    request<{ employee: Employee; discover_url?: string }>(
       '/api/v1/company/employees',
       {
         method: 'POST',
@@ -325,7 +325,7 @@ export const api = {
     token: string,
     employees: { phone_e164: string; display_name?: string; department?: string; email?: string }[]
   ) =>
-    request<{ employees: (Employee & { access_code: string })[] }>(
+    request<{ employees: Employee[] }>(
       '/api/v1/company/employees/bulk_create',
       { method: 'POST', body: JSON.stringify({ employees }) },
       token
@@ -813,7 +813,7 @@ export const api = {
     ),
 
   updateEmployeePhone: (token: string, employeeId: number, phone_e164: string) =>
-    request<{ employee: Employee; access_code: string }>(
+    request<{ employee: Employee }>(
       `/api/v1/company/employees/${employeeId}/phone`,
       { method: 'PATCH', body: JSON.stringify({ phone_e164 }) },
       token
@@ -1009,19 +1009,9 @@ export const api = {
     request<{ ok: boolean; queued?: boolean }>('/api/v1/company/settings/organization/web_research', { method: 'POST' }, token),
 
   companySettingsSecurity: (token: string) =>
-    request<{ security_snapshot: Record<string, unknown>; active_access_codes: number; pin_rotated_at: string | null }>(
+    request<{ security_snapshot: Record<string, unknown> }>(
       '/api/v1/company/settings/security',
       {},
-      token
-    ),
-
-  rotateAccessCodes: (token: string) =>
-    request<{ ok: boolean; codes_rotated: number }>('/api/v1/company/settings/security/rotate_codes', { method: 'POST' }, token),
-
-  reissueEmployeeAccessCode: (token: string, employeeId: number) =>
-    request<{ employee: Employee; access_code: string }>(
-      `/api/v1/company/employees/${employeeId}/reissue_access_code`,
-      { method: 'POST' },
       token
     ),
 
@@ -2142,9 +2132,6 @@ export interface Employee {
   last_active_at: string | null;
   last_nudged_at: string | null;
   consent_given_at?: string | null;
-  access_code?: string | null;
-  access_code_hint?: string | null;
-  access_code_expires_at?: string | null;
   can_nudge?: boolean;
   stalled?: boolean;
   invitation_status?: string;

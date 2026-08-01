@@ -209,7 +209,7 @@ export function CompanyDashboard() {
           />
           <ActionTile
             title="Invite employees"
-            description="Send access codes for WhatsApp or web discovery."
+            description="Invite employees for WhatsApp or web discovery."
             to="/company/employees"
             icon={<Users className="h-5 w-5" />}
           />

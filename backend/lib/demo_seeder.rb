@@ -131,8 +131,6 @@ class DemoSeeder
     employee.last_active_at = attrs[:participation_status] == "invited" ? 3.days.ago : 2.hours.ago
     employee.save!
 
-    EmployeeAccessCode.issue_for!(employee: employee, issued_by_type: "company_user") if employee.employee_access_codes.active.none?
-
     return if attrs[:conversation_status].blank?
 
     conversation = employee.conversations.order(:created_at).first
@@ -494,8 +492,6 @@ class BetaDemoSeeder
     employee.verified_at ||= 1.day.ago if attrs[:participation_status] != "invited"
     employee.last_active_at = 4.hours.ago
     employee.save!
-
-    EmployeeAccessCode.issue_for!(employee: employee, issued_by_type: "company_user") if employee.employee_access_codes.active.none?
 
     return if attrs[:conversation_status].blank?
 

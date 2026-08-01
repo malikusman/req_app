@@ -100,15 +100,7 @@ module Whatsapp
     def handle_unknown_phone(phone, msg, wamid)
       WebhookEvent.where(external_id: wamid).update_all(status: "processed", processed_at: Time.current) if wamid
 
-      company_id = guess_company_from_recent_invite(phone)
-      if company_id
-        AccessCodeVerificationAttempt.create!(
-          company_id: company_id,
-          phone_e164: phone,
-          success: false,
-          failure_reason: "unknown_phone"
-        )
-      end
+      Rails.logger.info("[WhatsApp] Rejected unknown phone #{phone}")
 
       return unless @client.configured?
 
@@ -185,10 +177,6 @@ module Whatsapp
         OnboardingHandler.new(employee: employee, conversation: conversation, client: @client)
                            .handle_inbound_text(text, external_id: external_id)
       end
-    end
-
-    def guess_company_from_recent_invite(phone)
-      EmployeeInvitation.where(phone_e164: phone).order(created_at: :desc).limit(1).pick(:company_id)
     end
   end
 end

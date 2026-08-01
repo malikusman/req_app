@@ -26,15 +26,9 @@ module Employees
           "changed_by_id" => @changed_by.id
         }
 
-        @employee.employee_access_codes.active.update_all(status: "revoked", revoked_at: Time.current)
-        _code, plain_code = EmployeeAccessCode.issue_for!(
-          employee: @employee,
-          issued_by_type: "company_user"
-        )
-
         @employee.update!(phone_e164: @new_phone, metadata: metadata)
 
-        { employee: @employee.reload, access_code: plain_code }
+        { employee: @employee.reload }
       end
     end
   end

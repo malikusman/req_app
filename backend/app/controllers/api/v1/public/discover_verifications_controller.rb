@@ -7,7 +7,6 @@ module Api
         def create
           result = EmployeeWebSessions::VerifyService.call(
             token: params[:token],
-            access_code: params[:access_code],
             ip_address: request.remote_ip
           )
           render json: result
@@ -15,8 +14,10 @@ module Api
           render json: { error: "Too many attempts. Please try again later." }, status: :too_many_requests
         rescue EmployeeWebSessions::VerifyService::LimitReached => e
           render json: { error: e.message }, status: :payment_required
-        rescue EmployeeWebSessions::VerifyService::InvalidSession, EmployeeWebSessions::VerifyService::InvalidCode
-          render json: { error: "Invalid link or access code" }, status: :unauthorized
+        rescue EmployeeWebSessions::VerifyService::AlreadyStarted
+          render json: { error: "This link was already used. Open the interview from the same browser session, or ask your admin for a new invite." }, status: :conflict
+        rescue EmployeeWebSessions::VerifyService::InvalidSession
+          render json: { error: "Invalid or expired link" }, status: :unauthorized
         end
       end
     end

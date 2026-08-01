@@ -105,7 +105,7 @@ docker compose run --rm rails bundle exec rails db:migrate
 
 - **Versioned reports** — HTML/PDF via Gotenberg (HTML fallback), delta vs previous version
 - **Share links** — `POST /api/v1/company/reports/:id/share` → public `GET /api/v1/public/reports/:token` (access logged)
-- **Company portal:** `/company/reports`, `/company/settings` (organization + rotate access codes)
+- **Company portal:** `/company/reports`, `/company/settings` (organization)
 - **Platform portal:** `/platform/system` — LangGraph, Gotenberg, Redis + WhatsApp delivery metrics (24h)
 - **Platform report approval** — `POST /api/v1/platform/companies/:company_id/reports/:id/approve` (when `skip_platform_review` is false)
 - Acme seed has `allow_early_report` and `skip_platform_review` for local demos
@@ -174,8 +174,8 @@ Set `OPENAI_API_KEY` in `docker-compose.yml` or `.env` for real LLM questions.
 ## Phase 2 (implemented) — WhatsApp
 
 - Meta webhook (`GET/POST /api/v1/webhooks/whatsapp`) with signature verification
-- Employee onboarding via WhatsApp: name → company (optional if invited) → access code → consent → verified
-- Per-employee access codes (never sent in template body)
+- Employee onboarding via WhatsApp: name → company (optional if invited) → consent → verified
+- Invite-first phone binding (unknown numbers are rejected)
 - `SendEmployeeInvitationJob` + `SendEmployeeNudgeJob` (24h cooldown)
 - `NotificationService` + email via Mailpit
 - Language detection on consent message (en/es/fr/de heuristics)
@@ -195,7 +195,7 @@ Without Meta credentials, invites log to Rails console and `whatsapp:simulate` w
 - Dual JWT auth (`platform` / `company` audiences)
 - Platform: company CRUD, trial extension, audit logs
 - Company: onboarding wizard (profile → invite → instructions)
-- Per-employee access codes on invite
+- Invite-first employee binding (WhatsApp phone / web discover link) + consent
 - Company intelligence dashboard shell
 
 ## Project structure

@@ -12,8 +12,4 @@ class SettingsPolicy < ApplicationPolicy
   def security?
     company_admin?
   end
-
-  def rotate_access_codes?
-    company_admin?
-  end
 end

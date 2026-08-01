@@ -15,14 +15,10 @@ class InviteEmployeeService
       email: normalized_email,
       preferred_channel: channel,
       participation_status: "invited",
-      onboarding_step: display_name.present? ? "awaiting_access_code" : "awaiting_name",
+      onboarding_step: display_name.present? ? "awaiting_consent" : "awaiting_name",
       invited_at: Time.current,
+      verified_at: display_name.present? ? Time.current : nil,
       invited_by_company_user: invited_by
-    )
-
-    _code_record, plain_code = EmployeeAccessCode.issue_for!(
-      employee: employee,
-      issued_by_type: invited_by ? "company_user" : "system"
     )
 
     invitation = EmployeeInvitation.create!(
@@ -40,7 +36,6 @@ class InviteEmployeeService
       EmployeeInviteMailer.invite(
         employee: employee,
         company: company,
-        access_code: plain_code,
         discover_url: web_session[:url]
       ).deliver_later
     end
@@ -53,7 +48,6 @@ class InviteEmployeeService
 
     {
       employee: employee,
-      access_code: plain_code,
       invitation: invitation,
       discover_url: web_session&.dig(:url)
     }

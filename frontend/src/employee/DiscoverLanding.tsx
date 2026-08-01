@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Button, Card, Input } from '../components/ui';
+import { Button, Card } from '../components/ui';
 import {
   discoverApi,
   getStoredDiscoverToken,
@@ -12,7 +12,6 @@ export function DiscoverLanding() {
   const { token = '' } = useParams();
   const navigate = useNavigate();
   const [session, setSession] = useState<DiscoverSession | null>(null);
-  const [accessCode, setAccessCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -32,17 +31,17 @@ export function DiscoverLanding() {
       .finally(() => setLoading(false));
   }, [token, navigate]);
 
-  const verify = async (e: React.FormEvent) => {
+  const start = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!token) return;
     setError('');
     setSubmitting(true);
     try {
-      const res = await discoverApi.verify(token, accessCode);
+      const res = await discoverApi.start(token);
       storeDiscoverToken(res.token);
       navigate(`/discover/${token}/chat`, { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Verification failed');
+      setError(err instanceof Error ? err.message : 'Could not start interview');
     } finally {
       setSubmitting(false);
     }
@@ -65,23 +64,15 @@ export function DiscoverLanding() {
             {session?.company_name || 'Your company'}
           </h1>
           {session?.employee_name && (
-            <p className="text-muted-foreground">Hi {session.employee_name}, enter your access code to continue.</p>
+            <p className="text-muted-foreground">Hi {session.employee_name}, continue to start your interview.</p>
           )}
         </div>
 
         {error && <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
 
-        <form onSubmit={verify} className="space-y-4">
-          <Input
-            label="Personal access code"
-            value={accessCode}
-            onChange={(e) => setAccessCode(e.target.value.toUpperCase())}
-            placeholder="Enter code from your invite email"
-            autoComplete="one-time-code"
-            required
-          />
-          <Button type="submit" className="w-full" disabled={submitting}>
-            {submitting ? 'Verifying…' : 'Continue to interview'}
+        <form onSubmit={start} className="space-y-4">
+          <Button type="submit" className="w-full" disabled={submitting || !!error && !session}>
+            {submitting ? 'Starting…' : 'Continue to interview'}
           </Button>
         </form>
 

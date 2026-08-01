@@ -13,8 +13,8 @@ RSpec.describe EmployeeWebSessions::VerifyService do
 
   let(:company) { create(:company) }
   let(:employee) do
-    create(:employee, company: company, participation_status: "invited", onboarding_step: "awaiting_access_code",
-                      display_name: "Sam")
+    create(:employee, company: company, participation_status: "invited", onboarding_step: "awaiting_consent",
+                      display_name: "Sam", verified_at: Time.current)
   end
   let!(:consent) do
     ConsentTextVersion.create!(
@@ -30,20 +30,12 @@ RSpec.describe EmployeeWebSessions::VerifyService do
     create(:employee_web_session, employee: employee, company: company,
                                   token_digest: EmployeeWebSessions::TokenDigest.digest(plain_token))
   end
-  let(:plain_code) do
-    _code, plain = EmployeeAccessCode.issue_for!(employee: employee)
-    plain
-  end
-
-  before { plain_code }
 
   before { create(:discovery_playbook, department: employee.department) }
 
   describe ".call" do
-    it "verifies access code, issues JWT, and bootstraps consent" do
-      allow(Discovery::ProcessTurnService).to receive(:call).and_call_original
-
-      result = described_class.call(token: plain_token, access_code: plain_code, ip_address: "127.0.0.1")
+    it "starts from link possession, issues JWT, and bootstraps consent" do
+      result = described_class.call(token: plain_token, ip_address: "127.0.0.1")
 
       expect(result[:token]).to be_present
       payload = JsonWebToken.decode(result[:token])
@@ -58,21 +50,25 @@ RSpec.describe EmployeeWebSessions::VerifyService do
       expect(outbound[:body]).to include("YES")
     end
 
-    it "rejects invalid access codes" do
+    it "rejects reuse of an already started link" do
+      described_class.call(token: plain_token, ip_address: "127.0.0.1")
+
       expect {
-        described_class.call(token: plain_token, access_code: "WRONGCODE", ip_address: "127.0.0.1")
-      }.to raise_error(described_class::InvalidCode)
+        described_class.call(token: plain_token, ip_address: "127.0.0.1")
+      }.to raise_error(described_class::AlreadyStarted)
     end
 
-    it "rate limits repeated failures" do
-      5.times do
+    it "rate limits repeated attempts on a used link" do
+      described_class.call(token: plain_token, ip_address: "10.0.0.1")
+
+      4.times do
         expect {
-          described_class.call(token: plain_token, access_code: "WRONGCODE", ip_address: "10.0.0.1")
-        }.to raise_error(described_class::InvalidCode)
+          described_class.call(token: plain_token, ip_address: "10.0.0.1")
+        }.to raise_error(described_class::AlreadyStarted)
       end
 
       expect {
-        described_class.call(token: plain_token, access_code: "WRONGCODE", ip_address: "10.0.0.1")
+        described_class.call(token: plain_token, ip_address: "10.0.0.1")
       }.to raise_error(described_class::RateLimited)
     end
   end

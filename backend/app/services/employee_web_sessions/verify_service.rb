@@ -4,20 +4,19 @@ module EmployeeWebSessions
   class VerifyService
     class Error < StandardError; end
     class InvalidSession < Error; end
-    class InvalidCode < Error; end
+    class AlreadyStarted < Error; end
     class RateLimited < Error; end
     class LimitReached < Error; end
 
     MAX_ATTEMPTS = 5
     WINDOW = 15.minutes
 
-    def self.call(token:, access_code:, ip_address: nil)
-      new(token: token, access_code: access_code, ip_address: ip_address).call
+    def self.call(token:, ip_address: nil)
+      new(token: token, ip_address: ip_address).call
     end
 
-    def initialize(token:, access_code:, ip_address: nil)
+    def initialize(token:, ip_address: nil)
       @token = token
-      @access_code = access_code
       @ip_address = ip_address
     end
 
@@ -26,12 +25,14 @@ module EmployeeWebSessions
       raise InvalidSession, "Invalid or expired link" unless session
 
       enforce_rate_limit!(session)
+      raise AlreadyStarted, "This link was already used" if session.verified_at.present?
+
       employee = session.employee
-      begin
-        verify_access_code!(employee, @access_code)
-      rescue InvalidCode
-        record_failed_attempt!(session)
-        raise
+      if employee.onboarding_step.in?(%w[awaiting_access_code awaiting_name awaiting_company])
+        step = employee.display_name.present? ? "awaiting_consent" : "awaiting_name"
+        attrs = { onboarding_step: step }
+        attrs[:verified_at] = Time.current if step == "awaiting_consent"
+        employee.update!(attrs)
       end
 
       session.update!(verified_at: Time.current, last_seen_at: Time.current, ip_address: @ip_address)
@@ -52,51 +53,12 @@ module EmployeeWebSessions
     def enforce_rate_limit!(session)
       count = Rails.cache.read(rate_limit_key(session)).to_i
       raise RateLimited if count >= MAX_ATTEMPTS
-    end
 
-    def record_failed_attempt!(session)
-      key = rate_limit_key(session)
-      count = Rails.cache.read(key).to_i
-      Rails.cache.write(key, count + 1, expires_in: WINDOW)
+      Rails.cache.write(rate_limit_key(session), count + 1, expires_in: WINDOW)
     end
 
     def rate_limit_key(session)
-      "discover_verify:#{@ip_address}:#{session.token_digest.first(12)}"
-    end
-
-    def verify_access_code!(employee, plain)
-      normalized = plain.to_s.gsub(/\s+/, "").upcase
-      raise InvalidCode, "Access code required" if normalized.blank?
-
-      code_record = employee.employee_access_codes.order(created_at: :desc).first
-      raise InvalidCode, "Invalid access code" unless code_record
-
-      if employee.onboarding_step == "awaiting_access_code"
-        if code_record.verify(normalized)
-          code_record.update!(status: "used", used_at: Time.current, code_plaintext: nil)
-          employee.update!(onboarding_step: "awaiting_consent", verified_at: Time.current)
-          log_verification(employee, success: true)
-          return
-        end
-
-        reason = code_record.expires_at.past? ? "expired" : "invalid_code"
-        log_verification(employee, success: false, reason: reason)
-        raise InvalidCode, "Invalid access code"
-      end
-
-      return if BCrypt::Password.new(code_record.code_digest) == normalized
-
-      raise InvalidCode, "Invalid access code"
-    end
-
-    def log_verification(employee, success:, reason: nil)
-      AccessCodeVerificationAttempt.create!(
-        company: employee.company,
-        employee: employee,
-        phone_e164: employee.phone_e164,
-        success: success,
-        failure_reason: reason
-      )
+      "discover_start:#{@ip_address}:#{session.token_digest.first(12)}"
     end
 
     def ensure_conversation!(employee)

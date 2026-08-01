@@ -70,10 +70,16 @@ export const discoverApi = {
   session: (linkToken: string) =>
     discoverRequest<DiscoverSession>(`/api/v1/public/discover/sessions/${encodeURIComponent(linkToken)}`),
 
-  verify: (linkToken: string, accessCode: string) =>
+  verify: (linkToken: string) =>
     discoverRequest<DiscoverVerifyResponse>(
       `/api/v1/public/discover/sessions/${encodeURIComponent(linkToken)}/verify`,
-      { method: 'POST', body: JSON.stringify({ access_code: accessCode }) }
+      { method: 'POST', body: JSON.stringify({}) }
+    ),
+
+  start: (linkToken: string) =>
+    discoverRequest<DiscoverVerifyResponse>(
+      `/api/v1/public/discover/sessions/${encodeURIComponent(linkToken)}/verify`,
+      { method: 'POST', body: JSON.stringify({}) }
     ),
 
   messages: (jwt: string) =>
