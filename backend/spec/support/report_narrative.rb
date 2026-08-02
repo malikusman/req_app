@@ -7,5 +7,6 @@
 RSpec.configure do |config|
   config.before(:each) do
     ENV["AI_REPORT_NARRATIVE"] = "false"
+    ENV["AI_AGENTIC_IDEAS"] = "false"
   end
 end

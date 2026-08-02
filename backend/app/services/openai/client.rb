@@ -207,6 +207,48 @@ module Openai
       parse_model_json(chat_json_content(body))
     end
 
+    # Tailored agentic-AI opportunity concepts, grounded strictly in the supplied
+    # evidence. Returns parsed JSON or raises; callers fall back to the rule-based
+    # synthesizer. Works with local OpenAI-compatible models.
+    def agentic_ideas(context:, language: "en")
+      ensure_configured_or_mock!("OpenAI")
+      return mock_agentic_ideas unless configured?
+
+      body = {
+        model: ENV.fetch("REPORT_MODEL", ENV.fetch("OPENAI_MODEL", "gpt-4o-mini")),
+        messages: [
+          {
+            role: "system",
+            content: <<~SYS
+              You design agentic-AI and automation solutions for a small/mid-sized business.
+              From the discovery evidence, propose 3-6 SPECIFIC agentic-AI concepts this
+              company should build. Write in #{language}.
+              STRICT RULES:
+              - Ground every idea in the provided signals/patterns; name the friction it targets.
+              - Be concrete and company-specific (reference their actual tools/departments/workflows).
+                Avoid generic phrasing like "an agent that monitors X and assists teams".
+              - Prefer solutions that extend the systems they already run.
+              - Do NOT invent cost/ROI figures. Value must be qualitative.
+              - confidence in 0..1 reflects how well the evidence supports the idea.
+              Respond as JSON only:
+              {"ideas":[{
+                "title":"short product-style name",
+                "summary":"1-2 sentences: what the agent does and for whom",
+                "addresses_signals":["exact signal labels it targets"],
+                "system_fit":"how it plugs into their existing stack",
+                "value_time":"time/latency benefit","value_efficiency":"efficiency/handoff benefit",
+                "value_cost":"cost/risk benefit (qualitative)","effort":"S|M|L",
+                "approx_timeline":"e.g. 4-8 weeks","confidence":0.0
+              }]}
+            SYS
+          },
+          { role: "user", content: "Evidence context (JSON):\n#{context.to_json.truncate(12_000)}" }
+        ],
+        max_tokens: chat_max_tokens(1800)
+      }
+      parse_model_json(chat_json_content(body))
+    end
+
     def understand_document_structured(text:, language: "en")
       ensure_configured_or_mock!("OpenAI")
       return mock_document_structured(text, language) unless configured?
@@ -563,6 +605,23 @@ module Openai
 
     def mock_document_structured(text, language)
       mock_document_summary(text, language)
+    end
+
+    # Dev-only placeholder; AgenticIdeaWriter only calls the model when configured.
+    def mock_agentic_ideas
+      {
+        "ideas" => [
+          {
+            "title" => "Invoice intake copilot",
+            "summary" => "Drafts SAP entries from incoming invoices for a human to approve.",
+            "addresses_signals" => [],
+            "system_fit" => "Sits on top of the existing SAP + email workflow.",
+            "value_time" => "Cuts re-keying time.", "value_efficiency" => "Fewer handoffs.",
+            "value_cost" => "Fewer late-payment exceptions.", "effort" => "M",
+            "approx_timeline" => "6–10 weeks", "confidence" => 0.6
+          }
+        ]
+      }
     end
 
     # Dev-only placeholder; NarrativeWriter only calls the model when configured,

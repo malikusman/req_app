@@ -81,7 +81,11 @@ module Intelligence
     def synthesize_agentic_ideas!
       return 0 unless defined?(Intelligence::AgenticIdeaSynthesizer)
 
-      ideas = Intelligence::AgenticIdeaSynthesizer.call(company: @company.reload)
+      company = @company.reload
+      # Prefer LLM-written, company-specific ideas; fall back to the deterministic
+      # rule-based synthesizer when the model is unavailable or returns nothing.
+      ideas = (defined?(Intelligence::AgenticIdeaWriter) && Intelligence::AgenticIdeaWriter.call(company: company)) ||
+              Intelligence::AgenticIdeaSynthesizer.call(company: company)
       Array(Intelligence::AgenticIdeaUpsertService.call(company: @company, ideas: ideas)).size
     rescue StandardError => e
       Rails.logger.warn("[AggregateCompanyIntelligence] agentic ideas failed company=#{@company.id}: #{e.message}")
