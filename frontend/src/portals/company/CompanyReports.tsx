@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, type Report } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
-import { PageHeader, Card, Button, DataTable, Badge, EmptyState, Modal } from '../../components/ui';
+import { PageHeader, Button, DataTable, Badge, EmptyState, Modal } from '../../components/ui';
 import { useToast } from '../../components/ui/ToastProvider';
 
 export function CompanyReports() {
