@@ -1,10 +1,8 @@
 # frozen_string_literal: true
 
-# End-to-end report-quality harness. Drives the full pipeline against the LOCAL
-# Gemma model (LM Studio) and self-checks every phase. Run:
-#   docker exec req_app-rails-1 bundle exec rails runner /app/tmp/report_e2e.rb
+# End-to-end report-quality harness against local Gemma (LM Studio).
+# Run: docker exec req_app-rails-1 bundle exec rails runner /app/tmp/report_e2e.rb
 
-# --- Point the OpenAI client at local Gemma -------------------------------
 ENV["OPENAI_BASE_URL"]   = "http://host.docker.internal:1234/v1"
 ENV["OPENAI_API_KEY"]    = "lm-studio"
 ENV["OPENAI_MODEL"]      = "google/gemma-4-12b-qat"
@@ -13,6 +11,7 @@ ENV["OPENAI_JSON_MODE"]  = "false"
 ENV["OPENAI_MAX_TOKENS"] = "2500"
 ENV["OPENAI_READ_TIMEOUT"] = "600"
 ENV["AI_REPORT_NARRATIVE"] = "true"
+ENV["AI_AGENTIC_IDEAS"] = "true"
 
 $checks = []
 $obs = []
@@ -32,23 +31,31 @@ puts "=" * 70
 cl = Openai::Client.new
 check("LLM client configured (base URL + key)", cl.configured? && cl.send(:chat_base_url).start_with?("http"))
 
-# --- Setup: company with real evidence + an owned solution ----------------
 company = Company.find_by(slug: "acme-corp") || Company.first
 raise "no company" unless company
 
-company.company_systems.owned_solutions.destroy_all
-sol = company.company_systems.create!(
-  name: "AcmeFlow HR Copilot", kind: "owned_solution", source: "manual", category: "other",
-  description: "In-house AI copilot that automates manual onboarding paperwork and HR data entry.",
-  capabilities: "onboarding automation, document generation, employee Q&A",
-  normalized_name: CompanySystem.normalize("AcmeFlow HR Copilot")
-)
-observe("company", "#{company.name} (signals=#{company.company_signals.count}, patterns=#{company.patterns.count}, recs=#{company.recommendations.published.count})")
-observe("owned solution", sol.name)
+# Platform first-party catalog product + company match (post owned-solutions revert)
+entry = SolutionCatalogEntry.find_or_create_by!(name: "Worktruth AP Copilot") do |e|
+  e.category = "automation"
+  e.active = true
+  e.first_party = true
+  e.description = "Automates AP approvals and exception handling against existing ERP."
+  e.match_keywords = %w[approval ap invoice exception]
+end
+entry.update!(first_party: true, active: true) unless entry.first_party?
 
-# ==========================================================================
-# PHASE 2 — LLM analyst/writer (Gemma)
-# ==========================================================================
+match = CompanyCatalogMatch.find_or_initialize_by(company: company, solution_catalog_entry: entry)
+match.assign_attributes(
+  score: 0.82,
+  why_it_fits: "Maps to approval bottlenecks and AP exception volume in discovery evidence.",
+  matched_at: Time.current,
+  evidence_used: [{ "already_in_stack" => false }]
+)
+match.save!
+
+observe("company", "#{company.name} (signals=#{company.company_signals.count}, patterns=#{company.patterns.count}, recs=#{company.recommendations.published.count})")
+observe("first_party catalog", entry.name)
+
 puts "\n--- PHASE 2: narrative writer (Gemma) ---"
 t0 = Time.now
 snapshot = Reports::SnapshotBuilder.call(company: company, delta: {})
@@ -61,48 +68,41 @@ if narrative
   observe("governing_thought", narrative["governing_thought"].to_s.truncate(140))
   observe("executive_summary", narrative["executive_summary"].to_s.truncate(160))
   observe("supporting_points", Array(narrative["supporting_points"]).size)
-  rm = narrative["roadmap"] || {}
+  rm = narrative["roadmap"] || snapshot["roadmap"] || {}
   observe("roadmap now/next/later", "#{Array(rm['now']).size}/#{Array(rm['next']).size}/#{Array(rm['later']).size}")
   check("roadmap has at least one phased item", %w[now next later].any? { |p| Array(rm[p]).any? })
   check("exec summary is NOT the old templated Mad-Libs", !snapshot["executive_summary"].to_s.include?("The pages that follow show what we found"))
 end
 
-# ==========================================================================
-# PHASE 4 — owned solutions fit + heatmap
-# ==========================================================================
-puts "\n--- PHASE 4: owned solutions + heatmap ---"
-owned = Array(snapshot["owned_solutions"])
-check("owned solution surfaced in snapshot", owned.any? { |o| o["name"] == sol.name })
-os = owned.first
-if os
-  observe("owned fit_confidence", os["fit_confidence"])
-  observe("owned addresses_signals", Array(os["addresses_signals"]).join(", ").presence || "(none)")
-  check("owned fit confidence in 0..1", os["fit_confidence"].to_f.between?(0, 1))
+puts "\n--- CATALOG: first-party product in tools_catalog ---"
+tools_root = snapshot["tools_catalog"]
+tools = tools_root.is_a?(Hash) ? Array(tools_root["curated_matches"]) : Array(tools_root)
+fp = tools.find { |t| t.is_a?(Hash) && t["name"] == entry.name }
+check("first-party catalog match in snapshot tools_catalog", fp.present?)
+if fp
+  observe("first_party flag", fp["first_party"])
+  check("first_party flagged true", fp["first_party"] == true)
 end
 
-# ==========================================================================
-# PHASE 1 — credibility, rendered HTML
-# ==========================================================================
 puts "\n--- PHASE 1: credibility (rendered) ---"
 html = Reports::HtmlBuilder.call(snapshot: snapshot, report_version: 99)
 check("cover honors report_kind label", html.include?("#{snapshot['report_kind'] == 'baseline' ? 'Baseline' : 'Discovery'} Report"))
 check("no placeholder example.com leaked", !html.include?("example.com"))
 check("no debug match-strings leaked", !html.match?(/tag_match:|keyword_match:/))
-check("plain-language strength band present", html.match?(/High|Medium|Low/) )
-check("existing-capabilities section rendered", html.include?("What you already own"))
+check("plain-language strength band present", html.match?(/High|Medium|Low/))
+check("capabilities section rendered", html.include?("Products that already fit"))
 check("roadmap section rendered", html.include?("A sequenced path"))
 heat = html.include?("Friction intensity by department")
 observe("department heatmap rendered", heat ? "yes" : "no (needs >=2 depts with signals)")
 
-# ==========================================================================
-# Full pipeline — GenerateReportService (PDF via Gotenberg + MinIO)
-# ==========================================================================
 puts "\n--- FULL PIPELINE: GenerateReportService ---"
 admin = company.company_users.first
 version = (company.reports.maximum(:version) || 0) + 1
-report = company.reports.create!(version: version, status: "queued", visibility: "internal_only",
-                                 triggered_by_type: "CompanyUser", triggered_by_id: admin&.id,
-                                 report_snapshot: {}, review_workflow_status: "awaiting_reviewers")
+report = company.reports.create!(
+  version: version, status: "queued", visibility: "internal_only",
+  triggered_by_type: "CompanyUser", triggered_by_id: admin&.id,
+  report_snapshot: {}, review_workflow_status: "awaiting_reviewers"
+)
 begin
   Reports::GenerateReportService.call(report: report)
   report.reload
@@ -110,24 +110,29 @@ begin
   observe("artifact content_type", report.content_type)
   observe("storage_key", report.storage_key)
   check("stored snapshot carries LLM narrative", report.report_snapshot.dig("narrative", "generated_by") == "llm")
-rescue => e
+rescue StandardError => e
   check("GenerateReportService ran without error", false)
   observe("generate error", "#{e.class}: #{e.message}")
 end
 
-# ==========================================================================
-# PHASE 3 — reviewer editorial control (hide / edit / add) + endorse
-# ==========================================================================
 puts "\n--- PHASE 3: reviewer editorial control ---"
 reviewer = ReviewerUser.find_by(email: "reviewer@reqapp.local") || ReviewerUser.first
+raise "no reviewer" unless reviewer
+
 report.report_section_overrides.destroy_all
 report.report_section_overrides.create!(reviewer_user: reviewer, action: "hide", section_key: "methodology")
-report.report_section_overrides.create!(reviewer_user: reviewer, action: "edit", section_key: "recommendations",
-                                        title: "Reviewer caveat", body: "Sequence the finance automation before HR — higher volume.")
-report.report_section_overrides.create!(reviewer_user: reviewer, action: "add", title: "Risk register",
-                                        body: "Demurrage exposure at Jebel Ali if customs clearance slips.", anchor_section: "recommendations")
-# reviewer endorses the owned solution (mirrors the endorse endpoint)
-sol.update!(reviewer_endorsed: true, reviewer_note: "Strong fit for onboarding load.", reviewer_user: reviewer)
+report.report_section_overrides.create!(
+  reviewer_user: reviewer, action: "edit", section_key: "recommendations",
+  title: "Reviewer caveat", body: "Sequence the finance automation before HR — higher volume."
+)
+report.report_section_overrides.create!(
+  reviewer_user: reviewer, action: "add", title: "Risk register",
+  body: "Demurrage exposure at Jebel Ali if customs clearance slips.",
+  anchor_section: "recommendations"
+)
+
+# Reviewer adds catalog product attribution
+match.update!(added_by_reviewer_id: reviewer.id, why_it_fits: "Reviewer-confirmed fit for AP exceptions.")
 
 applied = Reports::SectionOverridesApplier.call(snapshot: report.report_snapshot, report: report)
 html2 = Reports::HtmlBuilder.call(snapshot: applied, report_version: report.version)
@@ -136,32 +141,29 @@ check("hidden section removed from contents", !html2.include?(">Methodology<"))
 check("reviewer edit-note rendered", html2.include?("Reviewer caveat") || html2.include?("Sequence the finance automation"))
 check("custom reviewer section rendered", html2.include?("Risk register") && html2.include?("Demurrage exposure at Jebel Ali"))
 
-owned2 = Array(Reports::SnapshotBuilder.new(company: company, delta: {}).send(:owned_solutions_json)).first
-check("reviewer endorsement reflected on owned solution", owned2 && owned2["reviewer_endorsed"] == true)
+snap3 = Reports::SnapshotBuilder.call(company: company, delta: {})
+tools3_root = snap3["tools_catalog"]
+tools3 = tools3_root.is_a?(Hash) ? Array(tools3_root["curated_matches"]) : Array(tools3_root)
+tool3 = tools3.find { |t| t.is_a?(Hash) && t["name"] == entry.name }
+check("reviewer-added catalog match flagged", tool3 && tool3["reviewer_added"] == true)
 
-# RegenerateWithReviewService end-to-end (approval path)
 begin
   Reports::RegenerateWithReviewService.call(report: report.reload)
   check("RegenerateWithReviewService ran without error", true)
-rescue => e
+rescue StandardError => e
   check("RegenerateWithReviewService ran without error", false)
   observe("regenerate error", "#{e.class}: #{e.message}")
 end
 
-# ==========================================================================
-# FALLBACK — deterministic when narrative disabled
-# ==========================================================================
 puts "\n--- FALLBACK: AI_REPORT_NARRATIVE=false ---"
 ENV["AI_REPORT_NARRATIVE"] = "false"
 snap_fb = Reports::SnapshotBuilder.call(company: company, delta: {})
 check("narrative nil when disabled", snap_fb["narrative"].nil?)
 html_fb = Reports::HtmlBuilder.call(snapshot: snap_fb, report_version: 100)
 check("deterministic report still renders", html_fb.include?("Executive summary") && html_fb.length > 5000)
-check("no roadmap section when narrative off", !html_fb.include?("A sequenced path"))
+# WS3: roadmap always renders via deterministic_roadmap when LLM off
+check("deterministic roadmap still present when narrative off", html_fb.include?("A sequenced path") || snap_fb["roadmap"].present?)
 
-# ==========================================================================
-# SUMMARY + OBSERVATIONS FILE
-# ==========================================================================
 passed = $checks.count { |s, _| s == "PASS" }
 failed = $checks.count { |s, _| s == "FAIL" }
 puts "\n" + "=" * 70
@@ -173,16 +175,18 @@ md << "- Model: `#{ENV['OPENAI_MODEL']}` via LM Studio\n"
 md << "- Narrative latency: #{gen_secs}s\n"
 md << "- Result: **#{passed}/#{$checks.size} checks passed** (#{failed} failed)\n\n"
 md << "## Checks\n\n"
-$checks.each { |s, l| md << "- #{s == 'PASS' ? '✅' : '❌'} #{l}\n" }
+$checks.each { |s, l| md << "- #{s == 'PASS' ? 'PASS' : 'FAIL'} #{l}\n" }
 md << "\n## Observations\n\n"
 $obs.each { |l, v| md << "- **#{l}:** #{v}\n" }
 if narrative
   md << "\n## Sample narrative (Gemma)\n\n"
   md << "**Governing thought:** #{narrative['governing_thought']}\n\n"
   md << "**Executive summary:** #{narrative['executive_summary']}\n\n"
-  md << "**Roadmap — Now:** #{Array(narrative.dig('roadmap','now')).map { |x| x['title'] }.join('; ')}\n\n"
-  md << "**Roadmap — Next:** #{Array(narrative.dig('roadmap','next')).map { |x| x['title'] }.join('; ')}\n\n"
-  md << "**Roadmap — Later:** #{Array(narrative.dig('roadmap','later')).map { |x| x['title'] }.join('; ')}\n"
+  rm = narrative["roadmap"] || {}
+  md << "**Roadmap — Now:** #{Array(rm['now']).map { |x| x.is_a?(Hash) ? x['title'] : x }.join('; ')}\n\n"
+  md << "**Roadmap — Next:** #{Array(rm['next']).map { |x| x.is_a?(Hash) ? x['title'] : x }.join('; ')}\n\n"
+  md << "**Roadmap — Later:** #{Array(rm['later']).map { |x| x.is_a?(Hash) ? x['title'] : x }.join('; ')}\n"
 end
 File.write("/app/tmp/REPORT_E2E_OBSERVATIONS.md", md)
 puts "Wrote /app/tmp/REPORT_E2E_OBSERVATIONS.md"
+exit(failed.positive? ? 1 : 0)
