@@ -3,7 +3,7 @@
 <% docs_first = snapshot["docs_first_phase"] == true || snapshot["report_kind"].to_s == "baseline" %>
 <% doc_count = Array(snapshot["supporting_documents"]).size %>
 <section class="page">
-  <div class="eyebrow">08 — Methodology</div>
+  <div class="eyebrow">Methodology</div>
   <h1 style="font-size:28pt;margin:4mm 0 4mm;">How we measured</h1>
   <div class="split">
     <div>
@@ -13,14 +13,14 @@
           <% if doc_count.positive? %>
             (<%= doc_count %> supporting <%= doc_count == 1 ? "document" : "documents" %> cited)
           <% end %>.
-          Signals and patterns are produced by rule-based extraction over document text (and specialist interview agents when conversations are added later). Recommendations are synthesized from those signals against the solution catalog — not free-form generative research.
+          Signals and patterns are produced by structured extraction over the document text; employee interviews (run by specialist discovery agents) can be added later to strengthen the same evidence. Recommendations are matched from those signals against the solution catalog.
           <% if participation["invited"].to_i.positive? && participation["completed"].to_i.zero? %>
             <%= participation["invited"].to_i %> employees have been invited; readiness will reweight toward interviews as they complete discovery.
           <% end %>
         </p>
       <% else %>
         <p class="method" style="margin-top:0;">
-          Findings draw on adaptive discovery interviews (WhatsApp and web chat) for <%= h company_name %>, conducted by specialist interview agents when enabled.
+          Findings draw on adaptive discovery interviews (WhatsApp and web chat) for <%= h company_name %>, conducted by specialist discovery agents — routed by role and department — with structured signal extraction over the transcripts.
           <% if participation["invited"].to_i.positive? %>
             <%= participation["completed"].to_i %> of <%= participation["invited"].to_i %> invited employees completed the full discovery flow.
           <% end %>

@@ -5,7 +5,10 @@
 <% if tools.any? || docs.any? || endorsements.any? %>
 <section class="page">
   <div class="eyebrow">Capabilities & evidence</div>
-  <h1 style="font-size:28pt;margin:4mm 0 4mm;">Recommended capabilities</h1>
+  <h1 style="font-size:28pt;margin:4mm 0 3mm;">Products that already fit</h1>
+  <% if tools.any? %>
+    <p class="lead" style="max-width:210mm;margin-bottom:5mm;">Existing solutions — our own products and partner tools — matched to the frictions above. "Worktruth product" is built by us; others are curated partners. Reviewer-endorsed picks are flagged.</p>
+  <% end %>
   <% if tools.any? %>
     <div class="card-grid-3">
       <% tools.each do |tool|

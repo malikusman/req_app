@@ -1,10 +1,11 @@
 <% company_name = snapshot.dig("company", "name") %>
 <% implications = Array(snapshot["implications"]) %>
 <% heatmap = report_department_heatmap_svg(snapshot["signals"]) %>
+<% docs_first = snapshot["docs_first_phase"] == true || snapshot["report_kind"].to_s == "baseline" %>
 <section class="page">
-  <div class="eyebrow">06 — Patterns</div>
+  <div class="eyebrow">Patterns</div>
   <h1 style="font-size:28pt;margin:4mm 0 3mm;">Cross-team themes</h1>
-  <p class="lead" style="max-width:200mm;">Each pattern connects several signals across departments. Confidence reflects how consistently the theme appeared across documents, interviews, and evidence.</p>
+  <p class="lead" style="max-width:200mm;">Each pattern connects several signals across departments. Confidence reflects how consistently the theme appeared across <%= docs_first ? "the internal documents reviewed" : "documents, interviews, and evidence" %>.</p>
   <% if heatmap.present? %>
     <div class="exhibit" style="margin:4mm 0;">
       <div class="exlabel">Exhibit · Friction intensity by department</div>
@@ -41,7 +42,7 @@
 
 <% if implications.any? %>
 <section class="page">
-  <div class="eyebrow">06b — Implications</div>
+  <div class="eyebrow">Implications</div>
   <h1 style="font-size:28pt;margin:4mm 0 3mm;">What this means if left unaddressed</h1>
   <p class="lead" style="max-width:200mm;">These implications are derived from the patterns above — departments involved, linked signals, and documented evidence counts. No speculative ROI is invented here.</p>
   <div class="card-grid-3">

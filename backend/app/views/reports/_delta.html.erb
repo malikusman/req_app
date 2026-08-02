@@ -1,7 +1,7 @@
 <% company_name = snapshot.dig("company", "name") %>
 <% delta = snapshot["delta_from_previous"] || {} %>
 <section class="page">
-  <div class="eyebrow">04 — What changed</div>
+  <div class="eyebrow">What changed</div>
   <h1 style="font-size:28pt;margin:4mm 0 4mm;">Delta from the previous version</h1>
   <p class="lead" style="max-width:200mm;"><%= h delta["summary"] %></p>
   <div class="delta" style="margin-top:6mm;">

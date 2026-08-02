@@ -1,7 +1,9 @@
 <% company_name = snapshot.dig("company", "name") %>
 <% ranked = Array(signals).sort_by { |s| -(s["strength"].to_f) } %>
+<% docs_first = snapshot["docs_first_phase"] == true || snapshot["report_kind"].to_s == "baseline" %>
+<% evidence_sources = docs_first ? "internal documents" : "documents, interviews, and media" %>
 <section class="page">
-  <div class="eyebrow">05 — Signals</div>
+  <div class="eyebrow">Signals</div>
   <h1 style="font-size:28pt;margin:4mm 0 3mm;">Recurring pain points</h1>
   <div class="exhibit">
     <div class="exlabel">Exhibit 3 · Signals ranked by strength</div>
@@ -35,7 +37,7 @@
         <div class="meta"><%= report_strength_label(signal["strength"]) %> strength <span class="muted">(<%= format("%.2f", signal["strength"].to_f) %>)</span></div>
         <% ev = signal["evidence_count"].to_i %>
         <% if excerpts.any? %>
-          <p>Seen in <%= ev.positive? ? ev : excerpts.size %> evidence point<%= "s" unless (ev.positive? ? ev : excerpts.size) == 1 %> across documents, interviews, and media.</p>
+          <p>Seen in <%= ev.positive? ? ev : excerpts.size %> evidence point<%= "s" unless (ev.positive? ? ev : excerpts.size) == 1 %> across <%= evidence_sources %>.</p>
         <% elsif ev.positive? %>
           <p><%= ev %> supporting reference<%= "s" unless ev == 1 %> on record.</p>
         <% end %>

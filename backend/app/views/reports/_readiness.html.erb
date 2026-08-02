@@ -4,7 +4,7 @@
 <% docs_first = snapshot["docs_first_phase"] == true || snapshot["report_kind"].to_s == "baseline" %>
 <% bars = report_readiness_bars(readiness["breakdown"], docs_first: docs_first) %>
 <section class="page">
-  <div class="eyebrow">02 — Readiness</div>
+  <div class="eyebrow">Readiness</div>
   <h1 style="font-size:28pt;margin:4mm 0 3mm;">A readiness score of <span class="serif-accent"><%= score %></span></h1>
   <div class="split">
     <div>

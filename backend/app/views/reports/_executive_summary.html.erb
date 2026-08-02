@@ -14,7 +14,7 @@
 <% paragraphs = [summary] if paragraphs.empty? && summary.present? %>
 <% support = Array(narrative["supporting_points"]).reject(&:blank?) %>
 <section class="page">
-  <div class="eyebrow">01 — Executive summary</div>
+  <div class="eyebrow">Executive summary</div>
   <h1 style="font-size:32pt;margin:4mm 0 6mm;">The story <span class="serif-accent">in one read</span></h1>
   <% if narrative["governing_thought"].present? %>
     <%# Pyramid: answer-first governing thought, then evidence-backed support. %>

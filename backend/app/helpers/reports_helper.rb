@@ -258,7 +258,7 @@ module ReportsHelper
     add.call("Patterns", "Cross-team themes and confidence", "rule-magenta") if Array(snapshot["patterns"]).any?
     add.call("Implications", "What the findings mean if left unaddressed", "rule-magenta") if Array(snapshot["implications"]).any?
     add.call("Recommendations", "Prioritized actions, catalog-matched", "rule-blue") if Array(snapshot["recommendations"]).any?
-    add.call("Roadmap", "Sequenced now / next / later", "rule-blue") if snapshot.dig("narrative", "roadmap").present?
+    add.call("Roadmap", "Sequenced now / next / later", "rule-blue") if snapshot["roadmap"].present?
     add.call("Opportunities", "Published agentic ideas for this company", "rule-blue") if Array(snapshot["agentic_ideas"]).any?
     if Array(snapshot.dig("tools_catalog", "curated_matches")).any? || Array(snapshot["supporting_documents"]).any?
       add.call("Capabilities & evidence", "Catalog matches and supporting documents", "rule-teal")

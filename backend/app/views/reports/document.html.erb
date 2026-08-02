@@ -47,8 +47,11 @@
 <%= custom_after.call("company_context") %>
 
 <% participation = snapshot["participation"] || {} %>
+<% docs_only_report = snapshot["report_kind"].to_s == "baseline" || snapshot["docs_first_phase"] == true %>
 <% unless report_section_hidden?(snapshot, "participation") %>
-  <% if participation["invited"].to_i.positive? || participation["completed"].to_i.positive? %>
+  <%# Show the interview funnel only when interviews have actually happened, or a
+      hybrid engagement is mid-flight — never on a pure document baseline. %>
+  <% if participation["completed"].to_i.positive? || (participation["invited"].to_i.positive? && !docs_only_report) %>
     <%= edit_note.call("participation") %>
     <%= render "reports/participation", snapshot: snapshot, report_version: report_version %>
   <% end %>
@@ -65,7 +68,7 @@
   <%= render "reports/divider",
         accent_label: "Signals & Patterns",
         accent_bg: "var(--magenta)",
-        eyebrow: "05 & 06 — Signals and patterns",
+        eyebrow: "Signals & patterns",
         title: docs_first ? "What the documents revealed" : "What the interviews revealed",
         lead: docs_first ?
           "Signals are recurring friction themes drawn from internal documents. Patterns connect those themes across departments and file types." :
@@ -96,7 +99,7 @@
 <% end %>
 <%= custom_after.call("recommendations") %>
 
-<% if snapshot.dig("narrative", "roadmap").present? && !report_section_hidden?(snapshot, "roadmap") %>
+<% if snapshot["roadmap"].present? && !report_section_hidden?(snapshot, "roadmap") %>
   <%= edit_note.call("roadmap") %>
   <%= render "reports/roadmap", snapshot: snapshot, report_version: report_version %>
 <% end %>

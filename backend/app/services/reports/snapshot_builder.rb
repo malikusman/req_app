@@ -17,6 +17,9 @@ module Reports
 
       snapshot = base_snapshot(docs_first, intel)
       apply_narrative!(snapshot)
+      # Roadmap is LLM-written when available, else derived from recommendation
+      # priority — so the section is present regardless of the narrative writer.
+      snapshot["roadmap"] ||= deterministic_roadmap(snapshot)
       snapshot
     end
 
@@ -57,7 +60,8 @@ module Reports
         "client_stack" => client_stack_json,
         "tools_catalog" => tools_catalog_json,
         "agentic_ideas" => agentic_ideas_json,
-        "narrative" => nil
+        "narrative" => nil,
+        "roadmap" => nil
       }
     end
 
@@ -75,6 +79,8 @@ module Reports
         snapshot["executive_summary"] = narrative["executive_summary"]
       end
 
+      snapshot["roadmap"] = narrative["roadmap"] if narrative["roadmap"].present?
+
       # Override each implication's "so what" with the LLM statement when it
       # clearly maps to the same pattern; otherwise keep the deterministic one.
       statements = narrative["implications"].to_h { |i| [i["pattern_title"].to_s.downcase, i["statement"]] }
@@ -82,6 +88,22 @@ module Reports
         match = statements[imp["title"].to_s.downcase]
         imp["statement"] = match if match.present?
       end
+    end
+
+    # Deterministic Now/Next/Later derived from recommendation priority — the
+    # honest fallback when the LLM narrative writer is unavailable.
+    def deterministic_roadmap(snapshot)
+      recs = Array(snapshot["recommendations"])
+      return nil if recs.empty?
+
+      bucket = ->(pri) { recs.select { |r| r["priority"].to_s.downcase == pri } }
+      now = bucket.call("high")
+      later = bucket.call("low")
+      nxt = recs - now - later # medium + anything unlabeled
+
+      to_items = ->(list) { list.first(4).map { |r| { "title" => r["title"], "rationale" => r["description"].to_s.truncate(140).presence } } }
+      roadmap = { "now" => to_items.call(now), "next" => to_items.call(nxt), "later" => to_items.call(later) }
+      roadmap.values.any?(&:any?) ? roadmap : nil
     end
 
     # Documents-mode companies stay docs-oriented even if a contact was seeded for Q&A.

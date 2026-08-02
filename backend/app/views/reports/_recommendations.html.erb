@@ -1,7 +1,8 @@
 <% company_name = snapshot.dig("company", "name") %>
 <section class="page">
-  <div class="eyebrow">07 — Recommendations</div>
-  <h1 style="font-size:28pt;margin:4mm 0 4mm;">Suggested actions</h1>
+  <div class="eyebrow">Recommendations</div>
+  <h1 style="font-size:28pt;margin:4mm 0 3mm;">What to do</h1>
+  <p class="lead" style="max-width:200mm;margin-bottom:5mm;">Prioritized actions drawn from the findings above. Each names a matched tool where one fits — the full product view follows in Capabilities.</p>
   <div class="card-grid-3">
     <% Array(recommendations).each do |rec| %>
       <% pill = report_priority_pill(rec["priority"]) %>
@@ -27,7 +28,7 @@
 
 <% if Array(recommendations).any? %>
 <section class="page">
-  <div class="eyebrow">07 — Prioritization<% if report_has_delta?(snapshot["delta_from_previous"]) %> · 04 — What changed<% end %></div>
+  <div class="eyebrow">Prioritization<% if report_has_delta?(snapshot["delta_from_previous"]) %> · What changed<% end %></div>
   <h1 style="font-size:26pt;margin:4mm 0 4mm;">Where to start<% if report_has_delta?(snapshot["delta_from_previous"]) %>, and what moved<% end %></h1>
   <div class="split">
     <% matrix_svg = report_priority_matrix_svg(recommendations) %>
@@ -55,7 +56,7 @@
     <% if report_has_delta?(snapshot["delta_from_previous"]) %>
       <% delta = snapshot["delta_from_previous"] || {} %>
       <div>
-        <div class="eyebrow">04 — Delta</div>
+        <div class="eyebrow">Delta</div>
         <div class="delta" style="margin-top:4mm;">
           <div class="col add">
             <h4>New</h4>

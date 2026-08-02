@@ -3,8 +3,8 @@
 <% if ideas.any? %>
 <section class="page">
   <div class="eyebrow">Opportunities</div>
-  <h1 style="font-size:28pt;margin:4mm 0 3mm;">Agentic ideas ready to pursue</h1>
-  <p class="lead" style="max-width:210mm;">Published opportunities shaped from this company's evidence. Each idea includes system fit, value, and an approximate delivery window. Draft ideas stay in the backlog until platform or reviewer publish them.</p>
+  <h1 style="font-size:28pt;margin:4mm 0 3mm;">Agentic AI we'd build for you</h1>
+  <p class="lead" style="max-width:210mm;">Tailored automation and AI-agent concepts shaped from this company's evidence — <strong>things we would design and build</strong>, not off-the-shelf tools. Each includes system fit, value, and an approximate delivery window. Published by platform or reviewer after review.</p>
   <div class="card-grid-3">
     <% ideas.each do |idea| %>
       <% conf = report_pct(idea["confidence"]) %>
