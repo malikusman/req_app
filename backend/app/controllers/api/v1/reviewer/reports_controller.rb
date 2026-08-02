@@ -25,6 +25,17 @@ module Api
           send_report_download(report, disposition: disposition)
         end
 
+        # WYSIWYG live preview: renders the deliverable with the reviewer's pending
+        # section edits + publishable findings applied (never stored).
+        def preview
+          report = policy_scope(::Report).find(params[:id])
+          authorize report, :download?
+          return head :unprocessable_entity if report.report_snapshot.blank?
+
+          html = Reports::RegenerateWithReviewService.render_html(report: report)
+          send_data html, type: "text/html", disposition: "inline"
+        end
+
         private
 
         def report_json(report)

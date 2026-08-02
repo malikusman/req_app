@@ -7,6 +7,12 @@ module Reports
       new(report: report).call
     end
 
+    # Live render of the deliverable WITH pending reviewer edits + findings,
+    # without storing anything — powers the WYSIWYG preview for reviewer/platform.
+    def self.render_html(report:)
+      new(report: report).render_html
+    end
+
     def initialize(report:)
       @report = report
       @company = report.company
@@ -14,6 +20,14 @@ module Reports
 
     def call
       raise ArgumentError, "Report not ready" unless @report.status == "ready"
+      raise ArgumentError, "Report snapshot missing" if @report.report_snapshot.blank?
+
+      html = render_html
+      upload_artifact!(html)
+      @report
+    end
+
+    def render_html
       raise ArgumentError, "Report snapshot missing" if @report.report_snapshot.blank?
 
       collector = ReviewNotesCollector.new(report: @report)
@@ -24,14 +38,12 @@ module Reports
       # of the stored snapshot — the persisted snapshot is untouched.
       snapshot = SectionOverridesApplier.call(snapshot: @report.report_snapshot, report: @report)
 
-      html = HtmlBuilder.call(
+      HtmlBuilder.call(
         snapshot: snapshot,
         review_notes: review_notes,
         review_overlay: overlay,
         report_version: @report.version
       )
-      upload_artifact!(html)
-      @report
     end
 
     private

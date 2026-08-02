@@ -64,6 +64,8 @@ export function ReviewerReportWorkspace() {
   const lastSeenChatMessageId = useRef<number | null>(null);
   const lastSyncAt = useRef<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [draftUrl, setDraftUrl] = useState<string | null>(null);
+  const [pdfMode, setPdfMode] = useState<'stored' | 'draft'>('draft');
   const [sendingFollowup, setSendingFollowup] = useState(false);
   const [confirmSubmitOpen, setConfirmSubmitOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -225,7 +227,28 @@ export function ReviewerReportWorkspace() {
     return () => {
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, companyId, reportId, workspace?.report.storage_key]);
+
+  // Live "with your edits" render — refetched whenever the drawer opens so it
+  // reflects the latest pending section overrides + findings.
+  useEffect(() => {
+    if (!pdfOpen || !token || !companyId || !reportId || !workspace?.report) {
+      return;
+    }
+    let objectUrl: string | null = null;
+    api
+      .previewReviewerReportDraft(token, Number(companyId), Number(reportId))
+      .then((url) => {
+        objectUrl = url;
+        setDraftUrl(url);
+      })
+      .catch(() => setDraftUrl(null));
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pdfOpen, token, companyId, reportId]);
 
   const activeConversation = workspace?.conversations[activeConversationIndex] ?? null;
   const submitted = Boolean(workspace?.review.submitted_at);
@@ -989,7 +1012,10 @@ export function ReviewerReportWorkspace() {
         open={pdfOpen}
         onOpenChange={setPdfOpen}
         previewUrl={previewUrl}
+        draftUrl={draftUrl}
         downloadUrl={previewUrl}
+        mode={pdfMode}
+        onModeChange={setPdfMode}
       />
 
       <ReviewerChatDrawer

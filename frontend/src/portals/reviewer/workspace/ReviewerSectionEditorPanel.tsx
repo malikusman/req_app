@@ -130,8 +130,8 @@ export function ReviewerSectionEditorPanel({ token, companyId, reportId, disable
       ) : (
         <div className="space-y-5">
           <p className="text-xs text-text-secondary">
-            Hide sections, add an editorial note, or add your own section. Applied to the deliverable when the report is
-            approved.
+            Hide sections, add an editorial note, or add your own section. Open the report preview
+            (&ldquo;With your edits&rdquo;) to see the result live; changes are baked in when the report is approved.
           </p>
           {/* Existing overrides */}
           {overrides.length > 0 && (

@@ -71,6 +71,7 @@ Rails.application.routes.draw do
         post "companies/:company_id/agentic_ideas/synthesize", to: "agentic_ideas#synthesize"
         post "companies/:company_id/reports/:id/approve", to: "reports#approve"
         get "companies/:company_id/reports/:id/download", to: "reports#download"
+        get "companies/:company_id/reports/:id/preview", to: "reports#preview"
         post "companies/:company_id/impersonate", to: "impersonations#create"
         get "monitoring", to: "monitoring#show"
         get "dashboard", to: "dashboard#show"
@@ -116,6 +117,7 @@ Rails.application.routes.draw do
           resources :reports, only: %i[index show], controller: "reports" do
             member do
               get :download
+              get :preview
               get :workspace, to: "review_workspace#show"
             end
             resources :section_overrides, only: %i[index create update destroy], controller: "report_section_overrides"

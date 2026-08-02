@@ -810,6 +810,13 @@ export const api = {
   previewReviewerReport: (token: string, companyId: number, reportId: number) =>
     fetchPreviewBlob(token, `/api/v1/reviewer/companies/${companyId}/reports/${reportId}/download`),
 
+  // Live HTML render WITH the reviewer's pending section edits + findings applied.
+  previewReviewerReportDraft: (token: string, companyId: number, reportId: number) =>
+    fetchPreviewBlob(token, `/api/v1/reviewer/companies/${companyId}/reports/${reportId}/preview`),
+
+  previewPlatformReportDraft: (token: string, companyId: number, reportId: number) =>
+    fetchPreviewBlob(token, `/api/v1/platform/companies/${companyId}/reports/${reportId}/preview`),
+
   discoveryQuestions: (token: string) =>
     request<{ questions: DiscoveryQuestion[] }>('/api/v1/company/discovery_questions', {}, token),
 

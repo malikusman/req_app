@@ -161,6 +161,8 @@ export function PlatformCompanyDetail() {
   const [approvingId, setApprovingId] = useState<number | null>(null);
   const [selectedReportId, setSelectedReportId] = useState<number | null>(null);
   const [reportPreviewUrl, setReportPreviewUrl] = useState<string | null>(null);
+  const [reportDraftUrl, setReportDraftUrl] = useState<string | null>(null);
+  const [reportPreviewMode, setReportPreviewMode] = useState<'draft' | 'stored'>('draft');
   const [actionError, setActionError] = useState('');
 
   const loadReports = () => {
@@ -315,6 +317,26 @@ export function PlatformCompanyDetail() {
       })
       .catch(() => setReportPreviewUrl(null));
 
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [token, companyId, selectedReport?.id, selectedReport?.status]);
+
+  // Live "with reviewer edits" render so the approver sees exactly what the
+  // client will get after the approve-triggered regenerate.
+  useEffect(() => {
+    if (!token || !selectedReport || selectedReport.status !== 'ready') {
+      setReportDraftUrl(null);
+      return;
+    }
+    let objectUrl: string | null = null;
+    api
+      .previewPlatformReportDraft(token, companyId, selectedReport.id)
+      .then((url) => {
+        objectUrl = url;
+        setReportDraftUrl(url);
+      })
+      .catch(() => setReportDraftUrl(null));
     return () => {
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
@@ -695,11 +717,30 @@ export function PlatformCompanyDetail() {
                 )}
               </Card>
 
-              {reportPreviewUrl && (
+              {(reportPreviewUrl || reportDraftUrl) && (
                 <Card title="Report preview">
+                  <div className="mb-3 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setReportPreviewMode('draft')}
+                      className={`rounded-full px-3 py-1 text-xs font-medium transition ${reportPreviewMode === 'draft' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}
+                    >
+                      With reviewer edits
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setReportPreviewMode('stored')}
+                      className={`rounded-full px-3 py-1 text-xs font-medium transition ${reportPreviewMode === 'stored' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}
+                    >
+                      Current artifact
+                    </button>
+                    <span className="text-xs text-muted-foreground">
+                      {reportPreviewMode === 'draft' ? 'Exactly what the client gets on approval.' : 'The last generated file.'}
+                    </span>
+                  </div>
                   <iframe
-                    src={reportPreviewUrl}
-                    title="Report PDF preview"
+                    src={(reportPreviewMode === 'draft' ? reportDraftUrl : reportPreviewUrl) ?? undefined}
+                    title="Report preview"
                     className="h-[520px] w-full rounded-lg border border-border bg-muted/30"
                   />
                 </Card>
