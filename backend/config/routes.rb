@@ -145,6 +145,8 @@ Rails.application.routes.draw do
           post "clarification_questions/:id/dismiss", to: "document_analysis#dismiss_question"
           resources :outreaches, only: %i[index create show], controller: "outreaches"
           get "catalog", to: "catalog#index"
+          get "catalog/available", to: "catalog#available"
+          post "catalog/add", to: "catalog#add_product"
           post "catalog/:id/endorse", to: "catalog#endorse"
           resources :agentic_ideas, only: %i[index create update], controller: "agentic_ideas" do
             member do

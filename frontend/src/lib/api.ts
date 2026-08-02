@@ -622,6 +622,24 @@ export const api = {
       note?: string;
     }>(`/api/v1/reviewer/companies/${companyId}/catalog`, {}, token),
 
+  reviewerAvailableCatalog: (token: string, companyId: number, q?: string) =>
+    request<{ solutions: SolutionCatalogEntry[] }>(
+      `/api/v1/reviewer/companies/${companyId}/catalog/available${q ? `?q=${encodeURIComponent(q)}` : ''}`,
+      {},
+      token
+    ),
+
+  reviewerAddCatalogProduct: (
+    token: string,
+    companyId: number,
+    payload: { solution_catalog_entry_id: number; why_it_fits?: string }
+  ) =>
+    request<{ match: Record<string, unknown> }>(
+      `/api/v1/reviewer/companies/${companyId}/catalog/add`,
+      { method: 'POST', body: JSON.stringify(payload) },
+      token
+    ),
+
   endorseReviewerCatalogMatch: (
     token: string,
     companyId: number,
@@ -1956,6 +1974,7 @@ export interface SolutionCatalogEntry {
   match_keywords: string[];
   active: boolean;
   partnership_tier: string;
+  first_party?: boolean;
   entity_type?: string;
   slug?: string | null;
   use_cases?: string[];

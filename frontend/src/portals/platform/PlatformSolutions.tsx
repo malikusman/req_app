@@ -14,6 +14,7 @@ export function PlatformSolutions() {
   const [capabilities, setCapabilities] = useState('');
   const [requiredSystems, setRequiredSystems] = useState('');
   const [description, setDescription] = useState('');
+  const [firstParty, setFirstParty] = useState(false);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editActive, setEditActive] = useState(true);
@@ -47,6 +48,7 @@ export function PlatformSolutions() {
       required_systems: requiredSystems.split(',').map((k) => k.trim()).filter(Boolean),
       tags: [category],
       active: true,
+      first_party: firstParty,
       published_at: new Date().toISOString(),
     });
     setName('');
@@ -55,6 +57,7 @@ export function PlatformSolutions() {
     setCapabilities('');
     setRequiredSystems('');
     setDescription('');
+    setFirstParty(false);
     load();
   };
 
@@ -140,6 +143,10 @@ export function PlatformSolutions() {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />
+          <label className="flex items-center gap-2 text-sm text-text-secondary md:col-span-2">
+            <input type="checkbox" checked={firstParty} onChange={(e) => setFirstParty(e.target.checked)} />
+            First-party product (built by Worktruth) — badged as ours in reports
+          </label>
           <div className="md:col-span-2">
             <Button type="submit">Add solution</Button>
           </div>

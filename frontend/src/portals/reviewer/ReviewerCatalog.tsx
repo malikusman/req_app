@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { api } from '../../lib/api';
+import { api, type SolutionCatalogEntry } from '../../lib/api';
 import { useReviewerToken } from '../../lib/auth';
 import { PageHeader, Card, Badge, Button, EmptyState, Skeleton, Textarea } from '../../components/ui';
 
@@ -58,6 +58,42 @@ export function ReviewerCatalog() {
     load();
   }, [token, companyId]);
 
+  // --- Add a product from the catalog to this company's list ---
+  const [available, setAvailable] = useState<SolutionCatalogEntry[]>([]);
+  const [showAdd, setShowAdd] = useState(false);
+  const [query, setQuery] = useState('');
+  const [addingId, setAddingId] = useState<number | null>(null);
+
+  const loadAvailable = (q?: string) => {
+    if (!token || !companyId) return;
+    api
+      .reviewerAvailableCatalog(token, Number(companyId), q)
+      .then((d) => setAvailable(d.solutions || []))
+      .catch(() => setAvailable([]));
+  };
+
+  const openAdd = () => {
+    setShowAdd(true);
+    loadAvailable();
+  };
+
+  const addProduct = async (entryId: number) => {
+    if (!token || !companyId) return;
+    setAddingId(entryId);
+    setError('');
+    setMessage('');
+    try {
+      await api.reviewerAddCatalogProduct(token, Number(companyId), { solution_catalog_entry_id: entryId });
+      setMessage('Product added to this company’s list.');
+      loadAvailable(query);
+      load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Add failed');
+    } finally {
+      setAddingId(null);
+    }
+  };
+
   const endorse = async (matchId: number, disposition: 'endorse' | 'reject' | 'suggest') => {
     if (!token || !companyId) return;
     setActingId(matchId);
@@ -108,6 +144,66 @@ export function ReviewerCatalog() {
         Platform curates new tools from the web; after approval they are rematched here for this company.
         {lastMatchedAt ? ` Last matched ${new Date(lastMatchedAt).toLocaleString()}.` : ''}
       </p>
+
+      <Card
+        title="Add a product to this company"
+        action={
+          <Button variant="secondary" size="sm" onClick={() => (showAdd ? setShowAdd(false) : openAdd())}>
+            {showAdd ? 'Close' : 'Add product'}
+          </Button>
+        }
+      >
+        {showAdd ? (
+          <div className="space-y-3">
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                loadAvailable(e.target.value);
+              }}
+              placeholder="Search the catalog…"
+              className="w-full rounded-button border border-border bg-white px-3 py-2 text-sm"
+            />
+            {available.length === 0 ? (
+              <p className="text-sm text-text-secondary">No matching catalog products available to add.</p>
+            ) : (
+              <ul className="max-h-72 space-y-2 overflow-y-auto">
+                {available.map((s) => (
+                  <li
+                    key={s.id}
+                    className="flex items-start justify-between gap-3 rounded-md border border-border px-3 py-2"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate text-sm font-medium text-text-primary">{s.name}</span>
+                        {s.first_party && <Badge variant="success">Worktruth product</Badge>}
+                        {s.vendor && <span className="text-xs text-text-secondary">{s.vendor}</span>}
+                      </div>
+                      {s.description && (
+                        <p className="mt-0.5 line-clamp-2 text-xs text-text-secondary">{s.description}</p>
+                      )}
+                    </div>
+                    <Button
+                      size="sm"
+                      loading={addingId === s.id}
+                      disabled={addingId === s.id}
+                      onClick={() => addProduct(s.id)}
+                    >
+                      Add
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm text-text-secondary">
+            Attach a product from the catalog (first-party or third-party) as a recommended fit for this company. It
+            appears in the report tools section, tagged as reviewer-added.
+          </p>
+        )}
+      </Card>
       <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
         <div className="space-y-3">
           {matches.length === 0 ? (

@@ -23,6 +23,34 @@ module Api
           }
         end
 
+        # Catalog products (first-party + third-party) not yet matched to this
+        # company — the pool a reviewer can add from.
+        def available
+          company = find_assigned_company!
+          matched_ids = CompanyCatalogMatch.where(company_id: company.id).pluck(:solution_catalog_entry_id)
+          entries = SolutionCatalogEntry.where(active: true).where.not(id: matched_ids)
+          entries = entries.where("name ILIKE ?", "%#{params[:q]}%") if params[:q].present?
+          entries = entries.order(first_party: :desc, name: :asc).limit(100)
+          render json: { solutions: entries.map { |e| solution_json(e) } }
+        end
+
+        # Reviewer attaches a catalog product to this company's recommended list.
+        def add_product
+          company = find_assigned_company!
+          entry = SolutionCatalogEntry.find(params.require(:solution_catalog_entry_id))
+          match = CompanyCatalogMatch.find_or_initialize_by(company: company, solution_catalog_entry: entry)
+          match.assign_attributes(
+            score: match.score.to_f.positive? ? match.score : 0.75,
+            why_it_fits: params[:why_it_fits].presence || "Added by reviewer as a relevant fit for this company.",
+            added_by_reviewer: current_reviewer_user,
+            matched_at: match.matched_at || Time.current
+          )
+          match.save!
+          render json: { match: match_json(match) }, status: :created
+        rescue ActiveRecord::RecordInvalid => e
+          render json: { error: e.message }, status: :unprocessable_entity
+        end
+
         def endorse
           company = find_assigned_company!
           match = CompanyCatalogMatch.where(company_id: company.id).find(params[:id])
@@ -66,15 +94,22 @@ module Api
             estimated_effort: m.estimated_effort,
             validate_next: m.validate_next,
             matched_at: m.matched_at,
-            solution_catalog_entry: entry && {
-              id: entry.id,
-              name: entry.name,
-              vendor: entry.vendor,
-              category: entry.category,
-              entity_type: entry.try(:entity_type),
-              website_url: entry.website_url,
-              description: entry.description
-            }
+            added_by_reviewer_id: m.added_by_reviewer_id,
+            added_by_reviewer_name: m.added_by_reviewer&.name,
+            solution_catalog_entry: entry && solution_json(entry)
+          }
+        end
+
+        def solution_json(entry)
+          {
+            id: entry.id,
+            name: entry.name,
+            vendor: entry.vendor,
+            category: entry.category,
+            entity_type: entry.try(:entity_type),
+            first_party: entry.try(:first_party),
+            website_url: entry.website_url,
+            description: entry.description
           }
         end
 

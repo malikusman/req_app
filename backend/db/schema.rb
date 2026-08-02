@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_02_150000) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_02_160000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -212,6 +212,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_02_150000) do
     t.datetime "matched_at", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "added_by_reviewer_id"
+    t.index ["added_by_reviewer_id"], name: "index_company_catalog_matches_on_added_by_reviewer_id"
     t.index ["company_id", "solution_catalog_entry_id"], name: "idx_company_catalog_matches_unique", unique: true
     t.index ["company_id"], name: "index_company_catalog_matches_on_company_id"
     t.index ["recommendation_id"], name: "index_company_catalog_matches_on_recommendation_id"
@@ -1176,6 +1178,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_02_150000) do
     t.jsonb "match_profile", default: {}, null: false
     t.jsonb "metadata", default: {}, null: false
     t.vector "embedding", limit: 768
+    t.boolean "first_party", default: false, null: false
     t.index ["slug"], name: "index_solution_catalog_on_slug", unique: true, where: "(slug IS NOT NULL)"
   end
 
@@ -1231,6 +1234,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_02_150000) do
   add_foreign_key "catalog_sync_runs", "catalog_sources"
   add_foreign_key "company_catalog_matches", "companies"
   add_foreign_key "company_catalog_matches", "recommendations"
+  add_foreign_key "company_catalog_matches", "reviewer_users", column: "added_by_reviewer_id"
   add_foreign_key "company_catalog_matches", "solution_catalog", column: "solution_catalog_entry_id"
   add_foreign_key "company_clarification_questions", "companies"
   add_foreign_key "company_clarification_questions", "company_users", column: "answered_by_company_user_id"
