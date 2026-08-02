@@ -223,7 +223,6 @@ module ReportsHelper
     "What changed" => "delta", "Signals" => "signals", "Patterns" => "patterns",
     "Implications" => "patterns", "Recommendations" => "recommendations",
     "Roadmap" => "roadmap", "Opportunities" => "opportunities",
-    "Existing capabilities" => "owned_capabilities",
     "Capabilities & evidence" => "tools_catalog", "Supporting media" => "supporting_media",
     "Methodology" => "methodology"
   }.freeze
@@ -261,7 +260,6 @@ module ReportsHelper
     add.call("Recommendations", "Prioritized actions, catalog-matched", "rule-blue") if Array(snapshot["recommendations"]).any?
     add.call("Roadmap", "Sequenced now / next / later", "rule-blue") if snapshot.dig("narrative", "roadmap").present?
     add.call("Opportunities", "Published agentic ideas for this company", "rule-blue") if Array(snapshot["agentic_ideas"]).any?
-    add.call("Existing capabilities", "Owned solutions and their fit", "rule-teal") if Array(snapshot["owned_solutions"]).any?
     if Array(snapshot.dig("tools_catalog", "curated_matches")).any? || Array(snapshot["supporting_documents"]).any?
       add.call("Capabilities & evidence", "Catalog matches and supporting documents", "rule-teal")
     end

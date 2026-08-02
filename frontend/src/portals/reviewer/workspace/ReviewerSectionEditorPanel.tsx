@@ -117,10 +117,7 @@ export function ReviewerSectionEditorPanel({ token, companyId, reportId, disable
   const hiddenKeys = new Set(overrides.filter((o) => o.action === 'hide').map((o) => o.section_key));
 
   return (
-    <Card
-      title="Edit the deliverable"
-      subtitle="Hide sections, add an editorial note, or add your own section. Applied on approval."
-    >
+    <Card title="Edit the deliverable">
       {loadError ? (
         <div className="rounded-button border border-status-error/30 bg-status-errorBg px-3 py-2 text-sm text-status-error">
           Couldn't load section edits.{' '}
@@ -132,6 +129,10 @@ export function ReviewerSectionEditorPanel({ token, companyId, reportId, disable
         <p className="text-sm text-text-secondary">Loading…</p>
       ) : (
         <div className="space-y-5">
+          <p className="text-xs text-text-secondary">
+            Hide sections, add an editorial note, or add your own section. Applied to the deliverable when the report is
+            approved.
+          </p>
           {/* Existing overrides */}
           {overrides.length > 0 && (
             <ul className="space-y-2">
@@ -142,7 +143,7 @@ export function ReviewerSectionEditorPanel({ token, companyId, reportId, disable
                 >
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <Badge variant={o.action === 'hide' ? 'warning' : 'default'}>{o.action}</Badge>
+                      <Badge variant={o.action === 'hide' ? 'warning' : 'neutral'}>{o.action}</Badge>
                       <span className="truncate text-sm font-medium text-text-primary">
                         {o.action === 'add' ? o.title : label(o.section_key)}
                       </span>

@@ -107,12 +107,6 @@
 <% end %>
 <%= custom_after.call("opportunities") %>
 
-<% if Array(snapshot["owned_solutions"]).any? && !report_section_hidden?(snapshot, "owned_capabilities") %>
-  <%= edit_note.call("owned_capabilities") %>
-  <%= render "reports/owned_capabilities", snapshot: snapshot, report_version: report_version %>
-<% end %>
-<%= custom_after.call("owned_capabilities") %>
-
 <% if (Array(snapshot.dig("tools_catalog", "curated_matches")).any? || Array(snapshot.dig("tools_catalog", "endorsements")).any? || Array(snapshot["supporting_documents"]).any?) && !report_section_hidden?(snapshot, "tools_catalog") %>
   <%= edit_note.call("tools_catalog") %>
   <%= render "reports/tools_catalog", snapshot: snapshot, report_version: report_version %>

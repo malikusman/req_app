@@ -112,8 +112,6 @@ Rails.application.routes.draw do
           get "signals", to: "intelligence#signals"
           get "patterns", to: "intelligence#patterns"
           get "recommendations", to: "intelligence#recommendations"
-          get "owned_solutions", to: "owned_solutions#index"
-          patch "owned_solutions/:id/endorse", to: "owned_solutions#endorse"
           get "review_sync", to: "review_sync#show"
           resources :reports, only: %i[index show], controller: "reports" do
             member do
@@ -172,7 +170,6 @@ Rails.application.routes.draw do
           end
         end
         resources :document_analysis_runs, only: %i[index show create]
-        resources :owned_solutions, only: %i[index create update destroy], controller: "company_systems"
         resources :knowledge_entries, only: %i[index]
         resources :clarification_questions, only: %i[index] do
           member do

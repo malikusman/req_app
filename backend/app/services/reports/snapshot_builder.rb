@@ -55,7 +55,6 @@ module Reports
         "supporting_documents" => supporting_documents_json,
         "knowledge_base" => knowledge_base_json,
         "client_stack" => client_stack_json,
-        "owned_solutions" => owned_solutions_json,
         "tools_catalog" => tools_catalog_json,
         "agentic_ideas" => agentic_ideas_json,
         "narrative" => nil
@@ -370,7 +369,7 @@ module Reports
     def client_stack_json
       return [] unless defined?(CompanySystem) && CompanySystem.table_exists?
 
-      @company.company_systems.active.systems.order(:name).limit(20).map do |sys|
+      @company.company_systems.active.order(:name).limit(20).map do |sys|
         {
           "id" => sys.id,
           "name" => sys.name,
@@ -379,15 +378,6 @@ module Reports
           "confidence" => sys.confidence
         }
       end
-    end
-
-    def owned_solutions_json
-      return [] unless defined?(CompanySystem) && CompanySystem.table_exists?
-
-      Catalog::OwnedSolutionFitService.call(company: @company)
-    rescue StandardError => e
-      Rails.logger.warn("[Reports::SnapshotBuilder] owned_solutions fit skipped: #{e.class}: #{e.message}")
-      []
     end
 
     def agentic_ideas_json

@@ -937,26 +937,6 @@ export const api = {
   companyAgenticIdeas: (token: string) =>
     request<{ agentic_ideas: AgenticIdea[] }>('/api/v1/company/agentic_ideas', {}, token),
 
-  companyOwnedSolutions: (token: string) =>
-    request<{ owned_solutions: OwnedSolution[] }>('/api/v1/company/owned_solutions', {}, token),
-
-  createCompanyOwnedSolution: (token: string, payload: OwnedSolutionInput) =>
-    request<{ owned_solution: OwnedSolution }>(
-      '/api/v1/company/owned_solutions',
-      { method: 'POST', body: JSON.stringify({ owned_solution: payload }) },
-      token
-    ),
-
-  updateCompanyOwnedSolution: (token: string, id: number, payload: OwnedSolutionInput) =>
-    request<{ owned_solution: OwnedSolution }>(
-      `/api/v1/company/owned_solutions/${id}`,
-      { method: 'PATCH', body: JSON.stringify({ owned_solution: payload }) },
-      token
-    ),
-
-  deleteCompanyOwnedSolution: (token: string, id: number) =>
-    request<void>(`/api/v1/company/owned_solutions/${id}`, { method: 'DELETE' }, token),
-
   companyReports: (token: string) =>
     request<{
       reports: Report[];
@@ -1589,25 +1569,6 @@ export interface ReviewCommentPayload {
   reviewer_user_id: number;
   reviewer_name?: string;
   created_at?: string;
-}
-
-export interface OwnedSolution {
-  id: number;
-  name: string;
-  category: string;
-  description: string | null;
-  capabilities: string | null;
-  active: boolean;
-  reviewer_endorsed: boolean;
-  reviewer_note: string | null;
-}
-
-export interface OwnedSolutionInput {
-  name: string;
-  category?: string;
-  description?: string;
-  capabilities?: string;
-  active?: boolean;
 }
 
 export type SectionOverrideAction = 'hide' | 'edit' | 'add';
