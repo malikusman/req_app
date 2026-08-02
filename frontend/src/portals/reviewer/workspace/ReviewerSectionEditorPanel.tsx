@@ -31,6 +31,7 @@ type Props = {
   companyId: number;
   reportId: number;
   disabled?: boolean;
+  onPreview?: () => void;
 };
 
 /**
@@ -38,7 +39,7 @@ type Props = {
  * add an editorial note to one, or add a whole new custom section. Changes are
  * applied to the deliverable when the report is regenerated on approval.
  */
-export function ReviewerSectionEditorPanel({ token, companyId, reportId, disabled }: Props) {
+export function ReviewerSectionEditorPanel({ token, companyId, reportId, disabled, onPreview }: Props) {
   const { toast } = useToast();
   const [sections, setSections] = useState<string[]>([]);
   const [overrides, setOverrides] = useState<ReportSectionOverride[]>([]);
@@ -129,10 +130,17 @@ export function ReviewerSectionEditorPanel({ token, companyId, reportId, disable
         <p className="text-sm text-text-secondary">Loading…</p>
       ) : (
         <div className="space-y-5">
-          <p className="text-xs text-text-secondary">
-            Hide sections, add an editorial note, or add your own section. Open the report preview
-            (&ldquo;With your edits&rdquo;) to see the result live; changes are baked in when the report is approved.
-          </p>
+          <div className="flex items-start justify-between gap-3">
+            <p className="text-xs text-text-secondary">
+              Hide sections, add an editorial note, or add your own section. Changes are baked in when the report is
+              approved.
+            </p>
+            {onPreview && (
+              <Button variant="secondary" size="sm" className="shrink-0" onClick={onPreview}>
+                Preview with edits
+              </Button>
+            )}
+          </div>
           {/* Existing overrides */}
           {overrides.length > 0 && (
             <ul className="space-y-2">

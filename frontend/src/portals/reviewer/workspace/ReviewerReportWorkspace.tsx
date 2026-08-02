@@ -861,6 +861,10 @@ export function ReviewerReportWorkspace() {
                   companyId={Number(companyId)}
                   reportId={Number(reportId)}
                   disabled={submitted}
+                  onPreview={() => {
+                    setPdfMode('draft');
+                    setPdfOpen(true);
+                  }}
                 />
               )}
               <div className="flex justify-between">
@@ -961,7 +965,19 @@ export function ReviewerReportWorkspace() {
                 )}
               </Card>
               {!submitted && (
-                <Button onClick={() => setConfirmSubmitOpen(true)}>Submit review</Button>
+                <div className="space-y-2">
+                  <Button
+                    onClick={() => setConfirmSubmitOpen(true)}
+                    disabled={!sectionsComplete(workspace.review.section_states) || !workspace.review.overall_note}
+                  >
+                    Submit review
+                  </Button>
+                  {(!sectionsComplete(workspace.review.section_states) || !workspace.review.overall_note) && (
+                    <p className="text-xs text-muted-foreground">
+                      Mark every section reviewed and save your overall conclusion before submitting.
+                    </p>
+                  )}
+                </div>
               )}
               {submitted && (
                 <p className="text-sm text-status-success">Review submitted — platform team will be notified.</p>
