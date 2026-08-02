@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, type Report } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
-import { PageHeader, Card, Button, DataTable, Badge, EmptyState } from '../../components/ui';
+import { PageHeader, Card, Button, DataTable, Badge, EmptyState, Modal } from '../../components/ui';
 import { useToast } from '../../components/ui/ToastProvider';
 
 export function CompanyReports() {
@@ -10,27 +10,50 @@ export function CompanyReports() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [reports, setReports] = useState<Report[]>([]);
+  const [stale, setStale] = useState(false);
+  const [intelUpdatedAt, setIntelUpdatedAt] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [loadError, setLoadError] = useState('');
   const [loading, setLoading] = useState(true);
 
-  const load = () => {
+  // In-portal viewer
+  const [viewer, setViewer] = useState<{ report: Report; url: string | null } | null>(null);
+
+  const load = useCallback(() => {
     if (!token) return;
     api
       .companyReports(token)
       .then((d) => {
         setReports(d.reports);
+        setStale(d.report_stale === true);
+        setIntelUpdatedAt(d.intelligence_updated_at ?? null);
         setLoadError('');
       })
       .catch(() => setLoadError('Could not load reports.'))
       .finally(() => setLoading(false));
-  };
+  }, [token]);
 
   useEffect(() => {
     load();
     const interval = setInterval(load, 5000);
     return () => clearInterval(interval);
-  }, [token]);
+  }, [load]);
+
+  const openViewer = async (report: Report) => {
+    if (!token) return;
+    setViewer({ report, url: null });
+    try {
+      const url = await api.previewCompanyReport(token, report.id);
+      setViewer({ report, url });
+    } catch {
+      setViewer({ report, url: null });
+    }
+  };
+
+  const closeViewer = () => {
+    if (viewer?.url) URL.revokeObjectURL(viewer.url);
+    setViewer(null);
+  };
 
   const share = async (id: number) => {
     if (!token) return;
@@ -53,11 +76,13 @@ export function CompanyReports() {
     await api.downloadReport(token, id);
   };
 
+  const generating = reports.some((r) => r.status === 'queued' || r.status === 'generating');
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Reports"
-        description="Reports shared with your company by your reviewer or platform. Download or create an external share link."
+        description="View, download, or share the discovery reports your reviewer and platform team prepare for you."
       />
 
       {error && <p className="text-sm text-status-error">{error}</p>}
@@ -70,16 +95,19 @@ export function CompanyReports() {
         </div>
       )}
 
-      <Card>
-        <p className="m-0 text-sm text-text-secondary">
-          Company admins can view and download shared reports. Report generation is handled by your assigned
-          reviewer and platform team. See{' '}
-          <button type="button" className="font-medium text-primary hover:underline" onClick={() => navigate('/company/reviewers')}>
-            Reviewers
-          </button>{' '}
-          for assigned experts.
-        </p>
-      </Card>
+      {generating && (
+        <div className="rounded-button border border-info/30 bg-info/10 px-4 py-3 text-sm text-info">
+          A report is being generated — this page will update automatically when it's ready.
+        </div>
+      )}
+
+      {stale && !generating && (
+        <div className="rounded-button border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
+          Your intelligence has changed
+          {intelUpdatedAt && ` (updated ${new Date(intelUpdatedAt).toLocaleString()})`} since your latest report. Ask your
+          reviewer or platform team to generate a refreshed version.
+        </div>
+      )}
 
       <DataTable
         loading={loading}
@@ -101,7 +129,7 @@ export function CompanyReports() {
           },
           {
             key: 'delta',
-            header: 'Delta',
+            header: 'What changed',
             render: (r) => <span className="text-xs text-text-secondary">{r.delta_summary || '—'}</span>,
           },
           {
@@ -118,16 +146,14 @@ export function CompanyReports() {
               ),
           },
           {
-            key: 'review',
-            header: 'Availability',
-            render: () => <Badge variant="success">Shared</Badge>,
-          },
-          {
             key: 'actions',
             header: '',
             render: (r) =>
               r.status === 'ready' ? (
                 <div className="flex gap-2">
+                  <Button size="sm" onClick={() => openViewer(r)}>
+                    View
+                  </Button>
                   <Button variant="secondary" size="sm" onClick={() => download(r.id)}>
                     Download
                   </Button>
@@ -150,6 +176,36 @@ export function CompanyReports() {
           />
         }
       />
+
+      <Modal
+        open={viewer !== null}
+        onClose={closeViewer}
+        title={viewer ? `Report v${viewer.report.version}` : 'Report'}
+        className="sm:max-w-[90vw]"
+        footer={
+          viewer && (
+            <>
+              <Button variant="secondary" onClick={() => download(viewer.report.id)}>
+                Download
+              </Button>
+              <Button variant="secondary" onClick={() => share(viewer.report.id)}>
+                Share link
+              </Button>
+              <Button onClick={closeViewer}>Close</Button>
+            </>
+          )
+        }
+      >
+        {viewer?.url ? (
+          <iframe
+            src={viewer.url}
+            title="Report"
+            className="h-[75vh] w-full rounded-lg border border-border bg-white"
+          />
+        ) : (
+          <p className="py-10 text-center text-sm text-text-secondary">Loading report…</p>
+        )}
+      </Modal>
     </div>
   );
 }

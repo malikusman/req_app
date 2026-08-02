@@ -63,7 +63,7 @@ module Api
           send_data data,
                     filename: "discovery-report-v#{report.version}.#{report.content_type == 'application/pdf' ? 'pdf' : 'html'}",
                     type: report.content_type,
-                    disposition: "attachment"
+                    disposition: params[:inline].present? ? "inline" : "attachment"
         end
 
         def share

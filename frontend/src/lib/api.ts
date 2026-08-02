@@ -973,6 +973,10 @@ export const api = {
   generateReport: (token: string) =>
     request<{ report: Report }>('/api/v1/company/reports', { method: 'POST' }, token),
 
+  // Inline blob → object URL for an in-portal report viewer.
+  previewCompanyReport: (token: string, id: number) =>
+    fetchPreviewBlob(token, `/api/v1/company/reports/${id}/download`),
+
   shareReport: (token: string, id: number, days: number) =>
     request<{ share_token: string; share_url: string; expires_at: string }>(
       `/api/v1/company/reports/${id}/share`,
