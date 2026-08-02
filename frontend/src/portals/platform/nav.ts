@@ -1,14 +1,11 @@
 import {
-  Activity,
   BookOpen,
   Building2,
   LayoutDashboard,
   Package,
   Inbox,
   Rss,
-  ScrollText,
-  Server,
-  TestTube2,
+  SlidersHorizontal,
   UserPlus,
   Users,
 } from 'lucide-react';
@@ -19,12 +16,10 @@ export const navItems: SidebarItem[] = [
   { to: '/platform/registrations', label: 'Registrations', icon: UserPlus },
   { to: '/platform/companies', label: 'Companies', icon: Building2 },
   { to: '/platform/reviewers', label: 'Reviewers', icon: Users },
-  { to: '/platform/trials', label: 'Trials', icon: TestTube2 },
   { to: '/platform/playbooks', label: 'Playbooks', icon: BookOpen },
   { to: '/platform/solutions', label: 'Solutions', icon: Package },
   { to: '/platform/catalog/sources', label: 'Sources', icon: Rss },
   { to: '/platform/catalog/candidates', label: 'Candidates', icon: Inbox },
-  { to: '/platform/system', label: 'System', icon: Server },
-  { to: '/platform/monitoring', label: 'Monitoring', icon: Activity },
-  { to: '/platform/audit', label: 'Audit log', icon: ScrollText },
+  // System, Monitoring, Trials, Audit consolidated into Operations tabs.
+  { to: '/platform/operations', label: 'Operations', icon: SlidersHorizontal },
 ];

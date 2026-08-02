@@ -15,12 +15,9 @@ import { PlatformLayout } from './portals/platform/PlatformLayout';
 import { PlatformDashboard } from './portals/platform/PlatformDashboard';
 import { PlatformCompanies } from './portals/platform/PlatformCompanies';
 import { PlatformCompanyDetail } from './portals/platform/PlatformCompanyDetail';
-import { PlatformAuditLog } from './portals/platform/PlatformAuditLog';
-import { PlatformTrials } from './portals/platform/PlatformTrials';
 import { PlatformPlaybooks } from './portals/platform/PlatformPlaybooks';
 import { PlatformSolutions } from './portals/platform/PlatformSolutions';
-import { PlatformSystem } from './portals/platform/PlatformSystem';
-import { PlatformMonitoringPage } from './portals/platform/PlatformMonitoring';
+import { PlatformOperations } from './portals/platform/PlatformOperations';
 import { PlatformReviewers } from './portals/platform/PlatformReviewers';
 import { PlatformReviewerDetail } from './portals/platform/PlatformReviewerDetail';
 import { PlatformRegistrations } from './portals/platform/PlatformRegistrations';
@@ -125,14 +122,16 @@ export default function App() {
               <Route path="registrations" element={<PlatformRegistrations />} />
               <Route path="companies" element={<PlatformCompanies />} />
               <Route path="companies/:id" element={<PlatformCompanyDetail />} />
-              <Route path="audit" element={<PlatformAuditLog />} />
-              <Route path="trials" element={<PlatformTrials />} />
               <Route path="playbooks" element={<PlatformPlaybooks />} />
               <Route path="solutions" element={<PlatformSolutions />} />
               <Route path="catalog/sources" element={<PlatformCatalogSources />} />
               <Route path="catalog/candidates" element={<PlatformCatalogCandidates />} />
-              <Route path="system" element={<PlatformSystem />} />
-              <Route path="monitoring" element={<PlatformMonitoringPage />} />
+              <Route path="operations" element={<PlatformOperations />} />
+              {/* Consolidated into Operations tabs; keep old paths as redirects */}
+              <Route path="system" element={<Navigate to="/platform/operations?tab=system" replace />} />
+              <Route path="monitoring" element={<Navigate to="/platform/operations?tab=monitoring" replace />} />
+              <Route path="trials" element={<Navigate to="/platform/operations?tab=trials" replace />} />
+              <Route path="audit" element={<Navigate to="/platform/operations?tab=audit" replace />} />
               <Route path="reviewers" element={<PlatformReviewers />} />
               <Route path="reviewers/:id" element={<PlatformReviewerDetail />} />
             </Route>

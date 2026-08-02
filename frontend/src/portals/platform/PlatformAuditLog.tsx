@@ -3,14 +3,21 @@ import { api, type PlatformAuditLogEntry } from '../../lib/api';
 import { usePlatformToken } from '../../lib/auth';
 import { PageHeader, DataTable, Badge, EmptyState, Button } from '../../components/ui';
 
+// Action values written by PlatformAuditService write-sites (+ seeded events).
 const AUDIT_ACTIONS = [
   '',
   'company_created',
   'company_updated',
+  'company_registration_approved',
   'reviewer_assigned',
+  'reviewer_removed',
   'report_generated',
   'report_approved',
   'trial_extended',
+  'playbook_created',
+  'playbook_updated',
+  'playbook_activated',
+  'impersonation_started',
 ];
 
 export function PlatformAuditLog() {

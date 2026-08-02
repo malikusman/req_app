@@ -9,7 +9,10 @@ module Api
         def index
           logs = PlatformAuditLog.includes(:platform_user).order(created_at: :desc)
 
-          logs = logs.where(action: params[:action]) if params[:action].present?
+          # NB: params[:action] is the Rails routing key ("index") and is never
+          # blank — read the actual query parameter instead.
+          action_filter = request.query_parameters[:action]
+          logs = logs.where(action: action_filter) if action_filter.present?
           if params[:company_id].present?
             company_id = params[:company_id].to_i
             logs = logs.where(
