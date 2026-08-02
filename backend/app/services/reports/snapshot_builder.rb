@@ -60,9 +60,36 @@ module Reports
         "client_stack" => client_stack_json,
         "tools_catalog" => tools_catalog_json,
         "agentic_ideas" => agentic_ideas_json,
+        "agent_activity" => agent_activity_json,
         "narrative" => nil,
         "roadmap" => nil
       }
+    end
+
+    # Light-touch attribution: which specialist discovery agents actually ran,
+    # from message agent_id (domain_<dept> / process / technical / strategic /
+    # compliance). Read-only over existing data — no new plumbing.
+    def agent_activity_json
+      counts = Message.joins(conversation: :employee)
+                      .where(employees: { company_id: @company.id })
+                      .where.not(agent_id: [nil, ""])
+                      .group(:agent_id)
+                      .count
+      counts.map { |agent_id, turns| { "agent_id" => agent_id, "role" => agent_role_label(agent_id), "turns" => turns } }
+            .sort_by { |a| -a["turns"] }
+    rescue StandardError => e
+      Rails.logger.warn("[Reports::SnapshotBuilder] agent_activity skipped: #{e.class}: #{e.message}")
+      []
+    end
+
+    def agent_role_label(agent_id)
+      id = agent_id.to_s
+      if id.start_with?("domain_")
+        "Domain specialist (#{id.sub('domain_', '').tr('_', ' ')})"
+      else
+        { "process" => "Process specialist", "technical" => "Technical specialist",
+          "strategic" => "Strategic specialist", "compliance" => "Compliance specialist" }.fetch(id, id.humanize)
+      end
     end
 
     # Enrich the deterministic snapshot with an LLM-written narrative when

@@ -39,6 +39,14 @@
         <% else %>
           <dd style="font-size:9pt;color:var(--muted);">Blended score: document baseline plus employee coverage, department spread, pattern confidence, and multimodal evidence as interviews accumulate.</dd>
         <% end %>
+        <% agents = Array(snapshot["agent_activity"]) %>
+        <% if !docs_first && agents.any? %>
+          <dt>Discovery agents engaged</dt>
+          <dd style="font-size:9pt;color:var(--muted);">
+            Interviews were led by role-routed specialist agents:
+            <%= agents.map { |a| "#{a['role']} (#{a['turns']} #{a['turns'].to_i == 1 ? 'turn' : 'turns'})" }.join("; ") %>.
+          </dd>
+        <% end %>
         <dt>Review</dt>
         <dd style="font-size:9pt;color:var(--muted);">When reviewers are assigned, overall notes and section comments are merged into an appendix at platform approval. Live discussions and WhatsApp follow-up threads are collaboration tooling and are intentionally excluded from this deliverable.</dd>
       </dl>
