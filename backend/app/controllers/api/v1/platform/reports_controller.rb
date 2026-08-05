@@ -15,8 +15,7 @@ module Api
         def download
           report = Report.joins(:company).find_by!(id: params[:id], company_id: params[:company_id])
           authorize report, :download?
-          disposition = params[:inline].present? ? "inline" : "attachment"
-          send_report_download(report, disposition: disposition)
+          send_report_download(report, disposition: download_disposition)
         end
 
         # WYSIWYG preview with pending reviewer edits applied — so the approver
@@ -24,10 +23,7 @@ module Api
         def preview
           report = Report.joins(:company).find_by!(id: params[:id], company_id: params[:company_id])
           authorize report, :download?
-          return head :unprocessable_entity if report.report_snapshot.blank?
-
-          html = Reports::RegenerateWithReviewService.render_html(report: report)
-          send_data html, type: "text/html", disposition: "inline"
+          send_report_preview(report)
         end
 
         def approve

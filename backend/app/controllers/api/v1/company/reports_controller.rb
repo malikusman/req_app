@@ -59,11 +59,7 @@ module Api
           return render json: { error: "Report not ready" }, status: :not_found unless report.status == "ready"
           return render json: { error: "Report not available" }, status: :forbidden if report.visibility != "shared_with_company"
 
-          data = Storage::MinioClient.new.download(report.storage_key)
-          send_data data,
-                    filename: "discovery-report-v#{report.version}.#{report.content_type == 'application/pdf' ? 'pdf' : 'html'}",
-                    type: report.content_type,
-                    disposition: params[:inline].present? ? "inline" : "attachment"
+          send_report_download(report, disposition: download_disposition)
         end
 
         def share

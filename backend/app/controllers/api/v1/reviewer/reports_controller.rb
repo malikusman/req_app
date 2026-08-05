@@ -21,8 +21,7 @@ module Api
         def download
           report = policy_scope(::Report).find(params[:id])
           authorize report, :download?
-          disposition = params[:inline].present? ? "inline" : "attachment"
-          send_report_download(report, disposition: disposition)
+          send_report_download(report, disposition: download_disposition)
         end
 
         # WYSIWYG live preview: renders the deliverable with the reviewer's pending
@@ -30,10 +29,7 @@ module Api
         def preview
           report = policy_scope(::Report).find(params[:id])
           authorize report, :download?
-          return head :unprocessable_entity if report.report_snapshot.blank?
-
-          html = Reports::RegenerateWithReviewService.render_html(report: report)
-          send_data html, type: "text/html", disposition: "inline"
+          send_report_preview(report)
         end
 
         private
