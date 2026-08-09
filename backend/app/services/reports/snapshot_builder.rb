@@ -455,15 +455,52 @@ module Reports
     def client_stack_json
       return [] unless defined?(CompanySystem) && CompanySystem.table_exists?
 
-      @company.company_systems.active.order(:name).limit(20).map do |sys|
-        {
-          "id" => sys.id,
-          "name" => sys.name,
-          "category" => sys.category,
-          "source" => sys.source,
-          "confidence" => sys.confidence
-        }
+      blob = evidence_blob
+      systems = @company.company_systems.active.order(:name).limit(30).select do |sys|
+        # Trust employee/manual sources; but a document-inferred system must
+        # actually appear in the evidence — otherwise it's a hallucinated generic
+        # ("Apache Kafka", "Analytics platforms") that erodes credibility.
+        sys.source.to_s == "inferred_document" ? grounded_system?(sys.name, blob) : true
       end
+
+      dedupe_systems(systems).first(14).map do |sys|
+        { "id" => sys.id, "name" => sys.name, "category" => sys.category,
+          "source" => sys.source, "confidence" => sys.confidence }
+      end
+    end
+
+    # Downcased corpus of the real evidence, used to ground inferred systems.
+    def evidence_blob
+      @evidence_blob ||= begin
+        chunks = @company.documents.where(status: "ready").flat_map { |d| d.document_chunks.limit(12).pluck(:content) }
+        msgs = Message.joins(:conversation)
+                      .where(conversations: { company_id: @company.id }, direction: "inbound")
+                      .limit(200).pluck(:body)
+        (chunks + msgs).join("\n").downcase
+      end
+    end
+
+    SYSTEM_STOPWORDS = %w[management system software platform platforms tool tools engine engines
+                          solution solutions application applications suite service services data
+                          analytics collaboration extraction reporting warehouse transportation the and].freeze
+
+    def grounded_system?(name, blob)
+      n = name.to_s.downcase
+      return true if blob.include?(n)
+
+      tokens = n.gsub(/[()]/, " ").split(/[\s\/]+/).select { |t| t.length >= 3 && SYSTEM_STOPWORDS.exclude?(t) }
+      tokens.any? { |t| blob.include?(t) }
+    end
+
+    # Collapse acronym/expansion and case variants ("TMS" vs "Transportation
+    # Management System (TMS)"), keeping the higher-confidence / named form.
+    def dedupe_systems(systems)
+      systems.each_with_object({}) do |sys, acc|
+        acronym = sys.name.to_s[/\(([A-Z]{2,})\)/, 1] || (sys.name.to_s.match?(/\A[A-Z]{2,}\z/) ? sys.name : nil)
+        key = (acronym || sys.name).to_s.downcase
+        current = acc[key]
+        acc[key] = sys if current.nil? || sys.confidence.to_f > current.confidence.to_f
+      end.values.sort_by { |s| s.name.to_s }
     end
 
     def agentic_ideas_json

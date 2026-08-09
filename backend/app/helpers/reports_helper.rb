@@ -413,9 +413,11 @@ module ReportsHelper
       cats.each_with_index do |cat, ci|
         x = left + ci * cell
         intensity = (catmap[cat] / max).clamp(0.0, 1.0)
-        opacity = (0.08 + intensity * 0.9).round(2)
-        color = report_category_color(cat)
-        svg << %(<rect x="#{x}" y="#{y}" width="#{cell - 4}" height="#{cell - 4}" rx="3" fill="#{color}" fill-opacity="#{opacity}"/>)
+        # Visual restraint: ONE accent, intensity carries the signal — so a hotter
+        # cell reads as more friction, not just a different colour. (Distinct hues
+        # per column made intensities incomparable across columns.)
+        opacity = (0.06 + intensity * 0.94).round(2)
+        svg << %(<rect x="#{x}" y="#{y}" width="#{cell - 4}" height="#{cell - 4}" rx="3" fill="#1F40FF" fill-opacity="#{opacity}"/>)
       end
     end
     svg << "</svg>"
