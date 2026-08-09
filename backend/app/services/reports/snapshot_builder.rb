@@ -236,10 +236,18 @@ module Reports
           "related_signal_ids" => Array(r.related_signal_ids),
           "related_pattern_ids" => Array(r.related_pattern_ids),
           "impact_score" => impact_score,
-          "feasibility_score" => feasibility_score(r, matches, stack_names)
+          "feasibility_score" => feasibility_score(r, matches, stack_names, signals_by_id)
         }
       end
     end
+
+    # How hard the underlying friction is to resolve — a spreadsheet automation is
+    # a quick win; stitching core ERP/TMS systems together is a major programme.
+    # This is what makes the impact/feasibility 2×2 actually spread horizontally.
+    EFFORT_BY_TYPE = {
+      "manual_process" => 0.85, "time_sink" => 0.7, "communication" => 0.68,
+      "approval_bottleneck" => 0.6, "data_silo" => 0.42, "tool_dependency" => 0.35
+    }.freeze
 
     # Coarse floor so priority still orders recs that lack linked-signal evidence.
     def priority_floor(priority)
@@ -250,19 +258,21 @@ module Reports
       end
     end
 
-    # Feasibility from real signals: extending an owned system is easier than a
-    # greenfield build; a concrete implementation outline raises confidence.
-    def feasibility_score(rec, matches, stack_names)
-      score = matches.any? ? 0.6 : 0.5
+    # Feasibility from real signals: base difficulty comes from the type of
+    # friction being resolved; extending an owned system and having a concrete
+    # implementation outline both raise confidence.
+    def feasibility_score(rec, matches, stack_names, signals_by_id)
+      types = Array(rec.related_signal_ids).filter_map { |id| signals_by_id[id.to_i]&.signal_type }
+      base = types.map { |t| EFFORT_BY_TYPE.fetch(t, 0.55) }.min || 0.55 # hardest linked signal dominates
       extends_stack = matches.any? do |m|
         next false unless m.is_a?(Hash)
 
         name = (m["name"] || m["vendor"]).to_s.downcase
         name.present? && stack_names.any? { |s| s.include?(name) || name.include?(s) }
       end
-      score += 0.25 if extends_stack
-      score += 0.05 if rec.implementation_outline.to_s.strip.present?
-      score.clamp(0.15, 0.95).round(3)
+      base += 0.12 if extends_stack
+      base += 0.05 if rec.implementation_outline.to_s.strip.present?
+      base.clamp(0.15, 0.95).round(3)
     end
 
     def situation_json(docs_first)

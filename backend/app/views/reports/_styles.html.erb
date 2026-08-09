@@ -15,6 +15,10 @@ html,body{margin:0;padding:0;background:#fff;color:var(--ink);font-family:var(--
 @media print{.refbar{display:none;}}
 .page{position:relative;width:var(--pw);min-height:var(--ph);padding:var(--pad);margin:0 auto 10mm;background:var(--paper);overflow:hidden;page-break-after:always;break-after:page;}
 .page:last-child{page-break-after:auto;}
+/* In print the 10mm inter-page gap pushes each 210mm page to 220mm, overflowing
+   the A4 sheet and emitting a blank page after every real one. Remove it and pin
+   the page to exactly one sheet. */
+@media print{.page{margin:0;height:var(--ph);}}
 .page.dark{background:var(--ink);color:#fff;}
 .page.bleed{padding:0;}
 .exhibit,.stat,.signal-card,.pattern-card,.rec-card,.highlight-box,figure,.lolli{break-inside:avoid;page-break-inside:avoid;}
