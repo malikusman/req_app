@@ -54,7 +54,7 @@ module Intelligence
           title: recipe[:title],
           description: "#{recipe[:description]} (Pattern: #{pattern.title})",
           implementation_outline: outline,
-          priority: primary.strength >= 0.8 ? "high" : "medium",
+          priority: priority_for(primary.strength),
           catalog_matches: catalog,
           related_signal_ids: signals.pluck(:id),
           related_pattern_ids: [pattern.id]
@@ -73,7 +73,7 @@ module Intelligence
           title: recipe[:title],
           description: recipe[:description],
           implementation_outline: outline,
-          priority: signal.strength >= 0.8 ? "high" : "medium",
+          priority: priority_for(signal.strength),
           catalog_matches: catalog,
           related_signal_ids: [signal.id],
           related_pattern_ids: []
@@ -81,6 +81,17 @@ module Intelligence
       end
 
       recommendations.uniq { |r| r[:title] }
+    end
+
+    # Differentiated priority aligned with the report's High/Medium/Low bands, so
+    # recommendations no longer all read "MEDIUM" (the old 0.8 gate was
+    # unreachable under the corrected strength curve).
+    def priority_for(strength)
+      s = strength.to_f
+      if s >= 0.66 then "high"
+      elsif s >= 0.45 then "medium"
+      else "low"
+      end
     end
   end
 end

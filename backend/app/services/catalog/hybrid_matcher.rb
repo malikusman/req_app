@@ -28,10 +28,14 @@ module Catalog
       reasons = []
       score = 0.0
 
-      entry_tags = Array(entry.tags).map(&:to_s)
-      tag_hits = (@tags & entry_tags)
+      # Normalize + dedupe case-insensitively on both sides so duplicated
+      # case-variant tags ("Finance"/"finance") neither miss the intersection nor
+      # inflate the denominator (which used to deflate fit to single-digit %).
+      norm_tags = @tags.map { |t| t.downcase.strip }.reject(&:blank?).uniq
+      norm_entry_tags = Array(entry.tags).map { |t| t.to_s.downcase.strip }.reject(&:blank?).uniq
+      tag_hits = norm_tags & norm_entry_tags
       if tag_hits.any?
-        score += 0.35 * (tag_hits.size.to_f / [@tags.size, 1].max)
+        score += 0.35 * (tag_hits.size.to_f / [norm_tags.size, 1].max)
         reasons << "tag_match:#{tag_hits.join(',')}"
       end
 

@@ -132,7 +132,24 @@ module ReportsHelper
     s = s.gsub(/match basis:.*?(?=(\.|\z))/i, "")
     s = s.gsub(/\b(tag_match|keyword_match|semantic_match|required_system|already_in_stack)\s*:\s*\S+/i, "")
     s = s.gsub(/[;,]\s*(?=[;,.]|\z)/, "").gsub(/\s{2,}/, " ").strip
+    s = s.gsub(/\s+\./, ".").gsub(/\.(?:\s*\.)+/, ".") # collapse orphan " . ." artifacts
     s.sub(/\A[;,.\s]+/, "").presence
+  end
+
+  # Reverse the stored revenue enum ("10m_50m") back to the client-facing band
+  # ("$10M–$50M"). Falls back to a light humanize for unmapped values.
+  REVENUE_BAND_LABELS = {
+    "under_500k" => "<$500K",
+    "500k_2m" => "$500K–$2M",
+    "2m_10m" => "$2M–$10M",
+    "10m_50m" => "$10M–$50M",
+    "50m_plus" => "$50M+"
+  }.freeze
+  def report_revenue_band_label(value)
+    v = value.to_s.strip
+    return nil if v.blank?
+
+    REVENUE_BAND_LABELS[v.downcase] || v.tr("_", " ").upcase
   end
 
   # Humanize a firmographic enum; hide non-informative catch-alls.
@@ -282,14 +299,26 @@ module ReportsHelper
     end.first(limit)
   end
 
+  # Human-readable, de-duplicated media-evidence labels. Prefer the attachment's
+  # semantic type ("screen_recording") over the internal source enum
+  # ("media_attachment") that used to leak into the client PDF.
   def report_multimodal_labels(signal)
     Array(signal["multimodal_evidence"]).filter_map do |item|
-      if item.is_a?(Hash)
-        (item["type"] || item["label"] || item["source"] || item["kind"]).to_s.presence
+      raw = if item.is_a?(Hash)
+        item["attachment_type"] || item["type"] || item["label"] || item["kind"] || item["source"]
       else
-        item.to_s.presence
+        item
       end
-    end.first(4)
+      report_media_type_label(raw)
+    end.uniq.first(4)
+  end
+
+  MEDIA_SOURCE_FALLBACK = { "media_attachment" => "Media attachment" }.freeze
+  def report_media_type_label(raw)
+    v = raw.to_s.strip
+    return nil if v.blank?
+
+    MEDIA_SOURCE_FALLBACK[v.downcase] || v.tr("_", " ").split.map(&:capitalize).join(" ")
   end
 
   def report_catalog_match(recommendation)
@@ -347,14 +376,17 @@ module ReportsHelper
   # (departments each signal touches, weighted by strength). Returns "" when
   # there isn't enough dimensional data to be meaningful.
   def report_department_heatmap_svg(signals)
-    rows = {} # dept => { category => summed strength }
+    rows = {}     # dept_key => { category => summed strength }
+    labels = {}   # dept_key => first-seen display label
     Array(signals).each do |s|
       cat = report_category_class(s["signal_type"])
       strength = s["strength"].to_f
       strength /= 100.0 if strength > 1.0
       Array(s["departments"]).reject(&:blank?).each do |dept|
-        rows[dept] ||= Hash.new(0.0)
-        rows[dept][cat] += strength
+        key = dept.to_s.downcase.strip
+        labels[key] ||= dept.to_s.strip
+        rows[key] ||= Hash.new(0.0)
+        rows[key][cat] += strength
       end
     end
     return "".html_safe if rows.size < 2
@@ -374,8 +406,9 @@ module ReportsHelper
       x = left + ci * cell + cell / 2
       svg << %(<text x="#{x}" y="#{top - 10}" text-anchor="middle" font-size="8" fill="#5A6B78" font-family="Inter">#{report_category_label(cat)}</text>)
     end
-    rows.each_with_index do |(dept, catmap), ri|
+    rows.each_with_index do |(dept_key, catmap), ri|
       y = top + ri * cell
+      dept = labels[dept_key]
       svg << %(<text x="#{left - 8}" y="#{y + cell / 2 + 3}" text-anchor="end" font-size="8" fill="#051C2C" font-family="Inter">#{ERB::Util.html_escape(dept.to_s.truncate(16))}</text>)
       cats.each_with_index do |cat, ci|
         x = left + ci * cell

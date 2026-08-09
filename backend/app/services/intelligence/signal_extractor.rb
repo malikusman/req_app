@@ -24,25 +24,37 @@ module Intelligence
     end
 
     def call
-      texts = gather_texts
+      document_sources = gather_document_sources
+      derived_texts = gather_derived_texts
       message_sources = gather_message_sources
       multimodal = gather_multimodal_sources
-      return [] if texts.blank? && multimodal.blank? && message_sources.blank?
+      return [] if document_sources.blank? && derived_texts.blank? && multimodal.blank? && message_sources.blank?
 
       detected = []
       RULES.each do |rule|
-        text_hits = texts.count { |t| t.match?(rule[:pattern]) }
-        source_excerpts = message_evidence_for(rule, message_sources)
+        docs_matched = document_sources.count { |d| d[:blobs].any? { |b| b.match?(rule[:pattern]) } }
+        derived_hits = derived_texts.count { |t| t.match?(rule[:pattern]) }
+        source_excerpts = message_evidence_for(rule, message_sources) # distinct messages, capped
         evidence = multimodal_evidence_for(rule, multimodal)
-        total_hits = text_hits + evidence.size + source_excerpts.size
-        next if total_hits.zero?
 
-        strength = [[total_hits / [texts.size.to_f + multimodal.size + message_sources.size, 1].max, 0.35].max, 1.0].min.round(2)
+        # Believable, de-duplicated primary evidence: distinct documents +
+        # distinct interview messages + media attachments. Derived text (facts,
+        # knowledge, insight summaries) only corroborates — it is not counted as
+        # a "piece of evidence" (that produced the old inflated "163 evidence").
+        evidence_count = docs_matched + source_excerpts.size + evidence.size
+        next if evidence_count.zero? && derived_hits.zero?
+
+        # Saturating absolute-evidence curve so strong signals actually reach
+        # "High" (the old hits/whole-corpus ratio jammed everything to ~0.35–0.45).
+        weighted = evidence_count + 0.3 * derived_hits
+        strength = (1.0 - Math.exp(-weighted / 6.0)).round(2)
+        strength = 0.2 if strength < 0.2 && weighted.positive?
+
         detected << {
           label: rule[:label],
           signal_type: rule[:type],
           strength: strength,
-          evidence_count: total_hits,
+          evidence_count: [evidence_count, 1].max,
           multimodal_evidence: evidence,
           source_excerpts: source_excerpts
         }
@@ -61,13 +73,26 @@ module Intelligence
 
     private
 
-    def gather_texts
+    # Corroborating (non-primary) text: insight summaries, memory facts and
+    # knowledge entries. Documents and interview messages are counted separately
+    # as distinct primary evidence, so they are deliberately excluded here to
+    # avoid the double-count that inflated evidence and starved strength.
+    def gather_derived_texts
       insight_texts = ConversationInsight.where(company_id: @company.id).pluck(:summary)
-      doc_texts = @company.documents.where(status: "ready").flat_map { |d| document_text_blobs(d) }
       fact_texts = @company.company_memory_facts.limit(200).pluck(:content)
-      message_texts = gather_message_sources.map { |m| m[:body] }
       knowledge_texts = gather_knowledge_texts
-      (insight_texts + doc_texts + fact_texts + message_texts + knowledge_texts).compact_blank
+      (insight_texts + fact_texts + knowledge_texts).compact_blank
+    end
+
+    # One entry per ready document, each carrying its text blobs, so a rule can
+    # match a document once (distinct-document evidence) rather than once per chunk.
+    def gather_document_sources
+      @company.documents.where(status: "ready").filter_map do |document|
+        blobs = document_text_blobs(document)
+        next if blobs.blank?
+
+        { document_id: document.id, blobs: blobs }
+      end
     end
 
     def gather_knowledge_texts
@@ -111,17 +136,54 @@ module Intelligence
       end
     end
 
+    NEGATION_PATTERN = /\b(no|not|never|none|isn'?t|aren'?t|don'?t|doesn'?t|didn'?t|without|hardly|rarely)\b/i
+    SELF_INTRO_PATTERN = /\A\s*(hi|hello|hey|my name is|i am|i'?m|thanks|thank you)\b/i
+
+    # Rank matching interview messages by how well the *matched sentence* speaks
+    # to the signal — dropping negations ("there are no manual steps") and
+    # self-intros so the pull-quote actually supports the finding, not refutes it.
     def message_evidence_for(rule, message_sources)
       message_sources.filter_map do |source|
-        next unless source[:body].match?(rule[:pattern])
+        sentence = best_sentence_for(source[:body], rule[:pattern])
+        next unless sentence
+        next if sentence.match?(SELF_INTRO_PATTERN)
+        next if negated_match?(sentence, rule[:pattern])
+
+        score = relevance_score(sentence, rule[:pattern])
+        next if score.zero?
 
         {
           message_id: source[:message_id],
           employee_id: source[:employee_id],
           conversation_id: source[:conversation_id],
-          excerpt: source[:body].truncate(200)
+          excerpt: sentence.truncate(200),
+          score: score
         }
-      end.first(MAX_EVIDENCE)
+      end.sort_by { |e| -e[:score] }.first(MAX_EVIDENCE).map { |e| e.except(:score) }
+    end
+
+    # Pick the sentence within the message that actually contains the match, so
+    # relevance/negation are judged locally instead of across the whole message.
+    def best_sentence_for(body, pattern)
+      sentences = body.to_s.split(/(?<=[.!?])\s+/)
+      sentences.find { |s| s.match?(pattern) } || (body.to_s.match?(pattern) ? body.to_s : nil)
+    end
+
+    # True when a negation token sits close before the matched term (within ~40
+    # chars), i.e. the statement denies the signal rather than evidencing it.
+    def negated_match?(sentence, pattern)
+      md = sentence.match(pattern)
+      return false unless md
+
+      window = sentence[[md.begin(0) - 40, 0].max...md.begin(0)].to_s
+      window.match?(NEGATION_PATTERN)
+    end
+
+    def relevance_score(sentence, pattern)
+      hits = sentence.scan(pattern).size
+      # Prefer substantive but not rambling sentences; penalise extremes.
+      length_ok = sentence.length.between?(30, 400) ? 1 : 0
+      hits + length_ok
     end
 
     def gather_multimodal_sources
@@ -173,7 +235,9 @@ module Intelligence
 
     def infer_from_topic(topic)
       RULES.find { |r| topic.match?(r[:pattern]) }&.then do |rule|
-        { label: rule[:label], signal_type: rule[:type], strength: 0.45, evidence_count: 1, multimodal_evidence: [], source_excerpts: [] }
+        # Topic-only inference is a single weak mention — keep it honestly Low so
+        # it never outranks a signal backed by documents, interviews or media.
+        { label: rule[:label], signal_type: rule[:type], strength: 0.3, evidence_count: 1, multimodal_evidence: [], source_excerpts: [] }
       end
     end
   end

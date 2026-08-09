@@ -138,6 +138,14 @@ module Reports
       @company.engagement_mode == "documents" || @company.docs_first_phase?
     end
 
+    # Case-insensitive department dedupe (keeps first-seen casing) for snapshot
+    # rollups that merge departments across multiple signals.
+    def dedupe_departments(list)
+      Array(list).map { |d| d.to_s.strip }.reject(&:blank?).each_with_object({}) do |dept, acc|
+        acc[dept.downcase] ||= dept
+      end.values
+    end
+
     def signals_json
       @company.company_signals.order(strength: :desc).map do |s|
         {
@@ -162,7 +170,7 @@ module Reports
           "title" => p.title,
           "description" => p.description,
           "confidence" => p.confidence,
-          "departments" => Array(p.departments).presence || linked.flat_map { |s| Array(s.departments) }.uniq,
+          "departments" => Array(p.departments).presence || dedupe_departments(linked.flat_map { |s| Array(s.departments) }),
           "linked_signal_ids" => Array(p.linked_signal_ids),
           "linked_signal_labels" => linked.map(&:label),
           "linked_signal_types" => linked.map(&:signal_type).uniq,

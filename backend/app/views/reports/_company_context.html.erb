@@ -24,7 +24,8 @@
           <% if profile["size_band"].present? %><li><strong>Size:</strong> <%= h profile["size_band"] %></li><% end %>
           <% loc = [profile["region"], profile["country"]].compact.reject(&:blank?).uniq.join(", ") %>
           <% if loc.present? %><li><strong>Location:</strong> <%= h loc %></li><% end %>
-          <% if profile["annual_revenue_band"].present? %><li><strong>Revenue band:</strong> <%= h profile["annual_revenue_band"] %></li><% end %>
+          <% revenue_label = report_revenue_band_label(profile["annual_revenue_band"]) %>
+          <% if revenue_label.present? %><li><strong>Revenue band:</strong> <%= h revenue_label %></li><% end %>
           <% if website.present? && !report_placeholder_url?(website) %><li><strong>Website:</strong> <%= h website %></li><% end %>
         </ul>
       <% end %>

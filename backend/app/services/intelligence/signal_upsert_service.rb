@@ -23,7 +23,7 @@ module Intelligence
           label: attrs[:label]
         )
 
-        departments = (signal.departments + Array(@department)).compact.uniq
+        departments = canonical_departments(signal.departments + Array(@department))
         now = Time.current
         new_strength = attrs[:strength].to_f
         new_evidence = attrs[:evidence_count].to_i
@@ -73,6 +73,14 @@ module Intelligence
     end
 
     private
+
+    # Dedupe departments case-insensitively (keeping first-seen casing) so
+    # "Finance" and "finance" don't both surface in the report.
+    def canonical_departments(list)
+      Array(list).map { |d| d.to_s.strip }.reject(&:blank?).each_with_object({}) do |dept, acc|
+        acc[dept.downcase] ||= dept
+      end.values
+    end
 
     def metadata_from_attrs(attrs)
       {
