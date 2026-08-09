@@ -177,18 +177,28 @@ module Openai
               STRICT RULES:
               - Use ONLY the evidence in the context. Never invent facts, company names,
                 tools, numbers, currencies, or percentages that are not present.
+              - NUMBERS: the ONLY quantities you may cite are those in `key_metrics`
+                (each is real and sourced). Quote them naturally, WITH their comparison
+                when given — e.g. "11–14 days against an 8-day target", "1 in 5 invoices
+                fail the three-way match". Lead the executive summary with the single most
+                telling metric.
+              - NEVER cite strength, confidence, scores, or any 0-1/percentage model
+                value. Those are internal — "high"/"medium"/"low" bands are for your
+                judgement only and must not appear as numbers in the prose.
               - Do NOT fabricate ROI or savings figures. Express cost-of-inaction
                 qualitatively (e.g. "compounding delay", "rising rework") unless a real
-                number is in the context.
+                number is in `key_metrics`.
+              - Every headline is an ACTION TITLE: an assertion carrying a number and its
+                "so what", not a topic label.
               - Follow the pyramid principle: lead with the answer, then support it.
               - Be concise, concrete, and decision-oriented. No filler, no hype.
               Respond as JSON only with this shape:
               {
-                "governing_thought": "one-sentence answer-first thesis",
-                "executive_summary": "3-4 sentence summary a CEO can act on",
-                "supporting_points": ["3 short, evidence-backed points"],
+                "governing_thought": "one-sentence answer-first thesis, ideally carrying the sharpest real metric",
+                "executive_summary": "3-4 sentence summary a CEO can act on, leading with a real metric",
+                "supporting_points": ["3 short points, each citing a real metric where one fits"],
                 "stakes": "1-2 sentence, hedged cost of inaction",
-                "implications": [{"pattern_title": "...", "statement": "so-what for this pattern"}],
+                "implications": [{"pattern_title": "...", "statement": "so-what, grounded in a real metric when available"}],
                 "roadmap": {
                   "now": [{"title": "...", "rationale": "why first / quick win"}],
                   "next": [{"title": "...", "rationale": "..."}],

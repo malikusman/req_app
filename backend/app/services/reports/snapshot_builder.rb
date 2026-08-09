@@ -50,6 +50,7 @@ module Reports
         "signals" => signals_json,
         "patterns" => patterns_json,
         "implications" => implications_json,
+        "key_metrics" => key_metrics_json,
         "recommendations" => recommendations_json,
         "delta_from_previous" => @delta,
         "executive_summary" => executive_summary(docs_first),
@@ -136,6 +137,33 @@ module Reports
     # Documents-mode companies stay docs-oriented even if a contact was seeded for Q&A.
     def docs_oriented?
       @company.engagement_mode == "documents" || @company.docs_first_phase?
+    end
+
+    # Real, cited business numbers extracted from the evidence (grounded, no LLM)
+    # so the report can lead with "11–14 days vs an 8-day target" instead of
+    # internal model scores.
+    def key_metrics_json
+      @key_metrics_json ||= begin
+        MetricExtractor.call(company: @company)
+      rescue StandardError => e
+        Rails.logger.warn("[Reports::SnapshotBuilder] key_metrics skipped: #{e.class}: #{e.message}")
+        []
+      end
+    end
+
+    # A metric-led sentence for the deterministic lead, so even without the LLM
+    # narrative the report opens on a real, sourced number.
+    def metric_lead_sentence
+      top = key_metrics_json.find { |m| m["comparison"].present? } || key_metrics_json.first
+      return nil unless top
+
+      label = top["label"].to_s.sub(/\s*%\s*\z/, "").strip
+      if top["comparison"].present?
+        target = top["comparison"].sub(/\Atarget\s*/i, "")
+        "#{label} runs #{top['headline']} against a target of #{target}."
+      else
+        "#{label}: #{top['headline']}."
+      end
     end
 
     # Case-insensitive department dedupe (keeps first-seen casing) for snapshot
@@ -256,9 +284,10 @@ module Reports
                     "to surface where work slows, breaks, or depends on manual workarounds."
                 end
 
+      metric_lead = metric_lead_sentence
       {
-        "headline" => docs_first ? "Document baseline: where friction shows up today" : "Discovery findings: where work is hardest",
-        "context" => context,
+        "headline" => metric_lead || (docs_first ? "Document baseline: where friction shows up today" : "Discovery findings: where work is hardest"),
+        "context" => [metric_lead ? (docs_first ? "Document baseline: where friction shows up today." : "Discovery findings: where work is hardest.") : nil, context].compact.join(" "),
         "focus_areas" => top_patterns.map(&:title).presence || top_signals.map(&:label),
         "ask" => "The pages that follow show what we found, what it implies for the operating model, and where to act first."
       }

@@ -56,5 +56,21 @@
     <div class="stat"><div class="num cat-people"><%= patterns_count %></div><div class="lab">Cross-team patterns identified</div></div>
     <div class="stat"><div class="num"><%= recs_count %></div><div class="lab">Recommendations, catalog-matched</div></div>
   </div>
+  <% key_metrics = Array(snapshot["key_metrics"]).first(6) %>
+  <% if key_metrics.any? %>
+    <div class="metric-band">
+      <div class="exlabel" style="margin-bottom:3mm;">By the numbers · from the evidence</div>
+      <div class="metric-grid">
+        <% key_metrics.each do |m| %>
+          <div class="metric-card">
+            <div class="metric-headline <%= 'is-negative' if m['direction'] == 'negative' %>"><%= h m["headline"] %></div>
+            <% if m["comparison"].present? %><div class="metric-compare"><%= h m["comparison"] %></div><% end %>
+            <div class="metric-label"><%= h m["label"] %></div>
+            <% if m["source"].present? %><div class="metric-source"><%= h m["source"] %></div><% end %>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  <% end %>
   <%= render "reports/page_footer", company_name: company_name %>
 </section>

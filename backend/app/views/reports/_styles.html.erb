@@ -3,7 +3,7 @@
 
 :root{
  --ink:#051C2C;--blue:#1F40FF;--blue2:#5A7BFF;--cyan:#00A9F4;--teal:#14B8A6;--magenta:#E6338A;
- --paper:#FFFFFF;--paper-soft:#F5F7FA;--hair:#D6DEE6;--muted:#5A6B78;
+ --paper:#FFFFFF;--paper-soft:#F5F7FA;--hair:#D6DEE6;--muted:#5A6B78;--negative:#C0362C;
  --cat-process:var(--blue);--cat-tooling:var(--cyan);--cat-people:var(--magenta);--cat-data:var(--teal);
  --serif:"Playfair Display",Georgia,serif;--sans:"Inter","Helvetica Neue",Arial,sans-serif;
  --pw:297mm;--ph:210mm;--pad:15mm;}
@@ -66,6 +66,13 @@ strong{font-weight:600;}
 .stat .num{font-family:var(--serif);font-weight:800;font-size:40pt;line-height:1;color:var(--blue);}
 .stat .num.cat-people{color:var(--magenta);}.stat .num.cat-data{color:var(--teal);}
 .stat .lab{font-size:8.5pt;color:var(--muted);margin-top:2mm;line-height:1.35;}
+.metric-band{margin-top:9mm;break-inside:avoid;page-break-inside:avoid;}
+.metric-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5mm 8mm;}
+.metric-card{border-top:2px solid var(--hair);padding-top:2.5mm;break-inside:avoid;}
+.metric-headline{font-family:var(--serif);font-weight:800;font-size:21pt;line-height:1;color:var(--ink);}
+.metric-compare{font-size:8pt;font-weight:600;color:var(--negative);margin-top:1.5mm;}
+.metric-label{font-size:8.5pt;color:var(--ink);margin-top:1.5mm;line-height:1.35;}
+.metric-source{font-size:7pt;color:var(--muted);font-style:italic;margin-top:1.5mm;}
 /* exhibits */
 .exhibit{border:1px solid var(--hair);padding:8mm;margin:6mm 0;}
 .exhibit .exlabel{font-size:8pt;color:var(--muted);border-left:3px solid var(--blue);padding-left:3mm;}

@@ -47,12 +47,33 @@ module Reports
         "company" => @snapshot["company"]&.slice("name", "profile"),
         "report_kind" => @snapshot["report_kind"],
         "participation" => @snapshot["participation"]&.slice("invited", "started", "completed", "completion_rate"),
-        "signals" => Array(@snapshot["signals"]).first(10).map { |s| s.slice("label", "strength", "departments", "signal_type", "evidence_count") },
-        "patterns" => Array(@snapshot["patterns"]).first(8).map { |p| p.slice("title", "description", "confidence", "departments", "linked_signal_labels") },
-        "recommendations" => Array(@snapshot["recommendations"]).map { |r| r.slice("title", "description", "priority", "impact_score", "feasibility_score") },
+        # Real, cited business numbers — the ONLY numbers the writer may quote.
+        "key_metrics" => Array(@snapshot["key_metrics"]).map { |m| m.slice("headline", "label", "comparison", "source") },
+        # Strength/confidence are passed as plain bands, never as raw floats, so
+        # the model can't parrot "a signal strength of 0.74" into client prose.
+        "signals" => Array(@snapshot["signals"]).first(10).map do |s|
+          { "label" => s["label"], "strength" => band(s["strength"]), "departments" => s["departments"],
+            "signal_type" => s["signal_type"], "evidence_count" => s["evidence_count"] }
+        end,
+        "patterns" => Array(@snapshot["patterns"]).first(8).map do |p|
+          { "title" => p["title"], "description" => p["description"], "confidence" => band(p["confidence"]),
+            "departments" => p["departments"], "linked_signal_labels" => p["linked_signal_labels"] }
+        end,
+        "recommendations" => Array(@snapshot["recommendations"]).map { |r| r.slice("title", "description", "priority") },
         "client_stack" => Array(@snapshot["client_stack"]).map { |s| s["name"] }.compact,
         "document_count" => Array(@snapshot["supporting_documents"]).size
       }
+    end
+
+    # 0..1 (or 0..100) score → plain band. Keeps internal numbers out of the
+    # LLM's raw material entirely.
+    def band(value)
+      v = value.to_f
+      v /= 100.0 if v > 1.0
+      if v >= 0.66 then "high"
+      elsif v >= 0.4 then "medium"
+      else "low"
+      end
     end
 
     def normalize(parsed)
