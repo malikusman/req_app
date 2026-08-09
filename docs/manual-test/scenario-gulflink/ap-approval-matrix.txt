@@ -1,12 +1,13 @@
 GulfLink Logistics LLC — Accounts Payable Approval Matrix
 Document ID: GL-FIN-AP-2026-01 | Effective: 2026-01-01 | Currency: AED | Owner: Finance Controller
-Location: Dubai HQ / Jebel Ali Free Zone operations
+Location: Dubai HQ / Jebel Ali Free Zone operations | Review cycle: Quarterly
 
 PURPOSE
 Vendor payments, freight-cost settlements, demurrage invoices, and warehouse opex follow this matrix.
 When TMS (CargoWise) and SAP S/4HANA are out of sync, AP clerks still use a manual Excel AP workbook
 and copy-paste invoice lines from carrier PDFs. This re-entry is slow, error-prone, and creates
-approval bottlenecks when the CFO is travelling.
+approval bottlenecks when the CFO is travelling. SharePoint AP folder is the interim landing zone
+before SAP FB60 posting. WhatsApp Business is used for exception triage between warehouse and finance.
 
 APPROVAL THRESHOLDS (AED)
 Threshold (AED)     | Approver              | System of record                         | SLA
@@ -14,6 +15,12 @@ Threshold (AED)     | Approver              | System of record                  
 5,001 – 25,000      | Finance Controller    | SAP FB60 + SharePoint AP folder          | 2 business days
 25,001 – 100,000    | CFO                   | Dual approval in SAP + wet-ink backup    | 5 business days
 100,001+            | CEO                   | Board memo + SAP release                 | 10 business days
+
+SPOT-RATE AND EXCEPTION LANES
+- Spot-rate ocean freight debit notes: always Finance Controller minimum, even if under AED 5,000.
+- Carrier claims / short-ship adjustments: attach POD scan + CargoWise exception ID before Excel entry.
+- Demurrage / detention at Jebel Ali: treat as opex; if accrual > AED 25,000 escalate to CFO same day.
+- Intercompany recharges (GCC hubs): dual GL coding in SAP required; Excel tracker must show lane code.
 
 KNOWN FRICTION
 1. Manual data entry: AP clerks re-enter carrier invoices into SAP after checking PDF and scanned PODs.
@@ -23,13 +30,36 @@ KNOWN FRICTION
    cost sheet into Excel. Controllers spend 15–40 hours/month matching duplicates.
 5. Coordination overhead: email and WhatsApp handoffs between warehouse, customs, and finance delay
    exception resolution (damaged carton / short ship notes on PODs).
+6. PO matching failures: roughly 1 in 5 freight invoices fail three-way match (PO / GRN / invoice) and
+   land in the Excel exception tab for 3–12 days before SAP release.
+7. Duplicate payments risk: same carrier PDF sometimes uploaded twice to SharePoint without hash check.
 
 EXCEPTIONS
 - Demurrage and storage invoices at Jebel Ali often exceed 25,000 AED and require CFO dual approval.
 - Spot-rate freight billing exceptions must attach the freight-billing SOP checklist before SAP posting.
 - Handwritten POD exceptions must be typed into Excel before payment release (OCR not yet trusted).
+- Customs fine / inspection holds: Finance must accrue in the same month if clearance note is delayed.
+- Weekend vessel cut-offs: AP clerks may pre-stage Excel lines but must not post SAP until dual approval.
 
 CONTROLS
 - Dual approval above 5,000 AED is mandatory (no single-person release).
 - Wet-ink backup retained for audits (ISO 27001 / local data residency).
 - Quarterly review of Excel trackers vs SAP postings by Finance Controller.
+- Monthly sample of 25 POD exceptions reviewed for handwriting → Excel transcription accuracy.
+- Segregation of duties: AP Clerk who enters Excel cannot be sole SAP releaser above AED 5,000.
+
+SLA METRICS (TARGET vs ACTUAL — Q1 2026)
+Metric                              | Target     | Actual
+AP cycle time (invoice → paid)      | 8 days     | 11–14 days
+Exception tab aging > 5 days        | < 10%      | ~28%
+Demurrage accrual same-month %      | 95%        | ~70%
+POD retype before payment           | 100%       | 100% (manual)
+CFO dual-approval wait (median)     | 3 days     | 5 days
+
+RELATED SYSTEMS
+SAP S/4HANA FB60, CargoWise TMS, Excel AP workbook, SharePoint AP folder, Outlook, WhatsApp Business,
+Microsoft Teams (close war-room), HubSpot (customer debit-note tickets).
+
+OWNER NOTES
+Finance Controller owns matrix updates. Changes require CFO sign-off. Next review: 2026-04-01.
+Pilot focus: automate exception triage and POD capture so Excel retyping shrinks before ERP upgrade.

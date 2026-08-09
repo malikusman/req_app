@@ -1,4 +1,4 @@
-# Production E2E — GulfLink Freight Pilot (2026-07-26)
+# Production E2E — Multi-employee GulfLink (2026-08-02)
 
 Portal: https://req.pebbleintelligentsolutions.com  
 Bot WhatsApp: **+971 55 290 9236**
@@ -7,66 +7,73 @@ Bot WhatsApp: **+971 55 290 9236**
 
 | Role | Login |
 |------|--------|
-| Platform admin | `masood.albastaki@pebbleintelligentsolutions.com` / `PebbleIntl@2026!` |
-| Company admin (client) | `pilot-admin@gulflink-pilot.test` / `PilotPass1!` |
-| Reviewer (100% profile) | `nadia.pilot@reqapp.review` / `ReviewerPass1!` |
-| Employee (WhatsApp) | Phone **+971526187620** · Access code **`OGZP7MZJ`** · Name on file: Sara Al Mansouri |
+| Company admin | `pilot-admin@gulflink-pilot.test` / `PilotPass1!` |
+| Reviewer (100%) | `nadia.pilot@reqapp.review` / `ReviewerPass1!` |
+| Usman (WhatsApp) | **+971526187620** · employee_id **13** · onboarding `awaiting_consent` |
 
-Company: **GulfLink Freight Pilot** (`id=5`, slug `gulflink-freight-pilot`)
+Company: **GulfLink Freight Pilot** (`id=5`)  
+Report: **id=5** version **2** · Review **id=5** · 5 findings · 3 section comments · `shared_with_company` / `platform_approved` · ~452 KB appendix
 
-### Why the access code is not on the portal
-
-Full access codes are shown **once** right after invite (green banner on Employees). After that the portal only keeps a bcrypt hash + last-two hint — by design, so codes cannot be read back from the employee list. Reply to WhatsApp with **`OGZP7MZJ`** (still active / hint `ZJ`).
-
-## What was provisioned
+## Automated results
 
 | Stage | Result |
 |-------|--------|
-| RSS catalog sources | 5 seeded; sync partial (OpenAI/Google/VentureBeat redirect 301/307/308 — candidates still created from HF/TechCrunch) |
-| Solution catalog tools | UiPath, Bill.com, Zapier, Make, Notion AI |
 | Questionnaire | **100%** |
-| Company systems | SAP, HubSpot, BambooHR, Excel, WhatsApp Business, Teams, NetSuite (+ inferred) |
-| Website | `https://www.aramex.com` — web research **fetch_failed** (site/SSRF/network) |
-| Reviewer | Nadia Al-Rashid — **ProfileCompleteness 100%**, published, assigned |
-| WhatsApp invite | **delivered** (Meta message id present) |
-| Documents | **5 ready** (PDF, TXT, PNG, XLSX, DOCX) |
-| Docs Analyze | KB **27** active entries; clarifications **3**; readiness **~87%**; signals **6**; patterns **1**; recs **1** |
+| First-party catalog | Worktruth AP Copilot + Ops Copilot matched |
+| Reviewer Nadia | ProfileCompleteness **100%**, assigned |
+| Usman WA invite | **sent** (Meta wamid present) · **no profile seed** |
+| James / Elena / Ahmer | Full web discovery **completed** · 10 insights each · media attached |
+| Docs | **7/7 ready** · analyze run id=5 completed |
+| Intelligence | signals=6 · patterns=7 · recs=4 |
+| Reviewer richness | overall note ≥400 chars · 3 section comments · 5 publishable findings · CEO Q&A closed · Usman outreach pending admin · discussion thread |
+| Checks | Web sims **15/15** · Full cycle **23/23** |
 
-## WhatsApp script (do this now)
+## Web employees (simulated — emails not SMTP-delivered)
 
-Message **+971552909236**. Start with the access code (name already on file).
+**SMTP_ADDRESS is blank on prod** → Mailinator did **not** receive invite mail. Conversations were driven via discover tokens (now **consumed** / one-shot).
 
-| Step | You send |
-|------|----------|
-| 1 | `OGZP7MZJ` |
-| 2 | `YES` |
-| 3 | `Accounts Payable Specialist` |
-| 4 | `Finance` |
-| 5 | `I'm an individual contributor` |
-| 6 | `I reconcile freight invoices in Excel and chase approvals before SAP entry` |
-| 7 | `SAP, Excel and WhatsApp` |
-| 8+ | Discovery answers (examples): `PO matching fails ~1 in 5`; `Approvals take 8–12 days over email/WhatsApp`; `POD exceptions are retyped from handwritten notes`; optional photo of POD / Excel |
+| Person | Email | Dept | Status |
+|--------|-------|------|--------|
+| James Chen | james@mailinator.com | Finance | completed · PDF SOP shared |
+| Elena Rossi | elena@mailinator.com | Operations | completed · POD PNG shared |
+| Ahmer Khan | ahmer@mailinator.com | Customer Success | completed · PDF shared |
 
-More lines: [FINANCE_IC_WHATSAPP_TEST.md](./FINANCE_IC_WHATSAPP_TEST.md).
+(Original discover URLs were used by the simulator and cannot be reopened.)
 
-## Bugs found on prod
+## Your live WhatsApp (Usman) — do this now
 
-1. **CRITICAL — blank `OPENAI_BASE_URL` breaks embeddings** — **FIXED + pushed** (`6797fef`). Compose defaults blank base URLs to `https://api.openai.com/v1`.
+1. Message **+971 55 290 9236** from **+971 52 618 7620**
+2. Send **`YES`**
+3. Profiling (expected):
+   - Title → `Accounts Payable Specialist`
+   - Department → `Finance`
+   - Seniority → `I'm an individual contributor`
+   - Responsibilities → `I reconcile freight invoices in Excel, chase dual approvals, retype POD exceptions, then post into SAP FB60`
+   - Tools → `SAP, Excel, WhatsApp, CargoWise and SharePoint`
+4. Discovery — freight AP answers (PO match ~1/5, approvals 8–12 days, POD retyping, demurrage late). Optional POD photo.
+5. When finished, tell us — or run on server:
 
-2. **RSS sync redirects** — **FIXED**. Catalog sync / article fetch use `Http::GetWithRedirects`; seed feed URLs updated to final destinations.
+```bash
+cd /opt/req_app
+docker compose -f docker-compose.prod.yml --env-file .env.production \
+  exec -T rails bundle exec rails runner /tmp/prod_e2e_post_wa_refresh.rb
+```
 
-3. **Concurrent DocumentAnalysisRunJob** — **FIXED**. Company row lock + partial unique index on one active run per company; chunk embedder locks the document around delete/recreate.
+That refreshes intelligence, generates a new report version, and re-approves for company share.
 
-4. **Website research** — **HARDENED**. Follows redirects with SSRF re-check, browser-like Accept headers, clearer errors (`blocked_by_site` for 403). Sites behind aggressive WAFs (e.g. Aramex/Akamai) can still block automated fetch — that is expected, not a silent `fetch_failed`.
+## Portal walkthrough
 
-5. **Upload MIME** — curl needs explicit `type=` for XLSX/DOCX; product upload path is fine.
+- [x] Company questionnaire 100%, systems, 7 docs
+- [x] James / Elena / Ahmer conversations completed with media
+- [x] Report v2 with first_party tools + rich reviewer appendix
+- [x] Platform shared with company
+- [ ] Usman live WhatsApp discovery
+- [ ] Post-WA report refresh
 
-## Next checks after you finish WhatsApp
+## Scripts on prod (`/tmp` in rails)
 
-- Company → Employees / Conversations: Sara progressing  
-- Intelligence refresh / report generate  
-- Reviewer login → company 5 report workspace  
-
-## Log tails used
-
-`docker compose -f docker-compose.prod.yml --env-file .env.production logs -f rails sidekiq langgraph`
+- `prod_e2e_provision.rb`
+- `prod_e2e_web_conversations.rb`
+- `prod_e2e_full_cycle.rb`
+- `prod_e2e_post_wa_refresh.rb`
+- Results: `prod_e2e_results.json`, `prod_e2e_web_results.json`, `prod_e2e_web_invites.json`

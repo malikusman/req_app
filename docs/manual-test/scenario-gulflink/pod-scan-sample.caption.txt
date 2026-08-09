@@ -1,1 +1,5 @@
-POD scan sample: damaged carton / short ship exception. AP must retype into Excel before dual approval above AED 5,000. Mentions CargoWise, SAP, SharePoint, approval bottlenecks, data silos.
+POD scan sample: damaged carton / short ship exception at Jebel Ali.
+AP must retype handwritten notes into Excel before dual approval above AED 5,000.
+Mentions CargoWise exception ID, SAP FB60 hold, SharePoint AP folder, WhatsApp triage,
+approval bottlenecks, data silos between TMS and SAP, demurrage accrual risk if customs note late.
+Friction: manual spreadsheet, POD OCR not trusted, 1-in-5 PO match failures.

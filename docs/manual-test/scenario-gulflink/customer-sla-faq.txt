@@ -1,0 +1,32 @@
+GulfLink Logistics LLC — Customer Freight SLA & Exception FAQ (Internal)
+Document ID: GL-CS-SLA-2026-02 | Audience: Customer Success + Finance AP | Region: UAE / GCC
+
+Q1. What is the standard AP cycle commitment to carriers?
+A. Target 8 calendar days invoice-to-pay. Actual Q1 performance is 11–14 days when PO matching fails
+   or CFO dual approval is required above AED 25,000 (see AP approval matrix).
+
+Q2. Why do customers see delayed debit-note responses?
+A. HubSpot tickets wait on Excel exception-tab resolution. AP retypes POD handwriting into Excel
+   before SAP FB60. Average exception aging is 3–12 days (~1 in 5 invoices fail three-way match).
+
+Q3. How are demurrage disputes handled?
+A. Ops Finance uses CargoWise free-time clocks + Excel demurrage tracker. Same-month accrual is
+   required even if customs notes are late. Customer chargebacks sync to HubSpot after Finance
+   Controller sign-off.
+
+Q4. Which tools are involved in exception triage?
+A. CargoWise TMS, SAP S/4HANA, Excel AP workbook, SharePoint AP folder, Outlook, WhatsApp Business,
+   Microsoft Teams (close war-room), HubSpot.
+
+Q5. What are the top bottlenecks Customer Success should set expectations around?
+A. (1) Manual spreadsheet re-entry from carrier PDFs and POD scans
+   (2) Approval bottlenecks for invoices / demurrage over AED 25,000
+   (3) Data silos between TMS lane costs and SAP GL
+   (4) Coordination overhead across warehouse, customs, and finance via email/WhatsApp
+
+Q6. Is OCR trusted for POD exceptions?
+A. Not yet. Handwritten POD exceptions must be typed into Excel before payment release.
+
+Q7. What improvement is the AI pilot targeting?
+A. Document extraction for POD/invoice lines, exception triage automation, and workflow automation
+   so Excel dependency and dual-approval wait times drop within a 3–6 month horizon.

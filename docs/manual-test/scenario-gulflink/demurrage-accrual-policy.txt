@@ -1,0 +1,49 @@
+GulfLink Logistics LLC — Demurrage & Detention Accrual Policy
+Document ID: GL-OPS-DEM-2026-03 | Effective: 2026-03-01 | Owner: Ops Finance / Customs Desk
+Sites: Jebel Ali Free Zone, Dubai HQ, Abu Dhabi bonded warehouse
+
+1. SCOPE
+This policy covers ocean demurrage, detention, storage, and inspection-hold charges arising from
+customs clearance delays, short-ship POD exceptions, and carrier free-time breaches. Accruals must
+hit the correct SAP GL month even when the formal customs clearance note arrives late.
+
+2. SYSTEMS OF RECORD
+- CargoWise TMS: free-time clocks, container events, exception IDs
+- SAP S/4HANA: GL accruals (freight opex), FB60 vendor invoices
+- Excel demurrage tracker: interim worksheet owned by Ops Finance (copy-paste from CargoWise exports)
+- SharePoint: carrier debit notes and customs correspondence
+- WhatsApp Business: warehouse ↔ customs ↔ AP exception triage
+
+3. ACCRUAL RULES
+A. Same-month accrual is mandatory when:
+   - Container free time expired in-month, OR
+   - Customs inspection hold exceeded 48 hours, OR
+   - POD shows short-ship / damaged carton that will trigger carrier claim
+B. If customs note is missing at month-end, Ops Finance books a provisional accrual using:
+   - CargoWise estimated demurrage rate × calendar days over free time
+   - Dual approval in Excel tracker (Ops Finance + Finance Controller) above AED 10,000
+C. True-up in the following month when carrier PDF arrives; unexplained variance > AED 2,000
+   requires CFO note in the month-end close pack.
+
+4. FRICTION POINTS (DOCUMENTED)
+- Manual spreadsheet: daily CargoWise CSV paste into Excel demurrage tracker (~2 hours/day).
+- Approval bottlenecks: provisional accruals over AED 25,000 wait on CFO; average 4 days.
+- Data silos: TMS events not integrated to SAP; HubSpot tickets for customer chargebacks lag Excel.
+- Handwritten POD notes force retyping before demurrage claim packages are assembled.
+- Weekend vessel cut-offs create Monday backlog; WhatsApp threads lose attachment lineage.
+
+5. WORKFLOW
+1) Warehouse flags exception on POD (photo to WhatsApp + SharePoint).
+2) Customs desk updates CargoWise exception ID.
+3) Ops Finance updates Excel demurrage tracker and proposes accrual.
+4) Finance Controller reviews vs AP approval matrix thresholds.
+5) SAP posting or provisional journal; AP releases vendor invoice when PDF matches tracker.
+
+6. KPI TARGETS
+- Same-month demurrage accrual coverage: ≥ 95%
+- Excel↔SAP reconciliation variance: < 2% of monthly demurrage spend
+- Exception aging > 5 days: < 10% of open demurrage lines
+- Average CFO wait on provisional accrual > AED 25k: ≤ 3 business days
+
+7. RELATED DOCUMENTS
+Freight billing SOP, AP approval matrix, warehouse cost sheet, customs clearance notes, POD scan samples.
