@@ -4,7 +4,7 @@
 <% docs_first = snapshot["docs_first_phase"] == true || snapshot["report_kind"].to_s == "baseline" %>
 <section class="page">
   <div class="eyebrow">Patterns</div>
-  <h1 style="font-size:28pt;margin:4mm 0 3mm;">Cross-team themes</h1>
+  <h1 style="font-size:26pt;margin:4mm 0 3mm;"><%= h report_action_title(snapshot, :patterns, "Cross-team themes") %></h1>
   <p class="lead" style="max-width:200mm;">Each pattern connects several signals across departments. Confidence reflects how consistently the theme appeared across <%= docs_first ? "the internal documents reviewed" : "documents, interviews, and evidence" %>.</p>
   <% if heatmap.present? %>
     <div class="exhibit" style="margin:4mm 0;">

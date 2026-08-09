@@ -136,6 +136,46 @@ module ReportsHelper
     s.sub(/\A[;,.\s]+/, "").presence
   end
 
+  # Grounded, deterministic ACTION TITLE for a section header — an assertion that
+  # carries a number and a "so what", not a topic label. Falls back to the given
+  # label when the data can't support an assertion.
+  def report_action_title(snapshot, key, fallback)
+    case key.to_sym
+    when :signals
+      top = Array(snapshot["signals"]).max_by { |s| s["strength"].to_f }
+      return fallback unless top&.dig("label").present?
+
+      ev = top["evidence_count"].to_i
+      "#{top['label']} is the deepest recurring friction#{ev.positive? ? ", cited across #{ev} pieces of evidence" : ''}"
+    when :patterns
+      dept, span = report_top_friction_dept(snapshot)
+      return fallback unless dept
+
+      "Friction concentrates in #{dept.capitalize}#{span.positive? ? ", spanning #{span} #{'department'.pluralize(span)}" : ''}"
+    when :recommendations
+      top = Array(snapshot["recommendations"]).max_by { |r| r["impact_score"].to_f }
+      return fallback unless top&.dig("title").present?
+
+      "#{top['title']} is the highest-impact move"
+    else
+      fallback
+    end
+  end
+
+  # Department carrying the most summed friction, and how many departments show
+  # any — used for the patterns action title.
+  def report_top_friction_dept(snapshot)
+    totals = Hash.new(0.0)
+    Array(snapshot["signals"]).each do |s|
+      strength = s["strength"].to_f
+      strength /= 100.0 if strength > 1.0
+      Array(s["departments"]).reject(&:blank?).each { |d| totals[d.to_s.downcase.strip] += strength }
+    end
+    return [nil, 0] if totals.empty?
+
+    [totals.max_by { |_, v| v }.first, totals.size]
+  end
+
   # Reverse the stored revenue enum ("10m_50m") back to the client-facing band
   # ("$10M–$50M"). Falls back to a light humanize for unmapped values.
   REVENUE_BAND_LABELS = {
