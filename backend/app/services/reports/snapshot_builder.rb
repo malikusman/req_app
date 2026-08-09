@@ -158,11 +158,12 @@ module Reports
       return nil unless top
 
       label = top["label"].to_s.sub(/\s*%\s*\z/, "").strip
+      # No trailing period — the view appends one after the headline.
       if top["comparison"].present?
         target = top["comparison"].sub(/\Atarget\s*/i, "")
-        "#{label} runs #{top['headline']} against a target of #{target}."
+        "#{label} runs #{top['headline']} against a target of #{target}"
       else
-        "#{label}: #{top['headline']}."
+        "#{label}: #{top['headline']}"
       end
     end
 
