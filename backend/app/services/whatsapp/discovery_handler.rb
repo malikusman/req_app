@@ -29,10 +29,16 @@ module Whatsapp
 
     def process_user_message(text, inbound_message:)
       if @conversation.completed?
-        @conversation = Discovery::ReopenConversationService.call(
+        Companion::PostDiscoveryRouter.call(
           conversation: @conversation,
-          employee: @employee
+          employee: @employee,
+          user_message: text,
+          inbound_message: inbound_message,
+          channel: @channel,
+          client: @client
         )
+        @conversation = @employee.conversations.where.not(status: "abandoned").order(created_at: :desc).first || @conversation
+        return
       end
 
       result = Discovery::ProcessTurnService.call(

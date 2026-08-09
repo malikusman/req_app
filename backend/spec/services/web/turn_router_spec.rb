@@ -11,7 +11,28 @@ RSpec.describe Web::TurnRouter do
     create(:conversation, employee: employee, company: company, status: "completed", question_count: 10)
   end
 
-  it "reopens a completed conversation and processes an addendum message" do
+  it "uses companion routing after completion (does not auto-reopen on casual share)" do
+    allow(Openai::Client).to receive(:new).and_return(
+      instance_double(
+        Openai::Client,
+        configured?: true,
+        companion_chat: { "reply" => "Noted — happy to help." },
+        classify_companion_intent: { "intent" => "casual", "confidence" => 0.2 },
+        companion_general_tools: { "suggestions" => [] }
+      )
+    )
+
+    described_class.handle_text(
+      employee: employee,
+      conversation: conversation,
+      text: "thanks for earlier"
+    )
+
+    expect(conversation.reload.status).to eq("completed")
+    expect(conversation.messages.where(direction: "outbound").last.agent_id).to eq("companion")
+  end
+
+  it "reopens when the employee asks to add to the interview" do
     create(:discovery_playbook, department: employee.department.presence || "default")
 
     allow(Discovery::ProcessTurnService).to receive(:call).and_return(
@@ -24,7 +45,7 @@ RSpec.describe Web::TurnRouter do
     described_class.handle_text(
       employee: employee,
       conversation: conversation,
-      text: "We also use a shared spreadsheet for handoffs"
+      text: "Please add this to my interview: we also use a shared spreadsheet for handoffs"
     )
 
     expect(conversation.reload.status).to eq("discovery")

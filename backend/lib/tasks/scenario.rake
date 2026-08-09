@@ -4,6 +4,7 @@ require_relative "../scenario_cycle_runner"
 require_relative "../docs_only_scenario_runner"
 require_relative "../gulflink_scenario_runner"
 require_relative "../discovery_simulator"
+require_relative "../companion_scenario_runner"
 
 namespace :scenario do
   desc "Provision scenario-corp and run evidence-to-action full-cycle checks. CLEANUP=1 to purge sim employee afterward."
@@ -29,5 +30,10 @@ namespace :scenario do
   desc "GulfLink Logistics (Dubai): docs → McKinsey reviewer → Q&A → report + OBSERVATIONS.md"
   task gulflink: :environment do
     GulflinkScenarioRunner.call(cleanup: ENV["CLEANUP"] == "1")
+  end
+
+  desc "Post-discovery companion eval (LM Studio). LIVE=1 WRITE=1 ALLOW_MOCKS=0 required for live scoring."
+  task companion: :environment do
+    CompanionScenarioRunner.call(live: ENV["LIVE"] == "1", write: ENV.fetch("WRITE", "1") == "1")
   end
 end

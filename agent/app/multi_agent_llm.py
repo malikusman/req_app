@@ -22,20 +22,24 @@ from app.personas import mock_question_for, persona_for
 
 CLOSING_MESSAGES = {
     "en": (
-        "Thank you, {name}! We've got what we need for now — but if anything else comes to mind, "
-        "just message me anytime and I'll add it."
+        "Thank you, {name}! We've got what we need for the discovery interview. "
+        "You can keep messaging me anytime — tips, tools, or notes from your day. "
+        "If something should count for the company report, say \"add this to my interview\"."
     ),
     "es": (
-        "¡Gracias, {name}! Por ahora tenemos lo que necesitamos — si se te ocurre algo más, "
-        "escríbeme cuando quieras y lo añadiré."
+        "¡Gracias, {name}! Ya tenemos lo necesario de la entrevista. "
+        "Puedes escribirme cuando quieras — tips, herramientas o notas del día. "
+        "Si debe contar para el reporte, di \"add this to my interview\"."
     ),
     "fr": (
-        "Merci, {name} ! Nous avons ce qu'il nous faut pour le moment — si autre chose vous vient "
-        "à l'esprit, écrivez-moi à tout moment et je l'ajouterai."
+        "Merci, {name} ! Nous avons ce qu'il faut pour l'entretien. "
+        "Écrivez-moi quand vous voulez — conseils, outils ou notes du jour. "
+        "Pour le rapport, dites \"add this to my interview\"."
     ),
     "de": (
-        "Danke, {name}! Fürs Erste haben wir alles — fällt Ihnen später noch etwas ein, "
-        "schreiben Sie mir jederzeit und ich ergänze es."
+        "Danke, {name}! Fürs Discovery-Interview haben wir alles. "
+        "Schreib mir jederzeit — Tipps, Tools oder Notizen aus deinem Tag. "
+        "Für den Report sag \"add this to my interview\"."
     ),
 }
 

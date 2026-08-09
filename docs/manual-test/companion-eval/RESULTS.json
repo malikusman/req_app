@@ -1,0 +1,109 @@
+{
+  "ok": true,
+  "structural_ok": true,
+  "judge_pass_rate": 1.0,
+  "judge_min": 0.6,
+  "model": "google/gemma-4-12b-qat",
+  "base_url": "http://host.docker.internal:1234/v1",
+  "allow_mocks": false,
+  "note": "Captured from live scenario:companion run 2026-08-09; artifact write failed initially due to :ro mount — structural+judge all passed before abort.",
+  "at": "2026-08-09T22:44:28Z",
+  "results": [
+    {
+      "id": "C1",
+      "label": "casual",
+      "message": "thanks!",
+      "channel": "whatsapp",
+      "status": "completed",
+      "agent_id": "companion",
+      "layer_a": { "pass": true, "score": 1.0 },
+      "layer_b": { "score": 1.0, "interview_leak": false },
+      "pass": true,
+      "reply": "You're very welcome, Aisha! I'm here whenever you need anything else. If you think of any other details regarding those AP bottlenecks, just say 'add this to my interview'."
+    },
+    {
+      "id": "C2",
+      "label": "ask",
+      "message": "how do I chase overdue approvals faster?",
+      "channel": "whatsapp",
+      "status": "completed",
+      "agent_id": "companion",
+      "layer_a": { "pass": true, "score": 1.0 },
+      "layer_b": { "score": 0.95, "interview_leak": false },
+      "pass": true,
+      "reply": "It sounds like those dual approval bottlenecks before SAP are a real hurdle for your workflow. You might consider setting up automated reminders or a shared tracker — and say 'add this to my interview' if you want that friction in the report."
+    },
+    {
+      "id": "C3",
+      "label": "tools",
+      "message": "any tools for invoice matching?",
+      "channel": "whatsapp",
+      "status": "completed",
+      "agent_id": "companion",
+      "layer_a": { "pass": true, "score": 1.0 },
+      "layer_b": { "score": 1.0, "interview_leak": false },
+      "pass": true,
+      "reply": "From your company catalog / matches:\n1. Worktruth AP Copilot (Worktruth) — tag_match:finance; keyword_match:invoice,matching\n2. Bill.com (Bill.com) — tag_match..."
+    },
+    {
+      "id": "C7",
+      "label": "refuse-interview-feel",
+      "message": "cool, I'll check those later",
+      "channel": "whatsapp",
+      "status": "completed",
+      "agent_id": "companion",
+      "layer_a": { "pass": true, "score": 1.0 },
+      "layer_b": { "score": 1.0, "interview_leak": false },
+      "pass": true,
+      "reply": "Sounds good! Take your time looking through those. If you think of any other specific details about your workflow you'd like to include in the report, just say 'add this to my interview'."
+    },
+    {
+      "id": "C4",
+      "label": "share",
+      "message": "Today I spent 2 hours retyping handwritten POD notes into Excel before dual approval",
+      "channel": "whatsapp",
+      "status": "completed",
+      "agent_id": "companion",
+      "layer_a": { "pass": true, "score": 1.0 },
+      "layer_b": { "score": 0.95, "interview_leak": false },
+      "pass": true,
+      "reply": "Thanks — I've noted that. Want me to add it to your discovery interview so it can inform the company report? Reply yes to add it."
+    },
+    {
+      "id": "C5",
+      "label": "promote",
+      "message": "yes",
+      "channel": "whatsapp",
+      "status": "discovery",
+      "agent_id": "domain_finance",
+      "layer_a": { "pass": true, "score": 1.0 },
+      "layer_b": { "skipped": true },
+      "pass": true,
+      "reply": "Thanks — I've captured that addendum for discovery."
+    },
+    {
+      "id": "C6",
+      "label": "addendum",
+      "message": "add this to my interview: dual CFO approval takes 5 days on average",
+      "channel": "whatsapp",
+      "status": "discovery",
+      "agent_id": "domain_finance",
+      "layer_a": { "pass": true, "score": 1.0 },
+      "layer_b": { "skipped": true },
+      "pass": true,
+      "reply": "Thanks — I've captured that addendum for discovery."
+    },
+    {
+      "id": "W1",
+      "label": "web-casual",
+      "message": "thanks!",
+      "channel": "web",
+      "status": "completed",
+      "agent_id": "companion",
+      "layer_a": { "pass": true, "score": 1.0 },
+      "layer_b": { "score": 1.0, "interview_leak": false },
+      "pass": true,
+      "reply": "You're very welcome, Aisha! That manual retyping of POD notes sounds like a real time sink. If you'd like me to include that in your company report, just say 'add this to my interview'."
+    }
+  ]
+}

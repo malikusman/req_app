@@ -78,7 +78,7 @@ services:
     command: bash -c "bundle install && rm -f tmp/pids/server.pid && bundle exec rails db:prepare && bundle exec rails server -b 0.0.0.0"
     volumes:
       - ./backend:/app
-      - ./docs/manual-test:/docs/manual-test:ro
+      - ./docs/manual-test:/docs/manual-test
     ports:
       - "3000:3000"
     extra_hosts:

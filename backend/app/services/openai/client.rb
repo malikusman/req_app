@@ -118,6 +118,129 @@ module Openai
       { "answer" => "", "confidence" => 0.0, "grounded" => false }
     end
 
+    # Post-discovery companion: short WhatsApp reply. No interview questions.
+    def companion_chat(user_message:, intent:, context:, language: "en")
+      ensure_configured_or_mock!("OpenAI")
+      return mock_companion_chat(intent) unless configured?
+
+      body = {
+        model: ENV.fetch("DOCS_MODEL_FAST", ENV.fetch("OPENAI_MODEL", "gpt-4o-mini")),
+        messages: [
+          {
+            role: "system",
+            content: <<~SYS
+              You are Worktruth's WhatsApp companion for an employee whose discovery interview is already complete.
+              Be brief (2-5 short sentences), helpful, and warm. Do NOT run a new interview or ask a long list of discovery questions.
+              Do NOT invent company systems or claim tools are officially recommended unless they appear in context.
+              If they share work details, acknowledge them. Mention they can say "add this to my interview" to include it in the company report.
+              Language: #{language}. Intent hint: #{intent}.
+            SYS
+          },
+          {
+            role: "user",
+            content: <<~PROMPT
+              Employee message: #{user_message}
+              Context JSON:
+              #{context.to_json.truncate(4000)}
+              Respond as JSON: {"reply":"..."}
+            PROMPT
+          }
+        ],
+        max_tokens: chat_max_tokens(400)
+      }
+      parsed = parse_model_json(chat_json_content(body))
+      { "reply" => parsed["reply"].to_s.strip }
+    rescue JSON::ParserError
+      { "reply" => "" }
+    end
+
+    def classify_companion_intent(text:, recent_messages: [])
+      ensure_configured_or_mock!("OpenAI")
+      return mock_classify_companion_intent(text) unless configured?
+
+      body = {
+        model: ENV.fetch("DOCS_MODEL_FAST", ENV.fetch("OPENAI_MODEL", "gpt-4o-mini")),
+        messages: [{
+          role: "user",
+          content: <<~PROMPT
+            Classify this employee WhatsApp message after their discovery interview finished.
+            Intents: addendum (wants content in interview/report), ask (question/help), tools (software recommendations),
+            share (sharing a note/update), casual (greeting/thanks/chitchat).
+            Recent messages: #{Array(recent_messages).first(3).to_json}
+            Message: #{text}
+            Respond as JSON only: {"intent":"ask","confidence":0.0}
+          PROMPT
+        }],
+        max_tokens: chat_max_tokens(120)
+      }
+      parsed = parse_model_json(chat_json_content(body))
+      {
+        "intent" => parsed["intent"].to_s,
+        "confidence" => parsed["confidence"].to_f
+      }
+    rescue JSON::ParserError
+      { "intent" => "casual", "confidence" => 0.3 }
+    end
+
+    def companion_general_tools(query:, department: nil, job_title: nil, exclude_names: [])
+      ensure_configured_or_mock!("OpenAI")
+      return mock_companion_general_tools unless configured?
+
+      body = {
+        model: ENV.fetch("DOCS_MODEL_FAST", ENV.fetch("OPENAI_MODEL", "gpt-4o-mini")),
+        messages: [{
+          role: "user",
+          content: <<~PROMPT
+            Suggest up to 2 general workplace software tools (not claiming company endorsement).
+            Role: #{job_title} / #{department}. Query: #{query}.
+            Exclude: #{Array(exclude_names).join(', ')}.
+            Respond as JSON: {"suggestions":[{"name":"...","vendor":"...","why":"..."}]}
+          PROMPT
+        }],
+        max_tokens: chat_max_tokens(300)
+      }
+      parsed = parse_model_json(chat_json_content(body))
+      { "suggestions" => Array(parsed["suggestions"]) }
+    rescue JSON::ParserError
+      { "suggestions" => [] }
+    end
+
+    # Judge companion replies for local eval harness (scenario:companion).
+    def companion_eval_judge(user_message:, assistant_reply:, intent_hint: "casual")
+      ensure_configured_or_mock!("OpenAI")
+      return mock_companion_eval_judge unless configured?
+
+      body = {
+        model: ENV.fetch("DOCS_MODEL_FAST", ENV.fetch("OPENAI_MODEL", "gpt-4o-mini")),
+        messages: [{
+          role: "user",
+          content: <<~PROMPT
+            You evaluate a WhatsApp companion reply after a discovery interview already finished.
+            Intent hint: #{intent_hint}
+            User: #{user_message}
+            Assistant: #{assistant_reply}
+
+            Score strictly. interview_leak=true if it starts a multi-question discovery interview.
+            Respond as JSON only:
+            {"grounded":true,"helpful":true,"interview_leak":false,"tone_ok":true,"score":0.0,"notes":"short reason"}
+            score is 0..1.
+          PROMPT
+        }],
+        max_tokens: chat_max_tokens(250)
+      }
+      parsed = parse_model_json(chat_json_content(body))
+      {
+        "grounded" => parsed["grounded"] != false,
+        "helpful" => parsed["helpful"] != false,
+        "interview_leak" => parsed["interview_leak"] == true,
+        "tone_ok" => parsed["tone_ok"] != false,
+        "score" => parsed["score"].to_f,
+        "notes" => parsed["notes"].to_s
+      }
+    rescue JSON::ParserError
+      { "grounded" => false, "helpful" => false, "interview_leak" => true, "tone_ok" => false, "score" => 0.0, "notes" => "parse_error" }
+    end
+
     def understand_image_structured(file_path:, language: "en", caption: nil, department: nil)
       ensure_configured_or_mock!("OpenAI")
       return mock_image_structured(language, caption) unless configured?
@@ -599,6 +722,48 @@ module Openai
       else
         { "answer" => "", "confidence" => 0.2, "grounded" => false }
       end
+    end
+
+    def mock_companion_chat(intent)
+      {
+        "reply" => "Happy to help as your post-discovery companion (#{intent}). " \
+                   "Share updates anytime, or say \"add this to my interview\" for the company report."
+      }
+    end
+
+    def mock_classify_companion_intent(text)
+      down = text.to_s.downcase
+      intent =
+        if down.match?(/tool|software|app/)
+          "tools"
+        elsif down.match?(/add this|one more|forgot|report/)
+          "addendum"
+        elsif down.include?("?")
+          "ask"
+        else
+          "casual"
+        end
+      { "intent" => intent, "confidence" => 0.7 }
+    end
+
+    def mock_companion_general_tools
+      {
+        "suggestions" => [
+          { "name" => "Notion", "vendor" => "Notion", "why" => "Lightweight shared SOPs and handoffs" },
+          { "name" => "Zapier", "vendor" => "Zapier", "why" => "Connect spreadsheet steps without custom code" }
+        ]
+      }
+    end
+
+    def mock_companion_eval_judge
+      {
+        "grounded" => true,
+        "helpful" => true,
+        "interview_leak" => false,
+        "tone_ok" => true,
+        "score" => 0.75,
+        "notes" => "mock judge"
+      }
     end
 
     def mock_image_structured(language, caption)

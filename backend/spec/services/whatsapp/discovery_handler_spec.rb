@@ -31,26 +31,31 @@ RSpec.describe Whatsapp::DiscoveryHandler do
   end
 
   describe "#handle_inbound_text" do
-    it "reopens a completed conversation before processing the turn" do
+    it "routes completed conversations through companion (no auto-reopen for casual)" do
       employee.update!(onboarding_step: "verified", participation_status: "completed")
       conversation.update!(status: "completed", question_count: 10)
 
+      allow(Companion::PostDiscoveryRouter).to receive(:call).and_return(conversation)
+
+      handler.handle_inbound_text("thanks!")
+
+      expect(Companion::PostDiscoveryRouter).to have_received(:call).with(
+        hash_including(user_message: "thanks!", employee: employee)
+      )
+      expect(conversation.reload.status).to eq("completed")
+    end
+
+    it "still processes active discovery turns via ProcessTurnService" do
       allow(Discovery::ProcessTurnService).to receive(:call).and_return(
-        "assistant_message" => "Thanks — tell me more about that.",
+        "assistant_message" => "Tell me more.",
         "completed" => false,
-        "question_count" => 11
+        "question_count" => 2
       )
 
-      handler.handle_inbound_text("One more thing about approvals")
+      handler.handle_inbound_text("We use Excel")
 
-      expect(conversation.reload.status).to eq("discovery")
-      expect(conversation.effective_question_target).to eq(13)
-      expect(Discovery::ProcessTurnService).to have_received(:call).with(
-        hash_including(user_message: "One more thing about approvals")
-      )
-      expect(conversation.messages.where(direction: "inbound").last.body).to eq(
-        "One more thing about approvals"
-      )
+      expect(Discovery::ProcessTurnService).to have_received(:call)
+      expect(conversation.messages.where(direction: "inbound").last.body).to eq("We use Excel")
     end
   end
 end

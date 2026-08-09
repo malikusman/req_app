@@ -165,6 +165,43 @@ def route_agents(thread_id: str, body: RouteRequest):
     return RouteResponse(**result)
 
 
+class CompanionTurnRequest(BaseModel):
+    user_message: str
+    intent: str = "casual"
+    language: str = "en"
+    context: dict[str, Any] = Field(default_factory=dict)
+
+
+class CompanionTurnResponse(BaseModel):
+    assistant_message: str
+    intent: str
+    mode: str = "companion"
+
+
+@app.post("/v1/companion/turn", response_model=CompanionTurnResponse)
+def companion_turn(body: CompanionTurnRequest):
+    """Post-discovery companion reply (no interview / no insights)."""
+    if is_open():
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "openai_unavailable", "retryable": True},
+        )
+
+    from app.companion import generate_companion_reply
+
+    reply = generate_companion_reply(
+        user_message=body.user_message,
+        intent=body.intent,
+        language=body.language,
+        context=body.context or {},
+    )
+    return CompanionTurnResponse(
+        assistant_message=reply,
+        intent=body.intent,
+        mode="companion",
+    )
+
+
 @app.post("/v1/threads", response_model=dict)
 def create_thread():
     return {"thread_id": str(uuid.uuid4())}

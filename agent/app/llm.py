@@ -57,16 +57,18 @@ def _mock_turn(
     if completed:
         assistant = {
             "en": (
-                f"Thank you, {employee_name or 'there'}! We've got what we need for now — "
-                "but if anything else comes to mind, just message me anytime and I'll add it."
+                f"Thank you, {employee_name or 'there'}! We've got what we need for the discovery interview. "
+                "You can keep messaging anytime for tips, tools, or day-to-day notes. "
+                'Say "add this to my interview" if it should count for the company report.'
             ),
             "es": (
                 f"¡Gracias, {employee_name or 'amigo/a'}! Por ahora tenemos lo que necesitamos — "
                 "si se te ocurre algo más, escríbeme cuando quieras."
             ),
         }.get(lang, (
-            f"Thank you, {employee_name or 'there'}! We've got what we need for now — "
-            "but if anything else comes to mind, just message me anytime and I'll add it."
+            f"Thank you, {employee_name or 'there'}! We've got what we need for the discovery interview. "
+            "You can keep messaging anytime for tips, tools, or day-to-day notes. "
+            'Say "add this to my interview" if it should count for the company report.'
         ))
     else:
         assistant = questions[next_index]
