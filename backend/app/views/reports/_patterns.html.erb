@@ -25,7 +25,7 @@
         <div>
           <div class="st"><%= h pattern["title"] %></div>
           <div class="meta">
-            <%= report_confidence_label(pattern["confidence"]) %> confidence <span class="muted">(<%= format("%.2f", pattern["confidence"].to_f) %>)</span>
+            <%= report_confidence_label(pattern["confidence"]) %> confidence
             <% if depts.any? %> · <%= h depts.join(", ") %><% end %>
             <% if pattern["evidence_count"].to_i.positive? %> · <%= pattern["evidence_count"] %> evidence<% end %>
           </div>

@@ -34,7 +34,7 @@
         <div class="meta"><%= h report_category_label(cat) %><% if depts.any? %> · <%= h depts.join(", ") %><% end %></div>
         <div class="st"><%= h signal["label"] %></div>
         <div class="strength"><i style="width:<%= pct %>%"></i></div>
-        <div class="meta"><%= report_strength_label(signal["strength"]) %> strength <span class="muted">(<%= format("%.2f", signal["strength"].to_f) %>)</span></div>
+        <div class="meta"><%= report_strength_label(signal["strength"]) %> strength</div>
         <% ev = signal["evidence_count"].to_i %>
         <% if excerpts.any? %>
           <p>Seen in <%= ev.positive? ? ev : excerpts.size %> evidence point<%= "s" unless (ev.positive? ? ev : excerpts.size) == 1 %> across <%= evidence_sources %>.</p>
