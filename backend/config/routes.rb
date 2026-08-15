@@ -26,7 +26,11 @@ Rails.application.routes.draw do
       get "reviewer_users/:id/avatar", to: "reviewer_avatars#show"
 
       namespace :platform do
-        resources :companies, only: %i[index show create update]
+        resources :companies, only: %i[index show create update] do
+          member do
+            post :reset_admin_password
+          end
+        end
         resources :playbooks, only: %i[index show create update] do
           member do
             post :activate

@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, type ReviewerUser } from '../../lib/api';
 import { usePlatformToken } from '../../lib/auth';
-import { PageHeader, Button, DataTable, Input, Modal, Badge, EmptyState } from '../../components/ui';
+import { PageHeader, Button, DataTable, Input, PasswordInput, Modal, Badge, EmptyState } from '../../components/ui';
 
 function generatePassword() {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
@@ -112,11 +112,11 @@ export function PlatformReviewers() {
           />
           <Input label="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
           <div className="space-y-1">
-            <Input
+            <PasswordInput
               label="Password"
-              type="text"
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
+              autoComplete="new-password"
               required
             />
             <p className="text-xs text-text-secondary">

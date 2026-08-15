@@ -10,9 +10,11 @@ import {
   DataTable,
   StatusBadge,
   Input,
+  PasswordInput,
   EmptyState,
   Modal,
 } from '../../components/ui';
+import { useToast } from '../../components/ui/ToastProvider';
 
 function generatePassword() {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
@@ -24,6 +26,7 @@ export function PlatformCompanies() {
   const { session, setSession } = useAuth();
   const token = usePlatformToken();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -33,6 +36,11 @@ export function PlatformCompanies() {
     admin_name: '',
     admin_password: generatePassword(),
   });
+  const [createdCreds, setCreatedCreds] = useState<{
+    company: string;
+    email: string;
+    password: string;
+  } | null>(null);
   const [error, setError] = useState('');
   const [impersonatingId, setImpersonatingId] = useState<number | null>(null);
 
@@ -64,6 +72,11 @@ export function PlatformCompanies() {
           password: form.admin_password,
         },
       });
+      setCreatedCreds({
+        company: form.name,
+        email: form.admin_email,
+        password: form.admin_password,
+      });
       setShowForm(false);
       setForm({ name: '', admin_email: '', admin_name: '', admin_password: generatePassword() });
       load();
@@ -94,6 +107,15 @@ export function PlatformCompanies() {
       setError(err instanceof Error ? err.message : 'Impersonation failed');
     } finally {
       setImpersonatingId(null);
+    }
+  };
+
+  const copyPassword = async (value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast({ title: 'Password copied', variant: 'success' });
+    } catch {
+      toast({ title: 'Could not copy password', variant: 'error' });
     }
   };
 
@@ -200,14 +222,16 @@ export function PlatformCompanies() {
             required
           />
           <div>
-            <Input
+            <PasswordInput
               label="Admin password"
               value={form.admin_password}
               onChange={(e) => setForm({ ...form, admin_password: e.target.value })}
+              autoComplete="new-password"
               required
             />
             <p className="mt-1 text-xs text-muted-foreground">
-              Share this with the company admin — they use it for their first sign-in.
+              We email these credentials to the company admin when you create the company. You can set a new
+              password and send it again from the company page.
             </p>
           </div>
           <div className="flex justify-end gap-2">
@@ -217,6 +241,38 @@ export function PlatformCompanies() {
             <Button type="submit">Create</Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal
+        open={!!createdCreds}
+        onClose={() => setCreatedCreds(null)}
+        title="Company created"
+      >
+        {createdCreds ? (
+          <div className="space-y-4">
+            <p className="m-0 text-sm text-muted-foreground">
+              These credentials were emailed to {createdCreds.email}. Copy the password if you also want to share it
+              yourself — it cannot be retrieved later.
+            </p>
+            <p className="m-0 text-sm">
+              <span className="text-muted-foreground">Admin: </span>
+              {createdCreds.email}
+            </p>
+            <PasswordInput
+              label="Admin password"
+              value={createdCreds.password}
+              readOnly
+            />
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="secondary" onClick={() => copyPassword(createdCreds.password)}>
+                Copy password
+              </Button>
+              <Button type="button" onClick={() => setCreatedCreds(null)}>
+                Done
+              </Button>
+            </div>
+          </div>
+        ) : null}
       </Modal>
     </div>
   );

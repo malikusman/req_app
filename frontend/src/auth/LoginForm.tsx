@@ -4,6 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { AuthLayout, type AuthPortal } from '../components/layout/AuthLayout';
 import { ShineBorder } from '../components/motion';
 import { Input } from '../components/ui/Input';
+import { PasswordInput } from '../components/ui/PasswordInput';
 import { Button } from '../components/ui/Button';
 import { shake, transition } from '../lib/motion';
 
@@ -84,12 +85,12 @@ export function LoginForm({
             required
           />
           <div>
-            <Input
+            <PasswordInput
               label="Password"
               id="password"
-              type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
               required
             />
             {forgotPasswordTo ? (

@@ -57,6 +57,14 @@ class SignupMailer < ApplicationMailer
     mail(to: user.email, subject: "Reset your Worktruth password")
   end
 
+  def company_admin_credentials(user, password)
+    @user = user
+    @password = password
+    @login_url = portal_login_url("company")
+    company_name = user.company&.display_name.presence || user.company&.name || "your company"
+    mail(to: user.email, subject: "Your Worktruth login for #{company_name}")
+  end
+
   private
 
   def admin_inbox
@@ -66,5 +74,10 @@ class SignupMailer < ApplicationMailer
   def set_password_url(token, portal:)
     host = ENV.fetch("APP_HOST", "http://localhost:5173").chomp("/")
     "#{host}/auth/set-password?token=#{CGI.escape(token)}&portal=#{CGI.escape(portal)}"
+  end
+
+  def portal_login_url(portal)
+    host = ENV.fetch("APP_HOST", "http://localhost:5173").chomp("/")
+    "#{host}/#{portal}/login"
   end
 end

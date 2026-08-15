@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { AuthLayout, type AuthPortal } from '../components/layout/AuthLayout';
 import { ShineBorder } from '../components/motion';
-import { Input } from '../components/ui/Input';
+import { PasswordInput } from '../components/ui/PasswordInput';
 import { Button } from '../components/ui/Button';
 import { api } from '../lib/api';
 
@@ -73,21 +73,21 @@ export function SetPasswordPage() {
                 {error}
               </div>
             ) : null}
-            <Input
+            <PasswordInput
               label="New password"
               id="password"
-              type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              autoComplete="new-password"
               required
               minLength={8}
             />
-            <Input
+            <PasswordInput
               label="Confirm password"
               id="password_confirmation"
-              type="password"
               value={confirmation}
               onChange={(e) => setConfirmation(e.target.value)}
+              autoComplete="new-password"
               required
               minLength={8}
             />

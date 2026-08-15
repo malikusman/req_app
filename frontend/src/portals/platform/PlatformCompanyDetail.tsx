@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ChatMessageList, type ChatMessageItem } from '../../components/motion';
 import {
@@ -17,6 +17,7 @@ import {
   type TimelineEvent,
 } from '../../lib/api';
 import { usePlatformToken } from '../../lib/auth';
+import { useToast } from '../../components/ui/ToastProvider';
 import {
   PageHeader,
   Tabs,
@@ -25,6 +26,8 @@ import {
   DataTable,
   EmptyState,
   Button,
+  PasswordInput,
+  Modal,
   Skeleton,
   StrengthBar,
   Timeline,
@@ -64,6 +67,12 @@ const PROFILE_FIELD_LABELS: Record<string, string> = {
 };
 
 const PROFILE_FIELD_ORDER = Object.keys(PROFILE_FIELD_LABELS);
+
+function generatePassword() {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  const bytes = crypto.getRandomValues(new Uint8Array(14));
+  return Array.from(bytes, (b) => alphabet[b % alphabet.length]).join('');
+}
 
 function formatProfileValue(value: unknown): string | null {
   if (value == null) return null;
@@ -132,6 +141,7 @@ export function PlatformCompanyDetail() {
   const { id } = useParams();
   const companyId = Number(id);
   const token = usePlatformToken();
+  const { toast } = useToast();
   const [company, setCompany] = useState<CompanyDetail | null>(null);
   const [reports, setReports] = useState<PlatformReport[]>([]);
   const [conversations, setConversations] = useState<CompanyConversation[]>([]);
@@ -164,6 +174,9 @@ export function PlatformCompanyDetail() {
   const [reportDraftUrl, setReportDraftUrl] = useState<string | null>(null);
   const [reportPreviewMode, setReportPreviewMode] = useState<'draft' | 'stored'>('draft');
   const [actionError, setActionError] = useState('');
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [adminPassword, setAdminPassword] = useState('');
+  const [savingPassword, setSavingPassword] = useState(false);
 
   const loadReports = () => {
     if (!token || !companyId) return Promise.resolve([]);
@@ -294,6 +307,31 @@ export function PlatformCompanyDetail() {
     }
   };
 
+  const openPasswordModal = () => {
+    setAdminPassword(generatePassword());
+    setPasswordModalOpen(true);
+  };
+
+  const handleSetAdminPassword = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!token || !companyId) return;
+    setSavingPassword(true);
+    setActionError('');
+    try {
+      const res = await api.resetPlatformCompanyAdminPassword(token, companyId, adminPassword);
+      setPasswordModalOpen(false);
+      toast({
+        title: 'Password emailed',
+        description: `The new password was emailed to ${res.email}.`,
+        variant: 'success',
+      });
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to set and email password');
+    } finally {
+      setSavingPassword(false);
+    }
+  };
+
   const canApprove = (report: PlatformReport) =>
     report.status === 'ready' &&
     report.review_workflow_status !== 'platform_approved' &&
@@ -416,6 +454,64 @@ export function PlatformCompanyDetail() {
           </div>
 
           <CompanyProfileSummary company={company} />
+
+          <Card title="Company admins">
+            {actionError && tab === 'overview' ? (
+              <p className="mb-3 text-sm text-status-error">{actionError}</p>
+            ) : null}
+            {(company.company_users || []).length === 0 ? (
+              <p className="m-0 text-sm text-text-secondary">No admin accounts on this company.</p>
+            ) : (
+              <ul className="m-0 list-none space-y-3 p-0">
+                {(company.company_users || []).map((user) => (
+                  <li key={user.id} className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="m-0 text-sm font-medium text-text-primary">{user.name || user.email}</p>
+                      <p className="m-0 text-xs text-text-secondary">
+                        {user.email} · {user.role} · {user.status}
+                      </p>
+                    </div>
+                    {user.role === 'company_admin' ? (
+                      <Button variant="secondary" size="sm" onClick={openPasswordModal}>
+                        Set password & email
+                      </Button>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+
+          <Modal
+            open={passwordModalOpen}
+            onClose={() => setPasswordModalOpen(false)}
+            title="Set company admin password"
+          >
+            <form onSubmit={handleSetAdminPassword} className="space-y-4">
+              <p className="m-0 text-sm text-text-secondary">
+                This replaces the current password and emails the new one to the company admin.
+              </p>
+              <PasswordInput
+                label="New password"
+                value={adminPassword}
+                onChange={(e) => setAdminPassword(e.target.value)}
+                autoComplete="new-password"
+                minLength={8}
+                required
+              />
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="secondary" onClick={() => setAdminPassword(generatePassword())}>
+                  Generate
+                </Button>
+                <Button type="button" variant="secondary" onClick={() => setPasswordModalOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" loading={savingPassword}>
+                  Save & email
+                </Button>
+              </div>
+            </form>
+          </Modal>
         </div>
       )}
 

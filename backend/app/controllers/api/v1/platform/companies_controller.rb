@@ -18,6 +18,8 @@ module Api
         def create
           authorize ::Company, :create?
           company = nil
+          created_admin = nil
+          admin_password = nil
           ActiveRecord::Base.transaction do
             company = ::Company.create!(company_params.merge(approval_status: "approved", approved_at: Time.current))
             Subscription.create!(
@@ -28,26 +30,48 @@ module Api
             )
             if params[:company_admin].present?
               admin_params = params.require(:company_admin).permit(:email, :name, :password)
-              CompanyUser.create!(
+              admin_password = admin_params[:password].to_s
+              created_admin = CompanyUser.create!(
                 company: company,
                 email: admin_params[:email].downcase,
                 name: admin_params[:name],
-                password: admin_params[:password],
+                password: admin_password,
                 role: "company_admin",
                 status: "active"
               )
             end
           end
 
+          if created_admin && admin_password.present?
+            SignupMailer.company_admin_credentials(created_admin, admin_password).deliver_later
+          end
+
           PlatformAuditService.log!(
             platform_user: current_platform_user,
             action: "company_created",
             target: company,
-            metadata: { name: company.name },
+            metadata: { name: company.name, admin_credentials_emailed: created_admin.present? },
             request: request
           )
 
           render json: { company: company_detail_json(company.reload) }, status: :created
+        end
+
+        def reset_admin_password
+          company = policy_scope(::Company).find(params[:id])
+          authorize company, :update?
+          password = params.require(:password).to_s
+          admin = ::Platform::SetCompanyAdminPassword.call(company: company, password: password)
+          PlatformAuditService.log!(
+            platform_user: current_platform_user,
+            action: "company_admin_password_set",
+            target: company,
+            metadata: { email: admin.email },
+            request: request
+          )
+          render json: { ok: true, email: admin.email }
+        rescue ::Platform::SetCompanyAdminPassword::Error => e
+          render_errors(e.message)
         end
 
         def update

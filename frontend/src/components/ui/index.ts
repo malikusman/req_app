@@ -2,6 +2,7 @@ export { Badge, StatusBadge } from './Badge';
 export { Button } from './Button';
 export { Card } from './Card';
 export { Input } from './Input';
+export { PasswordInput } from './PasswordInput';
 export { Textarea } from './Textarea';
 export { Select, type SelectOption } from './Select';
 export { StatCard } from './StatCard';

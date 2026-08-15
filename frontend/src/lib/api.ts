@@ -173,6 +173,13 @@ export const api = {
       token
     ),
 
+  resetPlatformCompanyAdminPassword: (token: string, companyId: number, password: string) =>
+    request<{ ok: boolean; email: string }>(
+      `/api/v1/platform/companies/${companyId}/reset_admin_password`,
+      { method: 'POST', body: JSON.stringify({ password }) },
+      token
+    ),
+
   companyMe: (token: string) =>
     request<{
       user: CompanyUser;
