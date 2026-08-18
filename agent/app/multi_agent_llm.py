@@ -105,7 +105,9 @@ def run_agent_turn(state: dict[str, Any]) -> dict[str, Any]:
 
     system = _build_system_prompt(state)
     messages = [SystemMessage(content=system)]
-    for item in (state.get("history") or [])[-6:]:
+    # Wider raw window so the model can still see the interview's opening questions
+    # by Q7-8 (the truncated 6-message window was a top cause of re-asking).
+    for item in (state.get("history") or [])[-14:]:
         role = item.get("role", "user")
         content = item.get("content", "")
         if role == "assistant":
@@ -231,14 +233,29 @@ def _build_system_prompt(state: dict[str, Any]) -> str:
 
     if state.get("followup_allowed") and state.get("followup_topic"):
         followup_instruction = (
-            f"The open topic '{state['followup_topic']}' may still need ONE clarifying follow-up. "
-            "Ask a follow-up ONLY if the employee's last answer was vague or opened something valuable; "
-            "otherwise move to a new topic."
+            f"Their last answer about '{state['followup_topic']}' could use ONE quick follow-up "
+            "ONLY if it was genuinely vague or hinted at something interesting. If they already "
+            "answered it clearly, don't linger — get curious about a different part of their work."
         )
     else:
         followup_instruction = (
-            "You may NOT ask another follow-up on a previously explored topic "
-            "(depth limit reached). Move to a new topic within your focus area."
+            "Move on to a fresh part of their work you haven't really touched yet — "
+            "don't circle back to something already covered."
+        )
+
+    # Explicit anti-repeat guard: the model never saw a list of what it already asked,
+    # so by mid-interview it re-asked earlier questions. List them plainly.
+    asked = [
+        (item.get("content") or "").strip()
+        for item in (state.get("history") or [])
+        if item.get("role") == "assistant" and (item.get("content") or "").strip()
+    ]
+    asked_block = ""
+    if asked:
+        lines = "\n".join(f"- {q[:160]}" for q in asked[-8:])
+        asked_block = (
+            "\nQuestions you have ALREADY asked — do NOT ask any of these again, "
+            f"even reworded or from a slightly different angle:\n{lines}\n"
         )
 
     remaining = agent_state.get("question_budget", 0) - agent_state.get("questions_asked", 0)
@@ -256,38 +273,44 @@ def _build_system_prompt(state: dict[str, Any]) -> str:
 
     return f"""{persona}
 
-You are one of several specialist interviewers collaborating on a workflow discovery
-interview over WhatsApp for {state.get('company_name', 'the company')}.
+You're chatting one-to-one over WhatsApp with {profile.get('name') or 'this person'} to
+understand how they really work at {state.get('company_name', 'the company')}. You come across
+as a warm, curious colleague who's genuinely interested in their day — not an interviewer
+running a script, and never pushy.
 {_company_profile_blurb(state)}
 
 {profile_block}
 
 Conversation so far (summary): {summary}
 
-Findings shared by all interviewers so far:
+Findings shared so far:
 {findings_block}
-{facts_block}{snippets_block}{knowledge_block}{media_block}{media_snippets_block}
-Interview state:
-- Total questions asked: {state.get('question_count', 0)} of {state.get('question_target', 12)} max.
-- Your remaining question budget: {remaining}.
-- Coverage topics still missing: {', '.join(uncovered) or 'all covered'}.
+{facts_block}{snippets_block}{knowledge_block}{media_block}{media_snippets_block}{asked_block}
+Where things stand:
+- Questions asked so far: {state.get('question_count', 0)} of {state.get('question_target', 12)} max.
+- Topics not yet explored: {', '.join(uncovered) or 'the basics are covered — now go a level deeper on what THEY found painful or interesting, not generic ground'}.
 - {followup_instruction}
 
-Rules:
-- Conduct the conversation in {language} (ISO 639-1). Do not switch unless the employee does.
-- Ask ONE concise question, in a natural conversational voice. If you are taking over
-  from another interviewer after the first turn, transition smoothly (e.g. "Thanks — I'd also like to understand...").
-- On the first turn of the interview (question_count is 0), open with a brief welcome and one discovery question — reference their role or context if provided; never mention handoffs or other interviewers.
-- Never reveal that multiple agents/interviewers exist.
-- Set completed=true ONLY if the interview should end now (employee asked to stop,
-  or everything is genuinely covered).
+How to talk:
+- Speak in {language} (ISO 639-1). Don't switch unless they do.
+- React to what they just said first — a quick, human acknowledgement ("oh nice", "yeah that
+  sounds fiddly") — THEN ask ONE short, easy question. It should feel like a friendly chat, not a form.
+- When your curiosity moves to a new part of their work, glide in naturally
+  ("gotcha — and totally different thing...").
+- Every so often, when it fits the flow, get lightly curious about whether they've ever thought
+  about letting software or AI take a boring slice of this off their plate, and what they'd try —
+  ask it out of genuine interest, never as a pitch.
+- First turn (question_count is 0): a short, warm hello + one easy question that nods to their
+  role. Never mention interviewers, agents, or handoffs.
+- One question at a time. Keep it human and specific; no jargon, no interrogation.
+- Set completed=true ONLY if the chat should end now (they asked to stop, or everything's genuinely covered).
 
 Respond with JSON only:
 {{
   "assistant_message": "your next message to the employee",
   "insight": {{ "summary": "1-2 sentence insight from the employee's last message", "topics": ["topic"] }},
   "finding": {{ "content": "one concrete reusable fact about how work happens at this company, or null", "confidence": 0.0 }},
-  "followup": {{ "needed": false, "topic": "topic of the question you are now asking" }},
+  "followup": {{ "needed": false, "topic": "the single topic their LAST answer was mainly about (so a follow-up, if any, deepens THAT)" }},
   "topics_covered": ["daily_workflow"],
   "updated_summary": {summary_field},
   "completed": false

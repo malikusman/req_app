@@ -78,7 +78,12 @@ def prepare_turn(state: dict[str, Any]) -> dict[str, Any]:
     followup_topic = ""
     if active_id and not should_close:
         agent_state = bb["agent_states"][active_id]
-        open_threads = [t for t in agent_state.get("open_threads", []) if t.get("needs_followup")]
+        covered = set(bb.get("coverage", {}).get("topics_covered", []))
+        open_threads = [
+            t
+            for t in agent_state.get("open_threads", [])
+            if t.get("needs_followup") and t.get("topic") not in covered
+        ]
         if open_threads:
             thread = open_threads[0]
             if thread.get("depth", 0) < limits["max_followup_depth"]:
@@ -123,21 +128,21 @@ def finalize_turn(state: dict[str, Any], llm_output: dict[str, Any]) -> dict[str
 
         followup = llm_output.get("followup") or {}
         threads = agent_state.setdefault("open_threads", [])
-        if followup.get("topic"):
-            existing = next((t for t in threads if t.get("topic") == followup["topic"]), None)
+        # A topic already marked covered must not keep pulling follow-ups — that
+        # (topic-of-the-new-question + always re-surfacing open_threads[0]) is what
+        # made the interview circle handoffs after ~Q7.
+        already_covered = set(bb.get("coverage", {}).get("topics_covered", []))
+        topic = followup.get("topic")
+        if topic:
+            wants_followup = bool(followup.get("needed")) and topic not in already_covered
+            existing = next((t for t in threads if t.get("topic") == topic), None)
             if existing:
                 existing["depth"] = existing.get("depth", 0) + 1
                 existing["needs_followup"] = (
-                    bool(followup.get("needed")) and existing["depth"] < limits["max_followup_depth"]
+                    wants_followup and existing["depth"] < limits["max_followup_depth"]
                 )
             else:
-                threads.append(
-                    {
-                        "topic": followup["topic"],
-                        "depth": 1,
-                        "needs_followup": bool(followup.get("needed")),
-                    }
-                )
+                threads.append({"topic": topic, "depth": 1, "needs_followup": wants_followup})
         else:
             for thread in threads:
                 thread["needs_followup"] = False

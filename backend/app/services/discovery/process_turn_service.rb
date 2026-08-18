@@ -85,9 +85,10 @@ module Discovery
     end
 
     def build_history
-      # Multi-agent turns rely on the rolling summary in the blackboard,
-      # so only recent raw messages are needed; legacy turns keep the old window.
-      window = multi_agent_enabled? ? 6 : 24
+      # Multi-agent turns lean on the rolling summary, but too small a raw window
+      # meant the model couldn't see the interview's opening questions by mid-flow
+      # and re-asked them — keep enough recent turns for an explicit anti-repeat guard.
+      window = multi_agent_enabled? ? 14 : 24
       @conversation.messages.order(:created_at).last(window).filter_map do |msg|
         next if msg.body.blank?
         next if msg.message_type == "system"
