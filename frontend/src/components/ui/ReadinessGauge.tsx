@@ -36,11 +36,17 @@ export function ReadinessGauge({
   score,
   breakdown,
   docsFirstPhase = false,
+  compact = false,
+  label = 'Readiness',
   className,
 }: {
   score: number;
   breakdown: Record<string, number>;
   docsFirstPhase?: boolean;
+  /** Ring-only variant for embedding (e.g. the dashboard hero). Hides the phase label + breakdown list. */
+  compact?: boolean;
+  /** Caption shown under the number. */
+  label?: string;
   className?: string;
 }) {
   const clamped = Math.min(100, Math.max(0, score));
@@ -49,6 +55,42 @@ export function ReadinessGauge({
   const entries = keys
     .filter((key) => breakdown[key] !== undefined)
     .map((key) => [key, breakdown[key]] as const);
+
+  if (compact) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className={cn('relative h-28 w-28', className)}
+        aria-label={`Report readiness ${clamped} percent`}
+      >
+        <ResponsiveContainer width="100%" height="100%">
+          <RadialBarChart
+            cx="50%"
+            cy="50%"
+            innerRadius="76%"
+            outerRadius="100%"
+            barSize={11}
+            data={data}
+            startAngle={90}
+            endAngle={-270}
+          >
+            <PolarAngleAxis type="number" domain={[0, 100]} angleAxisId={0} tick={false} />
+            <RadialBar
+              background={{ fill: 'hsl(var(--muted))' }}
+              dataKey="value"
+              cornerRadius={6}
+              animationDuration={600}
+            />
+          </RadialBarChart>
+        </ResponsiveContainer>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="font-display text-2xl font-semibold leading-none text-text-primary">{clamped}%</span>
+          <span className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-text-secondary">{label}</span>
+        </div>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div

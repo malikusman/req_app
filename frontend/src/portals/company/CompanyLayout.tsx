@@ -14,6 +14,11 @@ export function CompanyLayout() {
   const navigate = useNavigate();
   usePageMeta('Company');
   const [integrations, setIntegrations] = useState<CompanyDashboardPayload['integrations']>();
+  const [navCounts, setNavCounts] = useState<{
+    profilePercent?: number;
+    reportVersion?: number | null;
+    reviewerQuestions?: number;
+  }>({});
 
   const impersonating = Boolean(session?.portal === 'company' && session.impersonating);
 
@@ -23,11 +28,23 @@ export function CompanyLayout() {
       .companyDashboard(token)
       .then((d) => {
         setIntegrations(d.integrations);
+        setNavCounts((prev) => ({
+          ...prev,
+          profilePercent: d.questionnaire_completion_percent,
+          reportVersion: d.latest_report?.version ?? null,
+        }));
+      })
+      .catch(() => undefined);
+    api
+      .discoveryQuestions(token)
+      .then((d) => {
+        const unanswered = (d.questions || []).filter((q) => !q.feedback).length;
+        setNavCounts((prev) => ({ ...prev, reviewerQuestions: unanswered }));
       })
       .catch(() => undefined);
   }, [token]);
 
-  const nav = useMemo(() => companyNavItems(), []);
+  const nav = useMemo(() => companyNavItems(navCounts), [navCounts]);
 
 
   const integrationWarnings = useMemo(() => {

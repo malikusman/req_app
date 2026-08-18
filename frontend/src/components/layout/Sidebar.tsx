@@ -14,6 +14,7 @@ export type SidebarItem = {
   icon: LucideIcon;
   section?: string;
   badge?: string;
+  badgeTone?: 'default' | 'attention';
 };
 
 type SidebarProps = {
@@ -54,7 +55,7 @@ function SidebarNav({
 
       <ScrollArea className="flex-1 px-3 py-4">
         <nav className="flex flex-col gap-0.5">
-          {items.map(({ to, label, icon: Icon, section, badge }, index) => {
+          {items.map(({ to, label, icon: Icon, section, badge, badgeTone }, index) => {
             const active = isItemActive(activePath, to);
             const prevSection = index > 0 ? items[index - 1]?.section : undefined;
             const showSection = section && section !== prevSection;
@@ -88,7 +89,14 @@ function SidebarNav({
                   <Icon className="relative z-10 h-[18px] w-[18px] shrink-0" aria-hidden />
                   <span className="relative z-10 flex-1">{label}</span>
                   {badge && (
-                    <span className="relative z-10 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                    <span
+                      className={cn(
+                        'relative z-10 rounded-full px-1.5 py-0.5 text-[10px] font-semibold',
+                        badgeTone === 'attention'
+                          ? 'bg-status-warning/15 text-status-warning'
+                          : 'bg-muted font-medium text-muted-foreground'
+                      )}
+                    >
                       {badge}
                     </span>
                   )}

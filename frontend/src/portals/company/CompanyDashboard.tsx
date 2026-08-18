@@ -2,70 +2,87 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   FileText,
-  Radio,
-  AlertTriangle,
-  PlayCircle,
-  Users,
-  Image,
-  ClipboardList,
-  Layers,
-  Lightbulb,
-  MessageSquare,
-  HelpCircle,
-  UserCircle,
   FileBarChart,
+  HelpCircle,
+  Radio,
+  Sparkles,
+  UserCircle,
+  Users,
+  Zap,
 } from 'lucide-react';
 import { api, type CompanyDashboardPayload, type ReviewerPublicCard } from '../../lib/api';
 import { useAuth, useCompanyToken } from '../../lib/auth';
 import {
   DashboardShell,
-  StatCard,
   Card,
-  ParticipationSummary,
   StrengthBar,
   Timeline,
   Badge,
   Button,
   EmptyState,
-  SimpleBarChart,
+  NextStepHero,
+  AttentionList,
+  JourneySteps,
+  OutcomeTile,
+  type JourneyStep,
+  type AttentionItemData,
 } from '../../components/ui';
-import { ExpertReviewerCard } from '../../components/ExpertReviewerCard';
+import { cn } from '../../lib/cn';
+import { nextBestAction, type DashboardAction, type DashboardActionId } from './nextBestAction';
 
-function ActionTile({
-  title,
-  description,
-  to,
-  icon,
-  badge,
-  primary,
-}: {
-  title: string;
-  description: string;
-  to: string;
-  icon: ReactNode;
-  badge?: number;
-  primary?: boolean;
-}) {
+function iconFor(id: DashboardActionId): ReactNode {
+  switch (id) {
+    case 'review-report':
+      return <FileBarChart className="h-[18px] w-[18px]" />;
+    case 'answer-questions':
+      return <HelpCircle className="h-[18px] w-[18px]" />;
+    case 'nudge-stalled':
+      return <Users className="h-[18px] w-[18px]" />;
+    case 'add-profile':
+      return <UserCircle className="h-[18px] w-[18px]" />;
+    case 'get-started':
+      return <FileText className="h-[18px] w-[18px]" />;
+    default:
+      return <Radio className="h-[18px] w-[18px]" />;
+  }
+}
+
+function toAttentionItem(a: DashboardAction): AttentionItemData {
+  return {
+    tone: a.tone,
+    icon: iconFor(a.id),
+    title: a.attnTitle,
+    detail: a.attnDetail,
+    action: a.attnActionLabel ? { label: a.attnActionLabel, to: a.to } : undefined,
+    optionalLabel: a.optionalLabel,
+  };
+}
+
+function bandFor(strength: number): { label: string; variant: 'success' | 'warning' | 'neutral' } {
+  if (strength >= 0.66) return { label: 'High', variant: 'success' };
+  if (strength >= 0.4) return { label: 'Medium', variant: 'warning' };
+  return { label: 'Low', variant: 'neutral' };
+}
+
+function StatusChip({ tone, label }: { tone: 'ready' | 'progress' | 'setup'; label: string }) {
+  const live = tone !== 'setup';
   return (
-    <Link
-      to={to}
-      className={`block rounded-lg border p-4 transition-colors hover:border-primary/40 hover:bg-muted/40 ${
-        primary ? 'border-primary/30 bg-primary/5' : 'border-border bg-card'
-      }`}
+    <span
+      className={cn(
+        'inline-flex shrink-0 items-center gap-2 rounded-badge border px-3 py-1.5 text-xs font-semibold',
+        tone === 'setup'
+          ? 'border-border bg-card text-muted-foreground'
+          : 'border-accent/40 bg-accent-muted text-accent-hover'
+      )}
     >
-      <div className="flex items-start gap-3">
-        <div className="mt-0.5 text-primary">{icon}</div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <p className="m-0 font-medium text-foreground">{title}</p>
-            {badge != null && badge > 0 ? (
-              <Badge variant="warning">{badge}</Badge>
-            ) : null}
-          </div>
-          <p className="m-0 mt-1 text-sm text-muted-foreground">{description}</p>
-        </div>
-      </div>
-    </Link>
+      {live && (
+        <span className="relative flex h-1.5 w-1.5">
+          <span className="absolute inline-flex h-full w-full rounded-full bg-primary opacity-60 motion-safe:animate-ping" />
+          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
+        </span>
+      )}
+      {label}
+    </span>
   );
 }
 
@@ -77,7 +94,6 @@ export function CompanyDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [reviewers, setReviewers] = useState<ReviewerPublicCard[]>([]);
-  const [conversationCount, setConversationCount] = useState(0);
   const [unansweredQuestions, setUnansweredQuestions] = useState(0);
 
   useEffect(() => {
@@ -100,10 +116,6 @@ export function CompanyDashboard() {
       .then((d) => setReviewers(d.expert_reviewers || []))
       .catch(() => setReviewers([]));
     api
-      .companyConversations(token)
-      .then((d) => setConversationCount(d.conversations?.length ?? 0))
-      .catch(() => setConversationCount(0));
-    api
       .discoveryQuestions(token)
       .then((d) => {
         const qs = d.questions || [];
@@ -112,9 +124,13 @@ export function CompanyDashboard() {
       .catch(() => setUnansweredQuestions(0));
   }, [token]);
 
-  if (!loading && !data) {
+  if (loading) {
+    return <DashboardShell title="Home" description="Loading your discovery workspace…" loading />;
+  }
+
+  if (!data) {
     return (
-      <DashboardShell title="Discovery intelligence" description="Live operational snapshot." loading={false}>
+      <DashboardShell title="Home" description="Your guided discovery workspace." loading={false}>
         <EmptyState
           title="Unable to load dashboard"
           description={error || 'Complete onboarding, then upload documents or invite employees to start discovery.'}
@@ -123,364 +139,285 @@ export function CompanyDashboard() {
     );
   }
 
-  const snapshot = data?.snapshot;
-  const p = snapshot?.participation;
-  const score = Math.round(data?.report_readiness_score ?? 0);
-  const breakdown = data?.report_readiness_breakdown ?? {};
-  const intel = data?.intel_counts;
+  const snapshot = data.snapshot;
+  const score = Math.round(data.report_readiness_score ?? 0);
+  const breakdown = data.report_readiness_breakdown ?? {};
+  const intel = data.intel_counts;
   const readyDocs = Number(intel?.ready_documents ?? breakdown.ready_documents ?? 0);
+  const totalDocs = Number(intel?.total_documents ?? 0);
   const signalCount = intel?.signal_count ?? snapshot?.signal_count ?? snapshot?.top_pain_points.length ?? 0;
   const patternCount = intel?.pattern_count ?? snapshot?.emerging_patterns?.length ?? 0;
   const recommendationCount = intel?.recommendation_count ?? snapshot?.recommendation_count ?? 0;
-  const docsFirstPhase = Boolean(data?.docs_first_phase ?? data?.company.docs_first_phase);
+  const docsFirstPhase = Boolean(data.docs_first_phase ?? data.company.docs_first_phase);
   const docsFirstActive = docsFirstPhase && (readyDocs > 0 || score > 0 || signalCount > 0);
   const processingDocs = docsFirstPhase && readyDocs === 0 && score === 0 && signalCount === 0;
-  const qPercent = data?.questionnaire_completion_percent ?? 0;
-  const showProfileTile = !data?.questionnaire_completed_at && qPercent < 100;
-
-  const departmentChartData = (snapshot?.department_coverage ?? []).map((d) => ({
-    name: d.department || 'Unassigned',
-    value: d.completed,
-  }));
-
-  const actionTiles = (
-    <div className="space-y-4">
-      <div>
-        <h2 className="m-0 mb-2 text-sm font-medium text-muted-foreground">Overview</h2>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          <ActionTile
-            primary={showProfileTile}
-            title={showProfileTile ? `Profile — ${qPercent}%` : 'Company profile'}
-            description={
-              showProfileTile
-                ? 'Complete key details so agents and reviewers see accurate context.'
-                : 'Industry, systems, website, and goals that shape analysis outcomes.'
-            }
-            to="/company/onboarding"
-            icon={<ClipboardList className="h-5 w-5" />}
-          />
-          <ActionTile
-            title={reviewers[0] ? reviewers[0].name : 'Assigned reviewer'}
-            description={
-              reviewers[0]
-                ? reviewers[0].headline || 'View your assigned Worktruth expert.'
-                : 'Experts appear when Worktruth assigns a published reviewer.'
-            }
-            to="/company/reviewers"
-            icon={<UserCircle className="h-5 w-5" />}
-          />
-          <ActionTile
-            title="Conversations"
-            description={
-              conversationCount > 0
-                ? `${conversationCount} discovery thread${conversationCount === 1 ? '' : 's'} with employees.`
-                : 'Employee WhatsApp and web discovery threads.'
-            }
-            to="/company/conversations"
-            icon={<MessageSquare className="h-5 w-5" />}
-            badge={conversationCount}
-          />
-          <ActionTile
-            title="Discovery questions"
-            description={
-              unansweredQuestions > 0
-                ? `${unansweredQuestions} question${unansweredQuestions === 1 ? '' : 's'} without admin feedback yet.`
-                : 'Review questions asked during employee discovery.'
-            }
-            to="/company/discovery-questions"
-            icon={<HelpCircle className="h-5 w-5" />}
-            badge={unansweredQuestions}
-          />
-          <ActionTile
-            title="Shared reports"
-            description={
-              data?.latest_report?.status === 'ready'
-                ? `Latest shared report v${data.latest_report.version} is available.`
-                : 'Reports shared by your reviewer or platform appear here.'
-            }
-            to="/company/reports"
-            icon={<FileBarChart className="h-5 w-5" />}
-          />
-          <ActionTile
-            title="Upload documents"
-            description="SOPs, policies, and finance exports for a baseline."
-            to="/company/documents"
-            icon={<FileText className="h-5 w-5" />}
-          />
-          <ActionTile
-            title="Invite employees"
-            description="Invite employees for WhatsApp or web discovery."
-            to="/company/employees"
-            icon={<Users className="h-5 w-5" />}
-          />
-          <ActionTile
-            title="WhatsApp media"
-            description="Review inbound media from discovery chats."
-            to="/company/media"
-            icon={<Image className="h-5 w-5" />}
-          />
-        </div>
-      </div>
-      {reviewers[0] ? (
-        <div>
-          <h2 className="m-0 mb-2 text-sm font-medium text-muted-foreground">Your reviewer</h2>
-          <ExpertReviewerCard
-            reviewer={reviewers[0]}
-            compact
-            token={token}
-            footer={
-              <Link to="/company/reviewers" className="text-sm font-medium text-primary hover:underline">
-                View reviewer profile →
-              </Link>
-            }
-          />
-        </div>
-      ) : null}
-    </div>
-  );
-
-  if (!loading && docsFirstPhase && processingDocs) {
-    return (
-      <DashboardShell title="Discovery intelligence" description="Start with documents or invite employees." loading={false}>
-        {actionTiles}
-      </DashboardShell>
-    );
-  }
-
   const docsOnlyView = docsFirstPhase && docsFirstActive;
+  const qPercent = Math.round(data.questionnaire_completion_percent ?? 0);
+  const qComplete = Boolean(data.questionnaire_completed_at) || qPercent >= 100;
+
+  const invited = data.company.invited_count ?? 0;
+  const completed = data.company.completed_count ?? 0;
+  const reviewer = reviewers[0];
+  const report = data.latest_report;
+  const reportReady = Boolean(report && (report.status === 'ready' || report.status === 'shared'));
+
+  const firstName = (session?.portal === 'company' ? session.user.name : '').trim().split(/\s+/)[0] || 'there';
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+
+  const statusChip: { tone: 'ready' | 'progress' | 'setup'; label: string } = reportReady
+    ? { tone: 'ready', label: 'Report ready' }
+    : invited > 0 || totalDocs > 0
+      ? { tone: 'progress', label: 'Discovery in progress' }
+      : { tone: 'setup', label: 'Setting up' };
+
+  const { hero: rankedHero, also } = nextBestAction(data, {
+    reviewerName: reviewer?.name ?? null,
+    unansweredQuestions,
+    signalCount,
+    patternCount,
+    recommendationCount,
+    readinessScore: score,
+  });
+
+  const processingHero: DashboardAction = {
+    id: 'running',
+    eyebrow: 'In progress',
+    title: 'We’re analyzing your documents',
+    description:
+      'Your uploaded documents are being processed. Frictions and themes appear here as soon as they’re ready — nothing needs you yet.',
+    primaryLabel: 'View documents',
+    to: '/company/documents',
+    tone: 'neutral',
+    attnTitle: '',
+  };
+  const hero = processingDocs ? processingHero : rankedHero;
+  const attentionItems = processingDocs ? [] : also.map(toAttentionItem);
+
+  // Journey steps — single "now" at the current frontier.
+  const interviewsDone = reportReady || (invited > 0 && completed >= invited);
+  const journeySteps: JourneyStep[] = [
+    {
+      label: 'Profile',
+      sublabel: qComplete ? 'complete' : 'optional',
+      status: qComplete ? 'done' : 'optional',
+    },
+    {
+      label: 'Documents',
+      sublabel: readyDocs > 0 ? `${readyDocs} analyzed` : undefined,
+      status: readyDocs > 0 ? 'done' : 'todo',
+    },
+    {
+      label: 'Team invited',
+      sublabel: invited > 0 ? `${completed} of ${invited}` : undefined,
+      status: invited > 0 ? 'done' : 'todo',
+    },
+    {
+      label: 'Interviews',
+      sublabel:
+        invited > 0 ? `${Math.round((completed / Math.max(1, invited)) * 100)}% done` : undefined,
+      status: interviewsDone ? 'done' : invited > 0 ? 'now' : 'todo',
+    },
+    {
+      label: 'Report',
+      sublabel: reportReady && report ? `v${report.version} ready` : 'pending',
+      status: reportReady ? 'now' : 'todo',
+    },
+  ];
+  const journeyDone = journeySteps.filter((s) => s.status === 'done').length;
+
+  const painPoints = (snapshot?.top_pain_points ?? []).slice(0, 3);
+  const timeline = snapshot?.recent_timeline ?? [];
 
   return (
-    <DashboardShell
-      title="Discovery intelligence"
-      description={
-        docsOnlyView
-          ? 'Baseline from internal documents — invite employees later to strengthen evidence.'
-          : 'Live operational snapshot — signals, patterns, and recommendations from your program.'
-      }
-      loading={loading}
-      banner={
-        error ? (
-          <div className="rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-foreground">
-            {error}
-          </div>
-        ) : undefined
-      }
-      kpiRow={
-        p && data ? (
-          <>
-            {docsOnlyView ? (
-              <StatCard
-                label="Documents"
-                value={readyDocs}
-                icon={<PlayCircle className="h-5 w-5 text-primary" />}
-              />
-            ) : (
-              <StatCard
-                label="In progress"
-                value={data.employees_summary.in_progress_count}
-                icon={<PlayCircle className="h-5 w-5 text-primary" />}
-              />
-            )}
-            <StatCard
-              label="Signals"
-              value={signalCount}
-              icon={<Radio className="h-5 w-5 text-primary" />}
-            />
-            <StatCard
-              label="Patterns"
-              value={patternCount}
-              icon={<Layers className="h-5 w-5 text-primary" />}
-            />
-            <StatCard
-              label="Recommendations"
-              value={recommendationCount}
-              icon={<Lightbulb className="h-5 w-5 text-primary" />}
-            />
-          </>
-        ) : undefined
-      }
-    >
-      {data && snapshot && p && (
-        <>
-          {actionTiles}
+    <div className="space-y-6">
+      {/* Greeting + status */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="m-0 font-display text-2xl font-semibold text-foreground">
+            {greeting}, {firstName}
+          </h1>
+          <p className="m-0 mt-1 text-sm text-muted-foreground">
+            Here’s where your discovery stands — and the one thing worth doing next.
+          </p>
+        </div>
+        <StatusChip tone={statusChip.tone} label={statusChip.label} />
+      </div>
 
-          {!docsOnlyView && data.employees_summary.stalled_count > 0 && (
-            <Card title="Stalled employees">
-              <div className="mb-4 flex items-start gap-3 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
-                <div className="min-w-0">
-                  <p className="m-0 font-medium text-foreground">
-                    {data.employees_summary.stalled_count} employee
-                    {data.employees_summary.stalled_count === 1 ? '' : 's'} inactive for 48h+
-                  </p>
-                  <p className="m-0 mt-1 text-muted-foreground">
-                    Send a nudge reminder to help them continue discovery.
-                  </p>
-                </div>
-              </div>
-              <div className="space-y-2">
-                {data.employees_summary.stalled_employees.map((employee) => (
-                  <div
-                    key={employee.id}
-                    className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/50 px-4 py-3"
-                  >
-                    <div className="min-w-0">
-                      <p className="m-0 truncate font-medium text-foreground">
-                        {employee.display_name || `Employee #${employee.id}`}
-                      </p>
-                      <p className="m-0 truncate text-xs text-muted-foreground">
-                        {employee.department || 'No department'}
-                        {employee.last_active_at
-                          ? ` · last active ${new Date(employee.last_active_at).toLocaleString()}`
-                          : ''}
-                      </p>
-                    </div>
-                    {employee.can_nudge && (
-                      <Link to="/company/employees" className="shrink-0">
-                        <Button size="sm" variant="secondary">
-                          Nudge
-                        </Button>
-                      </Link>
-                    )}
-                  </div>
-                ))}
-              </div>
-              <Link to="/company/employees" className="mt-4 inline-block text-sm font-medium text-primary hover:underline">
-                Manage employees →
-              </Link>
-            </Card>
-          )}
-
-          <div className="grid min-w-0 gap-4 lg:grid-cols-2">
-            <Card title="Participation" className="min-w-0">
-              <ParticipationSummary participation={p} departmentCoverage={snapshot.department_coverage} compact />
-            </Card>
-
-            <Card title="Shared reports" className="min-w-0">
-              <div className="min-w-0 flex-1 space-y-3">
-                {data.latest_report && data.latest_report.status === 'ready' ? (
-                  <p className="text-sm text-foreground">
-                    Latest report:{' '}
-                    <Badge variant="success">v{data.latest_report.version}</Badge>
-                  </p>
-                ) : (
-                  <p className="m-0 text-sm text-muted-foreground">
-                    Reports appear here once your reviewer or platform shares them with your company.
-                  </p>
-                )}
-                {data.usage && (
-                  <p className="text-sm text-muted-foreground">
-                    Trial conversations: {data.usage.conversations_used}
-                    {data.usage.conversation_limit != null ? ` / ${data.usage.conversation_limit}` : ''} used
-                  </p>
-                )}
-                <p className="text-sm text-muted-foreground">
-                  {docsOnlyView
-                    ? 'Upload more department-tagged documents to strengthen your evidence baseline.'
-                    : 'Continue interviews and document uploads to strengthen signals and recommendations.'}
-                </p>
-                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                  <Link to="/company/reports" className="w-full sm:w-auto">
-                    <Button className="w-full sm:w-auto">View reports</Button>
-                  </Link>
-                  <Link to="/company/intelligence#recommendations" className="w-full sm:w-auto">
-                    <Button variant="secondary" className="w-full sm:w-auto">
-                      Recommendations
-                      {recommendationCount > 0 ? ` (${recommendationCount})` : ''}
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-            </Card>
-          </div>
-
-          <Card title="Department coverage" className="min-w-0">
-            <SimpleBarChart
-              data={departmentChartData}
-              emptyLabel={
-                docsOnlyView
-                  ? 'Tag documents by department to see coverage here.'
-                  : 'Invite employees by department to see coverage here.'
-              }
-              layout="horizontal"
-              height={Math.max(180, departmentChartData.length * 36)}
-            />
-          </Card>
-
-          <div className="grid min-w-0 gap-4 lg:grid-cols-2">
-            <Card title="Top pain points" className="min-w-0">
-              {snapshot.top_pain_points.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  {docsOnlyView
-                    ? 'Upload procedure or finance documents to surface baseline signals.'
-                    : 'Complete more interviews to surface signals.'}
-                </p>
-              ) : (
-                <div className="space-y-4">
-                  {snapshot.top_pain_points.map((s) => (
-                    <div key={s.id} className="min-w-0">
-                      <div className="mb-1 flex justify-between gap-2 text-sm">
-                        <span className="min-w-0 truncate font-medium text-foreground">{s.label}</span>
-                        <span className="shrink-0 text-muted-foreground">{Math.round(s.strength * 100)}%</span>
-                      </div>
-                      <StrengthBar strength={s.strength} />
-                    </div>
-                  ))}
-                </div>
-              )}
-              <Link
-                to="/company/intelligence#signals"
-                className="mt-4 inline-block text-sm font-medium text-primary hover:underline"
-              >
-                View all signals →
-              </Link>
-            </Card>
-
-            <Card title="Emerging patterns" className="min-w-0">
-              {(snapshot.emerging_patterns?.length ?? 0) === 0 ? (
-                <p className="text-sm text-muted-foreground">Patterns appear when signals repeat across departments.</p>
-              ) : (
-                <div className="space-y-4">
-                  {snapshot.emerging_patterns.map((pattern) => (
-                    <div key={pattern.id} className="min-w-0">
-                      <div className="mb-1 flex items-start justify-between gap-2 text-sm">
-                        <span className="min-w-0 font-medium text-foreground">{pattern.title}</span>
-                        <span className="shrink-0 text-muted-foreground">{Math.round(pattern.confidence * 100)}%</span>
-                      </div>
-                      <StrengthBar strength={pattern.confidence} />
-                    </div>
-                  ))}
-                </div>
-              )}
-              <Link
-                to="/company/intelligence#patterns"
-                className="mt-4 inline-block text-sm font-medium text-primary hover:underline"
-              >
-                View all patterns →
-              </Link>
-            </Card>
-          </div>
-
-          {snapshot.recent_timeline.length > 0 && (
-            <Card title="Recent activity" className="min-w-0">
-              <Timeline
-                events={snapshot.recent_timeline.map((e, i) => ({
-                  id: String(i),
-                  title: e.title,
-                  summary: e.summary,
-                  occurredAt: e.occurred_at,
-                }))}
-              />
-              <Link
-                to="/company/intelligence#timeline"
-                className="mt-4 inline-block text-sm font-medium text-primary hover:underline"
-              >
-                View full timeline →
-              </Link>
-            </Card>
-          )}
-        </>
+      {error && (
+        <div className="rounded-md border border-status-warning/30 bg-status-warningBg px-4 py-3 text-sm text-foreground">
+          {error}
+        </div>
       )}
-    </DashboardShell>
+
+      {/* Hero next step */}
+      <NextStepHero
+        eyebrow={hero.eyebrow}
+        title={hero.title}
+        description={hero.description}
+        primaryAction={{ label: hero.primaryLabel, to: hero.to }}
+        readiness={hero.readiness}
+      />
+
+      {/* Also waiting */}
+      <AttentionList items={attentionItems} />
+
+      {/* Journey */}
+      <Card padding={false} className="p-5 sm:p-6">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <span className="font-display text-sm font-semibold text-foreground">Your discovery journey</span>
+          <span className="text-xs text-muted-foreground">
+            {journeyDone} of {journeySteps.length} complete
+          </span>
+        </div>
+        <JourneySteps steps={journeySteps} />
+      </Card>
+
+      {/* Outcome tiles */}
+      {!processingDocs && (
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+          {docsOnlyView ? (
+            <OutcomeTile
+              icon={<FileText className="h-4 w-4" />}
+              label="Documents analyzed"
+              value={readyDocs}
+              action={{ label: 'View documents', to: '/company/documents' }}
+            />
+          ) : (
+            <OutcomeTile
+              icon={<Users className="h-4 w-4" />}
+              label="People engaged"
+              value={completed}
+              valueSuffix={`of ${invited}`}
+              action={{ label: 'View your team', to: '/company/employees' }}
+            />
+          )}
+          <OutcomeTile
+            icon={<Zap className="h-4 w-4" />}
+            label="Frictions surfaced"
+            value={signalCount}
+            action={{ label: 'See what we found', to: '/company/intelligence#signals' }}
+          />
+          <OutcomeTile
+            icon={<Sparkles className="h-4 w-4" />}
+            label="Cross-team themes"
+            value={patternCount}
+            action={{ label: 'See the patterns', to: '/company/intelligence#patterns' }}
+          />
+        </div>
+      )}
+
+      {/* Two panels */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card
+          title="Top of what we found"
+          action={
+            <Link to="/company/reports" className="text-sm font-semibold text-accent-hover hover:underline">
+              See the full report →
+            </Link>
+          }
+          className="min-w-0"
+        >
+          {painPoints.length === 0 ? (
+            <p className="m-0 text-sm text-muted-foreground">
+              {docsOnlyView
+                ? 'Upload procedure or finance documents to surface baseline frictions.'
+                : 'Complete more interviews to surface frictions.'}
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {painPoints.map((s) => {
+                const band = bandFor(s.strength);
+                return (
+                  <div key={s.id} className="min-w-0">
+                    <div className="mb-1.5 flex items-baseline justify-between gap-2">
+                      <span className="min-w-0 truncate text-sm font-semibold text-foreground">{s.label}</span>
+                      <Badge variant={band.variant}>{band.label}</Badge>
+                    </div>
+                    <StrengthBar strength={s.strength} label="" />
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+
+        <Card title="Your reviewer" className="min-w-0">
+          {reviewer ? (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-foreground font-display text-base font-semibold text-background">
+                  {reviewer.name.charAt(0).toUpperCase()}
+                </span>
+                <div className="min-w-0">
+                  <p className="m-0 font-display text-sm font-semibold text-foreground">{reviewer.name}</p>
+                  {reviewer.headline && (
+                    <p className="m-0 truncate text-xs text-muted-foreground">{reviewer.headline}</p>
+                  )}
+                  {reviewer.expertise_tags?.length > 0 && (
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      {reviewer.expertise_tags.slice(0, 3).map((tag) => (
+                        <span
+                          key={tag}
+                          className="rounded-badge border border-border bg-background px-2 py-0.5 text-[11px] text-muted-foreground"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {unansweredQuestions > 0 && (
+                <div className="flex items-center gap-3 rounded-md border border-status-warning/30 bg-status-warningBg px-3.5 py-3">
+                  <HelpCircle className="h-4 w-4 shrink-0 text-status-warning" />
+                  <div className="min-w-0">
+                    <p className="m-0 text-sm font-semibold text-foreground">
+                      {unansweredQuestions} question{unansweredQuestions === 1 ? '' : 's'} need your input
+                    </p>
+                    <p className="m-0 text-xs text-muted-foreground">Answering makes your next report stronger</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-col gap-2 sm:flex-row">
+                {unansweredQuestions > 0 && (
+                  <Link to="/company/outreaches" className="w-full sm:w-auto">
+                    <Button className="w-full sm:w-auto">Answer questions</Button>
+                  </Link>
+                )}
+                <Link to="/company/reports" className="w-full sm:w-auto">
+                  <Button variant="secondary" className="w-full sm:w-auto">
+                    View report
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <EmptyState
+              icon={UserCircle}
+              title="No reviewer assigned yet"
+              description="A Worktruth expert appears here once they’re assigned to your company."
+              className="py-8"
+            />
+          )}
+        </Card>
+      </div>
+
+      {/* Recent activity */}
+      {timeline.length > 0 && (
+        <Card title="Recent activity" className="min-w-0">
+          <Timeline
+            events={timeline.map((e, i) => ({
+              id: String(i),
+              title: e.title,
+              summary: e.summary,
+              occurredAt: e.occurred_at,
+            }))}
+          />
+        </Card>
+      )}
+    </div>
   );
 }
