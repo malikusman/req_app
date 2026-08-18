@@ -1,5 +1,6 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import { Users } from 'lucide-react';
 import { api, type Employee } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
 import {
@@ -58,6 +59,12 @@ export function CompanyEmployees() {
   const [editPhone, setEditPhone] = useState('');
   const [savingPhone, setSavingPhone] = useState(false);
   const [digestEmployee, setDigestEmployee] = useState<Employee | null>(null);
+  const inviteCardRef = useRef<HTMLDivElement>(null);
+
+  const focusInviteForm = () => {
+    inviteCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    inviteCardRef.current?.querySelector('input')?.focus();
+  };
   const [usage, setUsage] = useState<{
     conversations_used: number;
     conversation_limit: number | null;
@@ -171,14 +178,19 @@ export function CompanyEmployees() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Employees"
-        description="Invite employees and follow their discovery conversations. Intelligence updates when interviews complete — not at invite time."
+        title="Your team"
+        description="Invite people and follow their discovery — insight updates when interviews finish."
         actions={
-          <Link to="/company/conversations">
-            <Button variant="secondary" size="sm">
-              View conversations
+          <>
+            <Link to="/company/conversations">
+              <Button variant="secondary" size="sm">
+                View conversations
+              </Button>
+            </Link>
+            <Button size="sm" onClick={focusInviteForm}>
+              Invite people
             </Button>
-          </Link>
+          </>
         }
       />
 
@@ -191,7 +203,8 @@ export function CompanyEmployees() {
         </div>
       )}
 
-      <Card title="Invite employee">
+      <div ref={inviteCardRef}>
+      <Card title="Invite someone">
         {usage && usage.conversation_limit != null && (
           <p className="mb-3 text-sm text-text-secondary">
             Discovery conversations: {usage.conversations_used} / {usage.conversation_limit} used
@@ -248,6 +261,7 @@ export function CompanyEmployees() {
           </div>
         </form>
       </Card>
+      </div>
 
       <Card title="Participation funnel">
         <p className="mb-4 m-0 text-sm text-text-secondary">
@@ -371,8 +385,10 @@ export function CompanyEmployees() {
         rows={employees as Employee[]}
         emptyState={
           <EmptyState
-            title="No employees yet"
-            description="You can build a document baseline first, then invite employees later to strengthen the same signals."
+            icon={Users}
+            title="No one on your team yet"
+            description="Invite the people closest to the work. As each person finishes their discovery conversation, their insight strengthens your report."
+            action={{ label: 'Invite people', onClick: focusInviteForm }}
           />
         }
       />

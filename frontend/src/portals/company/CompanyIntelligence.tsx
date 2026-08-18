@@ -108,17 +108,17 @@ export function CompanyIntelligence() {
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'overview', label: 'Overview' },
-    { id: 'signals', label: 'Signals' },
-    { id: 'patterns', label: 'Patterns' },
+    { id: 'signals', label: 'Frictions' },
+    { id: 'patterns', label: 'Themes' },
     { id: 'recommendations', label: 'Recommendations' },
-    { id: 'timeline', label: 'Timeline' },
+    { id: 'timeline', label: 'Activity' },
   ];
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Intelligence"
-        description="Signals, patterns, and recommendations from documents and discovery interviews."
+        title="What we found"
+        description="The frictions, themes, and recommended actions from your discovery."
       />
 
       {loadError && (
@@ -158,8 +158,8 @@ export function CompanyIntelligence() {
             <div className={tab === 'overview' ? 'space-y-6' : 'hidden'}>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <StatCard label="Readiness" value={`${readiness}%`} icon={<FileBarChart className="h-5 w-5 text-primary" />} />
-                <StatCard label="Signals" value={signals.length} icon={<Radio className="h-5 w-5 text-primary" />} />
-                <StatCard label="Patterns" value={patterns.length} icon={<Shapes className="h-5 w-5 text-primary" />} />
+                <StatCard label="Frictions" value={signals.length} icon={<Radio className="h-5 w-5 text-primary" />} />
+                <StatCard label="Themes" value={patterns.length} icon={<Shapes className="h-5 w-5 text-primary" />} />
                 <StatCard
                   label="Recommendations"
                   value={recs.length + ideas.length}
@@ -173,7 +173,7 @@ export function CompanyIntelligence() {
             <section id="signals" className="space-y-3">
               {tab === 'overview' ? (
                 <div className="flex items-center justify-between gap-2">
-                  <h2 className="m-0 text-lg font-medium text-foreground">Signals</h2>
+                  <h2 className="m-0 text-lg font-medium text-foreground">Frictions</h2>
                   <Button size="sm" variant="secondary" onClick={() => selectTab('signals')}>
                     View all
                   </Button>
@@ -183,7 +183,7 @@ export function CompanyIntelligence() {
                 columns={[
                   {
                     key: 'label',
-                    header: 'Signal',
+                    header: 'Friction',
                     className: 'max-w-[280px]',
                     render: (s: CompanySignal) => (
                       <div className="min-w-0 max-w-[280px] truncate" title={s.label}>
@@ -220,8 +220,9 @@ export function CompanyIntelligence() {
                 rows={(tab === 'overview' ? signals.slice(0, 5) : signals) as CompanySignal[]}
                 emptyState={
                   <EmptyState
-                    title="No signals yet"
-                    description="Upload documents or complete interviews to surface operational signals."
+                    icon={Radio}
+                    title="No frictions yet"
+                    description="As your team finishes interviews and documents are read, the friction points we hear come together here."
                     action={{ label: 'Upload documents', onClick: () => navigate('/company/documents') }}
                   />
                 }
@@ -233,7 +234,7 @@ export function CompanyIntelligence() {
             <section id="patterns" className="space-y-3">
               {tab === 'overview' ? (
                 <div className="flex items-center justify-between gap-2">
-                  <h2 className="m-0 text-lg font-medium text-foreground">Patterns</h2>
+                  <h2 className="m-0 text-lg font-medium text-foreground">Themes</h2>
                   <Button size="sm" variant="secondary" onClick={() => selectTab('patterns')}>
                     View all
                   </Button>
@@ -241,8 +242,9 @@ export function CompanyIntelligence() {
               ) : null}
               {patterns.length === 0 ? (
                 <EmptyState
-                  title="No patterns yet"
-                  description="Patterns emerge as signals strengthen across departments."
+                  icon={Shapes}
+                  title="No themes yet"
+                  description="Themes appear once the same friction shows up across enough people and teams."
                   action={{ label: 'Upload documents', onClick: () => navigate('/company/documents') }}
                 />
               ) : (
@@ -278,7 +280,7 @@ export function CompanyIntelligence() {
 
               {ideas.length > 0 && tab !== 'overview' && (
                 <div className="space-y-3">
-                  <h3 className="m-0 text-base font-medium text-foreground">Published agentic ideas</h3>
+                  <h3 className="m-0 text-base font-medium text-foreground">Published ideas</h3>
                   {ideas.map((idea) => (
                     <Card key={idea.id}>
                       <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -293,8 +295,9 @@ export function CompanyIntelligence() {
 
               {recs.length === 0 && ideas.length === 0 ? (
                 <EmptyState
-                  title="No recommendations"
-                  description="Upload documents or complete discovery interviews so recommendations can be synthesized."
+                  icon={Lightbulb}
+                  title="No recommendations yet"
+                  description="Once we've heard enough from your team, we'll suggest clear actions to take here."
                   action={{ label: 'Upload documents', onClick: () => navigate('/company/documents') }}
                 />
               ) : (
@@ -336,7 +339,11 @@ export function CompanyIntelligence() {
                 </div>
               ) : null}
               {events.length === 0 ? (
-                <EmptyState title="No timeline events yet" description="Activity appears as discovery progresses." />
+                <EmptyState
+                  icon={FileBarChart}
+                  title="Nothing here yet"
+                  description="As your discovery moves along, each step shows up here so you can follow the progress."
+                />
               ) : (
                 <Card>
                   <Timeline

@@ -24,7 +24,7 @@ export function CompanyConversations() {
     <div className="space-y-6">
       <PageHeader
         title="Conversations"
-        description="Discovery interview sessions with your employees."
+        description="Discovery interviews with your team."
       />
 
       {error && <p className="text-sm text-status-error">{error}</p>}
@@ -60,8 +60,8 @@ export function CompanyConversations() {
         emptyState={
           <EmptyState
             title="No conversations yet"
-            description="Conversations appear when invited employees start WhatsApp or web interviews."
-            action={{ label: 'Invite employees', onClick: () => navigate('/company/employees') }}
+            description="Invite your team to begin — each conversation appears here as they start."
+            action={{ label: 'Invite your team', onClick: () => navigate('/company/employees') }}
             secondaryAction={{ label: 'Upload documents instead', onClick: () => navigate('/company/documents') }}
           />
         }

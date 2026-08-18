@@ -52,7 +52,7 @@ export function CompanySettings() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Settings" description="Account preferences, security, and secondary tools." />
+      <PageHeader title="Settings" description="Your organization details, security, and other tools." />
 
       {loadError && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-button border border-status-error/30 bg-status-errorBg px-4 py-3 text-sm text-status-error">
@@ -67,7 +67,7 @@ export function CompanySettings() {
         <form onSubmit={saveOrg} className="max-w-md space-y-4">
           <Input label="Display name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
           <Select
-            label="Locale (reports)"
+            label="Report language"
             value={locale}
             onChange={(e) => setLocale(e.target.value)}
             options={[
@@ -84,7 +84,7 @@ export function CompanySettings() {
         </form>
       </Card>
 
-      <Card title="More tools">
+      <Card title="Other tools">
         <div className="grid gap-3 sm:grid-cols-2">
           {SETTINGS_SECONDARY_LINKS.map((item) => {
             const Icon = item.icon;
@@ -114,8 +114,8 @@ export function CompanySettings() {
         ) : (
           <div className="space-y-4">
             <p className="m-0 text-sm text-text-secondary">
-              Employees join only after an admin invite. WhatsApp uses the invited phone number; browser
-              discovery uses the personal link from email.
+              Your team can only join by invitation. On WhatsApp we use the phone number you invited; in the
+              browser, each person uses their own private link from email.
             </p>
             <Link to="/company/employees">
               <Button variant="secondary">Manage employees</Button>

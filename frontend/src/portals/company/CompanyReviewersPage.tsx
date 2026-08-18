@@ -5,8 +5,8 @@ export function CompanyReviewersPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Reviewers"
-        description="Experts assigned to your company. Their published profiles help you understand who is shaping your report."
+        title="Your reviewer"
+        description="The expert reviewing your discovery and shaping your report."
       />
       <CompanyExpertReviewers hideIntro />
     </div>

@@ -37,7 +37,7 @@ export function CompanyExpertReviewers({ hideIntro = false }: { hideIntro?: bool
         </div>
       ) : (
         <p className="m-0 text-sm text-muted-foreground">
-          No published reviewers assigned yet.
+          No reviewer assigned yet — we'll introduce your expert here once they're matched to you.
         </p>
       )}
     </Card>

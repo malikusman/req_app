@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, type Report } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
+import { FileText } from 'lucide-react';
 import { PageHeader, Button, DataTable, Badge, EmptyState, Modal } from '../../components/ui';
 import { useToast } from '../../components/ui/ToastProvider';
 
@@ -78,11 +79,22 @@ export function CompanyReports() {
 
   const generating = reports.some((r) => r.status === 'queued' || r.status === 'generating');
 
+  const latestReady = reports
+    .filter((r) => r.status === 'ready')
+    .reduce<Report | null>((latest, r) => (!latest || r.version > latest.version ? r : latest), null);
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Reports"
-        description="View, download, or share the discovery reports your reviewer and platform team prepare for you."
+        description="Your discovery reports — view, download, or share."
+        actions={
+          latestReady ? (
+            <Button size="sm" onClick={() => openViewer(latestReady)}>
+              Open latest report
+            </Button>
+          ) : undefined
+        }
       />
 
       {error && <p className="text-sm text-status-error">{error}</p>}
@@ -167,8 +179,9 @@ export function CompanyReports() {
         rows={reports as Report[]}
         emptyState={
           <EmptyState
-            title="No shared reports yet"
-            description="When your reviewer or platform shares a report with your company, it will appear here."
+            icon={FileText}
+            title="No reports yet"
+            description="Your first report appears here once discovery has enough evidence."
             action={{
               label: 'Back to dashboard',
               onClick: () => navigate('/company/dashboard'),

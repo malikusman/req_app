@@ -25,7 +25,7 @@ export function CompanyMediaLibrary() {
     <div className="space-y-6">
       <PageHeader
         title="WhatsApp media"
-        description="Voice notes, screenshots, and documents shared during discovery interviews."
+        description="Photos, voice notes and files your team shared during discovery."
       />
 
       {error && <p className="text-sm text-status-error">{error}</p>}
@@ -71,7 +71,7 @@ export function CompanyMediaLibrary() {
           emptyState={
             <EmptyState
               title="No media yet"
-              description="Media appears here when employees share voice notes, screenshots, or documents on WhatsApp."
+              description="Anything your team shares on WhatsApp — photos, voice notes, files — shows up here."
             />
           }
         />

@@ -38,8 +38,8 @@ export function CompanyDiscoveryQuestions() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Discovery questions"
-        description="Questions employees receive during discovery — not their answers (privacy preserved)."
+        title="Questions asked"
+        description="The questions your team receives during discovery. Their answers stay private."
       />
       {error && <p className="text-sm text-status-error">{error}</p>}
 
@@ -90,7 +90,12 @@ export function CompanyDiscoveryQuestions() {
           },
         ]}
         rows={questions as DiscoveryQuestion[]}
-        emptyState={<EmptyState title="No questions" description="Discovery questions appear as interviews progress." />}
+        emptyState={
+          <EmptyState
+            title="No questions yet"
+            description="As your team goes through discovery, the questions they're asked will appear here."
+          />
+        }
       />
     </div>
   );

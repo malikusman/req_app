@@ -404,8 +404,8 @@ export function CompanyOnboarding() {
     <div className="mx-auto flex min-h-[70vh] max-w-5xl flex-col gap-4 pb-28 lg:pb-8">
       <div className="sticky top-0 z-20 -mx-1 space-y-3 bg-background/95 px-1 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <PageHeader
-          title="Profile"
-          description="This profile helps Worktruth understand your business and analyze it more accurately. Nothing is required — fill what you can."
+          title="Company profile"
+          description="A sharper profile means sharper insight — fill in what you can, nothing is required."
         />
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">

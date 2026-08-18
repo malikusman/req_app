@@ -59,7 +59,7 @@ export function CompanyBilling() {
   if (!billing) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Billing" description="Manage your subscription and discovery conversation usage." />
+        <PageHeader title="Billing" description="Your plan and discovery usage." />
         {loadError ? (
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-button border border-status-error/30 bg-status-errorBg px-4 py-3 text-sm text-status-error">
             <span>{loadError}</span>
@@ -79,7 +79,7 @@ export function CompanyBilling() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Billing" description="Manage your subscription and discovery conversation usage." />
+      <PageHeader title="Billing" description="Your plan and discovery usage." />
       {successMsg && (
         <p className="rounded-button bg-status-successBg px-4 py-2 text-sm text-status-success">{successMsg}</p>
       )}

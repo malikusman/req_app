@@ -65,8 +65,8 @@ export function CompanyKnowledge() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Knowledge & gaps"
-        description="Knowledge extracted from your documents, plus clarification questions the analysis could not answer from the files alone."
+        title="Knowledge"
+        description="What we've learned from your documents, and the gaps we're still filling."
         actions={
           <Link to="/company/documents">
             <Button variant="secondary" size="sm">
@@ -78,13 +78,13 @@ export function CompanyKnowledge() {
 
       {error && <p className="text-sm text-status-error">{error}</p>}
 
-      <Card title="Open clarification questions">
+      <Card title="Gaps we're still filling">
         {loading ? (
           <p className="text-sm text-text-secondary">Loading…</p>
         ) : openQuestions.length === 0 ? (
           <EmptyState
             title="No open questions"
-            description="After you Analyze documents, unanswered gaps will appear here for your team to fill in."
+            description="Once we've read your documents, anything we still need to know shows up here for your team to answer."
           />
         ) : (
           <ul className="m-0 list-none space-y-4 p-0">
@@ -116,9 +116,9 @@ export function CompanyKnowledge() {
         )}
       </Card>
 
-      <Card title="Answered / auto-answered">
+      <Card title="Answered questions">
         {answeredQuestions.length === 0 ? (
-          <p className="m-0 text-sm text-text-secondary">None yet.</p>
+          <p className="m-0 text-sm text-text-secondary">Nothing answered yet.</p>
         ) : (
           <ul className="m-0 list-none space-y-3 p-0">
             {answeredQuestions.map((q) => (
@@ -137,13 +137,13 @@ export function CompanyKnowledge() {
         )}
       </Card>
 
-      <Card title="Knowledge base">
+      <Card title="What we've learned">
         {loading ? (
           <p className="text-sm text-text-secondary">Loading…</p>
         ) : entries.length === 0 ? (
           <EmptyState
-            title="No knowledge entries yet"
-            description="Run Analyze on the Documents page to extract structured knowledge from your uploads."
+            title="Nothing learned yet"
+            description="Upload documents and we'll pull out what matters — you'll see it summarized here."
             action={{ label: 'Go to documents', onClick: () => navigate('/company/documents') }}
           />
         ) : (

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
+import { MessageSquare } from 'lucide-react';
 import { PageHeader, Card, DataTable, Badge, Button, Textarea, EmptyState, Modal } from '../../components/ui';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/shadcn/sheet';
 import { useMediaQuery } from '../../lib/useMediaQuery';
@@ -119,12 +120,22 @@ export function CompanyOutreaches() {
 
   const canAnswer = selected && ['sent', 'replied', 'approved', 'queued'].includes(selected.status);
 
+  const needsInput = outreaches.filter(
+    (o) => o.status === 'pending_admin_approval' || (o.recipient_type === 'company_admin' && o.status === 'sent')
+  ).length;
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Reviewer questions"
-        description="Questions from your assigned reviewer for your company. Answer portal clarifications here; approve employee WhatsApp or email outreach when needed."
+        description="Questions from your expert reviewer that sharpen your report."
       />
+
+      {needsInput > 0 && (
+        <div className="rounded-button border border-border bg-accent-muted px-4 py-3 text-sm text-foreground">
+          {needsInput} {needsInput === 1 ? 'question needs' : 'questions need'} your input.
+        </div>
+      )}
 
       {error && !pending && <p className="text-sm text-status-error">{error}</p>}
 
@@ -193,15 +204,16 @@ export function CompanyOutreaches() {
           rows={outreaches}
           emptyState={
             <EmptyState
-              title="No reviewer questions yet"
-              description="When your reviewer asks a question for the company, it will appear here."
+              icon={MessageSquare}
+              title="No questions yet"
+              description="When your reviewer needs something to sharpen your report, their question shows up here for you to answer."
             />
           }
         />
 
         <Card className="hidden lg:block" title="Thread">
           {!selected ? (
-            <p className="text-sm text-text-secondary">Select a clarification to see replies and answer.</p>
+            <p className="text-sm text-text-secondary">Pick a question to read the thread and reply.</p>
           ) : (
             <div className="space-y-4 text-sm">
               <div>
@@ -256,10 +268,10 @@ export function CompanyOutreaches() {
               ) : (
                 <p className="text-xs text-text-secondary">
                   {selected.status === 'pending_admin_approval'
-                    ? 'Approve this request before employees are contacted.'
+                    ? 'Approve this request before your team is contacted.'
                     : selected.status === 'closed'
-                      ? 'This clarification is closed.'
-                      : 'Answering is not available for this status.'}
+                      ? 'This question is closed.'
+                      : 'You can’t answer a question with this status.'}
                 </p>
               )}
             </div>
@@ -269,7 +281,7 @@ export function CompanyOutreaches() {
         <Sheet open={Boolean(selected) && isNarrow} onOpenChange={(open) => !open && setSelected(null)}>
           <SheetContent side="bottom" className="max-h-[85dvh] overflow-y-auto">
             <SheetHeader>
-              <SheetTitle>Clarification thread</SheetTitle>
+              <SheetTitle>Question thread</SheetTitle>
             </SheetHeader>
             {selected ? (
               <div className="mt-4 space-y-4 text-sm">
@@ -327,7 +339,7 @@ export function CompanyOutreaches() {
       <Modal
         open={Boolean(pending)}
         onClose={closeModal}
-        title={pending?.action === 'approve' ? 'Approve clarification' : 'Decline clarification'}
+        title={pending?.action === 'approve' ? 'Approve request' : 'Decline request'}
         footer={
           <>
             <Button variant="secondary" onClick={closeModal} disabled={actingId != null}>

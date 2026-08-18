@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Download, HelpCircle, Pencil, Trash2 } from 'lucide-react';
+import { Download, HelpCircle, Pencil, Trash2, Upload } from 'lucide-react';
 import { api, type CompanyDocument, type DocumentAnalysisRun } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
 import { PageHeader, Card, Input, DataTable, Badge, FileDropzone, EmptyState, Button } from '../../components/ui';
@@ -30,6 +30,7 @@ export function CompanyDocuments() {
   const prevActiveRunId = useRef<number | null>(null);
   const replaceInputRef = useRef<HTMLInputElement>(null);
   const replaceTargetId = useRef<number | null>(null);
+  const uploadInputRef = useRef<HTMLInputElement>(null);
 
   const loadDocs = () => {
     if (!token) return Promise.resolve();
@@ -258,29 +259,49 @@ export function CompanyDocuments() {
         accept=".pdf,.txt,.md,.csv,.docx,.xlsx,.pptx,.jpg,.jpeg,.png,.webp"
         onChange={(e) => void onReplaceFile(e.target.files?.[0] || null)}
       />
+      <input
+        ref={uploadInputRef}
+        type="file"
+        className="hidden"
+        accept=".pdf,.txt,.md,.csv,.docx,.xlsx,.pptx,.jpg,.jpeg,.png,.webp"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) void onUpload(file);
+          if (uploadInputRef.current) uploadInputRef.current.value = '';
+        }}
+      />
 
       <PageHeader
         title="Documents"
-        description="Upload SOPs, policies, and finance exports, then run analysis to build your company knowledge base. Tag departments for readiness coverage."
+        description="Upload SOPs, policies, and finance exports to build a baseline."
         actions={
           <div className="flex flex-wrap gap-2">
             <Link to="/company/discovery-questions">
               <Button variant="secondary" size="sm" icon={<HelpCircle className="h-4 w-4" />}>
-                Discovery questions
+                Questions asked
               </Button>
             </Link>
             <Link to="/company/knowledge">
               <Button variant="secondary" size="sm">
-                Knowledge & gaps
+                Knowledge
               </Button>
             </Link>
             <Button
+              variant="secondary"
               size="sm"
               loading={analyzing}
               disabled={!canAnalyze}
               onClick={() => startAnalysis()}
             >
               {activeRun ? `Analyzing… (${activeRun.phase || activeRun.status})` : analyzeLabel}
+            </Button>
+            <Button
+              size="sm"
+              loading={uploading}
+              icon={<Upload className="h-4 w-4" />}
+              onClick={() => uploadInputRef.current?.click()}
+            >
+              Upload
             </Button>
           </div>
         }
@@ -507,8 +528,9 @@ export function CompanyDocuments() {
         emptyState={
           <EmptyState
             title="No documents yet"
-            description="Drop your first SOP, policy, or export above — then Analyze when you have uploaded what you need."
-            action={{ label: 'Invite employees later', onClick: () => navigate('/company/employees') }}
+            description="Upload a few SOPs, policies, or finance exports to start a baseline."
+            action={{ label: 'Upload a document', onClick: () => uploadInputRef.current?.click() }}
+            secondaryAction={{ label: 'Invite your team later', onClick: () => navigate('/company/employees') }}
           />
         }
       />
