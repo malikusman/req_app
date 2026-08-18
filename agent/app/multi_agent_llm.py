@@ -18,7 +18,7 @@ from app.json_parse import LlmJsonParseError, extract_json_object
 from app.llm import OpenAIUnavailable
 from app.openai_factory import build_chat_openai, llm_configured
 from app.orchestrator import needs_summary_refresh
-from app.personas import mock_question_for, persona_for
+from app.personas import ORIENT_PERSONA, mock_question_for, persona_for
 
 CLOSING_MESSAGES = {
     "en": (
@@ -158,6 +158,10 @@ def run_agent_turn(state: dict[str, Any]) -> dict[str, Any]:
 
 
 def _build_system_prompt(state: dict[str, Any]) -> str:
+    # Phase 3: orient/branch prompt when area routing drove this turn.
+    if state.get("area_routing") and state.get("area_decision"):
+        return _build_area_prompt(state, state["area_decision"])
+
     bb = state["blackboard"]
     profile = bb.get("profile") or {}
     agent_id = state["active_agent_id"]
@@ -317,6 +321,94 @@ Respond with JSON only:
 }}"""
 
 
+def _build_area_prompt(state: dict[str, Any], decision: dict[str, Any]) -> str:
+    """Companion-voiced prompt for the map-then-branch flow: orient asks a light
+    question and names the person's areas; branch asks one beat about one area."""
+    bb = state["blackboard"]
+    profile = bb.get("profile") or {}
+    language = state.get("preferred_language", "en")
+    phase = decision.get("phase")
+
+    profile_block = (
+        f"Employee: {profile.get('name') or 'unknown'} — {profile.get('role_title') or 'unknown role'}, "
+        f"{(profile.get('seniority') or 'unknown').replace('_', ' ')}, {profile.get('department') or 'unknown'}.\n"
+        f"Responsibilities: {profile.get('responsibilities') or 'n/a'}\n"
+        f"Tools: {', '.join(profile.get('primary_tools') or []) or 'n/a'}"
+    )
+    summary = bb.get("conversation_summary") or "(just getting started)"
+
+    asked = [
+        (item.get("content") or "").strip()
+        for item in (state.get("history") or [])
+        if item.get("role") == "assistant" and (item.get("content") or "").strip()
+    ]
+    asked_block = ""
+    if asked:
+        lines = "\n".join(f"- {q[:160]}" for q in asked[-8:])
+        asked_block = f"\nQuestions already asked — do NOT repeat any of these, even reworded:\n{lines}\n"
+
+    summary_field = (
+        '"refresh the running summary of the whole chat in 2-4 sentences"'
+        if needs_summary_refresh(state)
+        else "null"
+    )
+    known_areas = [a.get("name") for a in (bb.get("role_areas") or []) if a.get("name")]
+
+    if phase == "orient":
+        persona = ORIENT_PERSONA
+        task = (
+            "Ask ONE short, friendly question that helps you learn the main areas their work "
+            "breaks into (the concrete chunks of what they actually do). React warmly to what they "
+            "just said first. Don't dig deep yet — you're just getting the lay of the land.\n"
+            f"Areas you've spotted so far: {', '.join(known_areas) or 'none yet'}. "
+            "In role_areas, list the 2-3 main areas you can name so far (short labels), or [] if unclear."
+        )
+    else:  # branch
+        persona = (
+            "You're a warm, curious colleague chatting with someone about how their work really "
+            "goes. You're genuinely interested and easy to talk to — never an interviewer, never pushy."
+        )
+        area = decision.get("current_area", "their work")
+        beat_intent = decision.get("beat_intent", "")
+        task = (
+            f"Focus this question on ONE area of their work: \"{area}\".\n"
+            f"Get curious specifically about {beat_intent}.\n"
+            "React warmly to their last answer first, then ask ONE easy, specific question. "
+            "Keep it light and human — a friend chatting, not a form. Leave role_areas as []."
+        )
+
+    return f"""{persona}
+
+You're chatting one-to-one over WhatsApp with {profile.get('name') or 'this person'} to
+understand how they really work at {state.get('company_name', 'the company')}. Warm, curious,
+easy to talk to — never an interviewer running a script, never pushy.
+
+{profile_block}
+
+Conversation so far (summary): {summary}
+{asked_block}
+Your job this turn:
+{task}
+
+Rules:
+- Speak in {language} (ISO 639-1); don't switch unless they do.
+- ONE question only. Acknowledge what they said, then ask. No jargon, no interrogation.
+- First turn (question_count is 0): a short warm hello + one easy question about their day.
+- Never mention interviewers, agents, areas, or that anything is being tracked.
+- Set completed=true ONLY if they ask to stop.
+
+Respond with JSON only:
+{{
+  "assistant_message": "your next message to the employee",
+  "insight": {{ "summary": "1-2 sentence insight from their last message", "topics": ["topic"] }},
+  "finding": {{ "content": "one concrete reusable fact about how work happens here, or null", "confidence": 0.0 }},
+  "role_areas": ["short area label", "..."],
+  "topics_covered": ["daily_workflow"],
+  "updated_summary": {summary_field},
+  "completed": false
+}}"""
+
+
 def _parse_payload(content: str) -> dict[str, Any]:
     payload = extract_json_object(content)
     finding = payload.get("finding")
@@ -325,8 +417,39 @@ def _parse_payload(content: str) -> dict[str, Any]:
     return payload
 
 
+def _mock_area_turn(state: dict[str, Any], decision: dict[str, Any]) -> dict[str, Any]:
+    """Deterministic mock for the area flow (no LLM configured)."""
+    um = state.get("user_message", "")
+    if decision.get("phase") == "orient":
+        return {
+            "assistant_message": "Nice to meet you! To get a feel for your day, what are the main things you find yourself working on?",
+            "insight": {"summary": f"Employee said: {um[:160]}", "topics": ["daily_workflow"]},
+            "finding": None,
+            "role_areas": [p.strip() for p in (state.get("blackboard", {}).get("profile", {}).get("responsibilities") or "").split(",") if p.strip()][:3],
+            "topics_covered": ["daily_workflow"],
+            "updated_summary": None,
+            "completed": False,
+        }
+    area = decision.get("current_area", "your work")
+    beat = decision.get("current_beat", "how")
+    qbeat = {"how": f"Walk me through how {area} usually works — what do you use for it?",
+             "pain": f"What's the most annoying part of {area}?",
+             "ai": f"Have you ever thought about letting software or AI take a slice of {area} off your plate?"}
+    return {
+        "assistant_message": qbeat.get(beat, qbeat["how"]),
+        "insight": {"summary": f"Employee said: {um[:160]}", "topics": [beat]},
+        "finding": ({"content": f"[{area}] {um[:160]}", "confidence": 0.6} if len(um) > 20 else None),
+        "role_areas": [],
+        "topics_covered": ["daily_workflow"],
+        "updated_summary": None,
+        "completed": False,
+    }
+
+
 def _mock_agent_turn(state: dict[str, Any]) -> dict[str, Any]:
     """Deterministic multi-agent mock: each agent asks its canned questions in turn."""
+    if state.get("area_routing") and state.get("area_decision"):
+        return _mock_area_turn(state, state["area_decision"])
     bb = state["blackboard"]
     agent_id = state["active_agent_id"]
     agent_state = bb.get("agent_states", {}).get(agent_id, {})

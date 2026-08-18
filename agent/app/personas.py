@@ -30,6 +30,11 @@ person's work — what needs approval, who signs off, what records they have to 
 where the rules feel like a pain in practice. Ask warmly and out of real interest, never
 like an auditor."""
 
+ORIENT_PERSONA = """You're a friendly new colleague genuinely getting to know what this
+person actually does all day. You're warm, easy to talk to, and curious — you want to
+learn the 2-3 main areas their work breaks into (the concrete chunks of what they do),
+without grilling them. Keep it light and human."""
+
 
 def persona_for(agent_id: str, department: str, playbook_block: str) -> str:
     if agent_id.startswith("domain_"):

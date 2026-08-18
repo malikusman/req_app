@@ -150,15 +150,35 @@ class DiscoverySimulator
     @cleanup = cleanup
     @checks = []
     @turns = 0
+    @area_routing = ENV["AREA_ROUTING"] == "1"
   end
 
   def call
-    banner "Discovery dry run — #{@persona[:name]} (#{@persona_key}) @ #{@company.name}"
+    mode = @area_routing ? "AREA ROUTING (phase 3: orient → per-area)" : "specialist queue (default)"
+    banner "Discovery dry run — #{@persona[:name]} (#{@persona_key}) @ #{@company.name}\nFlow: #{mode}"
+    apply_area_routing!
     execute_stages!
     print_report
     self
   ensure
+    restore_area_routing!
     cleanup! if @cleanup
+  end
+
+  # Toggle the Phase 3 flow for this run only, restoring the company setting after.
+  def apply_area_routing!
+    return unless @area_routing
+
+    @original_area_setting = @company.settings.to_h["discovery_area_routing_enabled"]
+    @company.update!(settings: @company.settings.to_h.merge("discovery_area_routing_enabled" => true))
+  end
+
+  def restore_area_routing!
+    return unless @area_routing
+
+    @company.update!(settings: @company.settings.to_h.merge("discovery_area_routing_enabled" => @original_area_setting))
+  rescue StandardError
+    nil
   end
 
   def execute_stages!
@@ -286,15 +306,25 @@ class DiscoverySimulator
           conversation.question_count <= target
     check "Closing message sent", last_outbound.to_s.match?(/thank/i)
 
-    states = blackboard["agent_states"] || {}
-    used = states.select { |_, s| s["questions_asked"].to_i.positive? }.keys
-    check "Multiple agents participated (#{used.join(', ')})", used.size >= 2
-    over_budget = states.select { |_, s| s["questions_asked"].to_i > s["question_budget"].to_i }
-    check "All agents respected budgets", over_budget.empty?
+    if @area_routing
+      areas = blackboard["role_areas"] || []
+      area_names = areas.map { |a| a["name"] }.compact
+      check "Role areas discovered (#{area_names.join(', ')})", areas.any?
+      explored = areas.select { |a| Array(a["beats_done"]).any? }
+      check "Areas actually explored (#{explored.size}/#{areas.size})", explored.size >= [areas.size, 2].min
+      beats = areas.flat_map { |a| Array(a["beats_done"]) }
+      check "AI-openness beat surfaced at least once", beats.include?("ai")
+    else
+      states = blackboard["agent_states"] || {}
+      used = states.select { |_, s| s["questions_asked"].to_i.positive? }.keys
+      check "Multiple agents participated (#{used.join(', ')})", used.size >= 2
+      over_budget = states.select { |_, s| s["questions_asked"].to_i > s["question_budget"].to_i }
+      check "All agents respected budgets", over_budget.empty?
 
-    depth_limit = @company.merged_settings.fetch("discovery_max_followup_depth", 2).to_i
-    too_deep = states.values.flat_map { |s| s["open_threads"] || [] }.select { |t| t["depth"].to_i > depth_limit }
-    check "Follow-up depth limit respected (max #{depth_limit})", too_deep.empty?
+      depth_limit = @company.merged_settings.fetch("discovery_max_followup_depth", 2).to_i
+      too_deep = states.values.flat_map { |s| s["open_threads"] || [] }.select { |t| t["depth"].to_i > depth_limit }
+      check "Follow-up depth limit respected (max #{depth_limit})", too_deep.empty?
+    end
 
     covered = blackboard.dig("coverage", "topics_covered") || []
     required = blackboard.dig("coverage", "topics_required") || []
@@ -347,9 +377,16 @@ class DiscoverySimulator
     Whatsapp::InboundProcessor.new(payload).process
 
     shown = text
-    agent = conversation.reload.blackboard["active_agent_id"]
-    puts format("  %-10s %s| you: %s", conversation.status, agent ? "[#{agent}] " : "", truncate(shown, 60))
-    puts format("  %-10s %s|  bot: %s", "", " " * (agent ? agent.length + 3 : 0), truncate(last_outbound.to_s, 90))
+    bb = conversation.reload.blackboard
+    agent = bb["active_agent_id"]
+    rd = bb["last_routing_decision"] || {}
+    tag = if rd["area"] || rd["beat"]
+            "[#{rd['area']}/#{rd['beat']}] "
+          else
+            agent ? "[#{agent}] " : ""
+          end
+    puts format("  %-10s %s| you: %s", conversation.status, tag, truncate(shown, 60))
+    puts format("  %-10s %s|  bot: %s", "", " " * tag.length, truncate(last_outbound.to_s, 90))
   end
 
   def answer_profiling_step(step, answer)

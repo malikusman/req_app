@@ -64,6 +64,8 @@ class TurnRequest(BaseModel):
     media_context: dict[str, Any] | None = None
     company_profile: dict[str, Any] | None = None
     media_snippets: list[str] = Field(default_factory=list)
+    # Phase 3: map-then-branch flow (orient -> per-area rotation)
+    area_routing: bool = False
 
 
 class TurnResponse(BaseModel):
@@ -134,6 +136,7 @@ def run_turn(thread_id: str, body: TurnRequest):
                 "media_context": body.media_context,
                 "media_snippets": body.media_snippets,
                 "company_profile": body.company_profile or body.context.company_profile or {},
+                "area_routing": body.area_routing,
             }
         )
         result = execute_multi_agent_turn(state)

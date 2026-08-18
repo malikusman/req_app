@@ -15,7 +15,10 @@ module Discovery
       {
         max_followup_depth: settings.fetch("discovery_max_followup_depth", 2).to_i,
         max_questions_per_agent: settings.fetch("discovery_max_questions_per_agent", 5).to_i,
-        max_active_agents: settings.fetch("discovery_max_active_agents", 4).to_i
+        max_active_agents: settings.fetch("discovery_max_active_agents", 4).to_i,
+        # Phase 3 (map-then-branch) tunables — only used when area routing is on.
+        orient_questions: settings.fetch("discovery_orient_questions", 3).to_i,
+        switch_after: settings.fetch("discovery_switch_after", 2).to_i
       }
     end
 

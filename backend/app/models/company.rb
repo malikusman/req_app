@@ -59,6 +59,11 @@ class Company < ApplicationRecord
     "discovery_max_followup_depth" => 2,
     "discovery_max_questions_per_agent" => 5,
     "discovery_max_active_agents" => 4,
+    # Phase 3 — map-then-branch interview (orient -> per-area rotation). Off by
+    # default; enable per company (or via AREA_ROUTING=1 in the simulator).
+    "discovery_area_routing_enabled" => false,
+    "discovery_orient_questions" => 3,
+    "discovery_switch_after" => 2,
     "report_thresholds" => {
       "min_employees_interviewed" => 3,
       "min_departments" => 2,

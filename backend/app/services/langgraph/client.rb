@@ -39,6 +39,7 @@ module Langgraph
         body[:media_context] = multi_agent[:media_context]
         body[:media_snippets] = multi_agent[:media_snippets] || []
         body[:company_profile] = multi_agent[:company_profile] if multi_agent[:company_profile].present?
+        body[:area_routing] = multi_agent[:area_routing] == true
       end
 
       post("/v1/threads/#{thread_id}/turn", body)

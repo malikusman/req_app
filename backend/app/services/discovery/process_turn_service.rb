@@ -120,7 +120,8 @@ module Discovery
         knowledge_snippets: context[:knowledge_snippets],
         media_context: context[:media_context],
         media_snippets: context[:media_snippets],
-        company_profile: context[:company_profile]
+        company_profile: context[:company_profile],
+        area_routing: @company.merged_settings["discovery_area_routing_enabled"] == true
       }
     end
 

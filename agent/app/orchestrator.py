@@ -11,6 +11,7 @@ rolling summary — and decide handoff/completion.
 import copy
 from typing import Any
 
+from app import area_flow
 from app.router import build_agent_queue
 from app.state import Blackboard, default_limits, empty_coverage
 
@@ -69,6 +70,28 @@ def prepare_turn(state: dict[str, Any]) -> dict[str, Any]:
     question_target = state.get("question_target", 12)
     bb = ensure_blackboard(state.get("blackboard"), state.get("profile") or {}, limits, question_target)
 
+    # Phase 3: map-then-branch flow (flag-gated). Falls back to the specialist
+    # queue below only if orient produced no areas.
+    if state.get("area_routing"):
+        decision = area_flow.prepare(state, bb, limits, question_target)
+        if decision is not None:
+            previous_active = bb.get("active_agent_id")
+            active_id = decision.get("active") or ""
+            routing = area_flow.routing_decision(decision, previous_active)
+            bb["active_agent_id"] = active_id or previous_active or ""
+            bb["last_routing_decision"] = routing
+            return {
+                **state,
+                "blackboard": bb,
+                "limits": limits,
+                "active_agent_id": active_id,
+                "followup_allowed": False,
+                "followup_topic": "",
+                "should_close": bool(decision.get("should_close")),
+                "routing_decision": routing,
+                "area_decision": decision,
+            }
+
     question_count = state.get("question_count", 0)
     active_id = pick_active_agent(bb)
 
@@ -121,6 +144,12 @@ def finalize_turn(state: dict[str, Any], llm_output: dict[str, Any]) -> dict[str
     active_id = state["active_agent_id"]
     question_count = state.get("question_count", 0)
     turn_number = question_count + 1
+
+    area_decision = state.get("area_decision")
+    if area_decision is not None:
+        # Area flow tracks its own state (orient_asked, per-area beats_done) —
+        # the per-agent budget/thread machinery below is bypassed in this mode.
+        area_flow.finalize(state, bb, llm_output, area_decision)
 
     agent_state = bb["agent_states"].get(active_id)
     if agent_state is not None:
