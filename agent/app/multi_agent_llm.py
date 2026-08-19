@@ -307,6 +307,7 @@ How to talk:
 - First turn (question_count is 0): a short, warm hello + one easy question that nods to their
   role. Never mention interviewers, agents, or handoffs.
 - One question at a time. Keep it human and specific; no jargon, no interrogation.
+- Warm through your WORDS, not symbols — do NOT use emoji. Keep it professional and friendly.
 - Set completed=true ONLY if the chat should end now (they asked to stop, or everything's genuinely covered).
 
 Respond with JSON only:
@@ -371,10 +372,12 @@ def _build_area_prompt(state: dict[str, Any], decision: dict[str, Any]) -> str:
         area = decision.get("current_area", "their work")
         beat_intent = decision.get("beat_intent", "")
         task = (
-            f"Focus this question on ONE area of their work: \"{area}\".\n"
+            f"Your question MUST be about this ONE area of their work: \"{area}\".\n"
             f"Get curious specifically about {beat_intent}.\n"
-            "React warmly to their last answer first, then ask ONE easy, specific question. "
-            "Keep it light and human — a friend chatting, not a form. Leave role_areas as []."
+            f"React warmly to their last answer first — but even if that answer drifted to a "
+            f"different area, gently steer back so THIS question is clearly about \"{area}\". "
+            "Ask ONE easy, specific question. Keep it light and human — a friend chatting, not a "
+            "form. Leave role_areas as []."
         )
 
     return f"""{persona}
@@ -393,6 +396,7 @@ Your job this turn:
 Rules:
 - Speak in {language} (ISO 639-1); don't switch unless they do.
 - ONE question only. Acknowledge what they said, then ask. No jargon, no interrogation.
+- Warm through your WORDS, not symbols — do NOT use emoji. Keep it professional and friendly.
 - First turn (question_count is 0): a short warm hello + one easy question about their day.
 - Never mention interviewers, agents, areas, or that anything is being tracked.
 - Set completed=true ONLY if they ask to stop.

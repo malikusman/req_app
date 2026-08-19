@@ -63,7 +63,7 @@ class Company < ApplicationRecord
     # default; enable per company (or via AREA_ROUTING=1 in the simulator).
     "discovery_area_routing_enabled" => false,
     "discovery_orient_questions" => 3,
-    "discovery_switch_after" => 2,
+    "discovery_switch_after" => 3,
     "report_thresholds" => {
       "min_employees_interviewed" => 3,
       "min_departments" => 2,

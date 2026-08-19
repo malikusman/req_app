@@ -18,7 +18,10 @@ from typing import Any
 
 AREA_BEATS = ["how", "pain", "ai"]
 DEFAULT_ORIENT_QUESTIONS = 3
-DEFAULT_SWITCH_AFTER = 2
+# Complete an area's short arc (how → pain → AI) before switching, so the
+# AI-openness beat actually surfaces per area instead of getting deferred to the
+# end. With a 10-question target this gives the top 2 areas a full arc.
+DEFAULT_SWITCH_AFTER = 3
 MAX_AREAS = 3
 
 BEAT_INTENT = {

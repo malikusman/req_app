@@ -61,7 +61,7 @@ state = {
     "profile": PROFILE,
     "question_count": 0,
     "question_target": 10,
-    "limits": {**default_limits(), "orient_questions": 3, "switch_after": 2},
+    "limits": {**default_limits(), "orient_questions": 3, "switch_after": 3},
     "preferred_language": "en",
     "company_name": "GulfLink Logistics",
     "department": "finance",
