@@ -8,7 +8,7 @@ module Api
           authorize :onboarding, :show?
           progress = Companies::QuestionnaireProgress.call(current_company.questionnaire_answers)
           render json: {
-            step: current_company.questionnaire_step.to_i.clamp(1, 10),
+            step: current_company.questionnaire_step.to_i.clamp(*step_bounds),
             portal_onboarding_completed_at: current_company.portal_onboarding_completed_at,
             questionnaire_completed_at: current_company.questionnaire_completed_at,
             questionnaire_answers: current_company.questionnaire_answers || {},
@@ -54,7 +54,7 @@ module Api
           authorize :onboarding, :update_profile?
           answers = (current_company.questionnaire_answers || {}).merge(questionnaire_answers_param)
           step = params[:questionnaire_step].presence&.to_i
-          step = step.clamp(1, 10) if step
+          step = step.clamp(*step_bounds) if step
 
           attrs = { questionnaire_answers: answers }
           attrs[:questionnaire_step] = step if step
@@ -129,7 +129,19 @@ module Api
           return {} unless raw.respond_to?(:to_unsafe_h) || raw.is_a?(Hash)
 
           hash = raw.respond_to?(:to_unsafe_h) ? raw.to_unsafe_h : raw.to_h
-          hash.stringify_keys.slice(*Companies::QuestionnaireProgress::FIELD_IDS)
+          hash.stringify_keys.slice(*whitelist)
+        end
+
+        def whitelist
+          questionnaire_v2? ? Companies::QuestionnaireV2Config::FIELD_IDS : Companies::QuestionnaireProgress::FIELD_IDS
+        end
+
+        def step_bounds
+          questionnaire_v2? ? [1, Companies::QuestionnaireV2Config::STEP_COUNT] : [1, 10]
+        end
+
+        def questionnaire_v2?
+          current_company.questionnaire_version.to_i >= 2
         end
       end
     end

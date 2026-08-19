@@ -62,4 +62,54 @@ RSpec.describe "Company onboarding profile enrichment", type: :request do
     expect(company.portal_onboarding_completed_at).to be_present
     expect(company.engagement_mode).to eq("hybrid")
   end
+
+  context "when the company questionnaire_version is 2" do
+    let(:company) { create(:company, questionnaire_version: 2) }
+
+    it "whitelists v2 keys and rejects v1 keys" do
+      patch "/api/v1/company/onboarding/questionnaire",
+            params: {
+              questionnaire_step: 4,
+              questionnaire_answers: {
+                q01_primary_industry: "Logistics & Transportation",
+                q02_business_description: "Freight forwarding and warehousing",
+                company_industry: "Logistics"
+              }
+            },
+            headers: auth_headers_for(user),
+            as: :json
+
+      expect(response).to have_http_status(:ok)
+      body = JSON.parse(response.body).with_indifferent_access
+      expect(body[:questionnaire_answers]).to include("q01_primary_industry", "q02_business_description")
+      company.reload
+      expect(company.questionnaire_answers["q01_primary_industry"]).to eq("Logistics & Transportation")
+      expect(company.questionnaire_answers["q02_business_description"]).to eq("Freight forwarding and warehousing")
+      expect(company.questionnaire_answers).not_to have_key("company_industry")
+    end
+
+    it "clamps questionnaire_step to the v2 range (1..8)" do
+      patch "/api/v1/company/onboarding/questionnaire",
+            params: {
+              questionnaire_step: 20,
+              questionnaire_answers: { q01_primary_industry: "Retail & E-commerce" }
+            },
+            headers: auth_headers_for(user),
+            as: :json
+
+      expect(response).to have_http_status(:ok)
+      expect(JSON.parse(response.body)["questionnaire_step"]).to eq(8)
+    end
+
+    it "reports a step clamped within the v2 range on show" do
+      company.update!(questionnaire_step: 12)
+
+      get "/api/v1/company/onboarding",
+          headers: auth_headers_for(user),
+          as: :json
+
+      expect(response).to have_http_status(:ok)
+      expect(JSON.parse(response.body)["step"]).to eq(8)
+    end
+  end
 end
