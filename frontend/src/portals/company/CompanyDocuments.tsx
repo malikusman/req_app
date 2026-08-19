@@ -16,6 +16,7 @@ export function CompanyDocuments() {
   const [error, setError] = useState('');
   const [loadError, setLoadError] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [batch, setBatch] = useState<{ done: number; total: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [togglingId, setTogglingId] = useState<number | null>(null);
   const [actingId, setActingId] = useState<number | null>(null);
@@ -107,38 +108,56 @@ export function CompanyDocuments() {
     return () => window.clearInterval(id);
   }, [token, documents, activeRun]);
 
-  const onUpload = async (file: File) => {
-    if (!token) return;
+  const onUploadMany = async (files: File[]) => {
+    if (!token || files.length === 0) return;
     setError('');
-    const lower = file.name.toLowerCase();
-    if (/\.(pptx|jpg|jpeg|png|webp)$/i.test(lower)) {
-      setError(
+
+    // One-time, batch-level hints (not per file).
+    const hints: string[] = [];
+    if (files.some((f) => /\.(pptx|jpg|jpeg|png|webp)$/i.test(f.name.toLowerCase()))) {
+      hints.push(
         'Images and PowerPoint files often have little extractable text. Prefer PDF, DOCX, XLSX, CSV, or Markdown.'
       );
     }
     if (!department.trim()) {
-      setError((prev) =>
-        prev
-          ? `${prev} Tip: tag a department so document coverage counts toward readiness.`
-          : 'Tip: tag a department so document coverage counts toward readiness.'
-      );
+      hints.push('Tip: tag a department so document coverage counts toward readiness.');
     }
+    if (hints.length) setError(hints.join(' '));
+
     setUploading(true);
-    try {
-      await api.uploadDocument(token, file, {
-        department: department.trim() || undefined,
-        reviewer_visible: reviewerVisible,
-      });
+    setBatch({ done: 0, total: files.length });
+    let ok = 0;
+    const failed: string[] = [];
+    for (const file of files) {
+      try {
+        await api.uploadDocument(token, file, {
+          department: department.trim() || undefined,
+          reviewer_visible: reviewerVisible,
+        });
+        ok += 1;
+      } catch {
+        failed.push(file.name);
+      }
+      setBatch({ done: ok + failed.length, total: files.length });
+    }
+    setBatch(null);
+    setUploading(false);
+
+    if (ok > 0) {
       toast({
-        variant: 'success',
-        title: 'Uploaded',
-        description: 'Document stored. Upload more, then click Analyze when ready.',
+        variant: failed.length ? 'warning' : 'success',
+        title: failed.length
+          ? `Uploaded ${ok} of ${files.length}`
+          : ok === 1
+            ? 'Uploaded'
+            : `Uploaded ${ok} documents`,
+        description: failed.length
+          ? `Couldn't upload: ${failed.join(', ')}`
+          : 'Stored. Click Analyze when ready.',
       });
       load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Upload failed');
-    } finally {
-      setUploading(false);
+    } else {
+      setError(`Upload failed for ${failed.join(', ')}`);
     }
   };
 
@@ -262,11 +281,12 @@ export function CompanyDocuments() {
       <input
         ref={uploadInputRef}
         type="file"
+        multiple
         className="hidden"
         accept=".pdf,.txt,.md,.csv,.docx,.xlsx,.pptx,.jpg,.jpeg,.png,.webp"
         onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) void onUpload(file);
+          const files = Array.from(e.target.files ?? []);
+          if (files.length) void onUploadMany(files);
           if (uploadInputRef.current) uploadInputRef.current.value = '';
         }}
       />
@@ -301,7 +321,7 @@ export function CompanyDocuments() {
               icon={<Upload className="h-4 w-4" />}
               onClick={() => uploadInputRef.current?.click()}
             >
-              Upload
+              {batch ? `Uploading ${batch.done}/${batch.total}…` : 'Upload files'}
             </Button>
           </div>
         }
@@ -408,7 +428,14 @@ export function CompanyDocuments() {
             Visible to reviewers
           </label>
         </div>
-        <FileDropzone accept=".pdf,.txt,.md,.csv,.docx,.xlsx,.pptx,.jpg,.jpeg,.png,.webp" onFile={onUpload} />
+        <FileDropzone
+          multiple
+          accept=".pdf,.txt,.md,.csv,.docx,.xlsx,.pptx,.jpg,.jpeg,.png,.webp"
+          onFiles={onUploadMany}
+        />
+        {batch && (
+          <p className="mt-2 text-sm text-text-secondary">Uploading {batch.done} of {batch.total}…</p>
+        )}
         {uploading && <p className="mt-2 text-sm text-text-secondary">Uploading…</p>}
         <p className="mt-2 text-xs text-text-secondary">
           Best: PDF, DOCX, XLSX, CSV, Markdown. Analysis does not start automatically on upload.

@@ -5,27 +5,33 @@ import { cn } from '../../lib/cn';
 
 export function FileDropzone({
   onFile,
+  onFiles,
   accept,
+  multiple = false,
   className,
 }: {
-  onFile: (file: File) => void;
+  onFile?: (file: File) => void;
+  onFiles?: (files: File[]) => void;
   accept?: string;
+  multiple?: boolean;
   className?: string;
 }) {
   const [dragging, setDragging] = useState(false);
 
-  const handleFile = useCallback(
-    (file: File | undefined) => {
-      if (file) onFile(file);
+  const emit = useCallback(
+    (list: FileList | null) => {
+      const files = list ? Array.from(list) : [];
+      if (files.length === 0) return;
+      if (onFiles) onFiles(files);
+      else if (onFile) onFile(files[0]);
     },
-    [onFile]
+    [onFiles, onFile]
   );
 
   const onDrop = (e: DragEvent) => {
     e.preventDefault();
     setDragging(false);
-    const file = e.dataTransfer.files[0];
-    handleFile(file);
+    emit(e.dataTransfer.files);
   };
 
   return (
@@ -49,8 +55,9 @@ export function FileDropzone({
       <input
         type="file"
         accept={accept}
+        multiple={multiple}
         className="sr-only"
-        onChange={(e) => handleFile(e.target.files?.[0])}
+        onChange={(e) => emit(e.target.files)}
       />
       <motion.div
         animate={{ scale: dragging ? 1.05 : 1 }}
@@ -59,9 +66,11 @@ export function FileDropzone({
         <Upload className="h-6 w-6 text-accent" />
       </motion.div>
       <span className="text-sm font-medium text-text-primary">
-        Drop a file here or click to browse
+        {multiple ? 'Drop files here or click to browse' : 'Drop a file here or click to browse'}
       </span>
-      <span className="mt-1 text-xs text-text-secondary">PDF, DOCX, or images up to 10MB</span>
+      <span className="mt-1 text-xs text-text-secondary">
+        PDF, DOCX, or images up to 10MB{multiple ? ' · select several at once' : ''}
+      </span>
     </motion.label>
   );
 }
