@@ -1,6 +1,24 @@
 /** AI onboarding questionnaire — 10 sections, soft-required fields. */
 
-export type FieldType = 'single_select' | 'multi_select' | 'searchable_select' | 'text' | 'textarea';
+export type FieldType =
+  | 'single_select'
+  | 'multi_select'
+  | 'searchable_select'
+  | 'text'
+  | 'textarea'
+  | 'per_item_numeric'
+  | 'two_stage_matrix'
+  | 'multi_select_with_detail'
+  | 'parallel_text'
+  | 'category_matrix';
+
+export type FieldTier = 'essential' | 'recommended' | 'optional' | 'conditional';
+
+export type FieldCondition =
+  | { field: string; equals: string | string[] }
+  | { field: string; notEquals: string | string[] }
+  | { field: string; present: boolean }
+  | { field: string; anyOf: string[] };
 
 export type QuestionnaireField = {
   id: string;
@@ -9,8 +27,10 @@ export type QuestionnaireField = {
   options?: string[];
   maxSelections?: number;
   placeholder?: string;
-  /** Show only when answers[key] matches none of hideWhenValues */
-  showWhen?: { field: string; notEquals: string };
+  /** Completion tier; Essential only counts toward completion % in v2 */
+  tier?: FieldTier;
+  /** Show only when answers[key] satisfies the condition */
+  showWhen?: FieldCondition;
 };
 
 export type QuestionnaireSection = {
@@ -575,11 +595,29 @@ export const QUESTIONNAIRE_SECTIONS: QuestionnaireSection[] = [
 export type QuestionnaireAnswers = Record<string, string | string[] | undefined>;
 
 export function fieldIsVisible(field: QuestionnaireField, answers: QuestionnaireAnswers): boolean {
-  if (!field.showWhen) return true;
-  const current = answers[field.showWhen.field];
-  const value = Array.isArray(current) ? current[0] : current;
-  if (!value) return false;
-  return value !== field.showWhen.notEquals;
+  const condition = field.showWhen;
+  if (!condition) return true;
+
+  const current = answers[condition.field];
+  const values = Array.isArray(current) ? current : typeof current === 'string' && current.trim() ? [current] : [];
+
+  if ('equals' in condition) {
+    const expected = Array.isArray(condition.equals) ? condition.equals : [condition.equals];
+    return values.some((v) => expected.includes(v));
+  }
+  if ('notEquals' in condition) {
+    const first = Array.isArray(current) ? current[0] : current;
+    if (!first) return false;
+    const excluded = Array.isArray(condition.notEquals) ? condition.notEquals : [condition.notEquals];
+    return !excluded.includes(first);
+  }
+  if ('present' in condition) {
+    return condition.present ? values.length > 0 : values.length === 0;
+  }
+  if ('anyOf' in condition) {
+    return values.some((v) => condition.anyOf.includes(v));
+  }
+  return true;
 }
 
 export function computeCompletionPercent(answers: QuestionnaireAnswers): number {
