@@ -20,6 +20,7 @@ import { ReviewDiscussionThreadList } from './ReviewDiscussionThreadList';
 import { coReviewerActivityLabel, coReviewerActivityVariant } from './coReviewerActivity';
 import {
   REPORT_SECTIONS,
+  SECTION_STATUS_OPTIONS,
   WORKSPACE_STEPS,
   parseReportSection,
   parseWorkspaceStep,
@@ -447,6 +448,12 @@ export function ReviewerReportWorkspace() {
   // The annotation rail (section status + comments) only earns its column on the
   // sections step; elsewhere the main column carries the content and can breathe.
   const showRail = activeStep === 'sections';
+  // Solo reviewers have no one to align with — drop the vestigial Collaborate step.
+  const visibleSteps = hasCoReviewers
+    ? WORKSPACE_STEPS
+    : WORKSPACE_STEPS.filter((s) => s.id !== 'collaborate');
+  const activeSectionStatus =
+    workspace.review.section_states.find((s) => s.section_key === activeSection)?.status || 'pending';
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
@@ -510,7 +517,7 @@ export function ReviewerReportWorkspace() {
       >
         <nav className="hidden shrink-0 overflow-y-auto border-r border-border bg-muted/20 p-3 lg:block">
           <ol className="m-0 list-none space-y-1 p-0">
-            {WORKSPACE_STEPS.map((step, index) => {
+            {visibleSteps.map((step, index) => {
               const done = stepComplete[step.id];
               const active = step.id === activeStep;
               return (
@@ -544,7 +551,7 @@ export function ReviewerReportWorkspace() {
 
         <main className="min-h-0 overflow-y-auto p-4">
           <div className="mb-4 flex gap-2 overflow-x-auto lg:hidden">
-            {WORKSPACE_STEPS.map((step) => (
+            {visibleSteps.map((step) => (
               <button
                 key={step.id}
                 type="button"
@@ -842,8 +849,37 @@ export function ReviewerReportWorkspace() {
                   snapshot={snapshot}
                   onJumpToMessage={jumpToMessage}
                 />
+                {!submitted && (
+                  <div className="mt-5 border-t border-border pt-4">
+                    <p className="mb-0.5 text-sm font-medium text-foreground">Your decision on this section</p>
+                    <p className="mb-3 text-xs text-muted-foreground">
+                      Mark it Reviewed once you&apos;ve validated it, or Needs clarification to request changes — then add specifics in the notes.
+                    </p>
+                    <div className="flex flex-wrap gap-2" role="group" aria-label="Section decision">
+                      {SECTION_STATUS_OPTIONS.map((opt) => {
+                        const selected = activeSectionStatus === opt.value;
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => handleSectionStatus(opt.value)}
+                            aria-pressed={selected}
+                            className={cn(
+                              'rounded-full border px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
+                              selected
+                                ? 'border-accent bg-accent-muted text-accent'
+                                : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground'
+                            )}
+                          >
+                            {opt.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </Card>
-              <Card title="Section discussions">
+              <Card title="Questions on this section">
                 <ReviewDiscussionThreadList
                   discussions={workspace.discussions.filter(
                     (d) => d.anchor_type === 'section' && d.anchor_id === activeSection
@@ -856,23 +892,33 @@ export function ReviewerReportWorkspace() {
                 />
               </Card>
               {token && companyId && reportId && (
-                <ReviewerSectionEditorPanel
-                  token={token}
-                  companyId={Number(companyId)}
-                  reportId={Number(reportId)}
-                  disabled={submitted}
-                  onPreview={() => {
-                    setPdfMode('draft');
-                    setPdfOpen(true);
-                  }}
-                />
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    Optional — change what the client sees: hide this section, add an editorial note, or add a new
+                    section. Edits apply when the report is regenerated on approval.
+                  </p>
+                  <ReviewerSectionEditorPanel
+                    token={token}
+                    companyId={Number(companyId)}
+                    reportId={Number(reportId)}
+                    disabled={submitted}
+                    onPreview={() => {
+                      setPdfMode('draft');
+                      setPdfOpen(true);
+                    }}
+                  />
+                </div>
               )}
               <div className="flex justify-between">
                 <Button variant="secondary" size="sm" onClick={() => setStep('synthesis')}>
                   Back to synthesis
                 </Button>
-                <Button variant="secondary" size="sm" onClick={() => setStep('collaborate')}>
-                  Continue to collaborate
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setStep(hasCoReviewers ? 'collaborate' : 'submit')}
+                >
+                  {hasCoReviewers ? 'Continue to collaborate' : 'Continue to submit'}
                 </Button>
               </div>
             </div>
@@ -1004,6 +1050,7 @@ export function ReviewerReportWorkspace() {
               onResolveComment={handleResolveComment}
               onSectionStatusChange={handleSectionStatus}
               showSectionNav={activeStep === 'sections'}
+              showStatus={false}
               showChat={hasCoReviewers}
               onOpenChat={() => handleChatOpenChange(true)}
               chatUnread={chatUnread}

@@ -30,6 +30,7 @@ export function ReviewerAnnotationRail({
   onResolveComment,
   onSectionStatusChange,
   showSectionNav,
+  showStatus = true,
   showChat = true,
   onOpenChat,
   chatUnread,
@@ -50,6 +51,7 @@ export function ReviewerAnnotationRail({
   onResolveComment: (commentId: number, resolved: boolean) => Promise<void>;
   onSectionStatusChange: (status: string) => void;
   showSectionNav: boolean;
+  showStatus?: boolean;
   showChat?: boolean;
   onOpenChat: () => void;
   chatUnread?: boolean;
@@ -140,7 +142,7 @@ export function ReviewerAnnotationRail({
       )}
 
       <Card
-        title={suggestionsMode ? 'Suggested changes' : 'Section review'}
+        title={suggestionsMode ? 'Suggested changes' : 'Notes'}
         className="min-h-0 shrink-0"
       >
         {suggestionsMode && (
@@ -149,7 +151,7 @@ export function ReviewerAnnotationRail({
           </p>
         )}
 
-        {!submitted && showSectionNav && (
+        {!submitted && showSectionNav && showStatus && (
           <div className="mb-4">
             <Select
               label="Section status"
