@@ -83,23 +83,62 @@ module Reports
       summary = parsed["executive_summary"].to_s.strip
       return nil if governing.blank? && summary.blank?
 
+      # Guardrail: the model is told to cite only real key_metrics numbers, but
+      # nothing enforced it. Drop any prose carrying a "significant" figure
+      # (currency, %, decimal, thousands, or a range) that isn't grounded in the
+      # evidence — the headline falls back to the deterministic grounded prose
+      # rather than shipping a fabricated statistic to the client.
+      allowed = grounded_number_set
+      governing = "" unless text_numbers_grounded?(governing, allowed)
+      summary = "" unless text_numbers_grounded?(summary, allowed)
+
       {
         "governing_thought" => governing.presence,
         "executive_summary" => summary.presence,
-        "supporting_points" => Array(parsed["supporting_points"]).map { |p| p.to_s.strip }.reject(&:blank?).first(4),
-        "stakes" => parsed["stakes"].to_s.strip.presence,
+        "supporting_points" => Array(parsed["supporting_points"]).map { |p| p.to_s.strip }
+          .reject(&:blank?).select { |p| text_numbers_grounded?(p, allowed) }.first(4),
+        "stakes" => parsed["stakes"].to_s.strip.presence&.then { |s| text_numbers_grounded?(s, allowed) ? s : nil },
         "implications" => Array(parsed["implications"]).filter_map do |item|
           next unless item.is_a?(Hash)
 
           title = item["pattern_title"].to_s.strip
           statement = item["statement"].to_s.strip
           next if statement.blank?
+          next unless text_numbers_grounded?(statement, allowed)
 
           { "pattern_title" => title, "statement" => statement }
         end,
         "roadmap" => normalize_roadmap(parsed["roadmap"]),
         "generated_by" => "llm"
       }
+    end
+
+    # "Significant" figures we require to be grounded (bare 1-2 digit counts like
+    # "6 frictions" are left alone to avoid false positives).
+    SIGNIFICANT_NUMBER = /
+      AED\s?[\d,]+(?:\.\d+)? | \$\s?[\d,]+(?:\.\d+)? |   # currency
+      \d{1,3}(?:,\d{3})+(?:\.\d+)? |                      # thousands
+      \d+\.\d+ |                                          # decimals
+      \d+\s?% |                                          # percentages
+      \d+\s?(?:[-–—]|to)\s?\d+                            # ranges (11-14, 3 to 12)
+    /xi
+
+    def grounded_number_set
+      set = Set.new
+      Array(@snapshot["key_metrics"]).each do |m|
+        [m["headline"], m["comparison"]].each do |s|
+          s.to_s.scan(SIGNIFICANT_NUMBER) { |tok| set << canon_number(tok) }
+        end
+      end
+      set
+    end
+
+    def canon_number(token)
+      token.to_s.downcase.gsub(/\s+/, "").tr("–—", "--").gsub("to", "-")
+    end
+
+    def text_numbers_grounded?(text, allowed)
+      text.to_s.scan(SIGNIFICANT_NUMBER).all? { |tok| allowed.include?(canon_number(tok)) }
     end
 
     def normalize_roadmap(roadmap)
