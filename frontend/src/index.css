@@ -22,6 +22,7 @@
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
     --border: 138 21% 91%;
+    --border-strong: 138 16% 83%;
     --input: 138 21% 91%;
     --ring: 160 84% 34%;
     --radius: 0.875rem;
@@ -38,14 +39,18 @@
     --warning-foreground: 146 23% 12%;
     --info: 213 68% 50%;
     --info-foreground: 0 0% 100%;
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 144 8% 39%;
-    --sidebar-primary: 160 84% 34%;
+    /* Pine rail — the chrome owns the brand: deep pine surface, mist text,
+       pulse-green reserved for the active-item accent bar + icon. */
+    --sidebar-background: 147 34% 9%;
+    --sidebar-foreground: 145 15% 65%;
+    --sidebar-primary: 160 84% 42%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 153 46% 91%;
-    --sidebar-accent-foreground: 160 83% 26%;
-    --sidebar-border: 138 21% 91%;
-    --sidebar-ring: 160 84% 34%;
+    --sidebar-accent: 160 84% 42%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 146 22% 17%;
+    --sidebar-hover: 146 24% 15%;
+    --sidebar-ring: 160 84% 42%;
+    --sidebar-strong: 146 30% 96%;
   }
 
   * {

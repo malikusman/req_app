@@ -26,14 +26,7 @@ export function EmptyState({
       className={cn('flex flex-col items-center justify-center px-6 py-16 text-center', className)}
     >
       {Icon && (
-        <motion.div
-          initial={{ scale: 0.9 }}
-          animate={{ scale: 1 }}
-          transition={{ delay: 0.05 }}
-          className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-muted"
-        >
-          <Icon className="h-7 w-7 text-muted-foreground" strokeWidth={1.5} />
-        </motion.div>
+        <Icon className="mb-4 h-9 w-9 text-muted-foreground/70" strokeWidth={1.5} aria-hidden />
       )}
       <h3 className="text-section-title text-foreground">{title}</h3>
       {description && (

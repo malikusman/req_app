@@ -15,11 +15,16 @@ export function UserMenu({ name, email, roleBadge, onLogout, logoutLabel = 'Log 
   return (
     <div className="flex flex-col gap-3">
       <div className="min-w-0">
-        <span className="block truncate text-sm font-medium text-foreground">{name}</span>
-        <span className="block truncate text-xs text-muted-foreground">{email}</span>
+        <span className="block truncate text-sm font-medium text-sidebar-strong">{name}</span>
+        <span className="block truncate text-xs text-sidebar-foreground">{email}</span>
       </div>
       {roleBadge ? (
-        <Badge variant="secondary" className={cn('w-fit text-[0.6875rem] uppercase tracking-wide')}>
+        <Badge
+          variant="secondary"
+          className={cn(
+            'w-fit border-transparent bg-white/10 text-[0.6875rem] uppercase tracking-wide text-sidebar-foreground'
+          )}
+        >
           {roleBadge}
         </Badge>
       ) : null}
@@ -29,7 +34,7 @@ export function UserMenu({ name, email, roleBadge, onLogout, logoutLabel = 'Log 
         size="sm"
         icon={<LogOut className="h-4 w-4" />}
         onClick={onLogout}
-        className="w-full justify-start text-muted-foreground hover:text-foreground"
+        className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-hover hover:text-sidebar-strong"
       >
         {logoutLabel}
       </Button>

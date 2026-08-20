@@ -1,9 +1,7 @@
 import { Link } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
-import { motion, useReducedMotion } from 'motion/react';
 import type { ReactNode } from 'react';
 import { cn } from '../../lib/cn';
-import { spring } from '../../lib/motion';
 import { Sheet, SheetContent } from '@/components/shadcn/sheet';
 import { ScrollArea } from '@/components/shadcn/scroll-area';
 import { Separator } from '@/components/shadcn/separator';
@@ -39,18 +37,13 @@ function SidebarNav({
   footer,
   onNavigate,
 }: SidebarProps & { onNavigate?: () => void }) {
-  const reduced = useReducedMotion();
-
   return (
     <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
-      <div className="flex h-topbar shrink-0 items-center gap-2.5 border-b border-sidebar-border px-5 pr-12 md:pr-5">
-        <span
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-[11px] font-bold tracking-tight text-primary-foreground"
-          aria-hidden
-        >
-          WT
+      <div className="flex h-topbar shrink-0 items-center gap-3 border-b border-sidebar-border px-5 pr-12 md:pr-5">
+        <span className="h-5 w-[3px] shrink-0 rounded-full bg-primary" aria-hidden />
+        <span className="truncate font-display text-[15px] font-semibold tracking-tight text-sidebar-strong">
+          {logo}
         </span>
-        <span className="truncate text-sm font-semibold tracking-tight text-foreground">{logo}</span>
       </div>
 
       <ScrollArea className="flex-1 px-3 py-4">
@@ -62,39 +55,42 @@ function SidebarNav({
             return (
               <div key={to}>
                 {showSection && (
-                  <p className="mb-1 mt-3 px-3.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground first:mt-0">
+                  <p className="mb-1 mt-4 px-3.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-sidebar-foreground/70 first:mt-0">
                     {section}
                   </p>
                 )}
                 <Link
                   to={to}
                   onClick={onNavigate}
+                  aria-current={active ? 'page' : undefined}
                   className={cn(
-                    'relative flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm font-medium transition-colors',
+                    'group relative flex items-center gap-3 rounded-md px-3.5 py-2 text-sm font-medium transition-colors',
                     active
-                      ? 'text-foreground'
-                      : 'text-sidebar-foreground hover:bg-sidebar-hover hover:text-foreground'
+                      ? 'text-sidebar-strong'
+                      : 'text-sidebar-foreground hover:bg-sidebar-hover hover:text-sidebar-strong'
                   )}
                 >
-                  {active && !reduced && (
-                    <motion.span
-                      layoutId="sidebar-active-pill"
-                      className="absolute inset-0 rounded-lg border border-border bg-card shadow-sm"
-                      transition={spring.soft}
+                  {active && (
+                    <span
+                      className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-primary"
+                      aria-hidden
                     />
                   )}
-                  {active && reduced && (
-                    <span className="absolute inset-0 rounded-lg border border-border bg-card shadow-sm" />
-                  )}
-                  <Icon className="relative z-10 h-[18px] w-[18px] shrink-0" aria-hidden />
-                  <span className="relative z-10 flex-1">{label}</span>
+                  <Icon
+                    className={cn(
+                      'h-[17px] w-[17px] shrink-0 transition-colors',
+                      active ? 'text-primary' : 'text-sidebar-foreground group-hover:text-sidebar-strong'
+                    )}
+                    aria-hidden
+                  />
+                  <span className="flex-1">{label}</span>
                   {badge && (
                     <span
                       className={cn(
-                        'relative z-10 rounded-full px-1.5 py-0.5 text-[10px] font-semibold',
+                        'rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums',
                         badgeTone === 'attention'
-                          ? 'bg-status-warning/15 text-status-warning'
-                          : 'bg-muted font-medium text-muted-foreground'
+                          ? 'bg-status-warning/20 text-status-warning'
+                          : 'bg-white/10 text-sidebar-foreground'
                       )}
                     >
                       {badge}
@@ -109,7 +105,7 @@ function SidebarNav({
 
       {footer ? (
         <>
-          <Separator />
+          <Separator className="bg-sidebar-border" />
           <div className="shrink-0 p-3">{footer}</div>
         </>
       ) : null}

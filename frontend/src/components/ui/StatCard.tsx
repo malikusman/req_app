@@ -1,8 +1,6 @@
 import { type ReactNode } from 'react';
-import { motion, useReducedMotion } from 'motion/react';
 import { TrendingDown, TrendingUp } from 'lucide-react';
 import { cn } from '../../lib/cn';
-import { spring } from '../../lib/motion';
 
 export function StatCard({
   label,
@@ -19,11 +17,17 @@ export function StatCard({
   icon?: ReactNode;
   className?: string;
 }) {
-  const reduced = useReducedMotion();
   const trendUp = trend && trend.value >= 0;
 
-  const content = (
-    <>
+  return (
+    <div
+      className={cn(
+        // Work surface: flat, defined by a border — elevation is reserved for the
+        // one hero per screen, not spent on every stat.
+        'rounded-card border border-border-strong bg-surface p-5',
+        className
+      )}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <p className="text-label-caps uppercase text-text-secondary">{label}</p>
@@ -54,37 +58,11 @@ export function StatCard({
           )}
         </div>
         {icon && (
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-button bg-accent-muted text-accent">
+          <span className="shrink-0 text-text-secondary [&>svg]:h-5 [&>svg]:w-5" aria-hidden>
             {icon}
-          </div>
+          </span>
         )}
       </div>
-    </>
-  );
-
-  if (reduced) {
-    return (
-      <div
-        className={cn(
-          'rounded-card border border-border bg-surface p-5 shadow-card',
-          className
-        )}
-      >
-        {content}
-      </div>
-    );
-  }
-
-  return (
-    <motion.div
-      className={cn(
-        'rounded-card border border-border bg-surface p-5 shadow-card',
-        className
-      )}
-      whileHover={{ y: -2, boxShadow: '0 4px 12px rgb(0 0 0 / 0.06)' }}
-      transition={spring.soft}
-    >
-      {content}
-    </motion.div>
+    </div>
   );
 }

@@ -25,12 +25,12 @@ export function OutcomeTile({
     <Link
       to={action.to}
       className={cn(
-        'group flex flex-col gap-1 rounded-card border border-border bg-card p-4 transition-colors hover:border-border-strong hover:shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-5',
+        'group flex flex-col gap-1 rounded-card border border-border-strong bg-card p-4 transition-colors hover:border-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-5',
         className
       )}
     >
       {icon && (
-        <span className="mb-1 flex h-8 w-8 items-center justify-center rounded-md bg-accent-muted text-accent-hover">
+        <span className="mb-1 text-accent-hover [&>svg]:h-[18px] [&>svg]:w-[18px]" aria-hidden>
           {icon}
         </span>
       )}

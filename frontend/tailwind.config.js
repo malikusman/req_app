@@ -9,7 +9,7 @@ export default {
       colors: {
         border: {
           DEFAULT: 'hsl(var(--border))',
-          strong: 'hsl(var(--border))',
+          strong: 'hsl(var(--border-strong))',
         },
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
@@ -74,8 +74,9 @@ export default {
           'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
           border: 'hsl(var(--sidebar-border))',
           ring: 'hsl(var(--sidebar-ring))',
-          hover: 'hsl(var(--muted))',
+          hover: 'hsl(var(--sidebar-hover))',
           active: 'hsl(var(--sidebar-accent))',
+          strong: 'hsl(var(--sidebar-strong))',
         },
         surface: {
           DEFAULT: 'hsl(var(--card))',
