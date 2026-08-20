@@ -620,8 +620,11 @@ export function fieldIsVisible(field: QuestionnaireField, answers: Questionnaire
   return true;
 }
 
-export function computeCompletionPercent(answers: QuestionnaireAnswers): number {
-  const fields = QUESTIONNAIRE_SECTIONS.flatMap((s) => s.fields).filter((f) => fieldIsVisible(f, answers));
+export function computeCompletionPercent(
+  answers: QuestionnaireAnswers,
+  sections: QuestionnaireSection[] = QUESTIONNAIRE_SECTIONS
+): number {
+  const fields = sections.flatMap((s) => s.fields).filter((f) => fieldIsVisible(f, answers));
   if (fields.length === 0) return 0;
   const answered = fields.filter((f) => {
     const v = answers[f.id];
@@ -631,8 +634,12 @@ export function computeCompletionPercent(answers: QuestionnaireAnswers): number 
   return Math.round((answered / fields.length) * 100);
 }
 
-export function sectionTouched(sectionId: number, answers: QuestionnaireAnswers): boolean {
-  const section = QUESTIONNAIRE_SECTIONS.find((s) => s.id === sectionId);
+export function sectionTouched(
+  sectionId: number,
+  answers: QuestionnaireAnswers,
+  sections: QuestionnaireSection[] = QUESTIONNAIRE_SECTIONS
+): boolean {
+  const section = sections.find((s) => s.id === sectionId);
   if (!section) return false;
   return section.fields.some((f) => {
     if (!fieldIsVisible(f, answers)) return false;

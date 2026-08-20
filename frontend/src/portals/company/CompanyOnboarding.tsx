@@ -7,13 +7,13 @@ import { PageHeader, Card, Input, Button, Textarea, Skeleton, ProgressBar } from
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/shadcn/sheet';
 import { useMediaQuery } from '../../lib/useMediaQuery';
 import {
-  QUESTIONNAIRE_SECTIONS,
   computeCompletionPercent,
   fieldIsVisible,
   sectionTouched,
   type QuestionnaireAnswers,
   type QuestionnaireField,
 } from '../../lib/questionnaireOptions';
+import { questionnaireSectionsFor } from '../../lib/questionnaireV2Config';
 import { cn } from '../../lib/cn';
 
 function ChoiceButton({
@@ -214,6 +214,7 @@ export function CompanyOnboarding() {
   const navigate = useNavigate();
   const isNarrow = useMediaQuery('(max-width: 1023px)');
   const [sectionId, setSectionId] = useState(1);
+  const [questionnaireVersion, setQuestionnaireVersion] = useState(1);
   const [answers, setAnswers] = useState<QuestionnaireAnswers>({});
   const [percent, setPercent] = useState(0);
   const [error, setError] = useState('');
@@ -234,6 +235,7 @@ export function CompanyOnboarding() {
       .companyOnboarding(token)
       .then((d) => {
         setAnswers((d.questionnaire_answers || {}) as QuestionnaireAnswers);
+        setQuestionnaireVersion(d.questionnaire_version ?? 1);
         setSectionId(d.step || 1);
         setPercent(d.completion_percent ?? computeCompletionPercent((d.questionnaire_answers || {}) as QuestionnaireAnswers));
         setWebsiteUrl(d.company?.website_url || '');
@@ -251,15 +253,17 @@ export function CompanyOnboarding() {
       .catch(() => undefined);
   }, [token]);
 
+  const sections = useMemo(() => questionnaireSectionsFor(questionnaireVersion), [questionnaireVersion]);
+
   const section = useMemo(
-    () => QUESTIONNAIRE_SECTIONS.find((s) => s.id === sectionId) || QUESTIONNAIRE_SECTIONS[0],
-    [sectionId]
+    () => sections.find((s) => s.id === sectionId) || sections[0],
+    [sections, sectionId]
   );
 
   const setAnswer = (id: string, value: string | string[] | undefined) => {
     setAnswers((prev) => {
       const next = { ...prev, [id]: value };
-      setPercent(computeCompletionPercent(next));
+      setPercent(computeCompletionPercent(next, sections));
       return next;
     });
   };
@@ -369,8 +373,8 @@ export function CompanyOnboarding() {
 
   const sectionNav = (
     <nav className={cn(isNarrow ? 'flex gap-2 overflow-x-auto pb-1' : 'space-y-1')} aria-label="Questionnaire sections">
-      {QUESTIONNAIRE_SECTIONS.map((s) => {
-        const touched = sectionTouched(s.id, answers);
+      {sections.map((s) => {
+        const touched = sectionTouched(s.id, answers, sections);
         const active = s.id === sectionId;
         return (
           <button
@@ -472,7 +476,7 @@ export function CompanyOnboarding() {
         <Card className="space-y-6 p-4 sm:p-6">
           <div>
             <p className="m-0 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Section {section.id} of {QUESTIONNAIRE_SECTIONS.length}
+              Section {section.id} of {sections.length}
             </p>
             <h2 className="m-0 mt-1 text-xl font-medium text-foreground">{section.title}</h2>
           </div>
@@ -498,13 +502,13 @@ export function CompanyOnboarding() {
               <ChevronLeft className="mr-1 h-4 w-4" />
               Back
             </Button>
-            {sectionId < 10 ? (
+            {sectionId < sections.length ? (
               <Button loading={saving} onClick={() => persist(sectionId + 1)}>
                 Save & continue
                 <ChevronRight className="ml-1 h-4 w-4" />
               </Button>
             ) : (
-              <Button loading={finishing || saving} onClick={() => persist(10, { markComplete: true })}>
+              <Button loading={finishing || saving} onClick={() => persist(sections.length, { markComplete: true })}>
                 Finish profile
               </Button>
             )}
@@ -526,7 +530,7 @@ export function CompanyOnboarding() {
           >
             Back
           </Button>
-          {sectionId < 10 ? (
+          {sectionId < sections.length ? (
             <Button size="sm" className="flex-[2]" loading={saving} onClick={() => persist(sectionId + 1)}>
               Save & continue
             </Button>
@@ -535,7 +539,7 @@ export function CompanyOnboarding() {
               size="sm"
               className="flex-[2]"
               loading={finishing || saving}
-              onClick={() => persist(10, { markComplete: true })}
+              onClick={() => persist(sections.length, { markComplete: true })}
             >
               Finish
             </Button>
