@@ -63,6 +63,17 @@ RSpec.describe "Company onboarding profile enrichment", type: :request do
     expect(company.engagement_mode).to eq("hybrid")
   end
 
+  it "returns questionnaire_version 1 on show for a default company" do
+    get "/api/v1/company/onboarding",
+        headers: auth_headers_for(user),
+        as: :json
+
+    expect(response).to have_http_status(:ok)
+    body = JSON.parse(response.body)
+    expect(body["questionnaire_version"]).to eq(1)
+    expect(body["step"]).to eq(1)
+  end
+
   context "when the company questionnaire_version is 2" do
     let(:company) { create(:company, questionnaire_version: 2) }
 
@@ -109,7 +120,9 @@ RSpec.describe "Company onboarding profile enrichment", type: :request do
           as: :json
 
       expect(response).to have_http_status(:ok)
-      expect(JSON.parse(response.body)["step"]).to eq(8)
+      body = JSON.parse(response.body)
+      expect(body["step"]).to eq(8)
+      expect(body["questionnaire_version"]).to eq(2)
     end
   end
 end

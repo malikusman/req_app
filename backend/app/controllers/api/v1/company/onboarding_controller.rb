@@ -9,6 +9,7 @@ module Api
           progress = Companies::QuestionnaireProgress.call(current_company.questionnaire_answers)
           render json: {
             step: current_company.questionnaire_step.to_i.clamp(*step_bounds),
+            questionnaire_version: current_company.questionnaire_version,
             portal_onboarding_completed_at: current_company.portal_onboarding_completed_at,
             questionnaire_completed_at: current_company.questionnaire_completed_at,
             questionnaire_answers: current_company.questionnaire_answers || {},

@@ -204,6 +204,7 @@ export const api = {
   companyOnboarding: (token: string) =>
     request<{
       step: number;
+      questionnaire_version?: number;
       portal_onboarding_completed_at?: string | null;
       questionnaire_completed_at?: string | null;
       questionnaire_answers?: Record<string, string | string[]>;
