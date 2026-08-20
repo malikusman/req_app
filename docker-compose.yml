@@ -79,6 +79,7 @@ services:
     volumes:
       - ./backend:/app
       - ./docs/manual-test:/docs/manual-test
+      - ./frontend:/frontend:ro
     ports:
       - "3000:3000"
     extra_hosts:
