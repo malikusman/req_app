@@ -14,6 +14,8 @@ export function CompanySettings() {
   } | null>(null);
   const [loadError, setLoadError] = useState('');
   const [saved, setSaved] = useState(false);
+  const [reviewerCanContact, setReviewerCanContact] = useState(true);
+  const [savingReviewer, setSavingReviewer] = useState(false);
 
   const load = () => {
     if (!token) return;
@@ -23,6 +25,7 @@ export function CompanySettings() {
       .then((d) => {
         setDisplayName(d.company.display_name || '');
         setLocale(d.company.locale);
+        setReviewerCanContact(d.settings?.reviewer_can_contact_employees !== false);
       })
       .catch(() => setLoadError('Could not load settings.'));
     api
@@ -47,6 +50,21 @@ export function CompanySettings() {
       setSaved(true);
     } catch {
       setLoadError('Could not update organization settings.');
+    }
+  };
+
+  const toggleReviewerContact = async () => {
+    if (!token || savingReviewer) return;
+    const next = !reviewerCanContact;
+    setReviewerCanContact(next); // optimistic
+    setSavingReviewer(true);
+    try {
+      await api.updateCompanySettings(token, { reviewer_can_contact_employees: next });
+    } catch {
+      setReviewerCanContact(!next); // revert
+      setLoadError('Could not update reviewer access.');
+    } finally {
+      setSavingReviewer(false);
     }
   };
 
@@ -82,6 +100,36 @@ export function CompanySettings() {
             {saved ? <span className="text-sm text-status-success">Saved</span> : null}
           </div>
         </form>
+      </Card>
+
+      <Card title="Reviewer access">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="m-0 font-medium text-foreground">Let your reviewer message employees</p>
+            <p className="m-0 mt-1 text-sm text-muted-foreground">
+              When on, your assigned expert reviewer can send a WhatsApp follow-up directly to an employee to
+              clarify their answers while reviewing your report. Turn off to require every reviewer question to
+              go through you first.
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={reviewerCanContact}
+            aria-label="Let your reviewer message employees"
+            disabled={savingReviewer}
+            onClick={toggleReviewerContact}
+            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-60 ${
+              reviewerCanContact ? 'bg-primary' : 'bg-muted'
+            }`}
+          >
+            <span
+              className={`inline-block h-5 w-5 transform rounded-full bg-card shadow transition-transform ${
+                reviewerCanContact ? 'translate-x-5' : 'translate-x-0.5'
+              }`}
+            />
+          </button>
+        </div>
       </Card>
 
       <Card title="Other tools">

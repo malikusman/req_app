@@ -1033,6 +1033,7 @@ export const api = {
       department_targets?: Record<string, number>;
       company_profile?: CompanyProfile;
       known_systems?: string[];
+      reviewer_can_contact_employees?: boolean;
     }
   ) =>
     request<{ ok: boolean; settings?: Record<string, unknown>; company_profile?: CompanyProfile; website_url?: string | null }>(

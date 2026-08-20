@@ -332,11 +332,17 @@ export function PlatformCompanyDetail() {
     }
   };
 
+  // A reviewer flagging sections as "needs clarification" blocks approval until
+  // it's resolved (regenerate with the changes, or the reviewer re-marks them).
+  const reviewerNeedsInfo = (report: PlatformReport) =>
+    (report.reviewer_progress || []).some((p) => p.status === 'needs_info');
+
   const canApprove = (report: PlatformReport) =>
     report.status === 'ready' &&
     report.review_workflow_status !== 'platform_approved' &&
     report.review_workflow_status !== 'awaiting_reviewers' &&
-    report.review_workflow_status !== 'in_review';
+    report.review_workflow_status !== 'in_review' &&
+    !reviewerNeedsInfo(report);
 
   const selectedReport = reports.find((r) => r.id === selectedReportId) ?? null;
 
@@ -771,6 +777,10 @@ export function PlatformCompanyDetail() {
                     </Button>
                   ) : r.review_workflow_status === 'platform_approved' ? (
                     <Badge variant="success">Approved</Badge>
+                  ) : reviewerNeedsInfo(r) ? (
+                    <span title="A reviewer flagged sections needing clarification. Regenerate with the requested changes, or have the reviewer resolve them, before this can be approved.">
+                      <Badge variant="warning">Needs clarification</Badge>
+                    </span>
                   ) : null,
               },
             ]}
