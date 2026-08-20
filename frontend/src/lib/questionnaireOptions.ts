@@ -10,7 +10,8 @@ export type FieldType =
   | 'two_stage_matrix'
   | 'multi_select_with_detail'
   | 'parallel_text'
-  | 'category_matrix';
+  | 'category_matrix'
+  | 'static';
 
 export type FieldTier = 'essential' | 'recommended' | 'optional' | 'conditional';
 
@@ -25,6 +26,8 @@ export type QuestionnaireField = {
   type: FieldType;
   label: string;
   options?: string[];
+  /** Headed option groups for grouped multi-selects (e.g. q09) */
+  groups?: { label: string; options: string[] }[];
   maxSelections?: number;
   placeholder?: string;
   /** Helper copy rendered as helper text under the input (not an HTML placeholder) */

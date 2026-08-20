@@ -174,6 +174,8 @@ function FieldEditor({
         </div>
       </fieldset>
     );
+  } else if (field.type === 'static') {
+    content = <p className="text-sm text-muted-foreground">{field.label}</p>;
   } else {
     // multi_select
     const selected = Array.isArray(raw) ? raw : [];
@@ -189,16 +191,37 @@ function FieldEditor({
       setAnswer(field.id, [...selected, opt]);
     };
 
+    const hasGroups = field.groups && field.groups.length > 0;
+
     content = (
       <fieldset className="space-y-2">
         <legend className="text-sm font-medium text-foreground">{field.label}</legend>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {(field.options || []).map((opt) => (
-            <ChoiceButton key={opt} active={selected.includes(opt)} onClick={() => toggle(opt)}>
-              {opt}
-            </ChoiceButton>
-          ))}
-        </div>
+        {hasGroups ? (
+          <div className="space-y-3">
+            {field.groups!.map((group, gi) => (
+              <div key={group.label || gi} className="space-y-2">
+                {group.label ? (
+                  <p className="text-sm font-medium text-muted-foreground">{group.label}</p>
+                ) : null}
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {group.options.map((opt) => (
+                    <ChoiceButton key={opt} active={selected.includes(opt)} onClick={() => toggle(opt)}>
+                      {opt}
+                    </ChoiceButton>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid gap-2 sm:grid-cols-2">
+            {(field.options || []).map((opt) => (
+              <ChoiceButton key={opt} active={selected.includes(opt)} onClick={() => toggle(opt)}>
+                {opt}
+              </ChoiceButton>
+            ))}
+          </div>
+        )}
       </fieldset>
     );
   }
