@@ -32,12 +32,23 @@ function stepIndex(step: WorkspaceStepId) {
   return WORKSPACE_STEPS.findIndex((s) => s.id === step);
 }
 
-function sectionsComplete(states: { section_key: string; status: string }[]) {
-  return REPORT_SECTIONS.every((key) => {
-    const status = states.find((s) => s.section_key === key)?.status || 'pending';
-    return status === 'approved' || status === 'needs_info';
-  });
+function sectionReviewed(states: { section_key: string; status: string }[], key: string) {
+  const status = states.find((s) => s.section_key === key)?.status || 'pending';
+  return status === 'approved' || status === 'needs_info';
 }
+
+function reviewedSectionCount(states: { section_key: string; status: string }[]) {
+  return REPORT_SECTIONS.filter((key) => sectionReviewed(states, key)).length;
+}
+
+function sectionsComplete(states: { section_key: string; status: string }[]) {
+  return REPORT_SECTIONS.every((key) => sectionReviewed(states, key));
+}
+
+// Exploratory steps (context/evidence/synthesis) are reference material with no
+// completion criteria — only these carry a real "done" signal, so we never show
+// a green check for merely visiting a page.
+const ACTION_STEPS: WorkspaceStepId[] = ['sections', 'collaborate', 'submit'];
 
 export function ReviewerReportWorkspace() {
   const { companyId, reportId } = useParams();
@@ -412,11 +423,12 @@ export function ReviewerReportWorkspace() {
     if (!workspace) return {} as Record<WorkspaceStepId, boolean>;
     const states = workspace.review.section_states;
     return {
-      // Exploratory steps are "done" once the reviewer has actually opened them,
-      // not merely because data exists — otherwise every step shows pre-checked.
-      context: visited.has('context'),
-      evidence: visited.has('evidence'),
-      synthesis: visited.has('synthesis'),
+      // Exploratory steps have no completion criteria — reference material, not
+      // tasks — so they never carry a "done" check (see ACTION_STEPS). Visiting
+      // is tracked separately for a subtle "seen" cue, not a green check.
+      context: false,
+      evidence: false,
+      synthesis: false,
       sections: sectionsComplete(states),
       collaborate:
         !hasCoReviewers ||
@@ -445,6 +457,10 @@ export function ReviewerReportWorkspace() {
   }
 
   const currentStepIndex = stepIndex(activeStep);
+  // Real, action-based progress the reviewer can read from any step — replaces
+  // the "Step N of 6" wayfinding, which said nothing about how much work is left.
+  const reviewedCount = reviewedSectionCount(workspace.review.section_states);
+  const conclusionSaved = !!workspace.review.overall_note;
   // The annotation rail (section status + comments) only earns its column on the
   // sections step; elsewhere the main column carries the content and can breathe.
   const showRail = activeStep === 'sections';
@@ -461,7 +477,7 @@ export function ReviewerReportWorkspace() {
         <PageHeader
           className="mb-0"
           title={`${workspace.company.name} · v${workspace.report.version}`}
-          description={`Step ${currentStepIndex + 1} of ${WORKSPACE_STEPS.length} — ${WORKSPACE_STEPS[currentStepIndex]?.label}`}
+          description={`${reviewedCount} of ${REPORT_SECTIONS.length} sections reviewed · Overall conclusion ${conclusionSaved ? 'saved' : 'not written yet'}`}
           breadcrumbs={[
             { label: 'Dashboard', href: '/reviewer/dashboard' },
             { label: workspace.company.name, href: `/reviewer/companies/${companyId}` },
@@ -469,6 +485,11 @@ export function ReviewerReportWorkspace() {
           ]}
           actions={
             <div className="flex flex-wrap items-center gap-2">
+              {!submitted && !conclusionSaved && (
+                <Badge variant="warning" className="hidden sm:inline-flex">
+                  Conclusion needed
+                </Badge>
+              )}
               <Badge variant={submitted ? 'success' : 'warning'} className="hidden sm:inline-flex">
                 {workspace.review.status}
               </Badge>
@@ -518,7 +539,8 @@ export function ReviewerReportWorkspace() {
         <nav className="hidden shrink-0 overflow-y-auto border-r border-border bg-muted/20 p-3 lg:block">
           <ol className="m-0 list-none space-y-1 p-0">
             {visibleSteps.map((step, index) => {
-              const done = stepComplete[step.id];
+              const done = ACTION_STEPS.includes(step.id) && stepComplete[step.id];
+              const seen = visited.has(step.id);
               const active = step.id === activeStep;
               return (
                 <li key={step.id}>
@@ -533,7 +555,11 @@ export function ReviewerReportWorkspace() {
                     <span
                       className={cn(
                         'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs',
-                        done ? 'bg-status-successBg text-status-success' : 'bg-muted text-muted-foreground'
+                        done
+                          ? 'bg-status-successBg text-status-success'
+                          : seen && !active
+                            ? 'bg-muted text-foreground ring-1 ring-inset ring-border-strong'
+                            : 'bg-muted text-muted-foreground'
                       )}
                     >
                       {done ? <Check className="h-3 w-3" /> : index + 1}
@@ -879,6 +905,25 @@ export function ReviewerReportWorkspace() {
                   </div>
                 )}
               </Card>
+              {token && companyId && reportId && (
+                <Card title="Edit the deliverable">
+                  <p className="mb-3 text-sm text-muted-foreground">
+                    This is where your expertise reaches the client — hide a section, rewrite it in your
+                    own words, or add a new one. Your edits replace the AI&apos;s version when the report is
+                    regenerated on approval.
+                  </p>
+                  <ReviewerSectionEditorPanel
+                    token={token}
+                    companyId={Number(companyId)}
+                    reportId={Number(reportId)}
+                    disabled={submitted}
+                    onPreview={() => {
+                      setPdfMode('draft');
+                      setPdfOpen(true);
+                    }}
+                  />
+                </Card>
+              )}
               <Card title="Questions on this section">
                 <ReviewDiscussionThreadList
                   discussions={workspace.discussions.filter(
@@ -891,24 +936,6 @@ export function ReviewerReportWorkspace() {
                   emptyMessage="No questions on this section yet. Use + to ask a co-reviewer or employee."
                 />
               </Card>
-              {token && companyId && reportId && (
-                <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground">
-                    Optional — change what the client sees: hide this section, add an editorial note, or add a new
-                    section. Edits apply when the report is regenerated on approval.
-                  </p>
-                  <ReviewerSectionEditorPanel
-                    token={token}
-                    companyId={Number(companyId)}
-                    reportId={Number(reportId)}
-                    disabled={submitted}
-                    onPreview={() => {
-                      setPdfMode('draft');
-                      setPdfOpen(true);
-                    }}
-                  />
-                </div>
-              )}
               <div className="flex justify-between">
                 <Button variant="secondary" size="sm" onClick={() => setStep('synthesis')}>
                   Back to synthesis
@@ -981,10 +1008,16 @@ export function ReviewerReportWorkspace() {
                       label: 'All sections marked reviewed or needs clarification',
                     },
                     { done: !!workspace.review.overall_note, label: 'Overall conclusion saved' },
-                    {
-                      done: workspace.co_reviewer_reviews.every((cr) => cr.status === 'submitted'),
-                      label: 'Co-reviewers submitted',
-                    },
+                    // Co-reviewer submission doesn't gate your own — show it only when
+                    // there are co-reviewers, and flag it as informational.
+                    ...(hasCoReviewers
+                      ? [
+                          {
+                            done: workspace.co_reviewer_reviews.every((cr) => cr.status === 'submitted'),
+                            label: 'Co-reviewers submitted (optional)',
+                          },
+                        ]
+                      : []),
                   ].map((item) => (
                     <li key={item.label} className="flex items-center gap-2">
                       {item.done ? (
