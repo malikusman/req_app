@@ -39,7 +39,9 @@ module Api
           end
 
           previous = current_company.reports.ready.order(version: :desc).first
-          initial_visibility = current_company.reviewer_assignments.active.exists? ? "internal_only" : "shared_with_company"
+          # Gated by default — only auto-shared for explicit skip_platform_review
+          # companies. GenerateReportService finalizes visibility on completion.
+          initial_visibility = current_company.merged_settings["skip_platform_review"] ? "shared_with_company" : "internal_only"
           report = current_company.reports.create!(
             version: (current_company.reports.maximum(:version) || 0) + 1,
             status: "queued",

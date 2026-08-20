@@ -39,13 +39,21 @@ module Reports
         error_message: html_fallback ? "PDF service unavailable — stored as HTML (not a PDF)." : nil
       )
 
-      if @company.reviewer_assignments.active.exists?
-        ReportReviews::BootstrapService.call(report: @report)
-      elsif @company.merged_settings["skip_platform_review"]
+      # Enforce the review/approval GATE. A ready report is never auto-shipped to
+      # the company; it becomes downloadable only after platform approval (via a
+      # reviewer when assigned), unless the company is explicitly skip_platform_review.
+      if @company.merged_settings["skip_platform_review"]
         @report.update!(visibility: "shared_with_company", review_workflow_status: "platform_approved")
+        NotificationService.notify_report_ready(company: @company, report: @report)
+      elsif @company.reviewer_assignments.active.exists?
+        ReportReviews::BootstrapService.call(report: @report) # → internal_only + awaiting_reviewers, notifies reviewers
+        NotificationService.notify_report_in_review(company: @company, report: @report)
+      else
+        # No reviewer assigned — still gated behind platform approval, not shipped.
+        @report.update!(visibility: "internal_only", review_workflow_status: "reviews_complete")
+        NotificationService.notify_platform_report_awaiting_approval(company: @company, report: @report)
       end
 
-      NotificationService.notify_report_ready(company: @company, report: @report)
       @report
     rescue StandardError => e
       @report.update!(status: "failed", error_message: e.message)

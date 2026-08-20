@@ -62,6 +62,35 @@ class NotificationService
     )
   end
 
+  # Honest status while a report is gated in expert review — replaces the old
+  # premature "ready to download" (whose link was a dead end).
+  def self.notify_report_in_review(company:, report:)
+    admins = company.company_users.where(role: "company_admin", status: "active")
+    notify(
+      type: :report_in_review,
+      company: company,
+      recipients: admins,
+      title: "Report in expert review",
+      body: "Your discovery report v#{report.version} is with your expert reviewer. We'll let you know as soon as it's approved and ready to download.",
+      action_url: "#{app_host}/company/reports",
+      metadata: { report_id: report.id, version: report.version }
+    )
+  end
+
+  # A report with no reviewer still needs platform approval before it ships.
+  def self.notify_platform_report_awaiting_approval(company:, report:)
+    recipients = PlatformUser.respond_to?(:active) ? PlatformUser.active : PlatformUser.all
+    notify(
+      type: :report_awaiting_approval,
+      company: company,
+      recipients: recipients,
+      title: "Report awaiting approval",
+      body: "#{company.name} — report v#{report.version} is ready for your review and approval (no reviewer assigned).",
+      action_url: "#{app_host}/platform/companies/#{company.id}",
+      metadata: { report_id: report.id, version: report.version, company_id: company.id }
+    )
+  end
+
   def self.notify_report_shared(company:, report:)
     admins = company.company_users.where(role: "company_admin", status: "active")
     notify(

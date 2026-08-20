@@ -87,11 +87,14 @@ module Reports
     end
 
     def dispositions_for(review)
-      review.report_review_section_states.map do |state|
+      # Only surface sections the expert actually endorsed. Internal "needs_info"
+      # / "pending" states must never appear in the client-facing deliverable
+      # (and approval is blocked while any needs_info remains).
+      review.report_review_section_states.select { |state| state.status == "approved" }.map do |state|
         {
           "reviewer" => review.reviewer_user.name,
           "section_key" => state.section_key,
-          "disposition" => state.status,
+          "disposition" => "approved",
           "comment" => state.try(:comment).presence || state.try(:notes).presence
         }
       end

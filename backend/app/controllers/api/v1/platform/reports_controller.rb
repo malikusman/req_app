@@ -44,6 +44,15 @@ module Api
             return render json: { error: "All reviewer submissions required before approval" }, status: :unprocessable_entity
           end
 
+          # A reviewer flagging sections as "needs clarification" must block approval —
+          # resolve (regenerate with the requested changes, or have the reviewer
+          # re-mark them) before the report can ship to the company.
+          if report.report_reviews.where(status: "needs_info").exists?
+            return render json: {
+              error: "A reviewer flagged sections needing clarification. Regenerate with the requested changes, or have the reviewer resolve them, before approving."
+            }, status: :unprocessable_entity
+          end
+
           Reports::RegenerateWithReviewService.call(report: report) if report.report_reviews.exists?
 
           report.update!(
@@ -59,6 +68,10 @@ module Api
             target: report,
             request: request
           )
+
+          # The report is now genuinely downloadable — this is the moment to tell
+          # the company (previously silent).
+          NotificationService.notify_report_ready(company: report.company, report: report)
 
           render json: { report: report_json(report) }
         end

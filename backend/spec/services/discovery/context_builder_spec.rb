@@ -17,7 +17,9 @@ RSpec.describe Discovery::ContextBuilder do
       expect(limits).to eq(
         max_followup_depth: 2,
         max_questions_per_agent: 5,
-        max_active_agents: 4
+        max_active_agents: 4,
+        orient_questions: 3,
+        switch_after: 3
       )
     end
 
