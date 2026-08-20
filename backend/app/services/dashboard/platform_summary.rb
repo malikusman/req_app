@@ -6,12 +6,38 @@ module Dashboard
       new.call
     end
 
+    # Shared so the Approvals worklist endpoint and the dashboard triage row
+    # render the same queue.
+    def self.reports_awaiting
+      new.reports_awaiting_payload
+    end
+
     def call
       {
         monitoring: monitoring_payload,
         system: system_payload,
-        trials_expiring_soon: trials_payload
+        trials_expiring_soon: trials_payload,
+        reports_awaiting_approval: reports_awaiting_payload
       }
+    end
+
+    def reports_awaiting_payload
+      # Only the latest awaiting version per company — a superseded version left
+      # un-approved shouldn't clutter the queue.
+      latest = Report.awaiting_platform_approval
+                     .includes(:company)
+                     .group_by(&:company_id)
+                     .map { |_, reports| reports.max_by(&:version) }
+
+      latest.sort_by { |r| r.generated_at || Time.at(0) }.reverse.map do |report|
+        company = report.company
+        {
+          report: { id: report.id, version: report.version, generated_at: report.generated_at },
+          company: { id: company.id, name: company.display_name || company.name },
+          has_reviewer: company.reviewer_assignments.active.exists?,
+          blocked_needs_info: report.report_reviews.where(status: "needs_info").exists?
+        }
+      end
     end
 
     private
@@ -46,6 +72,7 @@ module Dashboard
         },
         reports: {
           ready: Report.where(status: "ready").count,
+          awaiting_approval: Report.awaiting_platform_approval.count,
           generating: Report.where(status: %w[queued generating]).count,
           failed: Report.where(status: "failed").count
         },

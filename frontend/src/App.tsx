@@ -21,6 +21,7 @@ import { PlatformOperations } from './portals/platform/PlatformOperations';
 import { PlatformReviewers } from './portals/platform/PlatformReviewers';
 import { PlatformReviewerDetail } from './portals/platform/PlatformReviewerDetail';
 import { PlatformRegistrations } from './portals/platform/PlatformRegistrations';
+import { PlatformApprovals } from './portals/platform/PlatformApprovals';
 import { CompanyLayout } from './portals/company/CompanyLayout';
 import { CompanyDashboard } from './portals/company/CompanyDashboard';
 import { CompanyOnboarding } from './portals/company/CompanyOnboarding';
@@ -119,6 +120,7 @@ export default function App() {
             >
               <Route index element={<Navigate to="dashboard" replace />} />
               <Route path="dashboard" element={<PlatformDashboard />} />
+              <Route path="approvals" element={<PlatformApprovals />} />
               <Route path="registrations" element={<PlatformRegistrations />} />
               <Route path="companies" element={<PlatformCompanies />} />
               <Route path="companies/:id" element={<PlatformCompanyDetail />} />

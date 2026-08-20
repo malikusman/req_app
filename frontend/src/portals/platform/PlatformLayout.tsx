@@ -31,6 +31,10 @@ export function PlatformLayout() {
       .platformCatalogCandidates(token, { reviewStatus: 'pending', perPage: 1 })
       .then((d) => setCounts((prev) => ({ ...prev, candidates: d.pagination?.total ?? 0 })))
       .catch(() => undefined);
+    api
+      .platformPendingReports(token)
+      .then((d) => setCounts((prev) => ({ ...prev, approvals: d.reports.length })))
+      .catch(() => undefined);
   }, [token]);
 
   const nav = useMemo(() => platformNavItems(counts), [counts]);

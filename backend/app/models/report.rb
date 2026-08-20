@@ -22,6 +22,13 @@ class Report < ApplicationRecord
 
   scope :ready, -> { where(status: "ready") }
 
+  # Reports sitting on the platform-approval gate: generated, held back from the
+  # company, and with reviewer work complete — i.e. waiting on an operator to
+  # approve and ship. This is the operator's core worklist.
+  scope :awaiting_platform_approval, lambda {
+    where(status: "ready", visibility: "internal_only", review_workflow_status: "reviews_complete")
+  }
+
   def share_active?
     share_token.present? && share_token_expires_at.present? && share_token_expires_at.future?
   end

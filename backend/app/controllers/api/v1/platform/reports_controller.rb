@@ -12,6 +12,12 @@ module Api
           render json: { reports: reports.map { |r| report_json(r, company: company) } }
         end
 
+        # Cross-tenant worklist: every report sitting on the approval gate, across
+        # all companies. The operator's core queue.
+        def pending
+          render json: { reports: Dashboard::PlatformSummary.reports_awaiting }
+        end
+
         def download
           report = Report.joins(:company).find_by!(id: params[:id], company_id: params[:company_id])
           authorize report, :download?

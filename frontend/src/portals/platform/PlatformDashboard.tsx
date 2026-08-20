@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import {
   Building2,
+  FileCheck2,
   Clock,
-  FileText,
   Activity,
   Inbox,
   MessageSquare,
@@ -123,7 +123,8 @@ export function PlatformDashboard() {
   const system = data?.system;
   const trials = data?.trials_expiring_soon ?? [];
   const activeTrials = monitoring?.subscriptions.active_trials ?? monitoring?.subscriptions.by_status?.trial ?? 0;
-  const reportsReady = monitoring ? monitoring.reports.ready : '—';
+  const reportsAwaiting = data?.reports_awaiting_approval ?? [];
+  const awaitingApprovalCount = monitoring ? (monitoring.reports.awaiting_approval ?? 0) : '—';
 
   const systemHealthLabel = (() => {
     if (!system) return 'Unknown';
@@ -136,6 +137,15 @@ export function PlatformDashboard() {
   // Build the triage queue. Each row leads with its count; a 0/unavailable
   // count omits the row entirely.
   const attentionItems: AttentionItemData[] = [];
+  if (reportsAwaiting.length > 0) {
+    attentionItems.push({
+      tone: 'attention',
+      icon: <FileCheck2 className="h-[18px] w-[18px]" />,
+      title: `${reportsAwaiting.length} report${reportsAwaiting.length === 1 ? '' : 's'} awaiting your approval`,
+      detail: 'Reviewed and ready to ship to the company',
+      action: { label: 'Review', to: '/platform/approvals' },
+    });
+  }
   if (pendingCompanies && pendingCompanies > 0) {
     attentionItems.push({
       tone: 'attention',
@@ -278,7 +288,7 @@ export function PlatformDashboard() {
             <StatCard label="Total companies" value={monitoring.companies.total} icon={<Building2 className="h-5 w-5 text-accent" />} />
             <StatCard label="Active trials" value={activeTrials} icon={<Clock className="h-5 w-5 text-accent" />} />
             <StatCard label="Discovery (24h)" value={monitoring.discovery.conversations_last_24h} icon={<MessageSquare className="h-5 w-5 text-accent" />} />
-            <StatCard label="Reports ready" value={reportsReady} icon={<FileText className="h-5 w-5 text-accent" />} />
+            <StatCard label="Awaiting approval" value={awaitingApprovalCount} icon={<FileCheck2 className="h-5 w-5 text-accent" />} />
             <StatCard label="Avg readiness" value={`${monitoring.companies.avg_readiness}%`} icon={<Users className="h-5 w-5 text-accent" />} />
             <StatCard label="System" value={systemHealthLabel} icon={<Activity className="h-5 w-5 text-accent" />} />
           </div>

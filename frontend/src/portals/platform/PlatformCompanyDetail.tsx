@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { ChatMessageList, type ChatMessageItem } from '../../components/motion';
 import {
   api,
@@ -166,7 +166,10 @@ export function PlatformCompanyDetail() {
   const [intelTimeline, setIntelTimeline] = useState<TimelineEvent[]>([]);
   const [intelligenceLoading, setIntelligenceLoading] = useState(false);
   const [intelligenceError, setIntelligenceError] = useState('');
-  const [tab, setTab] = useState('overview');
+  const [searchParams] = useSearchParams();
+  const TABS = ['overview', 'conversations', 'intelligence', 'stack', 'ideas', 'reports', 'reviewers', 'audit'];
+  const initialTab = searchParams.get('tab');
+  const [tab, setTab] = useState(initialTab && TABS.includes(initialTab) ? initialTab : 'overview');
   const [loading, setLoading] = useState(true);
   const [approvingId, setApprovingId] = useState<number | null>(null);
   const [selectedReportId, setSelectedReportId] = useState<number | null>(null);

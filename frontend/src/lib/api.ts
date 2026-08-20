@@ -1077,6 +1077,9 @@ export const api = {
 
   platformDashboard: (token: string) => request<PlatformDashboardPayload>('/api/v1/platform/dashboard', {}, token),
 
+  platformPendingReports: (token: string) =>
+    request<{ reports: PlatformApprovalRow[] }>('/api/v1/platform/reports/pending', {}, token),
+
   platformTrials: (token: string) =>
     request<{ trials: PlatformTrialRow[] }>('/api/v1/platform/trials', {}, token),
 
@@ -1753,14 +1756,22 @@ export interface PlatformMonitoring {
     companies_with_multimodal_enabled: number;
     companies_with_media_indexing_enabled: number;
   };
-  reports: { ready: number; generating: number; failed: number };
+  reports: { ready: number; awaiting_approval?: number; generating: number; failed: number };
   impersonations: { active_sessions: number; last_24h: number };
+}
+
+export interface PlatformApprovalRow {
+  report: { id: number; version: number; generated_at: string | null };
+  company: { id: number; name: string };
+  has_reviewer: boolean;
+  blocked_needs_info: boolean;
 }
 
 export interface PlatformDashboardPayload {
   monitoring: PlatformMonitoring;
   system: PlatformSystemHealth;
   trials_expiring_soon: PlatformTrialRow[];
+  reports_awaiting_approval: PlatformApprovalRow[];
 }
 
 export interface CompanyDashboardPayload {

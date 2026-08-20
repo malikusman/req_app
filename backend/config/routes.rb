@@ -73,6 +73,7 @@ Rails.application.routes.draw do
         post "companies/:company_id/agentic_ideas/:id/publish", to: "agentic_ideas#publish"
         post "companies/:company_id/agentic_ideas/:id/archive", to: "agentic_ideas#archive"
         post "companies/:company_id/agentic_ideas/synthesize", to: "agentic_ideas#synthesize"
+        get "reports/pending", to: "reports#pending"
         post "companies/:company_id/reports/:id/approve", to: "reports#approve"
         get "companies/:company_id/reports/:id/download", to: "reports#download"
         get "companies/:company_id/reports/:id/preview", to: "reports#preview"
