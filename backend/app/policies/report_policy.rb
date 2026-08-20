@@ -20,7 +20,7 @@ class ReportPolicy < ApplicationPolicy
 
   def download?
     return true if platform?
-    return same_company?(record) && record.visibility == "shared_with_company" if company?
+    return same_company?(record) && record.status == "ready" && record.visibility == "shared_with_company" if company?
     return assigned_company?(record.company_id) && record.status == "ready" if reviewer?
 
     false

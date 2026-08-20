@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_02_160000) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_02_170000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -935,7 +935,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_02_160000) do
     t.integer "version", null: false
     t.bigint "previous_report_id"
     t.string "status", default: "queued", null: false
-    t.string "visibility", default: "shared_with_company", null: false
+    t.string "visibility", default: "internal_only", null: false
     t.string "triggered_by_type", null: false
     t.bigint "triggered_by_id", null: false
     t.bigint "reviewed_by_platform_user_id"

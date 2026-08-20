@@ -64,7 +64,9 @@ module Reports
       @report.update!(
         storage_key: storage_key,
         content_type: content_type,
-        error_message: html_fallback ? "PDF service unavailable — stored as HTML (not a PDF)." : @report.error_message
+        # Clear any stale failure message on a successful (real PDF) regenerate —
+        # otherwise a since-fixed report keeps telling the company "PDF unavailable".
+        error_message: html_fallback ? "PDF service unavailable — stored as HTML (not a PDF)." : nil
       )
     end
   end

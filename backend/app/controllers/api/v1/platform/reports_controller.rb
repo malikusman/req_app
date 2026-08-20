@@ -53,7 +53,21 @@ module Api
             }, status: :unprocessable_entity
           end
 
-          Reports::RegenerateWithReviewService.call(report: report) if report.report_reviews.exists?
+          begin
+            Reports::RegenerateWithReviewService.call(report: report) if report.report_reviews.exists?
+          rescue StandardError => e
+            return render json: {
+              error: "Couldn't regenerate the report for approval (PDF service may be down). Try again shortly. (#{e.message})"
+            }, status: :service_unavailable
+          end
+
+          # Never ship a broken deliverable — a report that fell back to HTML
+          # (Gotenberg down) is not a real PDF and must not be approved/shared.
+          if report.reload.content_type != "application/pdf"
+            return render json: {
+              error: "The report PDF could not be generated (the PDF service may be unavailable). Approval is blocked until a real PDF is produced."
+            }, status: :service_unavailable
+          end
 
           report.update!(
             visibility: "shared_with_company",
