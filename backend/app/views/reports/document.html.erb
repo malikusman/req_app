@@ -19,30 +19,33 @@
 <%= render "reports/cover", snapshot: snapshot, generated_label: generated_label, report_version: report_version %>
 <%= render "reports/contents", snapshot: snapshot, toc_entries: toc_entries %>
 
-<%# Helper: render a reviewer edit-note (if any) before a section, and any custom
-    sections a reviewer anchored after it. %>
-<% edit_note = ->(key) { (ed = report_section_edit(snapshot, key)) ? render("reports/section_edit_note", edit: ed) : nil } %>
+<%# Reviewer overrides: an "edit" REPLACES the AI section with the expert's text
+    (not a note beside it); "hide" drops it; "add" injects a custom section after
+    its anchor. ai_or_edit picks the expert's body when present, else the AI render. %>
 <% custom_after = ->(key) { report_custom_sections(snapshot, after: key).map { |cs| render("reports/custom_section", snapshot: snapshot, section: cs) }.join.html_safe } %>
+<% section_edited = ->(key) { (ed = report_section_edit(snapshot, key)) && ed["body"].to_s.strip.present? } %>
+<% ai_or_edit = ->(key, present, ai) {
+     if section_edited.call(key)
+       render("reports/edited_section", key: key, edit: report_section_edit(snapshot, key), snapshot: snapshot)
+     elsif present
+       ai.call
+     else
+       "".html_safe
+     end
+   } %>
 
 <% unless report_section_hidden?(snapshot, "executive_summary") %>
-  <% if snapshot["executive_summary"].present? %>
-    <%= edit_note.call("executive_summary") %>
-    <%= render "reports/executive_summary", snapshot: snapshot, report_version: report_version %>
-  <% end %>
+  <%= ai_or_edit.call("executive_summary", snapshot["executive_summary"].present?, -> { render "reports/executive_summary", snapshot: snapshot, report_version: report_version }) %>
 <% end %>
 <%= custom_after.call("executive_summary") %>
 
 <% unless report_section_hidden?(snapshot, "readiness") %>
-  <% if snapshot.dig("readiness", "score").present? %>
-    <%= edit_note.call("readiness") %>
-    <%= render "reports/readiness", snapshot: snapshot, report_version: report_version %>
-  <% end %>
+  <%= ai_or_edit.call("readiness", snapshot.dig("readiness", "score").present?, -> { render "reports/readiness", snapshot: snapshot, report_version: report_version }) %>
 <% end %>
 <%= custom_after.call("readiness") %>
 
 <% unless report_section_hidden?(snapshot, "company_context") %>
-  <%= edit_note.call("company_context") %>
-  <%= render "reports/company_context", snapshot: snapshot, report_version: report_version %>
+  <%= ai_or_edit.call("company_context", true, -> { render "reports/company_context", snapshot: snapshot, report_version: report_version }) %>
 <% end %>
 <%= custom_after.call("company_context") %>
 
@@ -51,10 +54,8 @@
 <% unless report_section_hidden?(snapshot, "participation") %>
   <%# Show the interview funnel only when interviews have actually happened, or a
       hybrid engagement is mid-flight — never on a pure document baseline. %>
-  <% if participation["completed"].to_i.positive? || (participation["invited"].to_i.positive? && !docs_only_report) %>
-    <%= edit_note.call("participation") %>
-    <%= render "reports/participation", snapshot: snapshot, report_version: report_version %>
-  <% end %>
+  <% show_participation = participation["completed"].to_i.positive? || (participation["invited"].to_i.positive? && !docs_only_report) %>
+  <%= ai_or_edit.call("participation", show_participation, -> { render "reports/participation", snapshot: snapshot, report_version: report_version }) %>
 <% end %>
 <%= custom_after.call("participation") %>
 
@@ -64,7 +65,6 @@
 
 <% docs_first = snapshot["docs_first_phase"] == true || snapshot["report_kind"].to_s == "baseline" %>
 <% if signals.any? && !report_section_hidden?(snapshot, "signals") %>
-  <%= edit_note.call("signals") %>
   <%= render "reports/divider",
         accent_label: "Signals & Patterns",
         accent_bg: "var(--magenta)",
@@ -79,29 +79,30 @@
             "<strong>#{signals.size}</strong> signal#{'s' unless signals.size == 1} surfaced from discovery interviews.".html_safe,
           "<strong>#{patterns.size}</strong> cross-team pattern#{'s' unless patterns.size == 1} identified.".html_safe
         ] %>
-  <%= render "reports/signals", snapshot: snapshot, signals: signals, report_version: report_version %>
-  <% top = signals.max_by { |s| s["strength"].to_f } %>
-  <% excerpt = top && report_signal_excerpt(top) %>
-  <% quote = excerpt.presence || "The strongest recurring theme is #{top&.dig('label') || 'operational friction'} across teams." %>
-  <%= render "reports/pull_quote", snapshot: snapshot, quote: quote, accent_phrase: top&.dig("label") %>
+  <% if section_edited.call("signals") %>
+    <%= render "reports/edited_section", key: "signals", edit: report_section_edit(snapshot, "signals"), snapshot: snapshot %>
+  <% else %>
+    <%= render "reports/signals", snapshot: snapshot, signals: signals, report_version: report_version %>
+    <% top = signals.max_by { |s| s["strength"].to_f } %>
+    <% excerpt = top && report_signal_excerpt(top) %>
+    <% quote = excerpt.presence || "The strongest recurring theme is #{top&.dig('label') || 'operational friction'} across teams." %>
+    <%= render "reports/pull_quote", snapshot: snapshot, quote: quote, accent_phrase: top&.dig("label") %>
+  <% end %>
 <% end %>
 <%= custom_after.call("signals") %>
 
 <% if patterns.any? && !report_section_hidden?(snapshot, "patterns") %>
-  <%= edit_note.call("patterns") %>
-  <%= render "reports/patterns", snapshot: snapshot, patterns: patterns, report_version: report_version %>
+  <%= ai_or_edit.call("patterns", true, -> { render "reports/patterns", snapshot: snapshot, patterns: patterns, report_version: report_version }) %>
 <% end %>
 <%= custom_after.call("patterns") %>
 
 <% if recommendations.any? && !report_section_hidden?(snapshot, "recommendations") %>
-  <%= edit_note.call("recommendations") %>
-  <%= render "reports/recommendations", snapshot: snapshot, recommendations: recommendations, report_version: report_version %>
+  <%= ai_or_edit.call("recommendations", true, -> { render "reports/recommendations", snapshot: snapshot, recommendations: recommendations, report_version: report_version }) %>
 <% end %>
 <%= custom_after.call("recommendations") %>
 
 <% if snapshot["roadmap"].present? && !report_section_hidden?(snapshot, "roadmap") %>
-  <%= edit_note.call("roadmap") %>
-  <%= render "reports/roadmap", snapshot: snapshot, report_version: report_version %>
+  <%= ai_or_edit.call("roadmap", true, -> { render "reports/roadmap", snapshot: snapshot, report_version: report_version }) %>
 <% end %>
 <%= custom_after.call("roadmap") %>
 
@@ -111,8 +112,7 @@
 <%= custom_after.call("opportunities") %>
 
 <% if (Array(snapshot.dig("tools_catalog", "curated_matches")).any? || Array(snapshot.dig("tools_catalog", "endorsements")).any? || Array(snapshot["supporting_documents"]).any?) && !report_section_hidden?(snapshot, "tools_catalog") %>
-  <%= edit_note.call("tools_catalog") %>
-  <%= render "reports/tools_catalog", snapshot: snapshot, report_version: report_version %>
+  <%= ai_or_edit.call("tools_catalog", true, -> { render "reports/tools_catalog", snapshot: snapshot, report_version: report_version }) %>
 <% end %>
 <%= custom_after.call("tools_catalog") %>
 

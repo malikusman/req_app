@@ -19,11 +19,19 @@ module Reports
       return @snapshot if overrides.blank?
 
       snap = deep_dup(@snapshot)
+      applied_edits = edits(overrides)
       snap["section_overrides"] = {
         "hidden" => hidden_keys(overrides),
-        "edits" => edits(overrides),
+        "edits" => applied_edits,
         "custom" => custom_sections(overrides)
       }
+
+      # The executive summary also feeds the cover subtitle / contents teaser, so
+      # when a reviewer rewrites it, propagate the edit to the base field too — the
+      # whole deliverable should reflect the expert's version, not the AI's.
+      exec_body = applied_edits.dig("executive_summary", "body")
+      snap["executive_summary"] = exec_body if exec_body.to_s.strip.present?
+
       snap
     end
 
