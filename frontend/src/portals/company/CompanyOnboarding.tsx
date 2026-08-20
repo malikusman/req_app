@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { api } from '../../lib/api';
@@ -245,6 +245,7 @@ export function CompanyOnboarding() {
   const isNarrow = useMediaQuery('(max-width: 1023px)');
   const [sectionId, setSectionId] = useState(1);
   const [questionnaireVersion, setQuestionnaireVersion] = useState(1);
+  const navigatedRef = useRef(false);
   const [answers, setAnswers] = useState<QuestionnaireAnswers>({});
   const [percent, setPercent] = useState(0);
   const [error, setError] = useState('');
@@ -283,6 +284,16 @@ export function CompanyOnboarding() {
       .catch(() => undefined);
   }, [token]);
 
+  useEffect(() => {
+    if (!navigatedRef.current) return;
+    navigatedRef.current = false;
+    const heading = document.getElementById('questionnaire-section-heading');
+    if (!heading) return;
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    heading.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
+    heading.focus({ preventScroll: true });
+  }, [sectionId]);
+
   const sections = useMemo(() => questionnaireSectionsFor(questionnaireVersion), [questionnaireVersion]);
 
   const section = useMemo(
@@ -296,6 +307,11 @@ export function CompanyOnboarding() {
       setPercent(computeCompletionPercent(next, sections));
       return next;
     });
+  };
+
+  const changeSection = (nextSection: number) => {
+    navigatedRef.current = true;
+    setSectionId(nextSection);
   };
 
   const persist = async (nextSection?: number, opts?: { markComplete?: boolean }) => {
@@ -312,7 +328,7 @@ export function CompanyOnboarding() {
         questionnaire_step: nextSection ?? sectionId,
       });
       setPercent(res.completion_percent);
-      if (nextSection) setSectionId(nextSection);
+      if (nextSection) changeSection(nextSection);
       if (opts?.markComplete) {
         await finish(true);
       }
@@ -508,7 +524,13 @@ export function CompanyOnboarding() {
             <p className="m-0 text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Section {section.id} of {sections.length}
             </p>
-            <h2 className="m-0 mt-1 text-xl font-medium text-foreground">{section.title}</h2>
+            <h2
+              id="questionnaire-section-heading"
+              tabIndex={-1}
+              className="m-0 mt-1 scroll-mt-36 text-xl font-medium text-foreground outline-none"
+            >
+              {section.title}
+            </h2>
           </div>
 
           <div className="space-y-6">
