@@ -268,7 +268,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
               'Are there important tasks or processes that depend heavily on the knowledge of one or a few employees?',
             tier: 'optional',
             helper:
-              "For example: only one employee knows how to prepare an important report, or key data lives only in one employee's files.",
+              'For example: only one employee knows how to prepare an important report, handle particular suppliers or carry out a specific procedure.',
           },
           {
             id: 'q14_approval_methods',
