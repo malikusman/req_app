@@ -130,8 +130,10 @@ function FieldEditor({
   if (!fieldIsVisible(field, answers)) return null;
   const raw = answers[field.id];
 
+  let content: ReactNode;
+
   if (field.type === 'text') {
-    return (
+    content = (
       <Input
         label={field.label}
         value={typeof raw === 'string' ? raw : ''}
@@ -139,10 +141,8 @@ function FieldEditor({
         placeholder={field.placeholder}
       />
     );
-  }
-
-  if (field.type === 'textarea') {
-    return (
+  } else if (field.type === 'textarea') {
+    content = (
       <Textarea
         label={field.label}
         rows={4}
@@ -151,10 +151,8 @@ function FieldEditor({
         placeholder={field.placeholder}
       />
     );
-  }
-
-  if (field.type === 'searchable_select') {
-    return (
+  } else if (field.type === 'searchable_select') {
+    content = (
       <SearchableSelectField
         field={field}
         value={typeof raw === 'string' ? raw : ''}
@@ -162,11 +160,9 @@ function FieldEditor({
         isNarrow={isNarrow}
       />
     );
-  }
-
-  if (field.type === 'single_select') {
+  } else if (field.type === 'single_select') {
     const value = typeof raw === 'string' ? raw : '';
-    return (
+    content = (
       <fieldset className="space-y-2">
         <legend className="text-sm font-medium text-foreground">{field.label}</legend>
         <div className="grid gap-2 sm:grid-cols-2">
@@ -178,34 +174,45 @@ function FieldEditor({
         </div>
       </fieldset>
     );
+  } else {
+    // multi_select
+    const selected = Array.isArray(raw) ? raw : [];
+    const toggle = (opt: string) => {
+      if (selected.includes(opt)) {
+        setAnswer(
+          field.id,
+          selected.filter((s) => s !== opt)
+        );
+        return;
+      }
+      if (field.maxSelections && selected.length >= field.maxSelections) return;
+      setAnswer(field.id, [...selected, opt]);
+    };
+
+    content = (
+      <fieldset className="space-y-2">
+        <legend className="text-sm font-medium text-foreground">{field.label}</legend>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {(field.options || []).map((opt) => (
+            <ChoiceButton key={opt} active={selected.includes(opt)} onClick={() => toggle(opt)}>
+              {opt}
+            </ChoiceButton>
+          ))}
+        </div>
+      </fieldset>
+    );
   }
 
-  // multi_select
-  const selected = Array.isArray(raw) ? raw : [];
-  const toggle = (opt: string) => {
-    if (selected.includes(opt)) {
-      setAnswer(
-        field.id,
-        selected.filter((s) => s !== opt)
-      );
-      return;
-    }
-    if (field.maxSelections && selected.length >= field.maxSelections) return;
-    setAnswer(field.id, [...selected, opt]);
-  };
-
-  return (
-    <fieldset className="space-y-2">
-      <legend className="text-sm font-medium text-foreground">{field.label}</legend>
-      <div className="grid gap-2 sm:grid-cols-2">
-        {(field.options || []).map((opt) => (
-          <ChoiceButton key={opt} active={selected.includes(opt)} onClick={() => toggle(opt)}>
-            {opt}
-          </ChoiceButton>
-        ))}
+  if (field.helper) {
+    return (
+      <div className="space-y-1">
+        {content}
+        <p className="text-xs text-muted-foreground">{field.helper}</p>
       </div>
-    </fieldset>
-  );
+    );
+  }
+
+  return content;
 }
 
 export function CompanyOnboarding() {

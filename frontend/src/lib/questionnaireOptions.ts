@@ -27,6 +27,8 @@ export type QuestionnaireField = {
   options?: string[];
   maxSelections?: number;
   placeholder?: string;
+  /** Helper copy rendered as helper text under the input (not an HTML placeholder) */
+  helper?: string;
   /** Completion tier; Essential only counts toward completion % in v2 */
   tier?: FieldTier;
   /** Show only when answers[key] satisfies the condition */

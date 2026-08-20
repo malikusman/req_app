@@ -1,5 +1,6 @@
 import type { QuestionnaireField, QuestionnaireSection } from './questionnaireOptions';
 import { QUESTIONNAIRE_SECTIONS } from './questionnaireOptions';
+import { COUNTRIES } from './countries';
 
 export type QuestionnaireV2Screen = {
   id: string;
@@ -18,7 +19,67 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
     id: 1,
     title: 'About Your Business',
     shortTitle: 'Business',
-    screens: [{ id: '1', fields: [] }],
+    screens: [
+      {
+        id: '1',
+        fields: [
+          {
+            id: 'q01_primary_industry',
+            type: 'searchable_select',
+            label: "What is your company's primary industry?",
+            options: [
+              'Retail & E-commerce',
+              'Manufacturing',
+              'Construction & Engineering',
+              'Healthcare & Medical',
+              'Real Estate',
+              'Logistics & Transportation',
+              'Hospitality & Food Service',
+              'Professional Services',
+              'Financial Services & Insurance',
+              'Education',
+              'IT & Software',
+              'Energy & Utilities',
+              'Automotive',
+              'Agriculture',
+              'Media & Entertainment',
+              'Government & Public Sector',
+              'Other',
+            ],
+          },
+          {
+            id: 'q02_business_description',
+            type: 'textarea',
+            label: 'Briefly describe your business. What are your main products or services, and who are your main customers?',
+            helper: 'A few sentences are enough. 100–1,500 chars.',
+          },
+          {
+            id: 'q03_employee_count',
+            type: 'single_select',
+            label: 'How many employees does your company have?',
+            options: ['1–10', '11–25', '26–50', '51–100', '101–250', '251–500', '501–1,000', '1,000+'],
+          },
+          {
+            id: 'q04_headquarters_country',
+            type: 'searchable_select',
+            label: 'Where is your company headquartered?',
+            options: COUNTRIES,
+          },
+          {
+            id: 'q05_customer_types',
+            type: 'multi_select',
+            label: 'Who does your company primarily sell to or serve?',
+            options: ['Businesses', 'Consumers', 'Government / public sector', 'Other'],
+          },
+          {
+            id: 'q06_operating_sites',
+            type: 'single_select',
+            label: 'How many physical offices, branches, stores, warehouses, factories or other operating sites does your company have?',
+            options: ['1', '2–5', '6–20', '21–50', '51+', 'Fully remote / no permanent operating site'],
+          },
+        ],
+      },
+    ],
   },
   {
     id: 2,
