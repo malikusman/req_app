@@ -39,6 +39,8 @@ module Reports
         error_message: html_fallback ? "PDF service unavailable — stored as HTML (not a PDF)." : nil
       )
 
+      carry_forward_overrides!(previous)
+
       # Enforce the review/approval GATE. A ready report is never auto-shipped to
       # the company; it becomes downloadable only after platform approval (via a
       # reviewer when assigned), unless the company is explicitly skip_platform_review.
@@ -58,6 +60,33 @@ module Reports
     rescue StandardError => e
       @report.update!(status: "failed", error_message: e.message)
       raise
+    end
+
+    private
+
+    # Reviewer edits are per-report, so a new version would otherwise lose the
+    # expert's hides / notes / added / replaced sections. Copy the previous
+    # version's published overrides onto the new one as a starting point (the
+    # reviewer re-reviews the new version and can adjust).
+    def carry_forward_overrides!(previous)
+      return unless previous
+      return unless defined?(ReportSectionOverride) && ReportSectionOverride.table_exists?
+      return if @report.report_section_overrides.exists?
+
+      previous.report_section_overrides.published.find_each do |ov|
+        @report.report_section_overrides.create!(
+          reviewer_user_id: ov.reviewer_user_id,
+          action: ov.action,
+          section_key: ov.section_key,
+          anchor_section: ov.anchor_section,
+          title: ov.title,
+          body: ov.body,
+          position: ov.position,
+          published: true
+        )
+      end
+    rescue StandardError => e
+      Rails.logger.warn("[GenerateReportService] carry_forward_overrides skipped: #{e.class}: #{e.message}")
     end
   end
 end

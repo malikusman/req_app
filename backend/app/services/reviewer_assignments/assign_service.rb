@@ -40,7 +40,37 @@ module ReviewerAssignments
       )
 
       NotificationService.notify_reviewer_assigned(reviewer: @reviewer_user, company: @company)
+      backfill_review!
       assignment
+    end
+
+    private
+
+    # A reviewer assigned AFTER a report was generated previously got no review
+    # task and didn't block approval. Backfill a review for the latest
+    # not-yet-approved ready report and re-open the gate so it can't be approved
+    # until this reviewer submits.
+    def backfill_review!
+      report = @company.reports.ready
+                       .where.not(review_workflow_status: "platform_approved")
+                       .order(version: :desc).first
+      return unless report
+
+      review = ReportReview.find_or_create_by!(report: report, reviewer_user: @reviewer_user) do |r|
+        r.company = @company
+        r.status = "pending"
+      end
+      ReportSections::KEYS.each do |key|
+        review.report_review_section_states.find_or_create_by!(section_key: key)
+      end
+
+      if report.review_workflow_status == "reviews_complete"
+        report.update!(review_workflow_status: "awaiting_reviewers", visibility: "internal_only")
+      end
+
+      NotificationService.notify_reviewer_report_ready(reviewer: @reviewer_user, company: @company, report: report)
+    rescue StandardError => e
+      Rails.logger.warn("[AssignService] backfill_review skipped: #{e.class}: #{e.message}")
     end
   end
 end
