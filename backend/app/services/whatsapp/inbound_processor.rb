@@ -147,24 +147,16 @@ module Whatsapp
     end
 
     def route_inbound_text(employee:, conversation:, text:, external_id:)
-      handled = Whatsapp::OutreachReplyHandler.new(
-        employee: employee,
-        conversation: conversation,
-        text: text,
-        external_id: external_id,
-        client: @client
-      ).handle
-      return if handled
-
-      if ReviewerInfoRequest.open_for_employee(employee.id)
-        handled = Whatsapp::ReviewerFollowupHandler.new(
-          employee: employee,
-          conversation: conversation,
-          text: text,
-          external_id: external_id,
-          client: @client
-        ).handle
-        return if handled
+      # A reviewer can have an open question to the same employee in EITHER channel
+      # (ReviewerOutreach or the legacy ReviewerInfoRequest). Route the reply to
+      # whichever is most recently open, so a stale request in one system can't
+      # hijack a reply meant for a newer question in the other.
+      handler_args = { employee: employee, conversation: conversation, text: text, external_id: external_id, client: @client }
+      case newest_reviewer_request_channel(employee)
+      when :outreach
+        return if Whatsapp::OutreachReplyHandler.new(**handler_args).handle
+      when :info_request
+        return if Whatsapp::ReviewerFollowupHandler.new(**handler_args).handle
       end
 
       if conversation.profiling?
@@ -177,6 +169,19 @@ module Whatsapp
         OnboardingHandler.new(employee: employee, conversation: conversation, client: @client)
                            .handle_inbound_text(text, external_id: external_id)
       end
+    end
+
+    # Which reviewer-question channel (if any) has the most recently opened request
+    # for this employee — so an inbound reply is attributed correctly.
+    def newest_reviewer_request_channel(employee)
+      outreach = ReviewerOutreach.open_whatsapp_for_employee(employee.id)
+      info = ReviewerInfoRequest.open_for_employee(employee.id)
+      return nil if outreach.nil? && info.nil?
+      return :outreach if info.nil?
+      return :info_request if outreach.nil?
+
+      outreach_time = outreach.sent_at || outreach.created_at
+      outreach_time >= info.created_at ? :outreach : :info_request
     end
   end
 end
