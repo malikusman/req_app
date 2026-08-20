@@ -124,5 +124,45 @@ RSpec.describe "Company onboarding profile enrichment", type: :request do
       expect(body["step"]).to eq(8)
       expect(body["questionnaire_version"]).to eq(2)
     end
+
+    it "reports a non-zero completion percent for saved v2 answers, agreeing with show" do
+      patch "/api/v1/company/onboarding/questionnaire",
+            params: {
+              questionnaire_answers: {
+                q01_primary_industry: "Logistics & Transportation",
+                q02_business_description: "Freight forwarding and warehousing",
+                q03_employee_count: "51–100"
+              }
+            },
+            headers: auth_headers_for(user),
+            as: :json
+
+      expect(response).to have_http_status(:ok)
+      patch_body = JSON.parse(response.body)
+      expect(patch_body["section_status"].keys).to eq((1..8).map(&:to_s))
+      expect(patch_body["completion_percent"]).to eq(
+        ((3.0 / Companies::QuestionnaireV2Config::FIELD_IDS.size) * 100).round
+      )
+
+      get "/api/v1/company/onboarding", headers: auth_headers_for(user), as: :json
+      body = JSON.parse(response.body)
+      expect(body["completion_percent"]).to eq(patch_body["completion_percent"])
+    end
+
+    it "stamps questionnaire_completed_at when every v2 field is answered" do
+      all_answers = Companies::QuestionnaireV2Config::FIELD_IDS.to_h { |key| [key, "x"] }
+
+      patch "/api/v1/company/onboarding/questionnaire",
+            params: { questionnaire_answers: all_answers },
+            headers: auth_headers_for(user),
+            as: :json
+
+      expect(response).to have_http_status(:ok)
+      body = JSON.parse(response.body)
+      expect(body["completion_percent"]).to eq(100)
+      expect(body["questionnaire_completed_at"]).to be_present
+      company.reload
+      expect(company.questionnaire_completed_at).to be_present
+    end
   end
 end

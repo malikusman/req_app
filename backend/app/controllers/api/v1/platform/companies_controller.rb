@@ -112,7 +112,7 @@ module Api
         end
 
         def company_detail_json(company)
-          progress = Companies::QuestionnaireProgress.call(company.questionnaire_answers)
+          progress = Companies::QuestionnaireProgress.call_for_company(company)
           company_json(company).merge(
             settings: company.merged_settings,
             company_users: company.company_users.map do |u|

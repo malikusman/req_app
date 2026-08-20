@@ -6,7 +6,7 @@ module Api
       class OnboardingController < BaseController
         def show
           authorize :onboarding, :show?
-          progress = Companies::QuestionnaireProgress.call(current_company.questionnaire_answers)
+          progress = Companies::QuestionnaireProgress.call_for_company(current_company)
           render json: {
             step: current_company.questionnaire_step.to_i.clamp(*step_bounds),
             questionnaire_version: current_company.questionnaire_version,
@@ -63,7 +63,7 @@ module Api
 
           Companies::QuestionnaireSync.call(company: current_company, answers: answers)
 
-          progress = Companies::QuestionnaireProgress.call(answers)
+          progress = Companies::QuestionnaireProgress.call_for_company(current_company, answers: answers)
           if progress[:completion_percent] >= 100 && current_company.questionnaire_completed_at.blank?
             current_company.update!(questionnaire_completed_at: Time.current)
           end
@@ -85,7 +85,7 @@ module Api
           authorize :onboarding, :complete?
           settings = (current_company.settings.presence || {}).merge("engagement_mode" => "hybrid")
 
-          progress = Companies::QuestionnaireProgress.call(current_company.questionnaire_answers)
+          progress = Companies::QuestionnaireProgress.call_for_company(current_company)
           attrs = {
             portal_onboarding_completed_at: Time.current,
             settings: settings

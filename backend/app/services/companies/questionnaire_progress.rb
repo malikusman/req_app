@@ -33,6 +33,16 @@ module Companies
       new(answers).call
     end
 
+    # Version-aware entry used by controllers and summary services. v2 companies
+    # compute against QuestionnaireV2Config; v1 companies keep the historical
+    # behaviour exactly. `call` itself stays unchanged (the v1 path).
+    def self.call_for_company(company, answers: nil)
+      payload = answers || company.questionnaire_answers
+      return QuestionnaireV2Progress.call(payload) if company.questionnaire_version.to_i >= 2
+
+      call(payload)
+    end
+
     def initialize(answers)
       @answers = (answers || {}).to_h.stringify_keys
     end
