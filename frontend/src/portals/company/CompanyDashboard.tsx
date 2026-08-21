@@ -262,6 +262,26 @@ export function CompanyDashboard() {
       {/* Also waiting */}
       <AttentionList items={attentionItems} />
 
+      {/* Opportunity headline — the reviewer's estimate of what acting is worth */}
+      {data.opportunity_estimate && (
+        <div className="rounded-card border border-accent/40 bg-accent-muted p-5 shadow-hero-mockup sm:p-6">
+          <p className="text-label-caps uppercase text-accent-hover">Opportunity identified</p>
+          <p className="mt-1 font-display text-3xl font-semibold tabular-nums text-foreground sm:text-4xl">
+            {data.opportunity_estimate.amount.toLocaleString()}{' '}
+            <span className="text-xl font-semibold text-muted-foreground sm:text-2xl">
+              {data.opportunity_estimate.unit}
+            </span>
+          </p>
+          {data.opportunity_estimate.basis && (
+            <p className="mt-2 max-w-2xl text-sm text-foreground/80">{data.opportunity_estimate.basis}</p>
+          )}
+          <p className="mt-2 text-xs text-muted-foreground">
+            Estimated by {data.opportunity_estimate.reviewer_name ?? 'your reviewer'} · report v
+            {data.opportunity_estimate.report_version}
+          </p>
+        </div>
+      )}
+
       {/* Journey */}
       <Card padding={false} className="p-5 sm:p-6">
         <div className="mb-4 flex items-center justify-between gap-3">

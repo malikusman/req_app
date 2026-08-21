@@ -1237,7 +1237,18 @@ export const api = {
       token
     ),
 
-  updateReviewerReportReview: (token: string, companyId: number, reportId: number, payload: { status?: string; overall_note?: string }) =>
+  updateReviewerReportReview: (
+    token: string,
+    companyId: number,
+    reportId: number,
+    payload: {
+      status?: string;
+      overall_note?: string;
+      opportunity_amount?: number | null;
+      opportunity_unit?: string | null;
+      opportunity_basis?: string | null;
+    },
+  ) =>
     request<ReportReviewPayload>(`/api/v1/reviewer/companies/${companyId}/reports/${reportId}/review`, { method: 'PATCH', body: JSON.stringify(payload) }, token),
 
   submitReviewerReportReview: (token: string, companyId: number, reportId: number) =>
@@ -1648,6 +1659,9 @@ export interface ReportReviewPayload {
     id: number;
     status: string;
     overall_note: string | null;
+    opportunity_amount: number | null;
+    opportunity_unit: string | null;
+    opportunity_basis: string | null;
     submitted_at: string | null;
     section_states: { section_key: string; status: string }[];
     comments: ReviewCommentPayload[];
@@ -1798,6 +1812,13 @@ export interface CompanyDashboardPayload {
   questionnaire_completion_percent?: number;
   usage: { conversations_used: number; conversation_limit: number | null; remaining: number | null; limit_reached: boolean };
   latest_report: Report | null;
+  opportunity_estimate: {
+    amount: number;
+    unit: string | null;
+    basis: string | null;
+    reviewer_name: string | null;
+    report_version: number;
+  } | null;
   employees_summary: {
     stalled_count: number;
     in_progress_count: number;

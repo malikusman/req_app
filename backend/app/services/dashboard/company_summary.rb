@@ -43,6 +43,7 @@ module Dashboard
         questionnaire_completion_percent: Companies::QuestionnaireProgress.call(@company.questionnaire_answers)[:completion_percent],
         usage: enforcer.usage_summary,
         latest_report: latest_report_json(latest_report),
+        opportunity_estimate: opportunity_estimate_json,
         employees_summary: employees_summary,
         intel_counts: intel_counts,
         integrations: integrations_status,
@@ -52,6 +53,27 @@ module Dashboard
     end
 
     private
+
+    # The reviewer's opportunity estimate — surfaced only from a report that has
+    # actually shipped to the company (never leaked pre-approval), newest first.
+    def opportunity_estimate_json
+      review = ReportReview
+               .joins(:report)
+               .includes(:reviewer_user)
+               .where(reports: { company_id: @company.id, visibility: "shared_with_company" })
+               .where.not(opportunity_amount: nil)
+               .order(Arel.sql("reports.version DESC, report_reviews.updated_at DESC"))
+               .first
+      return nil unless review
+
+      {
+        amount: review.opportunity_amount,
+        unit: review.opportunity_unit,
+        basis: review.opportunity_basis,
+        reviewer_name: review.reviewer_user&.name,
+        report_version: review.report.version
+      }
+    end
 
     def intel_counts
       docs = @company.documents.where(purged_at: nil)

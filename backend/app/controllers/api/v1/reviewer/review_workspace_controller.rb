@@ -52,6 +52,9 @@ module Api
             id: review.id,
             status: review.status,
             overall_note: review.overall_note,
+            opportunity_amount: review.opportunity_amount,
+            opportunity_unit: review.opportunity_unit,
+            opportunity_basis: review.opportunity_basis,
             submitted_at: review.submitted_at,
             section_states: review.report_review_section_states.map { |s| { section_key: s.section_key, status: s.status } },
             comments: review.report_review_comments.order(:created_at).map { |c| comment_json(c) }

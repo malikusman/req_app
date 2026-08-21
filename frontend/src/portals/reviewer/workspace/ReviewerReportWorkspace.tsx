@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Check, ChevronRight, Circle, FileText, MessageSquare } from 'lucide-react';
 import { api, type ReviewerReportWorkspacePayload } from '../../../lib/api';
 import { useAuth, useReviewerToken } from '../../../lib/auth';
-import { Badge, Button, Card, ConfirmDialog, EmptyState, PageHeader, Skeleton, StatCard, Textarea } from '../../../components/ui';
+import { Badge, Button, Card, ConfirmDialog, EmptyState, Input, PageHeader, Select, Skeleton, StatCard, Textarea } from '../../../components/ui';
 import { AnimatedNumber } from '../../../components/motion';
 import { cn } from '../../../lib/cn';
 import { ReviewerAnnotationRail } from './ReviewerAnnotationRail';
@@ -50,6 +50,14 @@ function sectionsComplete(states: { section_key: string; status: string }[]) {
 // a green check for merely visiting a page.
 const ACTION_STEPS: WorkspaceStepId[] = ['sections', 'collaborate', 'submit'];
 
+const OPPORTUNITY_UNITS = [
+  { value: 'AED / year', label: 'AED / year' },
+  { value: 'USD / year', label: 'USD / year' },
+  { value: 'GBP / year', label: 'GBP / year' },
+  { value: 'hours / week saved', label: 'hours / week saved' },
+  { value: 'days / month saved', label: 'days / month saved' },
+];
+
 export function ReviewerReportWorkspace() {
   const { companyId, reportId } = useParams();
   const navigate = useNavigate();
@@ -66,6 +74,10 @@ export function ReviewerReportWorkspace() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
+  const [oppAmount, setOppAmount] = useState('');
+  const [oppUnit, setOppUnit] = useState(OPPORTUNITY_UNITS[0].value);
+  const [oppBasis, setOppBasis] = useState('');
+  const [oppSaved, setOppSaved] = useState(false);
   const [commentBody, setCommentBody] = useState('');
   const [activeConversationIndex, setActiveConversationIndex] = useState(0);
   const [highlightedMessageId, setHighlightedMessageId] = useState<number | null>(null);
@@ -108,6 +120,9 @@ export function ReviewerReportWorkspace() {
     // Seed the note only once, so the 15s poll never clobbers in-progress edits.
     if (!noteSeeded.current) {
       setNote(data.review.overall_note || '');
+      setOppAmount(data.review.opportunity_amount != null ? String(data.review.opportunity_amount) : '');
+      setOppUnit(data.review.opportunity_unit || OPPORTUNITY_UNITS[0].value);
+      setOppBasis(data.review.opportunity_basis || '');
       noteSeeded.current = true;
     }
   }, [token, companyId, reportId, setNote]);
@@ -323,6 +338,18 @@ export function ReviewerReportWorkspace() {
   const handleSaveNote = async () => {
     if (!token || !companyId || !reportId) return;
     await api.updateReviewerReportReview(token, Number(companyId), Number(reportId), { overall_note: note });
+    await load();
+  };
+
+  const handleSaveOpportunity = async () => {
+    if (!token || !companyId || !reportId) return;
+    const trimmed = oppAmount.trim();
+    await api.updateReviewerReportReview(token, Number(companyId), Number(reportId), {
+      opportunity_amount: trimmed === '' ? null : Number(trimmed),
+      opportunity_unit: oppUnit,
+      opportunity_basis: oppBasis.trim() === '' ? null : oppBasis.trim(),
+    });
+    setOppSaved(true);
     await load();
   };
 
@@ -1035,6 +1062,57 @@ export function ReviewerReportWorkspace() {
                 reportId={Number(reportId)}
                 readOnly={submitted}
               />
+              <Card title="Opportunity estimate">
+                <p className="mb-3 text-sm text-muted-foreground">
+                  Your headline for the client: roughly what this is worth if they act on it. It appears
+                  on their dashboard, attributed to you.
+                </p>
+                <div className="flex flex-wrap items-end gap-3">
+                  <Input
+                    label="Amount"
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    className="w-40"
+                    placeholder="e.g. 240000"
+                    value={oppAmount}
+                    disabled={submitted}
+                    onChange={(e) => {
+                      setOppAmount(e.target.value);
+                      setOppSaved(false);
+                    }}
+                  />
+                  <Select
+                    label="Unit"
+                    options={OPPORTUNITY_UNITS}
+                    value={oppUnit}
+                    disabled={submitted}
+                    onChange={(e) => {
+                      setOppUnit(e.target.value);
+                      setOppSaved(false);
+                    }}
+                  />
+                </div>
+                <Textarea
+                  className="mt-3"
+                  rows={2}
+                  value={oppBasis}
+                  disabled={submitted}
+                  placeholder="One line on how you arrived at this (optional)"
+                  onChange={(e) => {
+                    setOppBasis(e.target.value);
+                    setOppSaved(false);
+                  }}
+                />
+                {!submitted && (
+                  <div className="mt-3 flex items-center gap-3">
+                    <Button variant="secondary" size="sm" onClick={handleSaveOpportunity}>
+                      Save estimate
+                    </Button>
+                    {oppSaved && <span className="text-xs text-status-success">Saved</span>}
+                  </div>
+                )}
+              </Card>
               <Card title="Overall note">
                 <Textarea rows={5} value={note} disabled={submitted} onChange={(e) => setNote(e.target.value)} />
                 {!submitted && (
