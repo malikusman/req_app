@@ -37,9 +37,9 @@ export function companyNavItems(opts: CompanyNavOpts = {}): SidebarItem[] {
     { to: '/company/documents', label: 'Documents', icon: FileText, section: 'Set up' },
     { to: '/company/employees', label: 'Your team', icon: Users, section: 'Set up' },
 
-    { to: '/company/conversations', label: 'Conversations', icon: MessageSquare, section: 'Insights' },
-    { to: '/company/intelligence', label: 'What we found', icon: Search, section: 'Insights' },
     { to: '/company/reports', label: 'Reports', icon: FileBarChart, section: 'Insights' },
+    { to: '/company/intelligence', label: 'What we found', icon: Search, section: 'Insights' },
+    { to: '/company/conversations', label: 'Conversations', icon: MessageSquare, section: 'Insights' },
 
     { to: '/company/outreaches', label: 'Reviewer questions', icon: ShieldCheck, section: 'Working with you' },
     { to: '/company/reviewers', label: 'Your reviewer', icon: UserCircle, section: 'Working with you' },

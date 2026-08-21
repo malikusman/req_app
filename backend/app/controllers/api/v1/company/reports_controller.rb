@@ -76,6 +76,13 @@ module Api
           render json: result
         end
 
+        def revoke_share
+          report = policy_scope(Report).find(params[:id])
+          authorize report, :share?
+          Reports::ShareLinkService.revoke!(report: report)
+          render json: report_json(report.reload, detailed: true)
+        end
+
         private
 
         def expert_reviewers_for_company

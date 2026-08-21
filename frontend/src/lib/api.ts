@@ -991,6 +991,9 @@ export const api = {
       token
     ),
 
+  revokeReportShare: (token: string, id: number) =>
+    request<Report>(`/api/v1/company/reports/${id}/revoke_share`, { method: 'POST' }, token),
+
   downloadReport: async (token: string, id: number) => {
     const res = await fetch(`${API_URL}/api/v1/company/reports/${id}/download`, {
       headers: { Authorization: `Bearer ${token}` },

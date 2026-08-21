@@ -6,6 +6,11 @@ module Reports
       new(report: report, days: days).create!
     end
 
+    # Kill an active share link immediately — the public URL stops resolving.
+    def self.revoke!(report:)
+      report.update!(share_token: nil, share_token_expires_at: nil)
+    end
+
     def initialize(report:, days: 30)
       @report = report
       @days = days.to_i.positive? ? days.to_i : 30

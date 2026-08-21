@@ -208,6 +208,7 @@ Rails.application.routes.draw do
           member do
             get :download
             post :share
+            post :revoke_share
           end
         end
         get "settings/organization", to: "settings#organization"

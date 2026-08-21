@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api, type Report } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
 import { FileText } from 'lucide-react';
-import { PageHeader, Button, DataTable, Badge, EmptyState, Modal } from '../../components/ui';
+import { PageHeader, Button, DataTable, Badge, EmptyState, Modal, Select } from '../../components/ui';
 import { useToast } from '../../components/ui/ToastProvider';
 
 export function CompanyReports() {
@@ -19,6 +19,8 @@ export function CompanyReports() {
 
   // In-portal viewer
   const [viewer, setViewer] = useState<{ report: Report; url: string | null } | null>(null);
+  // Chosen expiry for new share links (backend defaults to 30 if unset).
+  const [shareDays, setShareDays] = useState('30');
 
   const load = useCallback(() => {
     if (!token) return;
@@ -59,16 +61,46 @@ export function CompanyReports() {
   const share = async (id: number) => {
     if (!token) return;
     try {
-      const res = await api.shareReport(token, id, 30);
+      const res = await api.shareReport(token, id, Number(shareDays));
       try {
         await navigator.clipboard.writeText(res.share_url);
-        toast({ variant: 'success', title: 'Link copied', description: 'Share URL copied to clipboard.' });
+        toast({
+          variant: 'success',
+          title: 'Link copied',
+          description: `Share URL copied — expires in ${shareDays} days.`,
+        });
       } catch {
         toast({ variant: 'success', title: 'Share link ready', description: res.share_url });
       }
       load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Share failed');
+    }
+  };
+
+  const revokeShare = async (id: number) => {
+    if (!token) return;
+    try {
+      await api.revokeReportShare(token, id);
+      toast({ variant: 'success', title: 'Link revoked', description: 'The share link no longer works.' });
+      load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not revoke the link');
+    }
+  };
+
+  const generate = async () => {
+    if (!token) return;
+    try {
+      await api.generateReport(token);
+      toast({
+        variant: 'success',
+        title: 'Generating a refreshed report',
+        description: "It goes through expert review before it's shared with you.",
+      });
+      load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not start generation');
     }
   };
 
@@ -89,11 +121,26 @@ export function CompanyReports() {
         title="Reports"
         description="Your discovery reports — view, download, or share."
         actions={
-          latestReady ? (
-            <Button size="sm" onClick={() => openViewer(latestReady)}>
-              Open latest report
-            </Button>
-          ) : undefined
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <span className="hidden text-xs text-muted-foreground sm:inline">Share links expire in</span>
+              <Select
+                aria-label="Share link expiry"
+                value={shareDays}
+                onChange={(e) => setShareDays(e.target.value)}
+                options={[
+                  { value: '7', label: '7 days' },
+                  { value: '30', label: '30 days' },
+                  { value: '90', label: '90 days' },
+                ]}
+              />
+            </div>
+            {latestReady && (
+              <Button size="sm" onClick={() => openViewer(latestReady)}>
+                Open latest report
+              </Button>
+            )}
+          </div>
         }
       />
 
@@ -114,10 +161,14 @@ export function CompanyReports() {
       )}
 
       {stale && !generating && (
-        <div className="rounded-button border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
-          Your intelligence has changed
-          {intelUpdatedAt && ` (updated ${new Date(intelUpdatedAt).toLocaleString()})`} since your latest report. Ask your
-          reviewer or platform team to generate a refreshed version.
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-button border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
+          <span>
+            Your intelligence has changed
+            {intelUpdatedAt && ` (updated ${new Date(intelUpdatedAt).toLocaleString()})`} since your latest report.
+          </span>
+          <Button size="sm" variant="secondary" onClick={generate}>
+            Generate refreshed report
+          </Button>
         </div>
       )}
 
@@ -146,16 +197,26 @@ export function CompanyReports() {
           },
           {
             key: 'views',
-            header: 'Share views',
-            render: (r) =>
-              r.access_count > 0 ? (
-                <span className="text-xs text-text-secondary">
-                  {r.access_count} views
-                  {r.last_accessed_at && ` · last ${new Date(r.last_accessed_at).toLocaleString()}`}
-                </span>
-              ) : (
-                '—'
-              ),
+            header: 'Share link',
+            render: (r) => (
+              <div className="text-xs text-text-secondary">
+                {r.share_active ? (
+                  <Badge variant="success">
+                    Active
+                    {r.share_token_expires_at &&
+                      ` · expires ${new Date(r.share_token_expires_at).toLocaleDateString()}`}
+                  </Badge>
+                ) : (
+                  <span className="text-muted-foreground">Not shared</span>
+                )}
+                {r.access_count > 0 && (
+                  <div className="mt-1">
+                    {r.access_count} view{r.access_count === 1 ? '' : 's'}
+                    {r.last_accessed_at && ` · last ${new Date(r.last_accessed_at).toLocaleDateString()}`}
+                  </div>
+                )}
+              </div>
+            ),
           },
           {
             key: 'actions',
@@ -170,8 +231,13 @@ export function CompanyReports() {
                     Download
                   </Button>
                   <Button variant="secondary" size="sm" onClick={() => share(r.id)}>
-                    Share
+                    {r.share_active ? 'Copy link' : 'Share'}
                   </Button>
+                  {r.share_active && (
+                    <Button variant="secondary" size="sm" onClick={() => revokeShare(r.id)}>
+                      Revoke
+                    </Button>
+                  )}
                 </div>
               ) : null,
           },
