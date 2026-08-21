@@ -81,6 +81,20 @@ module Api
           }
         end
 
+        # Lightweight autosave path: persists answers only, none of the heavy
+        # side effects update_questionnaire performs (sync, staleness, completion
+        # stamping, step tracking). Those still run on step transition / finish
+        # via update_questionnaire. v2 only — v1 keeps the single explicit-save path.
+        def update_questionnaire_answers
+          return head :not_found unless questionnaire_v2?
+
+          authorize :onboarding, :update_profile?
+          answers = (current_company.questionnaire_answers || {}).merge(questionnaire_answers_param)
+          current_company.update!(questionnaire_answers: answers)
+
+          render json: { ok: true }
+        end
+
         def complete
           authorize :onboarding, :complete?
           settings = (current_company.settings.presence || {}).merge("engagement_mode" => "hybrid")
