@@ -151,8 +151,11 @@ export function ReviewerReportWorkspace() {
     }
   }, [searchParams]);
 
+  // Co-reviewer chat only exists with ≥2 reviewers; polling it as a solo
+  // reviewer just 403s every 15s. Gate the poll on co-reviewer presence.
+  const hasCoReviewersForChat = (workspace?.co_reviewer_reviews?.length ?? 0) > 0;
   useEffect(() => {
-    if (!token || !companyId) return;
+    if (!token || !companyId || !hasCoReviewersForChat) return;
     const pollChat = () => {
       api
         .reviewerChatMessages(token, Number(companyId))
@@ -172,7 +175,7 @@ export function ReviewerReportWorkspace() {
     pollChat();
     const interval = setInterval(pollChat, 15000);
     return () => clearInterval(interval);
-  }, [token, companyId, chatOpen]);
+  }, [token, companyId, chatOpen, hasCoReviewersForChat]);
 
   const handleChatOpenChange = (open: boolean) => {
     setChatOpen(open);
@@ -934,23 +937,16 @@ export function ReviewerReportWorkspace() {
                 )}
               </Card>
               {token && companyId && reportId && (
-                <Card title="Edit the deliverable">
-                  <p className="mb-3 text-sm text-muted-foreground">
-                    This is where your expertise reaches the client — hide a section, rewrite it in your
-                    own words, or add a new one. Your edits replace the AI&apos;s version when the report is
-                    regenerated on approval.
-                  </p>
-                  <ReviewerSectionEditorPanel
-                    token={token}
-                    companyId={Number(companyId)}
-                    reportId={Number(reportId)}
-                    disabled={submitted}
-                    onPreview={() => {
-                      setPdfMode('draft');
-                      setPdfOpen(true);
-                    }}
-                  />
-                </Card>
+                <ReviewerSectionEditorPanel
+                  token={token}
+                  companyId={Number(companyId)}
+                  reportId={Number(reportId)}
+                  disabled={submitted}
+                  onPreview={() => {
+                    setPdfMode('draft');
+                    setPdfOpen(true);
+                  }}
+                />
               )}
               <Card title="Questions on this section">
                 <ReviewDiscussionThreadList

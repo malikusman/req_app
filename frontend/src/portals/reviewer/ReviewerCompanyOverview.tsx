@@ -32,6 +32,7 @@ import {
   Textarea,
   Tabs,
 } from '../../components/ui';
+import { label } from '../../lib/labels';
 import { ReviewerChatDrawer } from './workspace/ReviewerChatDrawer';
 import { AgenticIdeasPanel } from '../shared/AgenticIdeasPanel';
 
@@ -289,12 +290,12 @@ export function ReviewerCompanyOverview() {
                           {company.latest_report?.status.replace(/_/g, ' ')}
                         </span>
                       </p>
-                      <p className="m-0 mt-2 flex items-center gap-2 text-sm">
+                      <div className="mt-2 flex items-center gap-2 text-sm">
                         Your review:
                         <Badge variant={reviewSubmitted ? 'success' : 'warning'}>
-                          {company.my_review_status || 'pending'}
+                          {label('reviewStatus', company.my_review_status ?? 'pending')}
                         </Badge>
-                      </p>
+                      </div>
                     </div>
                     <Link to={`/reviewer/companies/${companyId}/reports/${reportId}/review`}>
                       <Button icon={<ClipboardCheck className="h-4 w-4" />}>
