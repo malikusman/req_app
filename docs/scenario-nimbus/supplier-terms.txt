@@ -1,0 +1,15 @@
+Nimbus Trading Co LLC — Key Supplier Terms Sheet (Internal)
+Document ID: NB-PROC-TERMS-2026-03 | Audience: Procurement + Finance AP
+
+Supplier A (Shenzhen electronics): Incoterms FOB Shenzhen; payment 30% advance, 70% on B/L copy;
+lead time 35-45 days. Frequent PI price drift vs quote (~5-8%).
+
+Supplier B (Istanbul appliances): Incoterms CIF Jebel Ali; payment LC at sight; lead time 20-30
+days. Reliable PIs but slow to send GRN-supporting docs.
+
+Supplier C (India housewares): Incoterms EXW; payment 50% advance; lead time 25-35 days. Often
+sends PI in a scanned image, not a structured PDF, so AP retypes everything.
+
+NOTES
+- Demurrage at Jebel Ali if customs clearance slips beyond 48 hours of free time.
+- Chargebacks and short-shipments are tracked in a separate Excel sheet, reconciled monthly.

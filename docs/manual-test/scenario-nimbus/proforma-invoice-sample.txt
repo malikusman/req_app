@@ -1,0 +1,13 @@
+PROFORMA INVOICE (sample) — Supplier A (Shenzhen electronics)
+PI No: SA-PI-2026-0417 | Date: 2026-03-05 | Against LPO: NB-LPO-2026-0391
+
+Line | Item                    | Qty | Unit (USD) | Amount (USD)
+1    | 4K Smart TV 55"         | 200 | 210.00     | 42,000.00
+2    | Soundbar 2.1            | 150 | 48.00      | 7,200.00
+3    | Wall mount bracket      | 200 | 6.50       | 1,300.00
+Subtotal: 50,500.00 | Freight (FOB): 0 | Total: USD 50,500.00
+
+Terms: FOB Shenzhen; 30% advance, 70% on B/L copy; lead time 40 days.
+NOTE (AP flag): LPO NB-LPO-2026-0391 priced the 55" TV at USD 205.00 (PI shows 210.00) — a
+2.4% price drift on 200 units (~USD 1,000). Quantity and soundbar price match. Requires
+procurement sign-off before advance payment.

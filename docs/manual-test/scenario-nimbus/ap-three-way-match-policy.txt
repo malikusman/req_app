@@ -1,0 +1,22 @@
+Nimbus Trading Co LLC — Accounts Payable Three-Way Match Policy
+Document ID: NB-FIN-AP-2026-02 | Effective: 2026-02-01 | Currency: AED | Owner: Finance Director
+
+PURPOSE
+Supplier invoices are paid only after a three-way match: purchase order (LPO) + goods receipt
+note (GRN) + supplier invoice. AP re-keys invoice lines from PDF invoices into the accounting
+system because Zoho Inventory and the accounting package are not integrated.
+
+CURRENT-STATE KPIs
+Metric                                | Target   | Current
+Invoice-to-pay cycle                  | 5 days   | 9-12 days
+Three-way match first-pass rate       | 95%      | ~72%
+Exception aging (unmatched > 5 days)  | < 10%    | ~30%
+Manual re-keying per invoice          | 0        | 100% (every invoice)
+
+FRICTIONS
+- AP clerks copy-paste invoice numbers, amounts, and vendor codes between the PDF, Excel, and the
+  accounting system daily — slow and error-prone.
+- When the GRN is missing (logistics hasn't posted receipt), the invoice parks in an Excel
+  exception tab and ages 5-14 days.
+- Month-end close is a crunch; accruals must hit the right period even when supplier paperwork
+  arrives late.

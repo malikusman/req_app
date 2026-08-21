@@ -1,0 +1,27 @@
+Nimbus Trading Co LLC — Procurement & Purchase Order SOP
+Document ID: NB-PROC-SOP-2026-01 | Effective: 2026-01-15 | Owner: Procurement Manager
+Sites: Dubai HQ, Jebel Ali warehouse
+
+1. PURPOSE
+Governs supplier selection, purchase orders (LPOs), and proforma invoice (PI) checking for
+imported goods (electronics, home appliances). When a sales order is confirmed, Procurement
+raises an LPO and requests a PI from the supplier before any payment.
+
+2. SYSTEMS OF RECORD
+- Zoho Inventory: stock levels, purchase orders (LPO numbers)
+- Excel PO tracker: interim worksheet owned by Procurement (copy-paste from Zoho exports)
+- Outlook: supplier quotes, PIs, and shipping confirmations by email
+- WhatsApp Business: supplier follow-ups and freight updates
+
+3. PI CHECKING (the core friction)
+A. Every PI is checked MANUALLY against: the LPO raised, the emailed quote (prices), and the
+   agreed Incoterms and payment terms. There is no automated match.
+B. Roughly 1 in 4 PIs has a mismatch (price, quantity, or shipping term) versus the LPO.
+C. A procurement officer spends about 20-30 minutes per PI reconciling by hand across Outlook,
+   Zoho, and the Excel tracker.
+D. Target PI-to-payment approval time is 2 days; actual is 4-6 days when a mismatch is found.
+
+4. APPROVAL THRESHOLDS (AED)
+0 - 10,000        | Procurement Officer   | Zoho + email        | 1 day
+10,001 - 50,000   | Procurement Manager   | Zoho + Excel + email | 2 business days
+50,001+           | Finance Director      | dual sign-off        | 4 business days

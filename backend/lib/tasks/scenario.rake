@@ -5,8 +5,14 @@ require_relative "../docs_only_scenario_runner"
 require_relative "../gulflink_scenario_runner"
 require_relative "../discovery_simulator"
 require_relative "../companion_scenario_runner"
+require_relative "../nimbus_scenario_runner"
 
 namespace :scenario do
+  desc "Nimbus Trading Co: full-app run — admin+client+reviewer, 4 employees (WhatsApp+web), docs, gated report, reviewer contribution, approval. CLEANUP=1 to purge sim employees."
+  task nimbus: :environment do
+    NimbusScenarioRunner.call(cleanup: ENV["CLEANUP"] == "1")
+  end
+
   desc "Provision scenario-corp and run evidence-to-action full-cycle checks. CLEANUP=1 to purge sim employee afterward."
   task full_cycle: :environment do
     ScenarioCycleRunner.call(cleanup: ENV["CLEANUP"] == "1")

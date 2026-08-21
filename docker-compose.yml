@@ -94,6 +94,7 @@ services:
       META_VERIFY_TOKEN: req_app_verify_token
       LANGGRAPH_URL: http://langgraph:8000
       LANGGRAPH_DOCS_READ_TIMEOUT: ${LANGGRAPH_DOCS_READ_TIMEOUT:-180}
+      LANGGRAPH_READ_TIMEOUT: ${LANGGRAPH_READ_TIMEOUT:-45}
       INTERNAL_API_TOKEN: dev-internal-token
       MINIO_ENDPOINT: http://minio:9000
       MINIO_ACCESS_KEY: minioadmin
@@ -142,6 +143,7 @@ services:
       JWT_SECRET: dev-jwt-secret-change-in-production
       LANGGRAPH_URL: http://langgraph:8000
       LANGGRAPH_DOCS_READ_TIMEOUT: ${LANGGRAPH_DOCS_READ_TIMEOUT:-180}
+      LANGGRAPH_READ_TIMEOUT: ${LANGGRAPH_READ_TIMEOUT:-45}
       INTERNAL_API_TOKEN: dev-internal-token
       MINIO_ENDPOINT: http://minio:9000
       MINIO_ACCESS_KEY: minioadmin
