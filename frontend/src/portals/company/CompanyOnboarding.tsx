@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { api } from '../../lib/api';
 import { useCompanyToken, useAuth } from '../../lib/auth';
 import { PageHeader, Card, Input, Button, Textarea, Skeleton, ProgressBar } from '../../components/ui';
@@ -15,6 +15,27 @@ import {
 } from '../../lib/questionnaireOptions';
 import { questionnaireSectionsFor } from '../../lib/questionnaireV2Config';
 import { cn } from '../../lib/cn';
+import { useQuestionnaireAutosave, type AutosaveStatus } from './useQuestionnaireAutosave';
+
+function AutosaveIndicator({ status, className }: { status: AutosaveStatus; className?: string }) {
+  return (
+    <div className={cn('flex h-5 items-center gap-1.5 text-xs', className)} aria-live="polite">
+      {status === 'saving' ? (
+        <>
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+          <span className="text-muted-foreground">Saving…</span>
+        </>
+      ) : status === 'saved' ? (
+        <>
+          <Check className="h-3.5 w-3.5 text-status-success" />
+          <span className="text-status-success">Saved</span>
+        </>
+      ) : status === 'error' ? (
+        <span className="text-status-error">Couldn't save</span>
+      ) : null}
+    </div>
+  );
+}
 
 function ChoiceButton({
   active,
@@ -301,12 +322,15 @@ export function CompanyOnboarding() {
     [sections, sectionId]
   );
 
+  const autosave = useQuestionnaireAutosave(token, answers, sections, questionnaireVersion >= 2);
+
   const setAnswer = (id: string, value: string | string[] | undefined) => {
     setAnswers((prev) => {
       const next = { ...prev, [id]: value };
       setPercent(computeCompletionPercent(next, sections));
       return next;
     });
+    autosave.notifyChange(id);
   };
 
   const changeSection = (nextSection: number) => {
@@ -316,6 +340,7 @@ export function CompanyOnboarding() {
 
   const persist = async (nextSection?: number, opts?: { markComplete?: boolean }) => {
     if (!token) return;
+    await autosave.flush();
     setSaving(true);
     setError('');
     try {
@@ -381,6 +406,7 @@ export function CompanyOnboarding() {
 
   const finish = async (markQuestionnaireComplete = false) => {
     if (!token) return;
+    await autosave.flush();
     setFinishing(true);
     setError('');
     try {
@@ -556,7 +582,7 @@ export function CompanyOnboarding() {
             </Button>
             {sectionId < sections.length ? (
               <Button loading={saving} onClick={() => persist(sectionId + 1)}>
-                Save & continue
+                {questionnaireVersion >= 2 ? 'Continue' : 'Save & continue'}
                 <ChevronRight className="ml-1 h-4 w-4" />
               </Button>
             ) : (
@@ -567,38 +593,46 @@ export function CompanyOnboarding() {
             <Button variant="secondary" loading={finishing} onClick={() => finish(false)}>
               Skip for now
             </Button>
+            {questionnaireVersion >= 2 ? (
+              <AutosaveIndicator status={autosave.status} className="ml-auto min-w-[96px] justify-end" />
+            ) : null}
           </div>
         </Card>
       </div>
 
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 p-3 backdrop-blur lg:hidden">
-        <div className="mx-auto flex max-w-5xl flex-wrap gap-2">
-          <Button
-            size="sm"
-            variant="secondary"
-            className="flex-1"
-            disabled={sectionId <= 1 || saving}
-            onClick={() => jumpTo(sectionId - 1)}
-          >
-            Back
-          </Button>
-          {sectionId < sections.length ? (
-            <Button size="sm" className="flex-[2]" loading={saving} onClick={() => persist(sectionId + 1)}>
-              Save & continue
-            </Button>
-          ) : (
+        <div className="mx-auto max-w-5xl">
+          {questionnaireVersion >= 2 ? (
+            <AutosaveIndicator status={autosave.status} className="mb-1.5 w-full justify-end" />
+          ) : null}
+          <div className="flex flex-wrap gap-2">
             <Button
               size="sm"
-              className="flex-[2]"
-              loading={finishing || saving}
-              onClick={() => persist(sections.length, { markComplete: true })}
+              variant="secondary"
+              className="flex-1"
+              disabled={sectionId <= 1 || saving}
+              onClick={() => jumpTo(sectionId - 1)}
             >
-              Finish
+              Back
             </Button>
-          )}
-          <Button size="sm" variant="secondary" loading={finishing} onClick={() => finish(false)}>
-            Skip
-          </Button>
+            {sectionId < sections.length ? (
+              <Button size="sm" className="flex-[2]" loading={saving} onClick={() => persist(sectionId + 1)}>
+                {questionnaireVersion >= 2 ? 'Continue' : 'Save & continue'}
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                className="flex-[2]"
+                loading={finishing || saving}
+                onClick={() => persist(sections.length, { markComplete: true })}
+              >
+                Finish
+              </Button>
+            )}
+            <Button size="sm" variant="secondary" loading={finishing} onClick={() => finish(false)}>
+              Skip
+            </Button>
+          </div>
         </div>
       </div>
     </div>
