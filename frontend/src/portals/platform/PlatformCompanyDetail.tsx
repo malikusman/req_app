@@ -743,7 +743,7 @@ export function PlatformCompanyDetail() {
                 header: 'Status',
                 render: (r) => (
                   <Badge variant={r.status === 'ready' ? 'success' : r.status === 'failed' ? 'error' : 'info'}>
-                    {r.status}
+                    {label('reportStatus', r.status)}
                   </Badge>
                 ),
               },

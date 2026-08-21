@@ -22,6 +22,10 @@ module Dashboard
     end
 
     def reports_awaiting_payload
+      @reports_awaiting_payload ||= build_reports_awaiting_payload
+    end
+
+    def build_reports_awaiting_payload
       # Only the latest awaiting version per company — a superseded version left
       # un-approved shouldn't clutter the queue.
       latest = Report.awaiting_platform_approval
@@ -72,7 +76,9 @@ module Dashboard
         },
         reports: {
           ready: Report.where(status: "ready").count,
-          awaiting_approval: Report.awaiting_platform_approval.count,
+          # The actionable queue is deduped to the latest awaiting version per
+          # company — the stat must match the queue / nav badge, not the raw scope.
+          awaiting_approval: reports_awaiting_payload.size,
           generating: Report.where(status: %w[queued generating]).count,
           failed: Report.where(status: "failed").count
         },
