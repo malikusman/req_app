@@ -2,6 +2,17 @@ const API_URL = import.meta.env.VITE_API_URL || '';
 
 export type ApiError = { error?: string; errors?: string[] };
 
+/** Same as Error for existing callers (only ever read `.message`), plus the HTTP
+ * status code for callers that need to distinguish e.g. auth failures (401/403). */
+export class ApiRequestError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiRequestError';
+    this.status = status;
+  }
+}
+
 async function request<T>(
   path: string,
   options: RequestInit = {},
@@ -18,7 +29,7 @@ async function request<T>(
 
   if (!res.ok) {
     const err = (data as ApiError).error || (data as ApiError).errors?.join(', ') || res.statusText;
-    throw new Error(err);
+    throw new ApiRequestError(err, res.status);
   }
   return data as T;
 }
@@ -262,6 +273,15 @@ export const api = {
       completion_percent: number;
       section_status?: Record<string, { touched: boolean; complete: boolean }>;
     }>('/api/v1/company/onboarding/questionnaire', { method: 'PATCH', body: JSON.stringify(payload) }, token),
+
+  // Lightweight v2-only autosave path: persists the given delta only, none of the
+  // heavy side effects updateOnboardingQuestionnaire triggers.
+  updateQuestionnaireAnswers: (token: string, delta: Record<string, string | string[] | undefined>) =>
+    request<{ ok: boolean }>(
+      '/api/v1/company/onboarding/questionnaire/answers',
+      { method: 'PATCH', body: JSON.stringify({ questionnaire_answers: delta }) },
+      token
+    ),
 
   completeOnboarding: (token: string, payload?: { mark_questionnaire_complete?: boolean }) =>
     request<{ ok: boolean; redirect_to?: string; completion_percent?: number }>(
