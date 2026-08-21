@@ -29,10 +29,6 @@ import {
   type WorkspaceStepId,
 } from './workspaceSteps';
 
-function stepIndex(step: WorkspaceStepId) {
-  return WORKSPACE_STEPS.findIndex((s) => s.id === step);
-}
-
 function sectionReviewed(states: { section_key: string; status: string }[], key: string) {
   const status = states.find((s) => s.section_key === key)?.status || 'pending';
   return status === 'approved' || status === 'needs_info';
@@ -126,7 +122,9 @@ export function ReviewerReportWorkspace() {
       setOppBasis(data.review.opportunity_basis || '');
       noteSeeded.current = true;
     }
-  }, [token, companyId, reportId, setNote]);
+    // Setters are listed so the deps match what the compiler infers for the
+    // seeding branch; they are stable, so this never re-creates `load`.
+  }, [token, companyId, reportId, setNote, setOppAmount, setOppUnit, setOppBasis]);
 
   useEffect(() => {
     if (!token || !companyId || !reportId) return;
@@ -258,7 +256,6 @@ export function ReviewerReportWorkspace() {
     return () => {
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, companyId, reportId, workspace?.report.storage_key]);
 
   // Live "with your edits" render — refetched whenever the drawer opens so it
@@ -487,7 +484,6 @@ export function ReviewerReportWorkspace() {
     return <p className="text-destructive">{error || 'Workspace not found'}</p>;
   }
 
-  const currentStepIndex = stepIndex(activeStep);
   // Real, action-based progress the reviewer can read from any step — replaces
   // the "Step N of 6" wayfinding, which said nothing about how much work is left.
   const reviewedCount = reviewedSectionCount(workspace.review.section_states);

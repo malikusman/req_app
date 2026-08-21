@@ -49,7 +49,6 @@ export function CompanyIntelligence() {
   const [recs, setRecs] = useState<Recommendation[]>([]);
   const [ideas, setIdeas] = useState<AgenticIdea[]>([]);
   const [events, setEvents] = useState<TimelineEvent[]>([]);
-  const [readiness, setReadiness] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
 
@@ -67,15 +66,13 @@ export function CompanyIntelligence() {
       api.companyRecommendations(token).catch(() => ({ recommendations: [] as Recommendation[] })),
       api.companyAgenticIdeas(token).catch(() => ({ agentic_ideas: [] as AgenticIdea[] })),
       api.intelligenceTimeline(token).catch(() => ({ events: [] as TimelineEvent[] })),
-      api.companyDashboard(token).catch(() => null),
     ])
-      .then(([sig, pat, rec, idea, tl, dash]) => {
+      .then(([sig, pat, rec, idea, tl]) => {
         setSignals(sig.signals);
         setPatterns(pat.patterns);
         setRecs(rec.recommendations);
         setIdeas(idea.agentic_ideas);
         setEvents(tl.events);
-        if (dash) setReadiness(Math.round(dash.report_readiness_score ?? 0));
       })
       .catch(() => setLoadError('Could not load intelligence.'))
       .finally(() => setLoading(false));
