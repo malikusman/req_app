@@ -4,6 +4,7 @@ import { Check, ChevronRight, Circle, FileText, MessageSquare } from 'lucide-rea
 import { api, type ReviewerReportWorkspacePayload } from '../../../lib/api';
 import { useAuth, useReviewerToken } from '../../../lib/auth';
 import { Badge, Button, Card, ConfirmDialog, EmptyState, Input, PageHeader, Select, Skeleton, StatCard, Textarea } from '../../../components/ui';
+import { label } from '../../../lib/labels';
 import { AnimatedNumber } from '../../../components/motion';
 import { cn } from '../../../lib/cn';
 import { ReviewerAnnotationRail } from './ReviewerAnnotationRail';
@@ -518,7 +519,7 @@ export function ReviewerReportWorkspace() {
                 </Badge>
               )}
               <Badge variant={submitted ? 'success' : 'warning'} className="hidden sm:inline-flex">
-                {workspace.review.status}
+                {label('reviewStatus', workspace.review.status)}
               </Badge>
               {hasCoReviewers && (
                 <Button

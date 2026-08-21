@@ -35,11 +35,15 @@ export function CompanyLayout() {
         }));
       })
       .catch(() => undefined);
+    // Badge on the "Reviewer questions" item must match its destination
+    // (/company/outreaches): count outreaches actually waiting on the admin.
     api
-      .discoveryQuestions(token)
+      .companyOutreaches(token)
       .then((d) => {
-        const unanswered = (d.questions || []).filter((q) => !q.feedback).length;
-        setNavCounts((prev) => ({ ...prev, reviewerQuestions: unanswered }));
+        const needsInput = (d.outreaches || []).filter(
+          (o) => o.status === 'pending_admin_approval' || (o.recipient_type === 'company_admin' && o.status === 'sent')
+        ).length;
+        setNavCounts((prev) => ({ ...prev, reviewerQuestions: needsInput }));
       })
       .catch(() => undefined);
   }, [token]);

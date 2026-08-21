@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   api,
   type AgenticIdea,
@@ -12,7 +12,6 @@ import { useCompanyToken } from '../../lib/auth';
 import {
   PageHeader,
   Card,
-  StatCard,
   DataTable,
   Badge,
   StrengthBar,
@@ -21,6 +20,7 @@ import {
   Skeleton,
   Timeline,
 } from '../../components/ui';
+import { label } from '../../lib/labels';
 import { useToast } from '../../components/ui/ToastProvider';
 import { FileBarChart, Radio, Shapes, Lightbulb } from 'lucide-react';
 
@@ -154,21 +154,6 @@ export function CompanyIntelligence() {
         </div>
       ) : (
         <>
-          {(tab === 'overview' || tab === 'signals') && (
-            <div className={tab === 'overview' ? 'space-y-6' : 'hidden'}>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <StatCard label="Readiness" value={`${readiness}%`} icon={<FileBarChart className="h-5 w-5 text-primary" />} />
-                <StatCard label="Frictions" value={signals.length} icon={<Radio className="h-5 w-5 text-primary" />} />
-                <StatCard label="Themes" value={patterns.length} icon={<Shapes className="h-5 w-5 text-primary" />} />
-                <StatCard
-                  label="Recommendations"
-                  value={recs.length + ideas.length}
-                  icon={<Lightbulb className="h-5 w-5 text-primary" />}
-                />
-              </div>
-            </div>
-          )}
-
           {(tab === 'overview' || tab === 'signals') && (
             <section id="signals" className="space-y-3">
               {tab === 'overview' ? (
@@ -305,7 +290,7 @@ export function CompanyIntelligence() {
                   <Card key={r.id}>
                     <div className="mb-2 flex items-center gap-2">
                       <h3 className="m-0 font-medium text-text-primary">{r.title}</h3>
-                      <Badge variant={r.priority === 'high' ? 'warning' : 'info'}>{r.priority}</Badge>
+                      <Badge variant={r.priority === 'high' ? 'warning' : 'info'}>{label('priority', r.priority)}</Badge>
                     </div>
                     {r.description && <p className="text-sm text-text-secondary">{r.description}</p>}
                     {tab !== 'overview' && (
@@ -359,14 +344,6 @@ export function CompanyIntelligence() {
             </section>
           )}
 
-          {tab === 'overview' && (
-            <p className="text-sm text-muted-foreground">
-              Need billing or WhatsApp tools?{' '}
-              <Link to="/company/settings" className="font-medium text-primary hover:underline">
-                Open Settings
-              </Link>
-            </p>
-          )}
         </>
       )}
     </div>

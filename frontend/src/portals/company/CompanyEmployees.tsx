@@ -14,6 +14,7 @@ import {
   EmptyState,
   Modal,
 } from '../../components/ui';
+import { label } from '../../lib/labels';
 import { useToast } from '../../components/ui/ToastProvider';
 import { EmployeeDigestModal } from './EmployeeDigestModal';
 
@@ -319,14 +320,14 @@ export function CompanyEmployees() {
           {
             key: 'status',
             header: 'Status',
-            render: (e) => <Badge variant={participationBadge(e.participation_status)}>{e.participation_status}</Badge>,
+            render: (e) => <Badge variant={participationBadge(e.participation_status)}>{label('participation', e.participation_status)}</Badge>,
           },
           {
             key: 'onboarding',
             header: 'Onboarding',
             render: (e) => (
               <span className="text-xs text-text-secondary">
-                {e.onboarding_step}
+                {label('onboardingStep', e.onboarding_step)}
                 {e.preferred_language ? ` · ${e.preferred_language}` : ''}
               </span>
             ),

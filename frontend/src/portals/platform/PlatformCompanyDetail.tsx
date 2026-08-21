@@ -35,6 +35,7 @@ import {
   ParticipationSummary,
   DiscoveryProvenancePanel,
 } from '../../components/ui';
+import { label } from '../../lib/labels';
 import { PlatformCompanyReviewers } from './PlatformCompanyReviewers';
 import { ConversationMediaCard, ConversationMediaList } from '../../components/ConversationMediaCard';
 import { CompanyStackPanel } from './CompanyStackPanel';
@@ -749,7 +750,7 @@ export function PlatformCompanyDetail() {
               {
                 key: 'review',
                 header: 'Review',
-                render: (r) => String(r.review_workflow_status || '—'),
+                render: (r) => <Badge variant="neutral">{label('reviewWorkflow', r.review_workflow_status)}</Badge>,
               },
               {
                 key: 'notes',

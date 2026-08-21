@@ -4,6 +4,7 @@ import { api, type Report } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
 import { FileText } from 'lucide-react';
 import { PageHeader, Button, DataTable, Badge, EmptyState, Modal, Select } from '../../components/ui';
+import { label } from '../../lib/labels';
 import { useToast } from '../../components/ui/ToastProvider';
 
 export function CompanyReports() {
@@ -181,7 +182,7 @@ export function CompanyReports() {
             header: 'Status',
             render: (r) => (
               <Badge variant={r.status === 'ready' ? 'success' : r.status === 'failed' ? 'error' : 'info'}>
-                {r.status}
+                {label('reportStatus', r.status)}
               </Badge>
             ),
           },

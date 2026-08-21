@@ -3,6 +3,7 @@ import { api } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
 import { MessageSquare } from 'lucide-react';
 import { PageHeader, Card, DataTable, Badge, Button, Textarea, EmptyState, Modal } from '../../components/ui';
+import { label } from '../../lib/labels';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/shadcn/sheet';
 import { useMediaQuery } from '../../lib/useMediaQuery';
 
@@ -179,7 +180,7 @@ export function CompanyOutreaches() {
             {
               key: 'status',
               header: 'Status',
-              render: (o: Outreach) => <Badge variant={statusVariant(o.status)}>{o.status}</Badge>,
+              render: (o: Outreach) => <Badge variant={statusVariant(o.status)}>{label("outreachStatus", o.status)}</Badge>,
             },
             {
               key: 'actions',
@@ -218,7 +219,7 @@ export function CompanyOutreaches() {
             <div className="space-y-4 text-sm">
               <div>
                 <div className="mb-1 flex items-center gap-2">
-                  <Badge variant={statusVariant(selected.status)}>{selected.status}</Badge>
+                  <Badge variant={statusVariant(selected.status)}>{label("outreachStatus", selected.status)}</Badge>
                   <span className="text-xs text-text-secondary">{selected.channel}</span>
                 </div>
                 <div className="font-medium">{selected.reviewer_name || 'Reviewer'}</div>
@@ -287,7 +288,7 @@ export function CompanyOutreaches() {
               <div className="mt-4 space-y-4 text-sm">
                 <div>
                   <div className="mb-1 flex flex-wrap items-center gap-2">
-                    <Badge variant={statusVariant(selected.status)}>{selected.status}</Badge>
+                    <Badge variant={statusVariant(selected.status)}>{label("outreachStatus", selected.status)}</Badge>
                     <span className="text-xs text-text-secondary">{selected.channel}</span>
                   </div>
                   <div className="font-medium">{selected.reviewer_name || 'Reviewer'}</div>

@@ -75,12 +75,7 @@ function StatusChip({ tone, label }: { tone: 'ready' | 'progress' | 'setup'; lab
           : 'border-accent/40 bg-accent-muted text-accent-hover'
       )}
     >
-      {live && (
-        <span className="relative flex h-1.5 w-1.5">
-          <span className="absolute inline-flex h-full w-full rounded-full bg-primary opacity-60 motion-safe:animate-ping" />
-          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
-        </span>
-      )}
+      {live && <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />}
       {label}
     </span>
   );

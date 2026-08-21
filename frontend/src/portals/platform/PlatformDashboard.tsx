@@ -285,12 +285,12 @@ export function PlatformDashboard() {
         <section className="space-y-3">
           <h2 className="m-0 font-display text-lg font-semibold text-foreground">At a glance</h2>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-            <StatCard label="Total companies" value={monitoring.companies.total} icon={<Building2 className="h-5 w-5 text-accent" />} />
-            <StatCard label="Active trials" value={activeTrials} icon={<Clock className="h-5 w-5 text-accent" />} />
+            <StatCard label="Total companies" value={monitoring.companies.total} to="/platform/companies" icon={<Building2 className="h-5 w-5 text-accent" />} />
+            <StatCard label="Active trials" value={activeTrials} to="/platform/operations?tab=trials" icon={<Clock className="h-5 w-5 text-accent" />} />
             <StatCard label="Discovery (24h)" value={monitoring.discovery.conversations_last_24h} icon={<MessageSquare className="h-5 w-5 text-accent" />} />
-            <StatCard label="Awaiting approval" value={awaitingApprovalCount} icon={<FileCheck2 className="h-5 w-5 text-accent" />} />
+            <StatCard label="Awaiting approval" value={awaitingApprovalCount} to="/platform/approvals" icon={<FileCheck2 className="h-5 w-5 text-accent" />} />
             <StatCard label="Avg readiness" value={`${monitoring.companies.avg_readiness}%`} icon={<Users className="h-5 w-5 text-accent" />} />
-            <StatCard label="System" value={systemHealthLabel} icon={<Activity className="h-5 w-5 text-accent" />} />
+            <StatCard label="System" value={systemHealthLabel} to="/platform/operations?tab=system" icon={<Activity className="h-5 w-5 text-accent" />} />
           </div>
         </section>
       )}
