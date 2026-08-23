@@ -9,6 +9,9 @@ import { useMediaQuery } from '../../lib/useMediaQuery';
 import {
   computeCompletionPercent,
   fieldIsVisible,
+  isOtherSelected,
+  otherFieldKey,
+  OTHER_TEXT_MAX_LENGTH,
   sectionTouched,
   type FieldTier,
   type QuestionnaireAnswers,
@@ -202,7 +205,10 @@ function FieldEditor({
       <SearchableSelectField
         field={field}
         value={typeof raw === 'string' ? raw : ''}
-        onChange={(v) => setAnswer(field.id, v)}
+        onChange={(v) => {
+          setAnswer(field.id, v);
+          if (field.withOther && !isOtherSelected(field, v)) setAnswer(otherFieldKey(field.id), undefined);
+        }}
         isNarrow={isNarrow}
       />
     );
@@ -229,15 +235,15 @@ function FieldEditor({
     // multi_select
     const selected = Array.isArray(raw) ? raw : [];
     const toggle = (opt: string) => {
+      let next: string[];
       if (selected.includes(opt)) {
-        setAnswer(
-          field.id,
-          selected.filter((s) => s !== opt)
-        );
-        return;
+        next = selected.filter((s) => s !== opt);
+      } else {
+        if (field.maxSelections && selected.length >= field.maxSelections) return;
+        next = [...selected, opt];
       }
-      if (field.maxSelections && selected.length >= field.maxSelections) return;
-      setAnswer(field.id, [...selected, opt]);
+      setAnswer(field.id, next);
+      if (field.withOther && !isOtherSelected(field, next)) setAnswer(otherFieldKey(field.id), undefined);
     };
 
     const hasGroups = field.groups && field.groups.length > 0;
@@ -278,11 +284,22 @@ function FieldEditor({
     );
   }
 
-  if (field.helper) {
+  const otherInput =
+    field.withOther && isOtherSelected(field, raw) ? (
+      <Input
+        label="Please specify"
+        value={typeof answers[otherFieldKey(field.id)] === 'string' ? (answers[otherFieldKey(field.id)] as string) : ''}
+        onChange={(e) => setAnswer(otherFieldKey(field.id), e.target.value)}
+        maxLength={OTHER_TEXT_MAX_LENGTH}
+      />
+    ) : null;
+
+  if (field.helper || otherInput) {
     return (
       <div className="space-y-1">
         {content}
-        <p className="text-xs text-muted-foreground">{field.helper}</p>
+        {field.helper ? <p className="text-xs text-muted-foreground">{field.helper}</p> : null}
+        {otherInput}
       </div>
     );
   }

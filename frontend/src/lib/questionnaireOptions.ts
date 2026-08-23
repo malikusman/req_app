@@ -36,6 +36,8 @@ export type QuestionnaireField = {
   tier?: FieldTier;
   /** Show only when answers[key] satisfies the condition */
   showWhen?: FieldCondition;
+  /** Reveals a "Please specify" text input, stored under `${id}_other`, when an "Other"-worded option is selected */
+  withOther?: true;
 };
 
 export type QuestionnaireSection = {
@@ -644,6 +646,25 @@ export function computeCompletionPercent(
     return Boolean(v && String(v).trim());
   }).length;
   return Math.round((answered / fields.length) * 100);
+}
+
+export const OTHER_TEXT_MAX_LENGTH = 120;
+
+export function otherFieldKey(id: string): string {
+  return `${id}_other`;
+}
+
+// An option value counts as an "Other" trigger if it's exactly "Other" or starts with
+// "Other " (covers q10b's two differently-worded options, "Other ISO certification" and
+// "Other formal certification / standard", which share a single sidecar key).
+function isOtherOption(value: string): boolean {
+  return value === 'Other' || value.startsWith('Other ');
+}
+
+export function isOtherSelected(field: QuestionnaireField, value: string | string[] | undefined): boolean {
+  if (!field.withOther) return false;
+  const selected = Array.isArray(value) ? value : typeof value === 'string' && value ? [value] : [];
+  return selected.some(isOtherOption);
 }
 
 export function sectionTouched(

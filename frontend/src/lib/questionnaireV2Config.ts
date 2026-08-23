@@ -47,6 +47,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
               'Other',
             ],
             tier: 'essential',
+            withOther: true,
           },
           {
             id: 'q02_business_description',
@@ -75,6 +76,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
             label: 'Who does your company primarily sell to or serve?',
             options: ['Businesses', 'Consumers', 'Government / public sector', 'Other'],
             tier: 'essential',
+            withOther: true,
           },
           {
             id: 'q06_operating_sites',
@@ -118,6 +120,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
               'Other',
             ],
             tier: 'essential',
+            withOther: true,
           },
           {
             id: 'q08_department_headcount',
@@ -163,6 +166,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
               },
             ],
             tier: 'essential',
+            withOther: true,
           },
         ],
       },
@@ -187,6 +191,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
             type: 'multi_select',
             label: 'What types of process documentation are available?',
             tier: 'conditional',
+            withOther: true,
             options: [
               'SOPs',
               'ISO procedures / work instructions',
@@ -207,6 +212,10 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
             type: 'multi_select',
             label: 'Does your organisation hold any formal management-system certifications or process standards?',
             tier: 'optional',
+            // Two differently-worded "Other" options ("Other ISO certification",
+            // "Other formal certification / standard") share one sidecar key —
+            // decided once here, not per-option.
+            withOther: true,
             options: [
               'ISO 9001',
               'ISO 14001',
@@ -262,6 +271,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
               { label: '', options: ['Not sure'] },
             ],
             tier: 'essential',
+            withOther: true,
           },
           {
             id: 'q12_department_handoffs',
@@ -366,12 +376,14 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
               { label: '', options: ['Other', 'Not sure'] },
             ],
             tier: 'essential',
+            withOther: true,
           },
           {
             id: 'q21_high_volume_activity',
             type: 'multi_select',
             label: 'Are there activities your organisation performs repeatedly or in particularly high volumes?',
             tier: 'recommended',
+            withOther: true,
             options: [
               'Customer enquiries',
               'emails / messages',
@@ -430,6 +442,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
               'Not sure',
             ],
             tier: 'essential',
+            withOther: true,
           },
           {
             id: 'q17_information_processing',
@@ -455,6 +468,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
               'Not sure',
             ],
             tier: 'essential',
+            withOther: true,
           },
         ],
       },
@@ -485,6 +499,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
               'Not sure',
             ],
             tier: 'essential',
+            withOther: true,
           },
           {
             id: 'q19_monitoring_activity',
@@ -510,6 +525,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
               'Not sure',
             ],
             tier: 'essential',
+            withOther: true,
           },
           {
             id: 'q20_content_research',
@@ -517,6 +533,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
             label:
               'Do employees spend meaningful time on any of the following content, research or knowledge activities?',
             tier: 'recommended',
+            withOther: true,
             options: [
               'Preparing presentations',
               'writing reports',
@@ -578,6 +595,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
               'Not sure',
             ],
             tier: 'essential',
+            withOther: true,
           },
         ],
       },
@@ -602,6 +620,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
             type: 'multi_select',
             label: 'Where do employees manually copy, move, upload or re-enter information?',
             tier: 'recommended',
+            withOther: true,
             options: [
               'From emails into business systems',
               'from Excel into business systems',
@@ -641,6 +660,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
               'Not sure',
             ],
             tier: 'essential',
+            withOther: true,
           },
           {
             id: 'q27_information_findability',
@@ -661,6 +681,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
             type: 'multi_select',
             label: 'How are management or operational reports typically prepared?',
             tier: 'recommended',
+            withOther: true,
             options: [
               'Mostly automated dashboards',
               'generated automatically from business systems',
@@ -754,6 +775,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
               'Not sure',
             ],
             tier: 'essential',
+            withOther: true,
           },
         ],
       },
@@ -802,12 +824,14 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
               'Not sure',
             ],
             tier: 'essential',
+            withOther: true,
           },
           {
             id: 'q32_error_delay_areas',
             type: 'multi_select',
             label: 'Where do errors, delays or inconsistencies occur most often?',
             tier: 'recommended',
+            withOther: true,
             options: [
               'Sales / quotations',
               'customer orders',
@@ -887,6 +911,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
               { label: 'Other', options: ['we currently use none of these', 'Other', 'Not sure'] },
             ],
             tier: 'essential',
+            withOther: true,
           },
           {
             id: 'q36_adoption_readiness',
@@ -969,6 +994,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
               'Not sure',
             ],
             tier: 'essential',
+            withOther: true,
           },
           {
             id: 'q40_desired_outcomes',
@@ -1009,6 +1035,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
               },
             ],
             tier: 'essential',
+            withOther: true,
           },
           {
             id: 'q41_specific_investigation',
