@@ -1,4 +1,4 @@
-import { type TextareaHTMLAttributes, useId } from 'react';
+import { type TextareaHTMLAttributes, type ReactNode, useId } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../lib/cn';
 
@@ -9,7 +9,7 @@ export function Textarea({
   id: idProp,
   ...props
 }: TextareaHTMLAttributes<HTMLTextAreaElement> & {
-  label?: string;
+  label?: ReactNode;
   error?: string;
   className?: string;
 }) {

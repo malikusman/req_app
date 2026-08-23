@@ -10,6 +10,7 @@ import {
   computeCompletionPercent,
   fieldIsVisible,
   sectionTouched,
+  type FieldTier,
   type QuestionnaireAnswers,
   type QuestionnaireField,
 } from '../../lib/questionnaireOptions';
@@ -35,6 +36,12 @@ function AutosaveIndicator({ status, className }: { status: AutosaveStatus; clas
       ) : null}
     </div>
   );
+}
+
+function TierTag({ tier }: { tier?: FieldTier }) {
+  if (tier === 'conditional') return null;
+  const label = tier === 'recommended' ? 'Recommended' : tier === 'optional' ? 'Optional' : 'Essential';
+  return <span className="ml-1.5 text-xs font-normal text-muted-foreground">{label}</span>;
 }
 
 function ChoiceButton({
@@ -109,7 +116,10 @@ function SearchableSelectField({
   if (isNarrow) {
     return (
       <div className="space-y-2">
-        <p className="m-0 text-sm font-medium text-foreground">{field.label}</p>
+        <p className="m-0 text-sm font-medium text-foreground">
+          {field.label}
+          <TierTag tier={field.tier} />
+        </p>
         <Button type="button" variant="secondary" className="w-full justify-between" onClick={() => setOpen(true)}>
           <span className="truncate">{value || 'Select…'}</span>
           <ChevronRight className="h-4 w-4 shrink-0 opacity-50" />
@@ -128,7 +138,10 @@ function SearchableSelectField({
 
   return (
     <div className="space-y-2">
-      <p className="m-0 text-sm font-medium text-foreground">{field.label}</p>
+      <p className="m-0 text-sm font-medium text-foreground">
+        {field.label}
+        <TierTag tier={field.tier} />
+      </p>
       <Button type="button" variant="secondary" className="w-full justify-between" onClick={() => setOpen(!open)}>
         <span className="truncate">{value || 'Select…'}</span>
       </Button>
@@ -156,7 +169,12 @@ function FieldEditor({
   if (field.type === 'text') {
     content = (
       <Input
-        label={field.label}
+        label={
+          <>
+            {field.label}
+            <TierTag tier={field.tier} />
+          </>
+        }
         value={typeof raw === 'string' ? raw : ''}
         onChange={(e) => setAnswer(field.id, e.target.value)}
         placeholder={field.placeholder}
@@ -165,7 +183,12 @@ function FieldEditor({
   } else if (field.type === 'textarea') {
     content = (
       <Textarea
-        label={field.label}
+        label={
+          <>
+            {field.label}
+            <TierTag tier={field.tier} />
+          </>
+        }
         rows={4}
         value={typeof raw === 'string' ? raw : ''}
         onChange={(e) => setAnswer(field.id, e.target.value)}
@@ -185,7 +208,10 @@ function FieldEditor({
     const value = typeof raw === 'string' ? raw : '';
     content = (
       <fieldset className="space-y-2">
-        <legend className="text-sm font-medium text-foreground">{field.label}</legend>
+        <legend className="text-sm font-medium text-foreground">
+          {field.label}
+          <TierTag tier={field.tier} />
+        </legend>
         <div className="grid gap-2 sm:grid-cols-2">
           {(field.options || []).map((opt) => (
             <ChoiceButton key={opt} active={value === opt} onClick={() => setAnswer(field.id, opt)}>
@@ -216,7 +242,10 @@ function FieldEditor({
 
     content = (
       <fieldset className="space-y-2">
-        <legend className="text-sm font-medium text-foreground">{field.label}</legend>
+        <legend className="text-sm font-medium text-foreground">
+          {field.label}
+          <TierTag tier={field.tier} />
+        </legend>
         {hasGroups ? (
           <div className="space-y-3">
             {field.groups!.map((group, gi) => (

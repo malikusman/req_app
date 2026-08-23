@@ -1,4 +1,4 @@
-import { type InputHTMLAttributes, useId } from 'react';
+import { type InputHTMLAttributes, type ReactNode, useId } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Input as ShadcnInput } from '@/components/shadcn/input';
 import { Label } from '@/components/shadcn/label';
@@ -11,7 +11,7 @@ export function Input({
   id: idProp,
   ...props
 }: InputHTMLAttributes<HTMLInputElement> & {
-  label?: string;
+  label?: ReactNode;
   error?: string;
   className?: string;
 }) {
