@@ -164,10 +164,14 @@ export function useQuestionnaireAutosave(
 
   const notifyChange = (id: string) => {
     if (!enabledRef.current) return;
+    // `field` is undefined for ids deliberately kept out of fieldsById — the "Other"
+    // sidecar text keys (<field_id>_other). Those aren't static and aren't one of the
+    // IMMEDIATE_TYPES, so they fall through to the debounced path below, matching the
+    // set's own stated intent ("any type not in this set is debounced").
     const field = fieldsById.get(id);
-    if (!field || field.type === 'static') return;
+    if (field?.type === 'static') return;
 
-    if (IMMEDIATE_TYPES.has(field.type)) {
+    if (field && IMMEDIATE_TYPES.has(field.type)) {
       triggerFlush();
       return;
     }
