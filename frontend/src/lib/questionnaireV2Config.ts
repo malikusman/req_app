@@ -46,36 +46,42 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
               'Government & Public Sector',
               'Other',
             ],
+            tier: 'essential',
           },
           {
             id: 'q02_business_description',
             type: 'textarea',
             label: 'Briefly describe your business. What are your main products or services, and who are your main customers?',
             helper: 'A few sentences are enough. 100–1,500 chars.',
+            tier: 'essential',
           },
           {
             id: 'q03_employee_count',
             type: 'single_select',
             label: 'How many employees does your company have?',
             options: ['1–10', '11–25', '26–50', '51–100', '101–250', '251–500', '501–1,000', '1,000+'],
+            tier: 'essential',
           },
           {
             id: 'q04_headquarters_country',
             type: 'searchable_select',
             label: 'Where is your company headquartered?',
             options: COUNTRIES,
+            tier: 'essential',
           },
           {
             id: 'q05_customer_types',
             type: 'multi_select',
             label: 'Who does your company primarily sell to or serve?',
             options: ['Businesses', 'Consumers', 'Government / public sector', 'Other'],
+            tier: 'essential',
           },
           {
             id: 'q06_operating_sites',
             type: 'single_select',
             label: 'How many physical offices, branches, stores, warehouses, factories or other operating sites does your company have?',
             options: ['1', '2–5', '6–20', '21–50', '51+', 'Fully remote / no permanent operating site'],
+            tier: 'essential',
           },
         ],
       },
@@ -111,6 +117,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
               'Executive / Administration',
               'Other',
             ],
+            tier: 'essential',
           },
           {
             id: 'q08_department_headcount',
@@ -155,6 +162,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
                 ],
               },
             ],
+            tier: 'essential',
           },
         ],
       },
@@ -172,6 +180,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
               'We do not have formal process documentation',
               'Not sure',
             ],
+            tier: 'essential',
           },
           {
             id: 'q10a_documentation_types',
@@ -252,6 +261,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
               },
               { label: '', options: ['Not sure'] },
             ],
+            tier: 'essential',
           },
           {
             id: 'q12_department_handoffs',
@@ -286,6 +296,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
               'Very few approvals required',
               'Not sure',
             ],
+            tier: 'essential',
           },
         ],
       },
@@ -354,6 +365,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
               },
               { label: '', options: ['Other', 'Not sure'] },
             ],
+            tier: 'essential',
           },
           {
             id: 'q21_high_volume_activity',
@@ -417,6 +429,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
               'Other',
               'Not sure',
             ],
+            tier: 'essential',
           },
           {
             id: 'q17_information_processing',
@@ -441,6 +454,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
               'Other',
               'Not sure',
             ],
+            tier: 'essential',
           },
         ],
       },
@@ -470,6 +484,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
               'Very little / none',
               'Not sure',
             ],
+            tier: 'essential',
           },
           {
             id: 'q19_monitoring_activity',
@@ -494,6 +509,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
               'None that I am aware of',
               'Not sure',
             ],
+            tier: 'essential',
           },
           {
             id: 'q20_content_research',
@@ -561,6 +577,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
               'Other',
               'Not sure',
             ],
+            tier: 'essential',
           },
         ],
       },
@@ -578,6 +595,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
               'Employees frequently copy or re-enter information between systems',
               'Not sure',
             ],
+            tier: 'essential',
           },
           {
             id: 'q25_manual_data_movement',
@@ -622,6 +640,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
               'Other',
               'Not sure',
             ],
+            tier: 'essential',
           },
           {
             id: 'q27_information_findability',
@@ -635,6 +654,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
               'Very difficult — depends on specific employees',
               'Not sure',
             ],
+            tier: 'essential',
           },
           {
             id: 'q28_reporting_method',
@@ -705,6 +725,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
                 ],
               },
             ],
+            tier: 'essential',
           },
           {
             id: 'q30_external_manual_work',
@@ -732,6 +753,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
               'Very little / none',
               'Not sure',
             ],
+            tier: 'essential',
           },
         ],
       },
@@ -750,6 +772,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
             type: 'textarea',
             label: 'If you could significantly improve three things about how work gets done in your company, what would they be?',
             helper: 'First / second / third priority — one per line.',
+            tier: 'essential',
           },
           {
             id: 'q31_operational_challenges',
@@ -778,6 +801,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
               'Other',
               'Not sure',
             ],
+            tier: 'essential',
           },
           {
             id: 'q32_error_delay_areas',
@@ -862,6 +886,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
               },
               { label: 'Other', options: ['we currently use none of these', 'Other', 'Not sure'] },
             ],
+            tier: 'essential',
           },
           {
             id: 'q36_adoption_readiness',
@@ -875,6 +900,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
               'Not currently ready',
               'Not sure',
             ],
+            tier: 'essential',
           },
           {
             id: 'q37_ai_employee_capability',
@@ -888,6 +914,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
               'We have not assessed this',
               'Not sure',
             ],
+            tier: 'essential',
           },
           {
             id: 'q37a_ai_training',
@@ -941,6 +968,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
               'None known',
               'Not sure',
             ],
+            tier: 'essential',
           },
           {
             id: 'q40_desired_outcomes',
@@ -980,6 +1008,7 @@ export const QUESTIONNAIRE_V2_STEPS: QuestionnaireV2Step[] = [
                 ],
               },
             ],
+            tier: 'essential',
           },
           {
             id: 'q41_specific_investigation',

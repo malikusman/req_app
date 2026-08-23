@@ -39,9 +39,11 @@ function AutosaveIndicator({ status, className }: { status: AutosaveStatus; clas
 }
 
 function TierTag({ tier }: { tier?: FieldTier }) {
-  if (tier === 'conditional') return null;
-  const label = tier === 'recommended' ? 'Recommended' : tier === 'optional' ? 'Optional' : 'Essential';
-  return <span className="ml-1.5 text-xs font-normal text-muted-foreground">{label}</span>;
+  if (tier === 'recommended' || tier === 'optional' || tier === 'essential') {
+    const label = tier === 'recommended' ? 'Recommended' : tier === 'optional' ? 'Optional' : 'Essential';
+    return <span className="ml-1.5 text-xs font-normal text-muted-foreground">{label}</span>;
+  }
+  return null; // no explicit tier (all v1 fields) or 'conditional' → no tag
 }
 
 function ChoiceButton({
