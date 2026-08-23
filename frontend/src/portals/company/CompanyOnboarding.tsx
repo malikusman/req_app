@@ -548,7 +548,7 @@ export function CompanyOnboarding() {
         <Card className="space-y-6 p-4 sm:p-6">
           <div>
             <p className="m-0 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Section {section.id} of {sections.length}
+              {questionnaireVersion >= 2 ? 'Step' : 'Section'} {section.id} of {sections.length}
             </p>
             <h2
               id="questionnaire-section-heading"
