@@ -4,10 +4,13 @@ module Companies
   # Computes questionnaire completion percent and section touch state for a
   # v2 (questionnaire_version >= 2) company, against Companies::QuestionnaireV2Config.
   #
-  # Completion counts every answerable field, matching what the frontend
-  # computes for the v2 questionnaire. Tier-aware (Essential-only) counting is
-  # deliberately deferred to Stage 3. v2 has no conditional fields in practice
-  # today (q10a renders unconditionally), so nothing is hidden from the count.
+  # Completion counts only :essential-tier fields, matching what the frontend
+  # computes for the v2 questionnaire (see computeCompletionPercent in
+  # questionnaireOptions.ts). :recommended and :optional fields never affect
+  # the percent. :conditional is excluded from the count for now too, since
+  # its visibility-gated reveal isn't built yet — Stage 4 will revisit so it
+  # counts only when its field is actually visible and its parent tier is
+  # essential.
   class QuestionnaireV2Progress
     def self.call(answers)
       new(answers).call
@@ -18,7 +21,7 @@ module Companies
     end
 
     def call
-      answerable = Companies::QuestionnaireV2Config::FIELD_IDS.dup
+      answerable = Companies::QuestionnaireV2Config::TIERS[:essential].dup
       answered = answerable.count { |id| answered?(id) }
       percent = answerable.empty? ? 0 : ((answered.to_f / answerable.size) * 100).round
       {

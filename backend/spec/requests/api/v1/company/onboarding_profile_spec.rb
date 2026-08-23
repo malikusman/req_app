@@ -141,7 +141,7 @@ RSpec.describe "Company onboarding profile enrichment", type: :request do
       patch_body = JSON.parse(response.body)
       expect(patch_body["section_status"].keys).to eq((1..8).map(&:to_s))
       expect(patch_body["completion_percent"]).to eq(
-        ((3.0 / Companies::QuestionnaireV2Config::FIELD_IDS.size) * 100).round
+        ((3.0 / Companies::QuestionnaireV2Config::TIERS[:essential].size) * 100).round
       )
 
       get "/api/v1/company/onboarding", headers: auth_headers_for(user), as: :json

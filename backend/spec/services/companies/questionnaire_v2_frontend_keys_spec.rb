@@ -17,13 +17,33 @@ require "rails_helper"
 # set below rather than filtering incidentally. Keep this spec; it is cheap
 # and it is the only automated guard of its kind we have.
 RSpec.describe "frontend questionnaireV2Config keys vs Companies::QuestionnaireV2Config::FIELD_IDS" do
+  let(:source) { File.read(Rails.root.join("..", "frontend", "src", "lib", "questionnaireV2Config.ts")) }
+
   let(:fields_with_types) do
-    source = File.read(Rails.root.join("..", "frontend", "src", "lib", "questionnaireV2Config.ts"))
     source.scan(/\{\s*id:\s*'([^']+)',\s*type:\s*'([^']+)'/).map { |id, type| [id, type] }
   end
 
   let(:static_ids) { fields_with_types.select { |_id, type| type == "static" }.map(&:first).sort }
   let(:frontend_keys) { fields_with_types.reject { |_id, type| type == "static" }.map(&:first) }
+
+  # tier: is not positionally adjacent to id:/type: in the source (it comes
+  # after label/helper/options/groups, varies per field), so it can't be
+  # captured in the same regex pass as fields_with_types above. Instead,
+  # find each field object's start offset via id:/type:, then slice the
+  # source between consecutive starts to scan that one field's full object
+  # text for its own tier. A field with no tier: at all is essential by
+  # convention (asserted, not assumed, by this spec).
+  let(:frontend_tiers_by_key) do
+    matches = source.to_enum(:scan, /\{\s*id:\s*'([^']+)',\s*type:\s*'([^']+)'/).map { Regexp.last_match }
+    matches.each_with_index.to_h do |match, index|
+      id = match[1]
+      start_offset = match.begin(0)
+      end_offset = index + 1 < matches.size ? matches[index + 1].begin(0) : source.length
+      chunk = source[start_offset...end_offset]
+      tier_match = chunk.match(/tier:\s*'([^']+)'/)
+      [id, tier_match ? tier_match[1] : "essential"]
+    end
+  end
 
   it "parses the frontend config and finds the stored fields" do
     expect(fields_with_types.size).to be >= 45
@@ -43,5 +63,16 @@ RSpec.describe "frontend questionnaireV2Config keys vs Companies::QuestionnaireV
     expect(missing).to eq([]), "keys in backend FIELD_IDS but missing from frontend config: #{missing.inspect}"
     expect(extra).to eq([]), "keys in frontend config but not in backend FIELD_IDS: #{extra.inspect}"
     expect(frontend_keys.size).to eq(Companies::QuestionnaireV2Config::FIELD_IDS.size)
+  end
+
+  it "matches the backend registry's tier for every key exactly" do
+    mismatches = Companies::QuestionnaireV2Config::FIELD_IDS.filter_map do |key|
+      backend_tier = Companies::QuestionnaireV2Config::TIERS_BY_KEY[key].to_s
+      frontend_tier = frontend_tiers_by_key[key]
+      next if frontend_tier == backend_tier
+
+      "#{key}: backend=#{backend_tier.inspect} frontend=#{frontend_tier.inspect}"
+    end
+    expect(mismatches).to eq([]), "tier mismatches between backend and frontend: #{mismatches.inspect}"
   end
 end

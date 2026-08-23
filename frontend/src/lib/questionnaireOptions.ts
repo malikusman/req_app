@@ -629,9 +629,14 @@ export function computeCompletionPercent(
   answers: QuestionnaireAnswers,
   sections: QuestionnaireSection[] = QUESTIONNAIRE_SECTIONS
 ): number {
+  // Essential-only: :recommended/:optional never move the percent, and
+  // :conditional is excluded too (its visibility-gated reveal isn't built
+  // yet — Stage 4 will revisit). Absent tier means essential (v1 fields
+  // never set .tier, so this is a no-op for v1). Mirrors the backend's
+  // Companies::QuestionnaireV2Progress denominator exactly.
   const fields = sections
     .flatMap((s) => s.fields)
-    .filter((f) => f.type !== 'static' && fieldIsVisible(f, answers));
+    .filter((f) => f.type !== 'static' && (!f.tier || f.tier === 'essential') && fieldIsVisible(f, answers));
   if (fields.length === 0) return 0;
   const answered = fields.filter((f) => {
     const v = answers[f.id];
@@ -649,7 +654,7 @@ export function sectionTouched(
   const section = sections.find((s) => s.id === sectionId);
   if (!section) return false;
   return section.fields.some((f) => {
-    if (f.type === 'static' || !fieldIsVisible(f, answers)) return false;
+    if (f.type === 'static' || !fieldIsVisible(f, answers) || (f.tier && f.tier !== 'essential')) return false;
     const v = answers[f.id];
     if (Array.isArray(v)) return v.length > 0;
     return Boolean(v && String(v).trim());

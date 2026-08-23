@@ -4,10 +4,12 @@ require "rails_helper"
 
 RSpec.describe Companies::QuestionnaireV2Progress do
   let(:keys) { Companies::QuestionnaireV2Config::FIELD_IDS }
+  let(:essential_keys) { Companies::QuestionnaireV2Config::TIERS[:essential] }
+  let(:non_essential_keys) { keys - essential_keys }
 
-  it "counts every v2 storage key as answerable" do
+  it "counts only essential-tier keys as answerable" do
     result = described_class.call({})
-    expect(result[:answerable_count]).to eq(keys.size)
+    expect(result[:answerable_count]).to eq(essential_keys.size)
     expect(result[:completion_percent]).to eq(0)
     expect(result[:answered_count]).to eq(0)
   end
@@ -18,14 +20,14 @@ RSpec.describe Companies::QuestionnaireV2Progress do
       "q02_business_description" => "Freight forwarding and warehousing"
     )
     expect(result[:answered_count]).to eq(1)
-    expect(result[:answerable_count]).to eq(keys.size)
+    expect(result[:answerable_count]).to eq(essential_keys.size)
   end
 
   it "computes percent and counts from answered fields" do
-    answers = keys.first(5).to_h { |key| [key, "x"] }
+    answers = essential_keys.first(5).to_h { |key| [key, "x"] }
     result = described_class.call(answers)
     expect(result[:answered_count]).to eq(5)
-    expect(result[:completion_percent]).to eq(((5.0 / keys.size) * 100).round)
+    expect(result[:completion_percent]).to eq(((5.0 / essential_keys.size) * 100).round)
   end
 
   it "treats blank strings and empty arrays as unanswered" do
@@ -44,25 +46,31 @@ RSpec.describe Companies::QuestionnaireV2Progress do
     expect(result[:section_status][2]).to eq(touched: false, complete: false)
   end
 
-  it "reaches 100 percent only when every field is answered" do
-    result = described_class.call(keys.to_h { |key| [key, "x"] })
+  it "reaches 100 percent when every essential field is answered" do
+    result = described_class.call(essential_keys.to_h { |key| [key, "x"] })
     expect(result[:completion_percent]).to eq(100)
+  end
+
+  it "does not move the percent when only non-essential fields are answered" do
+    result = described_class.call(non_essential_keys.to_h { |key| [key, "x"] })
+    expect(result[:completion_percent]).to eq(0)
+    expect(result[:answered_count]).to eq(0)
   end
 end
 
 RSpec.describe Companies::QuestionnaireProgress do
   describe "version-aware dispatch" do
-    let(:v2_keys) { Companies::QuestionnaireV2Config::FIELD_IDS }
+    let(:v2_essential_keys) { Companies::QuestionnaireV2Config::TIERS[:essential] }
 
     it "routes version 2 companies to the v2 calculator" do
       company = build_stubbed(
         :company,
         questionnaire_version: 2,
-        questionnaire_answers: v2_keys.first(3).to_h { |key| [key, "x"] }
+        questionnaire_answers: v2_essential_keys.first(3).to_h { |key| [key, "x"] }
       )
       result = described_class.call_for_company(company)
-      expect(result[:answerable_count]).to eq(v2_keys.size)
-      expect(result[:completion_percent]).to eq(((3.0 / v2_keys.size) * 100).round)
+      expect(result[:answerable_count]).to eq(v2_essential_keys.size)
+      expect(result[:completion_percent]).to eq(((3.0 / v2_essential_keys.size) * 100).round)
     end
 
     it "keeps the v1 behaviour for version 1 companies" do
