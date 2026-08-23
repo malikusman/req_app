@@ -510,7 +510,11 @@ export function CompanyOnboarding() {
       <div className="sticky top-0 z-20 -mx-1 space-y-3 bg-background/95 px-1 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <PageHeader
           title="Profile"
-          description="This profile helps Worktruth understand your business and analyze it more accurately. Nothing is required — fill what you can."
+          description={
+            questionnaireVersion >= 2
+              ? 'This profile helps Worktruth understand your business and analyze it more accurately. Fields marked Essential are required to complete your profile — Recommended and Optional fields are up to you.'
+              : 'This profile helps Worktruth understand your business and analyze it more accurately. Nothing is required — fill what you can.'
+          }
         />
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
