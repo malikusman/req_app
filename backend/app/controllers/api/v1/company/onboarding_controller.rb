@@ -53,7 +53,11 @@ module Api
 
         def update_questionnaire
           authorize :onboarding, :update_profile?
-          answers = (current_company.questionnaire_answers || {}).merge(questionnaire_answers_param)
+          incoming = questionnaire_answers_param
+          errors = sidecar_length_errors(incoming)
+          return render_errors(errors) if errors.any?
+
+          answers = (current_company.questionnaire_answers || {}).merge(incoming)
           step = params[:questionnaire_step].presence&.to_i
           step = step.clamp(*step_bounds) if step
 
@@ -89,7 +93,11 @@ module Api
           return head :not_found unless questionnaire_v2?
 
           authorize :onboarding, :update_profile?
-          answers = (current_company.questionnaire_answers || {}).merge(questionnaire_answers_param)
+          incoming = questionnaire_answers_param
+          errors = sidecar_length_errors(incoming)
+          return render_errors(errors) if errors.any?
+
+          answers = (current_company.questionnaire_answers || {}).merge(incoming)
           current_company.update!(questionnaire_answers: answers)
 
           render json: { ok: true }
@@ -144,11 +152,35 @@ module Api
           return {} unless raw.respond_to?(:to_unsafe_h) || raw.is_a?(Hash)
 
           hash = raw.respond_to?(:to_unsafe_h) ? raw.to_unsafe_h : raw.to_h
-          hash.stringify_keys.slice(*whitelist)
+          hash = hash.stringify_keys.slice(*whitelist)
+          sanitize_sidecar_values!(hash)
+          hash
+        end
+
+        def sanitize_sidecar_values!(hash)
+          return hash unless questionnaire_v2?
+
+          Companies::QuestionnaireV2Config::SIDECAR_KEYS.each do |key|
+            next unless hash.key?(key)
+
+            hash[key] = hash[key].to_s.gsub(/[\x00-\x1F\x7F]/, "").strip
+          end
+          hash
+        end
+
+        def sidecar_length_errors(hash)
+          return [] unless questionnaire_v2?
+
+          Companies::QuestionnaireV2Config::SIDECAR_KEYS.filter_map do |key|
+            next unless hash.key?(key)
+            next if hash[key].length <= Companies::QuestionnaireV2Config::OTHER_TEXT_MAX_LENGTH
+
+            "#{key} is too long (max #{Companies::QuestionnaireV2Config::OTHER_TEXT_MAX_LENGTH} characters)"
+          end
         end
 
         def whitelist
-          questionnaire_v2? ? Companies::QuestionnaireV2Config::FIELD_IDS : Companies::QuestionnaireProgress::FIELD_IDS
+          questionnaire_v2? ? Companies::QuestionnaireV2Config::WHITELIST : Companies::QuestionnaireProgress::FIELD_IDS
         end
 
         def step_bounds

@@ -34,4 +34,22 @@ RSpec.describe Companies::QuestionnaireV2Config do
       expect(%i[essential recommended optional conditional]).to include(described_class::TIERS_BY_KEY[key])
     end
   end
+
+  it "registers 24 with_other sidecar keys, excluding q29" do
+    expect(described_class::SIDECAR_KEYS.size).to eq(24)
+    expect(described_class::SIDECAR_KEYS).to all(end_with("_other"))
+    expect(described_class::SIDECAR_KEYS).not_to include("q29_external_parties_channels_other")
+  end
+
+  it "builds WHITELIST as FIELD_IDS plus SIDECAR_KEYS, disjoint" do
+    expect(described_class::WHITELIST).to match_array(described_class::FIELD_IDS + described_class::SIDECAR_KEYS)
+    expect(described_class::WHITELIST.size).to eq(69)
+    expect(described_class::FIELD_IDS & described_class::SIDECAR_KEYS).to be_empty
+  end
+
+  it "never lets a sidecar key leak into any tier bucket" do
+    described_class::TIERS.each_value do |keys|
+      expect(keys & described_class::SIDECAR_KEYS).to be_empty
+    end
+  end
 end

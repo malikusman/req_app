@@ -72,4 +72,48 @@ RSpec.describe "Company onboarding questionnaire autosave", type: :request do
 
     expect(response).to have_http_status(:ok)
   end
+
+  it "accepts and persists a with_other sidecar key" do
+    patch "/api/v1/company/onboarding/questionnaire/answers",
+          params: {
+            questionnaire_answers: {
+              q01_primary_industry: "Other",
+              q01_primary_industry_other: "Ship chandlery"
+            }
+          },
+          headers: auth_headers_for(user),
+          as: :json
+
+    expect(response).to have_http_status(:ok)
+    company.reload
+    expect(company.questionnaire_answers["q01_primary_industry_other"]).to eq("Ship chandlery")
+  end
+
+  it "drops a sidecar key for a field that isn't with_other" do
+    patch "/api/v1/company/onboarding/questionnaire/answers",
+          params: {
+            questionnaire_answers: { q29_external_parties_channels_other: "Should not persist" }
+          },
+          headers: auth_headers_for(user),
+          as: :json
+
+    expect(response).to have_http_status(:ok)
+    company.reload
+    expect(company.questionnaire_answers).not_to have_key("q29_external_parties_channels_other")
+  end
+
+  it "rejects an over-length sidecar value with a 422 and does not save it" do
+    too_long = "x" * (Companies::QuestionnaireV2Config::OTHER_TEXT_MAX_LENGTH + 1)
+
+    patch "/api/v1/company/onboarding/questionnaire/answers",
+          params: { questionnaire_answers: { q01_primary_industry_other: too_long } },
+          headers: auth_headers_for(user),
+          as: :json
+
+    expect(response).to have_http_status(:unprocessable_entity)
+    body = JSON.parse(response.body)
+    expect(body["errors"]).to be_present
+    company.reload
+    expect(company.questionnaire_answers).not_to have_key("q01_primary_industry_other")
+  end
 end
