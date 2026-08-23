@@ -75,4 +75,27 @@ RSpec.describe "frontend questionnaireV2Config keys vs Companies::QuestionnaireV
     end
     expect(mismatches).to eq([]), "tier mismatches between backend and frontend: #{mismatches.inspect}"
   end
+
+  # Same per-field chunk-slicing as frontend_tiers_by_key above, but for withOther.
+  # Simpler than tier: there's no "absent means X" default to infer — absence just
+  # means false, so a field's chunk either contains `withOther: true` or it doesn't.
+  let(:frontend_with_other_keys) do
+    matches = source.to_enum(:scan, /\{\s*id:\s*'([^']+)',\s*type:\s*'([^']+)'/).map { Regexp.last_match }
+    matches.each_with_index.filter_map do |match, index|
+      id = match[1]
+      start_offset = match.begin(0)
+      end_offset = index + 1 < matches.size ? matches[index + 1].begin(0) : source.length
+      chunk = source[start_offset...end_offset]
+      id if chunk.match?(/withOther:\s*true/)
+    end
+  end
+
+  it "matches the backend registry's with_other flag for every key exactly" do
+    backend_with_other_keys = Companies::QuestionnaireV2Config::FIELDS.select { |f| f[:with_other] }.map { |f| f[:key] }
+
+    missing = backend_with_other_keys - frontend_with_other_keys
+    extra = frontend_with_other_keys - backend_with_other_keys
+    expect(missing).to eq([]), "backend with_other: true but frontend missing withOther: true: #{missing.inspect}"
+    expect(extra).to eq([]), "frontend withOther: true but backend missing with_other: true: #{extra.inspect}"
+  end
 end
