@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_27_100000) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_27_110000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -583,6 +583,66 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_27_100000) do
     t.datetime "updated_at", null: false
     t.index ["email"], name: "index_demo_requests_on_email"
     t.index ["status"], name: "index_demo_requests_on_status"
+  end
+
+  create_table "discovery_followup_questions", force: :cascade do |t|
+    t.bigint "discovery_package_id", null: false
+    t.text "body", null: false
+    t.text "rationale"
+    t.string "status", default: "drafted", null: false
+    t.integer "queue_position", default: 0, null: false
+    t.bigint "sent_message_id"
+    t.bigint "answered_message_id"
+    t.jsonb "source_parked_ref", default: {}, null: false
+    t.datetime "sent_at"
+    t.datetime "answered_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["answered_message_id"], name: "index_discovery_followup_questions_on_answered_message_id"
+    t.index ["discovery_package_id", "queue_position"], name: "index_followup_questions_on_package_position"
+    t.index ["discovery_package_id"], name: "index_discovery_followup_questions_on_discovery_package_id"
+    t.index ["sent_message_id"], name: "index_discovery_followup_questions_on_sent_message_id"
+    t.index ["status"], name: "index_discovery_followup_questions_on_status"
+  end
+
+  create_table "discovery_package_items", force: :cascade do |t|
+    t.bigint "discovery_package_id", null: false
+    t.string "kind", null: false
+    t.string "title"
+    t.text "body"
+    t.string "impact"
+    t.jsonb "evidence_refs", default: [], null: false
+    t.string "origin", default: "agent", null: false
+    t.string "status", default: "proposed", null: false
+    t.bigint "linked_item_id"
+    t.integer "ordinal", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["discovery_package_id", "kind", "ordinal"], name: "index_package_items_on_package_kind_ordinal"
+    t.index ["discovery_package_id"], name: "index_discovery_package_items_on_discovery_package_id"
+    t.index ["linked_item_id"], name: "index_discovery_package_items_on_linked_item_id", where: "(linked_item_id IS NOT NULL)"
+  end
+
+  create_table "discovery_packages", force: :cascade do |t|
+    t.bigint "conversation_id", null: false
+    t.bigint "employee_id", null: false
+    t.bigint "company_id", null: false
+    t.integer "version", default: 1, null: false
+    t.string "status", default: "generating", null: false
+    t.text "recommendation"
+    t.text "recommendation_rationale"
+    t.float "confidence"
+    t.jsonb "agent_payload", default: {}, null: false
+    t.string "generated_by"
+    t.text "error_message"
+    t.datetime "generated_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id", "status"], name: "index_discovery_packages_on_company_id_and_status"
+    t.index ["company_id"], name: "index_discovery_packages_on_company_id"
+    t.index ["conversation_id", "version"], name: "index_discovery_packages_on_conversation_id_and_version", unique: true
+    t.index ["conversation_id"], name: "index_discovery_packages_on_conversation_id"
+    t.index ["employee_id"], name: "index_discovery_packages_on_employee_id"
   end
 
   create_table "discovery_playbooks", force: :cascade do |t|
@@ -1288,6 +1348,14 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_27_100000) do
   add_foreign_key "conversation_insights", "messages"
   add_foreign_key "conversations", "companies"
   add_foreign_key "conversations", "employees"
+  add_foreign_key "discovery_followup_questions", "discovery_packages"
+  add_foreign_key "discovery_followup_questions", "messages", column: "answered_message_id"
+  add_foreign_key "discovery_followup_questions", "messages", column: "sent_message_id"
+  add_foreign_key "discovery_package_items", "discovery_package_items", column: "linked_item_id"
+  add_foreign_key "discovery_package_items", "discovery_packages"
+  add_foreign_key "discovery_packages", "companies"
+  add_foreign_key "discovery_packages", "conversations"
+  add_foreign_key "discovery_packages", "employees"
   add_foreign_key "discovery_playbooks", "platform_users", column: "created_by_platform_user_id"
   add_foreign_key "discovery_question_feedbacks", "companies"
   add_foreign_key "discovery_question_feedbacks", "company_users"

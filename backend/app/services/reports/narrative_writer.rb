@@ -113,32 +113,16 @@ module Reports
       }
     end
 
-    # "Significant" figures we require to be grounded (bare 1-2 digit counts like
-    # "6 frictions" are left alone to avoid false positives).
-    SIGNIFICANT_NUMBER = /
-      AED\s?[\d,]+(?:\.\d+)? | \$\s?[\d,]+(?:\.\d+)? |   # currency
-      \d{1,3}(?:,\d{3})+(?:\.\d+)? |                      # thousands
-      \d+\.\d+ |                                          # decimals
-      \d+\s?% |                                          # percentages
-      \d+\s?(?:[-–—]|to)\s?\d+                            # ranges (11-14, 3 to 12)
-    /xi
-
+    # The number guardrail now lives in Llm::GroundedNumbers so the discovery
+    # package uses the same one rather than a second implementation.
     def grounded_number_set
-      set = Set.new
-      Array(@snapshot["key_metrics"]).each do |m|
-        [m["headline"], m["comparison"]].each do |s|
-          s.to_s.scan(SIGNIFICANT_NUMBER) { |tok| set << canon_number(tok) }
-        end
-      end
-      set
-    end
-
-    def canon_number(token)
-      token.to_s.downcase.gsub(/\s+/, "").tr("–—", "--").gsub("to", "-")
+      Llm::GroundedNumbers.allowed_numbers(
+        Array(@snapshot["key_metrics"]).flat_map { |m| [m["headline"], m["comparison"]] }
+      )
     end
 
     def text_numbers_grounded?(text, allowed)
-      text.to_s.scan(SIGNIFICANT_NUMBER).all? { |tok| allowed.include?(canon_number(tok)) }
+      Llm::GroundedNumbers.grounded?(text, allowed)
     end
 
     def normalize_roadmap(roadmap)

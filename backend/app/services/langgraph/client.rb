@@ -48,6 +48,25 @@ module Langgraph
       raise Langgraph::UnavailableError.new(e.message, retryable: true)
     end
 
+    # The agent never raises for this one — it returns a deterministic package
+    # rather than failing, because the interview has already completed.
+    def build_discovery_package!(blackboard:, profile:, company_name:, language:, insights: [])
+      post(
+        "/v1/discovery/package",
+        {
+          blackboard: blackboard,
+          profile: profile,
+          company_name: company_name,
+          language: language,
+          insights: insights
+        }
+      )
+    rescue Langgraph::UnavailableError
+      raise
+    rescue StandardError => e
+      raise Langgraph::UnavailableError.new(e.message, retryable: true)
+    end
+
     def run_docs_analysis!(payload)
       post(
         "/v1/docs_analysis/runs",

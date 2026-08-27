@@ -1684,6 +1684,48 @@ export interface ReportReviewPayload {
   }[];
 }
 
+/** What Discovery hands the consultant when an interview finishes. */
+export interface DiscoveryPackageItem {
+  id: number;
+  kind: 'issue' | 'solution';
+  title: string | null;
+  body: string;
+  impact: 'low' | 'medium' | 'high' | null;
+  origin: 'agent' | 'consultant';
+  status: 'proposed' | 'accepted' | 'amended' | 'rejected';
+  linked_item_id: number | null;
+  ordinal: number;
+}
+
+export interface DiscoveryFollowupQuestion {
+  id: number;
+  body: string;
+  rationale: string | null;
+  status: 'drafted' | 'queued' | 'sent' | 'answered' | 'skipped' | 'superseded';
+  queue_position: number;
+  /** The interview parked this thread rather than drilling into it. */
+  from_parked_aside: boolean;
+  sent_at: string | null;
+  answered_at: string | null;
+}
+
+export interface DiscoveryPackage {
+  id: number;
+  version: number;
+  status: 'generating' | 'ready' | 'consultant_reviewed' | 'failed' | 'superseded';
+  recommendation: string | null;
+  recommendation_rationale: string | null;
+  confidence: number | null;
+  generated_by: string | null;
+  /** Assembled without a model: no solutions, and deliberately low confidence. */
+  built_without_model: boolean;
+  generated_at: string | null;
+  error_message: string | null;
+  issues: DiscoveryPackageItem[];
+  solutions: DiscoveryPackageItem[];
+  followup_questions: DiscoveryFollowupQuestion[];
+}
+
 export interface ConsultantWorkspaceConversation {
   id: number;
   employee_id: number;
@@ -1693,6 +1735,7 @@ export interface ConsultantWorkspaceConversation {
   question_count: number;
   last_activity_at: string | null;
   discovery_state: DiscoveryState;
+  discovery_package: DiscoveryPackage | null;
   discovery_provenance: DiscoveryProvenanceEntry[];
   messages: CompanyConversationMessage[];
   media_attachments: MediaAttachment[];

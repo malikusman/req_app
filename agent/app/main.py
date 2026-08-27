@@ -185,6 +185,27 @@ def companion_turn(body: CompanionTurnRequest):
     )
 
 
+class DiscoveryPackageRequest(BaseModel):
+    blackboard: dict[str, Any] = Field(default_factory=dict)
+    profile: dict[str, Any] = Field(default_factory=dict)
+    company_name: str = ""
+    language: str = "en"
+    insights: list[str] = Field(default_factory=list)
+
+
+@app.post("/v1/discovery/package")
+def build_discovery_package(body: DiscoveryPackageRequest):
+    """Synthesise the consultant handover from a finished interview.
+
+    Deliberately does NOT raise on a tripped circuit or a model failure: the caller
+    runs this after the employee's interview has already completed, and a consultant
+    with a deterministic package is better served than one with none.
+    """
+    from app.package import build_package
+
+    return build_package(body.model_dump())
+
+
 @app.post("/v1/threads", response_model=dict)
 def create_thread():
     return {"thread_id": str(uuid.uuid4())}

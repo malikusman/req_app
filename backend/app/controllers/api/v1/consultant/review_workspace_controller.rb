@@ -6,6 +6,7 @@ module Api
       class ReviewWorkspaceController < BaseController
         include Api::V1::MediaAttachmentJson
         include Api::V1::DiscoveryConversationJson
+        include Api::V1::DiscoveryPackageJson
 
         def show
           report = policy_scope(::Report).find(params[:id])
@@ -19,6 +20,7 @@ module Api
                          .where(company_id: company.id)
                          .includes(:employee)
                          .order(updated_at: :desc)
+          @packages_by_conversation = discovery_packages_by_conversation(conversations.map(&:id))
 
           render json: {
             company: {
@@ -133,6 +135,7 @@ module Api
             question_count: conversation.question_count,
             last_activity_at: conversation.last_activity_at,
             discovery_state: discovery_state_json(conversation, employee),
+            discovery_package: discovery_package_json(@packages_by_conversation[conversation.id]),
             discovery_provenance: discovery_provenance_json(messages),
             messages: messages.map { |m| message_json(m, conversation.company_id) },
             media_attachments: media_attachments_json(

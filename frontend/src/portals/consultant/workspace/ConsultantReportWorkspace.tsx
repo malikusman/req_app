@@ -13,6 +13,7 @@ import { ConsultantEmployeeProfileCard } from './ConsultantEmployeeProfileCard';
 import { ConsultantPdfDrawer } from './ConsultantPdfDrawer';
 import { ConsultantSectionContent } from './ConsultantSectionContent';
 import { ConsultantSectionEditorPanel } from './ConsultantSectionEditorPanel';
+import { ConsultantDiscoveryPackagePanel } from './ConsultantDiscoveryPackagePanel';
 import { ConsultantSharedFindingsPanel } from './ConsultantSharedFindingsPanel';
 import { ConsultantStructuredFindingsPanel } from './ConsultantStructuredFindingsPanel';
 import { ConsultantTranscriptPanel } from './ConsultantTranscriptPanel';
@@ -783,6 +784,10 @@ export function ConsultantReportWorkspace() {
                   ))}
                 </div>
               )}
+              <ConsultantDiscoveryPackagePanel
+                pkg={activeConversation.discovery_package}
+                employeeName={activeConversation.employee_name}
+              />
               <ConsultantSharedFindingsPanel
                 findings={activeConversation.discovery_state.shared_findings}
                 conversationSummary={activeConversation.discovery_state.conversation_summary}
