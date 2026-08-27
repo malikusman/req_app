@@ -20,9 +20,9 @@ class Company < ApplicationRecord
   has_many :discovery_question_feedbacks, dependent: :destroy
   has_many :reports, dependent: :destroy
   has_many :notifications, dependent: :destroy
-  has_many :reviewer_assignments, dependent: :destroy
-  has_many :reviewer_users, through: :reviewer_assignments
-  has_many :reviewer_chat_messages, dependent: :destroy
+  has_many :consultant_assignments, dependent: :destroy
+  has_many :consultant_users, through: :consultant_assignments
+  has_many :consultant_chat_messages, dependent: :destroy
   has_many :company_memory_facts, dependent: :destroy
   has_one :company_registration, dependent: :destroy
 
@@ -64,10 +64,10 @@ class Company < ApplicationRecord
     "discovery_area_routing_enabled" => false,
     "discovery_orient_questions" => 3,
     "discovery_switch_after" => 3,
-    # When true, an assigned reviewer may message an employee directly (via
+    # When true, an assigned consultant may message an employee directly (via
     # WhatsApp follow-up) during report review. Company admins can turn this off
-    # to require their approval for any reviewer→employee contact.
-    "reviewer_can_contact_employees" => true,
+    # to require their approval for any consultant→employee contact.
+    "consultant_can_contact_employees" => true,
     "report_thresholds" => {
       "min_employees_interviewed" => 3,
       "min_departments" => 2,

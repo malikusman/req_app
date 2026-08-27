@@ -38,7 +38,7 @@ class Document < ApplicationRecord
   scope :uploaded, -> { where(status: "uploaded") }
   scope :awaiting_analysis, -> { where(status: %w[uploaded failed]) }
   scope :portal, -> { where(source: "company_portal_upload") }
-  scope :reviewer_visible, -> { where(reviewer_visible: true) }
+  scope :consultant_visible, -> { where(consultant_visible: true) }
 
   def self.allowed_content_type?(content_type)
     ALLOWED_CONTENT_TYPES.key?(content_type.to_s)

@@ -4,7 +4,7 @@ import { useLocation } from 'react-router-dom';
 const titles: Record<string, string> = {
   '/platform/dashboard': 'Dashboard',
   '/platform/companies': 'Companies',
-  '/platform/reviewers': 'Reviewers',
+  '/platform/consultants': 'Consultants',
   '/platform/trials': 'Trials',
   '/platform/playbooks': 'Playbooks',
   '/platform/solutions': 'Solutions',
@@ -19,7 +19,7 @@ const titles: Record<string, string> = {
   '/company/intelligence/patterns': 'Intelligence',
   '/company/intelligence/timeline': 'Intelligence',
   '/company/documents': 'Documents',
-  '/company/outreaches': 'Reviewer questions',
+  '/company/outreaches': 'Consultant questions',
   '/company/media': 'WhatsApp media',
   '/company/recommendations': 'Intelligence',
   '/company/reports': 'Reports',
@@ -27,23 +27,23 @@ const titles: Record<string, string> = {
   '/company/discovery-questions': 'Discovery questions',
   '/company/settings': 'Settings',
   '/company/onboarding': 'Profile',
-  '/company/reviewers': 'Reviewers',
+  '/company/consultants': 'Consultants',
   '/company/knowledge': 'Knowledge',
   '/platform/registrations': 'Registrations',
-  '/reviewer/dashboard': 'Dashboard',
-  '/reviewer/profile': 'Profile',
-  '/reviewer/inbox': 'Inbox',
-  '/reviewer/followups': 'Inbox',
+  '/consultant/dashboard': 'Dashboard',
+  '/consultant/profile': 'Profile',
+  '/consultant/inbox': 'Inbox',
+  '/consultant/followups': 'Inbox',
 };
 
 function resolveTitle(pathname: string, fallback: string): string {
   const exact = titles[pathname];
   if (exact) return exact;
 
-  if (pathname.includes('/reviewer/companies/') && pathname.includes('/reports/') && pathname.endsWith('/review')) {
+  if (pathname.includes('/consultant/companies/') && pathname.includes('/reports/') && pathname.endsWith('/review')) {
     return 'Report review';
   }
-  if (pathname.match(/\/reviewer\/companies\/\d+\/employees\/\d+\/followup/)) {
+  if (pathname.match(/\/consultant\/companies\/\d+\/employees\/\d+\/followup/)) {
     return 'Employee follow-up';
   }
   if (pathname.includes('/companies/') && pathname.includes('/conversations/')) {
@@ -53,9 +53,9 @@ function resolveTitle(pathname: string, fallback: string): string {
     return 'Conversations';
   }
   if (pathname.includes('/companies/') && pathname.includes('/chat')) {
-    return 'Co-reviewer chat';
+    return 'Co-consultant chat';
   }
-  if (pathname.match(/\/reviewer\/companies\/\d+$/)) {
+  if (pathname.match(/\/consultant\/companies\/\d+$/)) {
     return 'Company overview';
   }
   if (pathname.match(/\/platform\/companies\/\d+/)) {

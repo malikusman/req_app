@@ -8,8 +8,8 @@ RSpec.describe "Api::V1::Company::Conversations", type: :request do
   let(:headers) { auth_headers_for(company_user) }
   let!(:employee) { create(:employee, company: company) }
   let!(:conversation) { create(:conversation, employee: employee, company: company) }
-  let!(:discovery_message) { create(:message, conversation: conversation, body: "Discovery reply", reviewer_followup: false) }
-  let!(:followup_message) { create(:message, conversation: conversation, body: "Hidden followup", reviewer_followup: true) }
+  let!(:discovery_message) { create(:message, conversation: conversation, body: "Discovery reply", consultant_followup: false) }
+  let!(:followup_message) { create(:message, conversation: conversation, body: "Hidden followup", consultant_followup: true) }
 
   describe "GET /api/v1/company/conversations" do
     it "lists company conversations" do
@@ -23,7 +23,7 @@ RSpec.describe "Api::V1::Company::Conversations", type: :request do
   end
 
   describe "GET /api/v1/company/conversations/:id" do
-    it "returns conversation messages excluding reviewer followups" do
+    it "returns conversation messages excluding consultant followups" do
       media_message = create(:message, conversation: conversation, direction: "inbound", message_type: "image", body: "Photo")
       create(:media_attachment,
              message: media_message,

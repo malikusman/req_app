@@ -30,17 +30,17 @@ module Outreaches
         raise ArgumentError, "Unsupported channel #{@outreach.channel}"
       end
 
-      @outreach.append_audit!("sent", actor: @outreach.approved_by_company_user || @outreach.reviewer_user)
+      @outreach.append_audit!("sent", actor: @outreach.approved_by_company_user || @outreach.consultant_user)
       @outreach
     rescue ArgumentError => e
       raise if e.message == "Outreach not approved"
 
       @outreach.update!(status: "failed")
-      @outreach.append_audit!("failed", actor: @outreach.reviewer_user, note: e.message)
+      @outreach.append_audit!("failed", actor: @outreach.consultant_user, note: e.message)
       raise
     rescue StandardError => e
       @outreach.update!(status: "failed")
-      @outreach.append_audit!("failed", actor: @outreach.reviewer_user, note: e.message)
+      @outreach.append_audit!("failed", actor: @outreach.consultant_user, note: e.message)
       raise
     end
 
@@ -60,7 +60,7 @@ module Outreaches
                    if within_window
                      client.send_text(to: employee.phone_e164, body: body)
                    else
-                     client.send_reviewer_followup_template(
+                     client.send_consultant_followup_template(
                        to: employee.phone_e164,
                        employee_name: employee.display_name || "there",
                        company_name: @outreach.company.display_name || @outreach.company.name
@@ -78,10 +78,10 @@ module Outreaches
         message_type: "text",
         body: body,
         external_id: meta_id,
-        reviewer_followup: true,
+        consultant_followup: true,
         track: "consultant_followup",
         track_ref: @outreach,
-        raw_payload: { "reviewer_outreach_id" => @outreach.id }
+        raw_payload: { "consultant_outreach_id" => @outreach.id }
       )
 
       @outreach.update!(status: "sent", sent_at: Time.current, meta_message_id: meta_id, message_id: message.id,

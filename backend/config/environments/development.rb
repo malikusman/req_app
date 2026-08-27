@@ -74,7 +74,7 @@ Rails.application.configure do
   # Raise error when a before_action's only/except options reference missing actions
   config.action_controller.raise_on_missing_callback_actions = true
 
-  # Local Docker + Vite preview hostnames used during reviewer QA.
+  # Local Docker + Vite preview hostnames used during consultant QA.
   config.hosts << "frontend"
   config.hosts << "frontend:5173"
   config.hosts << "frontend:5174"

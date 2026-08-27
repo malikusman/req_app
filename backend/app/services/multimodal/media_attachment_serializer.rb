@@ -35,9 +35,9 @@ module Multimodal
       when :platform
         cid = company_id || attachment.company_id
         "#{base}/api/v1/platform/companies/#{cid}/media_attachments/#{attachment.id}/download"
-      when :reviewer
+      when :consultant
         cid = company_id || attachment.company_id
-        "#{base}/api/v1/reviewer/companies/#{cid}/media_attachments/#{attachment.id}/download"
+        "#{base}/api/v1/consultant/companies/#{cid}/media_attachments/#{attachment.id}/download"
       else
         nil
       end

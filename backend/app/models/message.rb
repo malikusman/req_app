@@ -25,13 +25,13 @@ class Message < ApplicationRecord
   validates :track, inclusion: { in: TRACKS }
 
   before_validation :derive_track, on: :create
-  before_validation :sync_reviewer_followup_flag
+  before_validation :sync_consultant_followup_flag
 
   # Retained for the platform/company transcript views and their index. Reads the
   # legacy boolean deliberately — `track` is the source of truth, and
-  # `sync_reviewer_followup_flag` keeps the boolean in step.
-  scope :discovery_only, -> { where(reviewer_followup: false) }
-  scope :reviewer_followup_only, -> { where(reviewer_followup: true) }
+  # `sync_consultant_followup_flag` keeps the boolean in step.
+  scope :discovery_only, -> { where(consultant_followup: false) }
+  scope :consultant_followup_only, -> { where(consultant_followup: true) }
 
   scope :on_track, ->(*tracks) { where(track: tracks.flatten) }
   scope :employee_visible, -> { where(track: EMPLOYEE_VISIBLE_TRACKS) }
@@ -54,7 +54,7 @@ class Message < ApplicationRecord
 
     self.track =
       if message_type == "system" then "system"
-      elsif reviewer_followup then "consultant_followup"
+      elsif consultant_followup then "consultant_followup"
       elsif agent_id == "companion" || routing_decision.to_h["action"].to_s.start_with?("companion")
         "companion"
       elsif conversation&.status.in?(%w[onboarding profiling])
@@ -66,7 +66,7 @@ class Message < ApplicationRecord
 
   # Keep the legacy boolean consistent with the track so the older scopes and the
   # partial index stay correct while both exist.
-  def sync_reviewer_followup_flag
-    self.reviewer_followup = (track == "consultant_followup") unless track.nil?
+  def sync_consultant_followup_flag
+    self.consultant_followup = (track == "consultant_followup") unless track.nil?
   end
 end

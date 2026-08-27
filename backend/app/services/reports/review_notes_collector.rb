@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module Reports
-  # Collects publishable reviewer overlay for PDF regeneration.
+  # Collects publishable consultant overlay for PDF regeneration.
   # Layer C only — never mutates derived intelligence.
   class ReviewNotesCollector
     def self.call(report:)
@@ -15,7 +15,7 @@ module Reports
     def call
       reviews = @report.report_reviews
         .submitted
-        .includes(:reviewer_user, :report_review_comments, :report_review_section_states)
+        .includes(:consultant_user, :report_review_comments, :report_review_section_states)
 
       reviews.flat_map { |review| notes_for(review) }
     end
@@ -24,7 +24,7 @@ module Reports
       reviews = report.report_reviews
         .submitted
         .includes(
-          :reviewer_user,
+          :consultant_user,
           :report_review_comments,
           :report_review_section_states,
           report_review_findings: []
@@ -39,10 +39,10 @@ module Reports
 
     private
 
-    # Real reviewer credentials — the ex-consulting/PhD pedigree is the trust
-    # asset and must be surfaced, not a hardcoded "Expert reviewer".
+    # Real consultant credentials — the ex-consulting/PhD pedigree is the trust
+    # asset and must be surfaced, not a hardcoded "Expert consultant".
     def credential_for(review)
-      r = review.reviewer_user
+      r = review.consultant_user
       parts = []
       parts << r.headline.to_s.strip if r.respond_to?(:headline) && r.headline.present?
       if parts.empty? && r.respond_to?(:years_experience) && r.years_experience.to_i.positive?
@@ -51,7 +51,7 @@ module Reports
       if r.respond_to?(:expertise_tags) && Array(r.expertise_tags).any?
         parts << Array(r.expertise_tags).first(3).join(", ")
       end
-      parts.reject(&:blank?).join(" · ").presence || "Independent expert reviewer"
+      parts.reject(&:blank?).join(" · ").presence || "Independent expert consultant"
     end
 
     def notes_for(review)
@@ -59,8 +59,8 @@ module Reports
       notes = []
       if review.overall_note.present?
         notes << {
-          "reviewer" => review.reviewer_user.name,
-          "reviewer_credential" => credential,
+          "consultant" => review.consultant_user.name,
+          "consultant_credential" => credential,
           "section_key" => nil,
           "body" => review.overall_note,
           "kind" => "overall_note",
@@ -73,8 +73,8 @@ module Reports
         next if comment.resolved?
 
         notes << {
-          "reviewer" => review.reviewer_user.name,
-          "reviewer_credential" => credential,
+          "consultant" => review.consultant_user.name,
+          "consultant_credential" => credential,
           "section_key" => comment.section_key,
           "body" => comment.body,
           "kind" => "section_comment",
@@ -92,7 +92,7 @@ module Reports
       # (and approval is blocked while any needs_info remains).
       review.report_review_section_states.select { |state| state.status == "approved" }.map do |state|
         {
-          "reviewer" => review.reviewer_user.name,
+          "consultant" => review.consultant_user.name,
           "section_key" => state.section_key,
           "disposition" => "approved",
           "comment" => state.try(:comment).presence || state.try(:notes).presence
@@ -107,8 +107,8 @@ module Reports
       credential = credential_for(review)
       review.report_review_findings.select(&:publishable?).map do |finding|
         {
-          "reviewer" => review.reviewer_user.name,
-          "reviewer_credential" => credential,
+          "consultant" => review.consultant_user.name,
+          "consultant_credential" => credential,
           "kind" => finding.finding_type,
           "finding_type" => finding.finding_type,
           "title" => finding.try(:title).presence || finding.finding_type.to_s.humanize,

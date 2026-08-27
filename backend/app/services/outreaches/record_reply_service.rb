@@ -15,8 +15,8 @@ module Outreaches
     end
 
     def call
-      reply = ReviewerOutreachReply.create!(
-        reviewer_outreach: @outreach,
+      reply = ConsultantOutreachReply.create!(
+        consultant_outreach: @outreach,
         channel: @channel,
         body: @body,
         message_id: @message_id,
@@ -24,7 +24,7 @@ module Outreaches
         received_at: Time.current
       )
       @outreach.update!(status: "replied")
-      @outreach.append_audit!("replied", actor: @company_user || @outreach.employee || @outreach.reviewer_user)
+      @outreach.append_audit!("replied", actor: @company_user || @outreach.employee || @outreach.consultant_user)
 
       if NotificationService.respond_to?(:notify_outreach_reply)
         NotificationService.notify_outreach_reply(outreach: @outreach, reply: reply)

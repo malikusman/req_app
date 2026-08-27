@@ -1,16 +1,16 @@
 # frozen_string_literal: true
 
-# GulfLink Logistics (Dubai) — docs-first CEO demo with McKinsey logistics reviewer.
+# GulfLink Logistics (Dubai) — docs-first CEO demo with McKinsey logistics consultant.
 #
 #   rails scenario:gulflink
 #   CLEANUP=1 rails scenario:gulflink
 #
-# Flow: provision → 5 mixed-format docs → intel → McKinsey reviewer → assign →
+# Flow: provision → 5 mixed-format docs → intel → McKinsey consultant → assign →
 #       employee contact → report (review bootstrap) → outreach + discussion Q&A →
 #       findings/submit → regenerate appendix → observations.
 class GulflinkScenarioRunner
   SLUG = "gulflink-logistics"
-  REVIEWER_EMAIL = "nadia.mckinsey@reviewers.worktruth.local"
+  CONSULTANT_EMAIL = "nadia.mckinsey@consultants.worktruth.local"
   CEO_EMAIL = "ceo@gulflink.ae"
   CONTROLLER_PHONE = "+971500011001"
 
@@ -47,16 +47,16 @@ class GulflinkScenarioRunner
   end
 
   def call
-    banner "GulfLink Logistics (Dubai) — docs + McKinsey reviewer scenario"
+    banner "GulfLink Logistics (Dubai) — docs + McKinsey consultant scenario"
     provision!
     upload_documents!
     run_intelligence!
-    create_mckinsey_reviewer!
-    assign_reviewer!
+    create_mckinsey_consultant!
+    assign_consultant!
     seed_finance_controller!
     generate_report!
     run_qa!
-    submit_reviewer_findings!
+    submit_consultant_findings!
     regenerate_appendix!
     write_observations!
     finish!
@@ -253,14 +253,14 @@ class GulflinkScenarioRunner
     @results["phases"]["intelligence"] = { "error" => "#{e.class}: #{e.message}", "backtrace" => e.backtrace&.first(5) }
   end
 
-  def create_mckinsey_reviewer!
-    stage "Create McKinsey logistics reviewer"
-    @reviewer = ReviewerUser.find_or_initialize_by(email: REVIEWER_EMAIL)
-    @reviewer.assign_attributes(
+  def create_mckinsey_consultant!
+    stage "Create McKinsey logistics consultant"
+    @consultant = ConsultantUser.find_or_initialize_by(email: CONSULTANT_EMAIL)
+    @consultant.assign_attributes(
       name: "Nadia Al-Rashid",
       password: "password123",
       status: "active",
-      jti: @reviewer.jti.presence || SecureRandom.uuid,
+      jti: @consultant.jti.presence || SecureRandom.uuid,
       headline: "Logistics & operations transformation · GCC",
       bio: "Former McKinsey engagement manager specializing in logistics network redesign, " \
            "freight cost-to-serve, and finance operating model work across Dubai and the wider GCC. " \
@@ -271,10 +271,10 @@ class GulflinkScenarioRunner
       years_experience: 12,
       profile_status: "published"
     )
-    @reviewer.save!
+    @consultant.save!
 
-    @reviewer.reviewer_experiences.destroy_all
-    @reviewer.reviewer_experiences.create!(
+    @consultant.consultant_experiences.destroy_all
+    @consultant.consultant_experiences.create!(
       organization: "McKinsey & Company",
       title: "Engagement Manager — Logistics & Operations",
       start_year: 2016,
@@ -283,7 +283,7 @@ class GulflinkScenarioRunner
                "freight billing, customs, and AP control redesign.",
       sort_order: 0
     )
-    @reviewer.reviewer_experiences.create!(
+    @consultant.consultant_experiences.create!(
       organization: "Aramex",
       title: "Regional Operations Finance Lead",
       start_year: 2012,
@@ -291,38 +291,38 @@ class GulflinkScenarioRunner
       summary: "Owned lane P&L and AP close for UAE hub operations.",
       sort_order: 1
     )
-    @reviewer.save!
+    @consultant.save!
 
-    complete = Reviewers::ProfileCompleteness.call(@reviewer).complete
-    check "Reviewer created (#{REVIEWER_EMAIL})", @reviewer.persisted?
-    check "Profile published + complete", @reviewer.published_profile? && complete
-    check "McKinsey experience present", @reviewer.reviewer_experiences.exists?(organization: "McKinsey & Company")
+    complete = Consultants::ProfileCompleteness.call(@consultant).complete
+    check "Consultant created (#{CONSULTANT_EMAIL})", @consultant.persisted?
+    check "Profile published + complete", @consultant.published_profile? && complete
+    check "McKinsey experience present", @consultant.consultant_experiences.exists?(organization: "McKinsey & Company")
 
     observe(
-      area: "reviewer_profile",
+      area: "consultant_profile",
       severity: "info",
       title: "Nadia Al-Rashid provisioned",
-      detail: "tags=#{@reviewer.expertise_tags.join(', ')}; experiences=#{@reviewer.reviewer_experiences.count}"
+      detail: "tags=#{@consultant.expertise_tags.join(', ')}; experiences=#{@consultant.consultant_experiences.count}"
     )
 
-    @results["phases"]["reviewer"] = {
-      "id" => @reviewer.id,
-      "email" => @reviewer.email,
+    @results["phases"]["consultant"] = {
+      "id" => @consultant.id,
+      "email" => @consultant.email,
       "profile_complete" => complete,
-      "experiences" => @reviewer.reviewer_experiences.pluck(:organization, :title)
+      "experiences" => @consultant.consultant_experiences.pluck(:organization, :title)
     }
   end
 
-  def assign_reviewer!
-    stage "Platform assigns reviewer to GulfLink"
-    existing = @company.reviewer_assignments.active.find_by(reviewer_user_id: @reviewer.id)
+  def assign_consultant!
+    stage "Platform assigns consultant to GulfLink"
+    existing = @company.consultant_assignments.active.find_by(consultant_user_id: @consultant.id)
     if existing
       @assignment = existing
-      check "Reviewer already assigned", true
+      check "Consultant already assigned", true
     else
-      @assignment = ReviewerAssignments::AssignService.call(
+      @assignment = ConsultantAssignments::AssignService.call(
         company: @company,
-        reviewer_user: @reviewer,
+        consultant_user: @consultant,
         platform_user: @platform
       )
       check "Assignment created", @assignment.persisted?
@@ -391,7 +391,7 @@ class GulflinkScenarioRunner
     Reports::GenerateReportService.call(report: @report)
     @report.reload
 
-    review = @report.report_reviews.find_by(reviewer_user: @reviewer)
+    review = @report.report_reviews.find_by(consultant_user: @consultant)
     snapshot = @report.report_snapshot || {}
     summary = snapshot["executive_summary"].to_s
 
@@ -440,11 +440,11 @@ class GulflinkScenarioRunner
   end
 
   def run_qa!
-    stage "Reviewer Q&A (CEO portal clarification + discussion)"
-    return check("Report/CEO ready for Q&A", false) unless @report && @admin && @reviewer
+    stage "Consultant Q&A (CEO portal clarification + discussion)"
+    return check("Report/CEO ready for Q&A", false) unless @report && @admin && @consultant
 
     outreach = Outreaches::CreateService.call(
-      reviewer: @reviewer,
+      consultant: @consultant,
       company: @company,
       recipient_type: "company_admin",
       recipient_id: @admin.id,
@@ -468,7 +468,7 @@ class GulflinkScenarioRunner
     outreach.update!(status: "closed")
     outreach.append_audit!("answered", actor: @admin, note: "Closed via portal answer")
     outreach.reload
-    check "CEO answered clarification", outreach.status == "closed" && outreach.reviewer_outreach_replies.any?
+    check "CEO answered clarification", outreach.status == "closed" && outreach.consultant_outreach_replies.any?
 
     observe(
       area: "communication",
@@ -480,7 +480,7 @@ class GulflinkScenarioRunner
     # Secondary: employee-path outreach still requires admin approval (regression check).
     if @employee
       employee_outreach = Outreaches::CreateService.call(
-        reviewer: @reviewer,
+        consultant: @consultant,
         company: @company,
         employee_id: @employee.id,
         recipient_type: "employee",
@@ -493,7 +493,7 @@ class GulflinkScenarioRunner
     end
 
     discussion = ReviewDiscussions::CreateService.call(
-      reviewer: @reviewer,
+      consultant: @consultant,
       report: @report,
       params: {
         target_type: "employee",
@@ -508,7 +508,7 @@ class GulflinkScenarioRunner
     check "Discussion created", discussion.persisted?
 
     reply = ReviewDiscussions::CreateService.call(
-      reviewer: @reviewer,
+      consultant: @consultant,
       report: @report,
       params: {
         target_type: "employee",
@@ -525,7 +525,7 @@ class GulflinkScenarioRunner
     observe(
       area: "communication",
       severity: "minor",
-      title: "Discussion threads are reviewer-authored replies only in this path",
+      title: "Discussion threads are consultant-authored replies only in this path",
       detail: "Employee did not author a discussion reply in-product; follow-up may fan out to WhatsApp/info-request. UI clarity of who sees what is a watchpoint."
     )
 
@@ -542,8 +542,8 @@ class GulflinkScenarioRunner
     @results["phases"]["qa"] = { "error" => "#{e.class}: #{e.message}", "backtrace" => e.backtrace&.first(5) }
   end
 
-  def submit_reviewer_findings!
-    stage "Reviewer findings + submit"
+  def submit_consultant_findings!
+    stage "Consultant findings + submit"
     return check("Review present", false) unless @review
 
     ReportSections::KEYS.each do |key|
@@ -552,7 +552,7 @@ class GulflinkScenarioRunner
     end
     unless @review.report_review_comments.where(section_key: "signals").exists?
       @review.report_review_comments.create!(
-        reviewer_user: @reviewer,
+        consultant_user: @consultant,
         section_key: "signals",
         body: "Need confirmation of demurrage accrual timing from Finance Controller (outreach in flight)."
       )
@@ -560,7 +560,7 @@ class GulflinkScenarioRunner
     @review.update!(overall_note: "GulfLink docs show real AP/freight control friction; need one live exception example (captured via outreach).")
 
     finding = @review.report_review_findings.find_or_initialize_by(
-      reviewer_user: @reviewer,
+      consultant_user: @consultant,
       finding_type: "executive_conclusion"
     )
     finding.assign_attributes(
@@ -575,7 +575,7 @@ class GulflinkScenarioRunner
     finding.save!
 
     risk = @review.report_review_findings.find_or_initialize_by(
-      reviewer_user: @reviewer,
+      consultant_user: @consultant,
       finding_type: "risk"
     )
     risk.assign_attributes(
@@ -626,7 +626,7 @@ class GulflinkScenarioRunner
 
     if findings.none? { |f| f["body"].to_s.include?("McKinsey") }
       observe(
-        area: "reviewer_profile",
+        area: "consultant_profile",
         severity: "minor",
         title: "McKinsey credential may not surface outside finding body",
         detail: "Experiences exist on profile; report appendix relies on finding text rather than structured bio."
@@ -684,7 +684,7 @@ class GulflinkScenarioRunner
     lines << "## Logins"
     lines << ""
     lines << "- Company CEO: `#{CEO_EMAIL}` / `password123`"
-    lines << "- Reviewer: `#{REVIEWER_EMAIL}` / `password123`"
+    lines << "- Consultant: `#{CONSULTANT_EMAIL}` / `password123`"
     lines << "- Platform: `admin@reqapp.local` (seed password)"
     lines << "- Report id: #{@report&.id} version #{@report&.version}"
     path.write(lines.join("\n"))
@@ -707,7 +707,7 @@ class GulflinkScenarioRunner
     banner "Done — #{@checks.count { |_, ok| ok }}/#{@checks.size} checks passed"
     @checks.each { |label, ok| puts "  #{ok ? '✓' : '✗'} #{label}" }
     puts ""
-    puts "Logins: CEO #{CEO_EMAIL} / password123 | Reviewer #{REVIEWER_EMAIL} / password123"
+    puts "Logins: CEO #{CEO_EMAIL} / password123 | Consultant #{CONSULTANT_EMAIL} / password123"
   end
 
   def cleanup!
@@ -729,7 +729,7 @@ class GulflinkScenarioRunner
       department: spec[:department],
       document_type: spec[:document_type],
       sensitivity: "internal",
-      reviewer_visible: true,
+      consultant_visible: true,
       filename: filename,
       content_type: content_type,
       byte_size: body.bytesize,

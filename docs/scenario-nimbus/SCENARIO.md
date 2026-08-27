@@ -29,7 +29,7 @@ Chosen to mirror the real "check the PI automatically" use case.
 |---|---|---|
 | Platform admin | Worktruth operator | `admin@reqapp.local` |
 | Company admin | Omar Haddad (CEO) | `omar@nimbus.ae` / `password123` |
-| Reviewer | Samir Al-Farsi (trade-ops & finance expert) | `samir.ops@reviewers.worktruth.local` / `password123` |
+| Consultant | Samir Al-Farsi (trade-ops & finance expert) | `samir.ops@consultants.worktruth.local` / `password123` |
 | Employees | 4 (below) | invite-first |
 
 ## Employees & channels (both exercised)
@@ -44,15 +44,15 @@ first-pass ~72%, invoice-to-pay 9–12 days vs 5, demurrage at 48h, etc.).
 `proforma-invoice-sample.txt` (a sample PI with a 2.4% price drift vs its LPO).
 
 ## The flow the runner drives
-1. Provision platform admin, company + admin, reviewer; assign reviewer.
+1. Provision platform admin, company + admin, consultant; assign consultant.
 2. Upload the 4 documents (ingested + chunked, ready).
 3. Interview all 4 employees — 2 over WhatsApp, 2 over web — onboarding → profiling → discovery.
 4. Aggregate intelligence (signals → patterns → recommendations → agentic ideas → readiness).
-5. **Gated** report generation → `internal_only`, `awaiting_reviewers`; assert the company **cannot** download it yet.
-6. Reviewer **contributes**: approve section decisions + a comment; a prose **EDIT that replaces** the AI executive summary; an **added** "Risk register" section; a publishable executive-conclusion finding; an overall note; a company-admin clarification **Q&A**.
+5. **Gated** report generation → `internal_only`, `awaiting_consultants`; assert the company **cannot** download it yet.
+6. Consultant **contributes**: approve section decisions + a comment; a prose **EDIT that replaces** the AI executive summary; an **added** "Risk register" section; a publishable executive-conclusion finding; an overall note; a company-admin clarification **Q&A**.
 7. Assert the **gate**: a `needs_info` review blocks approval (then resolve).
-8. Reviewer submits → **platform approves** → report `shared_with_company`; assert the company **can now** download; company is notified.
-9. Inspect the final deliverable: the reviewer's edited exec summary and added section appear; no raw internal scores leak.
+8. Consultant submits → **platform approves** → report `shared_with_company`; assert the company **can now** download; company is notified.
+9. Inspect the final deliverable: the consultant's edited exec summary and added section appear; no raw internal scores leak.
 
 ## LLM (fully local — Gemma)
 All services are pointed at LM Studio via `.env` **Profile B**
@@ -66,5 +66,5 @@ docker exec req_app-rails-1 bundle exec rails scenario:nimbus
 
 ## What to watch
 Channel parity (WhatsApp vs web), interview quality/repetition, signal/metric
-grounding, the enforced review gate, reviewer edits reaching the final PDF,
+grounding, the enforced review gate, consultant edits reaching the final PDF,
 notifications firing at the right time, and any errors along the way.

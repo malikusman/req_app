@@ -2,12 +2,12 @@
 
 class DocumentAnalysisRunPolicy < ApplicationPolicy
   def index?
-    company_admin? || reviewer?
+    company_admin? || consultant?
   end
 
   def show?
     return true if company_admin? && record.company_id == company_id
-    return true if reviewer? && assigned_company?(record.company_id)
+    return true if consultant? && assigned_company?(record.company_id)
 
     false
   end
@@ -20,7 +20,7 @@ class DocumentAnalysisRunPolicy < ApplicationPolicy
     def resolve
       if company?
         scope.where(company_id: company_id)
-      elsif reviewer?
+      elsif consultant?
         scope.where(company_id: assigned_company_ids)
       else
         scope.none

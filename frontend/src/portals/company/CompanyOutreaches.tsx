@@ -25,7 +25,7 @@ type Outreach = {
   employee_id?: number;
   recipient_type?: string;
   recipient_name?: string | null;
-  reviewer_name?: string;
+  consultant_name?: string;
   created_at: string;
   replies?: Reply[];
 };
@@ -63,7 +63,7 @@ export function CompanyOutreaches() {
         setOutreaches(list);
         setSelected((prev) => (prev ? list.find((o) => o.id === prev.id) || null : null));
       })
-      .catch(() => setLoadError('Could not load reviewer questions.'))
+      .catch(() => setLoadError('Could not load consultant questions.'))
       .finally(() => setLoading(false));
   };
 
@@ -128,8 +128,8 @@ export function CompanyOutreaches() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Reviewer questions"
-        description="Questions from your expert reviewer that sharpen your report."
+        title="Consultant questions"
+        description="Questions from your expert consultant that sharpen your report."
       />
 
       {needsInput > 0 && (
@@ -155,9 +155,9 @@ export function CompanyOutreaches() {
           onRowClick={setSelected}
           columns={[
             {
-              key: 'reviewer',
-              header: 'Reviewer',
-              render: (o: Outreach) => o.reviewer_name || '—',
+              key: 'consultant',
+              header: 'Consultant',
+              render: (o: Outreach) => o.consultant_name || '—',
             },
             {
               key: 'recipient',
@@ -207,7 +207,7 @@ export function CompanyOutreaches() {
             <EmptyState
               icon={MessageSquare}
               title="No questions yet"
-              description="When your reviewer needs something to sharpen your report, their question shows up here for you to answer."
+              description="When your consultant needs something to sharpen your report, their question shows up here for you to answer."
             />
           }
         />
@@ -222,7 +222,7 @@ export function CompanyOutreaches() {
                   <Badge variant={statusVariant(selected.status)}>{label("outreachStatus", selected.status)}</Badge>
                   <span className="text-xs text-text-secondary">{selected.channel}</span>
                 </div>
-                <div className="font-medium">{selected.reviewer_name || 'Reviewer'}</div>
+                <div className="font-medium">{selected.consultant_name || 'Consultant'}</div>
                 {selected.recipient_name && (
                   <p className="mt-1 text-xs text-text-secondary">
                     To: {selected.recipient_name}
@@ -260,7 +260,7 @@ export function CompanyOutreaches() {
                     rows={4}
                     value={answer}
                     onChange={(e) => setAnswer(e.target.value)}
-                    placeholder="Answer this question for the reviewer…"
+                    placeholder="Answer this question for the consultant…"
                   />
                   <Button size="sm" loading={actingId === selected.id} disabled={!answer.trim()} onClick={submitAnswer}>
                     Submit answer & close
@@ -291,7 +291,7 @@ export function CompanyOutreaches() {
                     <Badge variant={statusVariant(selected.status)}>{label("outreachStatus", selected.status)}</Badge>
                     <span className="text-xs text-text-secondary">{selected.channel}</span>
                   </div>
-                  <div className="font-medium">{selected.reviewer_name || 'Reviewer'}</div>
+                  <div className="font-medium">{selected.consultant_name || 'Consultant'}</div>
                   {selected.recipient_name && (
                     <p className="mt-1 text-xs text-text-secondary">
                       To: {selected.recipient_name}
@@ -324,7 +324,7 @@ export function CompanyOutreaches() {
                       rows={4}
                       value={answer}
                       onChange={(e) => setAnswer(e.target.value)}
-                      placeholder="Answer this question for the reviewer…"
+                      placeholder="Answer this question for the consultant…"
                     />
                     <Button size="sm" loading={actingId === selected.id} disabled={!answer.trim()} onClick={submitAnswer}>
                       Submit answer & close

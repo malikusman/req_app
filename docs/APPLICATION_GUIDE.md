@@ -12,7 +12,7 @@
 2. [System architecture](#2-system-architecture)
 3. [Platform Admin](#3-platform-admin)
 4. [Company portal (Client)](#4-company-portal-client)
-5. [Reviewer portal](#5-reviewer-portal)
+5. [Consultant portal](#5-consultant-portal)
 6. [Employee experience (WhatsApp + web)](#6-employee-experience-whatsapp--web)
 7. [Cross-cutting product flows](#7-cross-cutting-product-flows)
 8. [UI/UX principles as implemented](#8-uiux-principles-as-implemented)
@@ -26,7 +26,7 @@
 
 Worktruth helps organizations discover how work actually happens—approvals, tools, handoffs, pain points—then turn that evidence into **actionable intelligence** and a **reviewed report**.
 
-Companies can start from **documents** (SOPs, spreadsheets, PDFs), from **employee interviews** (WhatsApp or browser chat), or both. Interviews are guided by an AI discovery system (optionally multi-agent specialists). Results are aggregated into signals, patterns, and recommendations. External **reviewers** validate the report; **platform** can approve visibility; the **company** downloads and shares the finished artifact.
+Companies can start from **documents** (SOPs, spreadsheets, PDFs), from **employee interviews** (WhatsApp or browser chat), or both. Interviews are guided by an AI discovery system (optionally multi-agent specialists). Results are aggregated into signals, patterns, and recommendations. External **consultants** validate the report; **platform** can approve visibility; the **company** downloads and shares the finished artifact.
 
 ### 1.2 Actors
 
@@ -34,7 +34,7 @@ Companies can start from **documents** (SOPs, spreadsheets, PDFs), from **employ
 |-------|----------------|-----------------|
 | **Platform Admin** | Worktruth operators | `/platform/*` |
 | **Company Admin (Client)** | Customer organization admin | `/company/*` |
-| **Reviewer** | External domain expert assigned by platform (max 2 per company) | `/reviewer/*` |
+| **Consultant** | External domain expert assigned by platform (max 2 per company) | `/consultant/*` |
 | **Employee** | Interviewee inside the company | WhatsApp bot and/or `/discover/:token` |
 
 There is also a `company_viewer` role in the data model; the UI currently presents a **Company Admin** experience for company portal users.
@@ -54,7 +54,7 @@ flowchart LR
   end
   subgraph output [Output]
     Report[VersionedReport]
-    Review[ReviewerReview]
+    Review[ConsultantReview]
     Share[CompanyShare_Download]
   end
   Docs --> Analysis
@@ -111,7 +111,7 @@ flowchart TB
 
 | Layer | Technology | Role |
 |-------|------------|------|
-| Frontend | React + Vite (`frontend/`) | Platform, company, reviewer portals + employee discover UI |
+| Frontend | React + Vite (`frontend/`) | Platform, company, consultant portals + employee discover UI |
 | API | Rails 7 (`backend/`) | Auth, domain logic, webhooks, orchestration |
 | Jobs | Sidekiq + Redis | WhatsApp processing, invites, nudges, media, analysis, intelligence |
 | Agent | FastAPI LangGraph (`agent/`) | Discovery turns, routing, document analysis LLM graph |
@@ -131,7 +131,7 @@ Four JWT audiences, never mixed:
 |----------|---------|---------|
 | `platform` | `platform_user:{id}` | Platform portal |
 | `company` | `company_user:{id}` + `company_id` | Company portal |
-| `reviewer` | `reviewer_user:{id}` | Reviewer portal |
+| `consultant` | `consultant_user:{id}` | Consultant portal |
 | `employee_web` | `employee:{id}` + `web_session_id` | Browser discover chat |
 
 - Tokens carry a `jti` checked against the active user/session.
@@ -161,7 +161,7 @@ sequenceDiagram
   participant Emp as Employee
   participant Rails as RailsAPI
   participant Agent as LangGraph
-  participant Rev as Reviewer
+  participant Rev as Consultant
   participant Plat as Platform
 
   Admin->>Rails: Invite employee phone or email
@@ -170,7 +170,7 @@ sequenceDiagram
   Rails->>Agent: Discovery turn with blackboard
   Agent-->>Rails: Next question or complete
   Rails->>Rails: Aggregate intelligence
-  Note over Rails,Rev: Report generated and reviewers assigned
+  Note over Rails,Rev: Report generated and consultants assigned
   Rev->>Rails: Review workspace submit
   Plat->>Rails: Approve report for company
   Admin->>Rails: Download or share report link
@@ -182,7 +182,7 @@ sequenceDiagram
 
 ### 3.1 Purpose
 
-Operate the multi-tenant product: approve who gets in, create/manage companies and reviewers, assign experts, watch health, curate discovery playbooks and solution catalog, approve reports for customer visibility, and support customers via impersonation.
+Operate the multi-tenant product: approve who gets in, create/manage companies and consultants, assign experts, watch health, curate discovery playbooks and solution catalog, approve reports for customer visibility, and support customers via impersonation.
 
 ### 3.2 Access
 
@@ -198,9 +198,9 @@ From `frontend/src/portals/platform/nav.ts`:
 | Nav item | Path | What it is for |
 |----------|------|----------------|
 | Dashboard | `/platform/dashboard` | Operator snapshot |
-| Registrations | `/platform/registrations` | Approve/reject company signups and reviewer applications |
+| Registrations | `/platform/registrations` | Approve/reject company signups and consultant applications |
 | Companies | `/platform/companies` | List/create companies; open detail; impersonate |
-| Reviewers | `/platform/reviewers` | Reviewer directory and detail |
+| Consultants | `/platform/consultants` | Consultant directory and detail |
 | Trials | `/platform/trials` | Trials ending soon; extend |
 | Playbooks | `/platform/playbooks` | Discovery playbook content by department |
 | Solutions | `/platform/solutions` | Solution catalog entries |
@@ -214,7 +214,7 @@ From `frontend/src/portals/platform/nav.ts`:
 
 - **Company signup** arrives from public `POST /api/v1/public/company_registrations` (company name, admin name/email/**phone**, optional website; rate-limited).
 - Platform **approves** → admin receives set-password email → can log into company portal.
-- **Reviewer apply** via `/reviewer/apply` → platform approve/reject → active reviewer can log in.
+- **Consultant apply** via `/consultant/apply` → platform approve/reject → active consultant can log in.
 - Rejected or pending users cannot authenticate.
 
 ### 3.5 Companies
@@ -235,14 +235,14 @@ From `frontend/src/portals/platform/nav.ts`:
 | Client stack | Inferred/known systems (`CompanySystem`) |
 | Agentic ideas | Synthesize / publish / archive ideas |
 | Reports | Download; **Approve** for company visibility |
-| Reviewers | Assign/remove reviewers (**max 2 active** per company) |
+| Consultants | Assign/remove consultants (**max 2 active** per company) |
 | Audit | Company-related audit events |
 
-### 3.6 Reviewers (platform management)
+### 3.6 Consultants (platform management)
 
-- CRUD-ish management of `ReviewerUser` (status, verification flags, CV download).
-- Assign to companies via `ReviewerAssignment` (`active` / `removed`).
-- Can read co-reviewer chat for support visibility.
+- CRUD-ish management of `ConsultantUser` (status, verification flags, CV download).
+- Assign to companies via `ConsultantAssignment` (`active` / `removed`).
+- Can read co-consultant chat for support visibility.
 
 ### 3.7 Trials
 
@@ -252,7 +252,7 @@ From `frontend/src/portals/platform/nav.ts`:
 ### 3.8 Playbooks & catalog
 
 - **Playbooks:** Department-scoped discovery prompt structures used when Rails builds LangGraph context.
-- **Solutions / Sources / Candidates:** Maintain the recommendation catalog that intelligence and reviewers can match or endorse against.
+- **Solutions / Sources / Candidates:** Maintain the recommendation catalog that intelligence and consultants can match or endorse against.
 
 ### 3.9 System & monitoring
 
@@ -261,9 +261,9 @@ From `frontend/src/portals/platform/nav.ts`:
 
 ### 3.10 Report approval (platform gate)
 
-When reviewers are assigned:
+When consultants are assigned:
 
-1. Reviewers submit their `ReportReview`.
+1. Consultants submit their `ReportReview`.
 2. Platform **Approve** on the company report (unless company setting `skip_platform_review`).
 3. Report becomes `shared_with_company` / platform-approved; company can view/download/share.
 
@@ -281,7 +281,7 @@ Settings such as `allow_early_report` affect whether generation can run before r
 
 ### 4.1 Purpose
 
-The customer’s home: configure the organization, upload documents, invite employees, watch interviews, answer reviewer questions, review intelligence, and consume shared reports. **Companies do not generate reports in the UI**—generation/review is reviewer/platform; company **views, downloads, and shares**.
+The customer’s home: configure the organization, upload documents, invite employees, watch interviews, answer consultant questions, review intelligence, and consume shared reports. **Companies do not generate reports in the UI**—generation/review is consultant/platform; company **views, downloads, and shares**.
 
 ### 4.2 Access journey
 
@@ -317,8 +317,8 @@ From `frontend/src/portals/company/nav.ts`:
 | 5 | Conversations | `/company/conversations` | Interview transcripts |
 | 6 | Discovery questions | `/company/discovery-questions` | Question-level feedback (not answers) |
 | 7 | Intelligence | `/company/intelligence` | Signals / patterns / recs / timeline |
-| 8 | Reviewer questions | `/company/outreaches` | Approve/answer reviewer outreaches |
-| 9 | Reviewers | `/company/reviewers` | See assigned published experts |
+| 8 | Consultant questions | `/company/outreaches` | Approve/answer consultant outreaches |
+| 9 | Consultants | `/company/consultants` | See assigned published experts |
 | 10 | Reports | `/company/reports` | View / download / share |
 | 11 | Profile | `/company/onboarding` | Org questionnaire + account |
 | 12 | Settings | `/company/settings` | Org prefs; links to Billing & Media |
@@ -363,17 +363,17 @@ Adapts to engagement phase:
 | Docs-only | KPIs: Documents / Signals / Patterns / Recommendations |
 | Hybrid (interviews started) | In progress / Signals / Patterns / Recommendations |
 
-Typical action tiles: Profile %, Assigned reviewer, Conversations, Discovery questions (unanswered badge), Shared reports, Upload documents, Invite employees, WhatsApp media.
+Typical action tiles: Profile %, Assigned consultant, Conversations, Discovery questions (unanswered badge), Shared reports, Upload documents, Invite employees, WhatsApp media.
 
 Also: stalled employees card (nudge CTA), participation funnel, department coverage, top pain points, emerging patterns, recent activity, trial usage line.
 
 ### 4.6 Documents
 
-- Upload with department + “Visible to reviewers”.
+- Upload with department + “Visible to consultants”.
 - Preferred formats: PDF, DOCX, XLSX, CSV, MD (others warned).
 - **Analysis does not auto-start.** Admin explicitly runs Analyze / Update / Refresh grounding / Rebuild KB.
 - Run kinds include default, incremental docs, profile reground, full rebuild.
-- Row actions: Download, Replace, Delete, Show/Hide for reviewers.
+- Row actions: Download, Replace, Delete, Show/Hide for consultants.
 - Polling/toasts while processing.
 
 Downstream: Knowledge entries + clarification questions; intelligence can update after runs complete.
@@ -444,9 +444,9 @@ Hash tabs: **Overview | Signals | Patterns | Recommendations | Timeline**.
 - Recommendations: priority; feedback (Interested / Already doing / Not relevant); agentic ideas when published.
 - Timeline: discovery activity over time.
 
-### 4.12 Reviewer questions (outreaches)
+### 4.12 Consultant questions (outreaches)
 
-Reviewers may ask the **company admin** or request contact with an **employee**.
+Consultants may ask the **company admin** or request contact with an **employee**.
 
 | Outreach target | Company admin action |
 |-----------------|----------------------|
@@ -455,17 +455,17 @@ Reviewers may ask the **company admin** or request contact with an **employee**.
 
 Statuses include `pending_admin_approval` and subsequent delivery states.
 
-### 4.13 Reviewers page
+### 4.13 Consultants page
 
 - Cards for assigned experts who have published profiles.
-- Empty until platform assigns and reviewer publishes.
+- Empty until platform assigns and consultant publishes.
 
 ### 4.14 Reports
 
 - List shared/available reports.
 - **View / download** (PDF/HTML) / **share** (public tokenized URL, ~30 days, access logged).
 - No Generate button; policy denies company `create?`.
-- Empty → guide back to dashboard / wait for reviewer/platform.
+- Empty → guide back to dashboard / wait for consultant/platform.
 
 ### 4.15 Settings & billing & media
 
@@ -479,51 +479,51 @@ Bell in shell: unread list, mark one/all read, navigate `action_url` (interview 
 
 ---
 
-## 5. Reviewer portal
+## 5. Consultant portal
 
 ### 5.1 Purpose
 
-Independent experts validate discovery evidence and reports for assigned companies, request clarifications, optionally contact employees (often via company admin gate), endorse catalog fits, and collaborate with a co-reviewer.
+Independent experts validate discovery evidence and reports for assigned companies, request clarifications, optionally contact employees (often via company admin gate), endorse catalog fits, and collaborate with a co-consultant.
 
 ### 5.2 Access
 
-- **Apply:** `/reviewer/apply` → platform approval.
-- **Login:** `/reviewer/login` → only `active` reviewers.
-- JWT audience `reviewer`.
+- **Apply:** `/consultant/apply` → platform approval.
+- **Login:** `/consultant/login` → only `active` consultants.
+- JWT audience `consultant`.
 
 ### 5.3 Navigation
 
-Sidebar is intentionally small (`frontend/src/portals/reviewer/nav.ts`):
+Sidebar is intentionally small (`frontend/src/portals/consultant/nav.ts`):
 
 | Item | Path |
 |------|------|
-| Dashboard | `/reviewer/dashboard` |
-| Profile | `/reviewer/profile` |
-| Inbox | `/reviewer/inbox` |
+| Dashboard | `/consultant/dashboard` |
+| Profile | `/consultant/profile` |
+| Inbox | `/consultant/inbox` |
 
 Company-scoped work is reached from the dashboard / company cards (not a long sidebar):
 
-- `/reviewer/companies/:companyId` — overview  
+- `/consultant/companies/:companyId` — overview  
 - `.../reports/:reportId/review` — full report workspace  
 - `.../conversations`, `.../documents`, `.../analysis`, `.../catalog`  
 - `.../employees/:employeeId/followup`  
 
 ### 5.4 Assignment model
 
-- Platform creates `ReviewerAssignment` (active).
-- **Maximum 2 active reviewers per company.**
-- Scope: reviewer APIs only see assigned companies.
+- Platform creates `ConsultantAssignment` (active).
+- **Maximum 2 active consultants per company.**
+- Scope: consultant APIs only see assigned companies.
 
 ### 5.5 Dashboard & inbox
 
 - Action queue: pending report reviews, open follow-ups, notifications.
-- Inbox (`ReviewerFollowups`): follow-up threads + notifications.
-- Legacy path `/reviewer/followups` redirects to inbox.
+- Inbox (`ConsultantFollowups`): follow-up threads + notifications.
+- Legacy path `/consultant/followups` redirects to inbox.
 
 ### 5.6 Profile
 
 - Questionnaire, avatar, CV upload/download.
-- Publishing profile makes the reviewer visible on the company Reviewers page.
+- Publishing profile makes the consultant visible on the company Consultants page.
 
 ### 5.7 Company overview
 
@@ -533,7 +533,7 @@ Tabs typically include: **overview, profile, interviews, intelligence, clarifica
 - Links to documents, analysis, catalog, conversations.
 - Employee roster → follow-up pages.
 - Clarifications: portal outreaches to **company admin** (no WhatsApp required).
-- Agentic ideas panel; co-reviewer chat drawer.
+- Agentic ideas panel; co-consultant chat drawer.
 
 ### 5.8 Report review workspace
 
@@ -548,34 +548,34 @@ Capabilities:
 - PDF drawer alongside structured review
 - Transcript + employee profile evidence
 - Section status, comments, findings
-- Co-reviewer chat and review discussions
+- Co-consultant chat and review discussions
 - Submit `ReportReview` (`pending` → `in_review` → `approved` / `rejected` / `needs_info`, etc.)
 
-When all assigned reviewers finish, platform can approve for company visibility.
+When all assigned consultants finish, platform can approve for company visibility.
 
-### 5.9 How reviewers contact employees
+### 5.9 How consultants contact employees
 
 Two related mechanisms:
 
 | Path | Gate | Delivery |
 |------|------|----------|
-| **Outreach** (clarification / evidence request) | Often **company admin approval** when target is employee | After approval: WhatsApp free-form if within **24h** of last activity; else Meta template `reviewer_followup_reopen` (name + company) |
-| **Direct follow-up / discussion “Ask employee”** | May use `ReviewerFollowup::SendService` | Same 24h vs template logic; creates `ReviewerInfoRequest`; inbound replies notify reviewer |
+| **Outreach** (clarification / evidence request) | Often **company admin approval** when target is employee | After approval: WhatsApp free-form if within **24h** of last activity; else Meta template `consultant_followup_reopen` (name + company) |
+| **Direct follow-up / discussion “Ask employee”** | May use `ConsultantFollowup::SendService` | Same 24h vs template logic; creates `ConsultantInfoRequest`; inbound replies notify consultant |
 
-Company-admin-targeted outreaches go to the company portal **Reviewer questions** for answer.
+Company-admin-targeted outreaches go to the company portal **Consultant questions** for answer.
 
 ### 5.10 Documents, analysis, catalog
 
-- See company documents marked visible to reviewers; download.
+- See company documents marked visible to consultants; download.
 - Document analysis view; dismiss clarification questions.
 - Catalog: browse fits; **endorse** solution matches.
 - Agentic ideas: review/publish collaboration with platform/company visibility rules.
 
-### 5.11 UI/UX notes (reviewer)
+### 5.11 UI/UX notes (consultant)
 
 - Expert workstation: deep company context, evidence-heavy report UI.
 - Clear separation between **asking the company** (portal) and **pinging an employee** (WhatsApp, often admin-gated).
-- Co-reviewer collaboration is first-class when two reviewers are assigned.
+- Co-consultant collaboration is first-class when two consultants are assigned.
 
 ---
 
@@ -619,7 +619,7 @@ flowchart TD
 - First inbound for named invites: if not YES yet, bot sends consent text; YES proceeds.
 - Subscription **conversation limit** checked at discovery start.
 - Media (voice/image/document) allowed in discovery after verified; blocked during onboarding/profiling with a notice.
-- Routing priority for inbound text: outreach reply → reviewer follow-up → profiling/discovery/onboarding.
+- Routing priority for inbound text: outreach reply → consultant follow-up → profiling/discovery/onboarding.
 - Language heuristics can set preferred language from early messages.
 
 **Nudges:** If participation is `started` and stalled (~48h), company admin can send nudge template/email (24h cooldown).
@@ -683,15 +683,15 @@ Triggered after interviews complete and/or after analysis:
 4. Optional stack inference, catalog fit, agentic ideas  
 5. Snapshot, readiness %, timeline, notifications  
 
-Company and reviewer portals both consume these layers with different write rights (e.g. recommendation feedback).
+Company and consultant portals both consume these layers with different write rights (e.g. recommendation feedback).
 
 ### 7.3 Report lifecycle
 
 ```mermaid
 flowchart LR
   Gen[GenerateReport] --> Boot[BootstrapReportReviews]
-  Boot --> R1[Reviewer1_workspace]
-  Boot --> R2[Reviewer2_workspace]
+  Boot --> R1[Consultant1_workspace]
+  Boot --> R2[Consultant2_workspace]
   R1 --> Submit[ReviewsSubmitted]
   R2 --> Submit
   Submit --> Plat[PlatformApprove]
@@ -699,7 +699,7 @@ flowchart LR
 ```
 
 - HTML + Gotenberg PDF stored in MinIO.
-- Visibility may stay internal until platform approval when reviewers are assigned.
+- Visibility may stay internal until platform approval when consultants are assigned.
 - Share links are tokenized public URLs with access logging.
 
 ### 7.4 Billing & conversation limits
@@ -719,9 +719,9 @@ Domain events create in-app notifications (and sometimes email): interview start
 
 ### 8.1 Portal shells
 
-- Consistent sidebar + top bar pattern across platform/company/reviewer.
+- Consistent sidebar + top bar pattern across platform/company/consultant.
 - Company branding signal: company name in chrome; Worktruth product framing on marketing/auth.
-- Reviewer report workspace goes **full-bleed** to maximize evidence density.
+- Consultant report workspace goes **full-bleed** to maximize evidence density.
 
 ### 8.2 Progressive engagement
 
@@ -733,8 +733,8 @@ Domain events create in-app notifications (and sometimes email): interview start
 
 | Role | Typically can see | Typically cannot |
 |------|-------------------|------------------|
-| Company admin | Own employees’ transcripts, media, intel, shared reports | Other companies; generate reports; raw reviewer private notes beyond shared workflow |
-| Reviewer | Assigned company evidence, visible docs, reports under review | Unassigned companies; company billing |
+| Company admin | Own employees’ transcripts, media, intel, shared reports | Other companies; generate reports; raw consultant private notes beyond shared workflow |
+| Consultant | Assigned company evidence, visible docs, reports under review | Unassigned companies; company billing |
 | Platform | All tenants, approvals, impersonation | N/A (operator) |
 | Company on discovery questions page | Question text | Employee answers |
 | Employee | Own chat only | Portal intelligence/reports |
@@ -745,7 +745,7 @@ Domain events create in-app notifications (and sometimes email): interview start
 - Admin approval for many employee outreaches.
 - Unknown WhatsApp numbers never enter the state machine.
 - Discover links single-use at verify.
-- Clear empty states that teach the next step (upload / invite / wait for reviewer).
+- Clear empty states that teach the next step (upload / invite / wait for consultant).
 
 ### 8.5 Operational honesty
 
@@ -777,7 +777,7 @@ Prod overlay: `docker-compose.prod.yml`.
 
 | Area | Examples |
 |------|----------|
-| Meta WhatsApp | `META_*` tokens, phone number id, verify token, `META_TEMPLATE_EMPLOYEE_INVITE`, `META_TEMPLATE_EMPLOYEE_NUDGE`, `META_TEMPLATE_REVIEWER_FOLLOWUP`, `META_WHATSAPP_DISPLAY_NUMBER` |
+| Meta WhatsApp | `META_*` tokens, phone number id, verify token, `META_TEMPLATE_EMPLOYEE_INVITE`, `META_TEMPLATE_EMPLOYEE_NUDGE`, `META_TEMPLATE_CONSULTANT_FOLLOWUP`, `META_WHATSAPP_DISPLAY_NUMBER` |
 | Agent | `LANGGRAPH_URL`, OpenAI keys/models, `INTERNAL_API_TOKEN` |
 | App | `APP_HOST` (discover URLs), `FROM_EMAIL`, Stripe keys |
 | Storage | MinIO endpoints/credentials |
@@ -792,7 +792,7 @@ Prod overlay: `docker-compose.prod.yml`.
 | Pattern | Higher-order theme across signals |
 | Recommendation | Suggested action/solution fit |
 | Playbook | Prompt/structure for discovery by department |
-| Outreach | Reviewer-initiated question to admin or employee |
+| Outreach | Consultant-initiated question to admin or employee |
 | Readiness | Score reflecting completeness/quality of evidence |
 | Blackboard | Conversation state for multi-agent orchestration |
 | Impersonation | Platform acting as company admin for support |
@@ -802,7 +802,7 @@ Prod overlay: `docker-compose.prod.yml`.
 | Concern | Location |
 |---------|----------|
 | Company UI | `frontend/src/portals/company/` |
-| Reviewer UI | `frontend/src/portals/reviewer/` |
+| Consultant UI | `frontend/src/portals/consultant/` |
 | Platform UI | `frontend/src/portals/platform/` |
 | Employee web UI | `frontend/src/employee/` |
 | API routes | `backend/config/routes.rb` |

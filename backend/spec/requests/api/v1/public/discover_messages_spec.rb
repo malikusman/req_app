@@ -7,7 +7,7 @@ require "rails_helper"
 #
 #   1. Web::TurnRouter never checked for an open consultant request, so a reply was
 #      swallowed by the discovery handler and the consultant was never notified.
-#   2. visible_messages filtered through `discovery_only` (reviewer_followup: false),
+#   2. visible_messages filtered through `discovery_only` (consultant_followup: false),
 #      so the consultant's question was invisible in the thread meant to answer it.
 RSpec.describe "Api::V1::Public::DiscoverMessages", type: :request do
   let(:company) { create(:company) }
@@ -21,12 +21,12 @@ RSpec.describe "Api::V1::Public::DiscoverMessages", type: :request do
   let!(:conversation) do
     create(:conversation, employee: employee, company: company, status: "completed", question_count: 6)
   end
-  let(:reviewer) { create(:reviewer_user) }
+  let(:consultant) { create(:consultant_user) }
 
   def consultant_question!(body: "Which system holds the approval record?")
-    request = ReviewerInfoRequest.create!(
+    request = ConsultantInfoRequest.create!(
       company: company,
-      reviewer_user: reviewer,
+      consultant_user: consultant,
       employee: employee,
       conversation: conversation,
       body: body,
@@ -86,7 +86,7 @@ RSpec.describe "Api::V1::Public::DiscoverMessages", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(request.reload.status).to eq("replied")
-      expect(request.reviewer_info_replies.count).to eq(1)
+      expect(request.consultant_info_replies.count).to eq(1)
 
       inbound = conversation.messages.on_track("consultant_followup").where(direction: "inbound").last
       expect(inbound.body).to eq("It sits in SAP and finance signs it off by hand.")

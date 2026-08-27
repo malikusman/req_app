@@ -9,7 +9,7 @@ FactoryBot.define do
     triggered_by_type { "CompanyUser" }
     triggered_by_id { create(:company_user, company: company).id }
     report_snapshot { {} }
-    review_workflow_status { "awaiting_reviewers" }
+    review_workflow_status { "awaiting_consultants" }
 
     trait :ready do
       status { "ready" }
@@ -31,14 +31,14 @@ FactoryBot.define do
 
   factory :report_review do
     report
-    reviewer_user
+    consultant_user
     company { report.company }
     status { "pending" }
   end
 
   factory :report_review_comment do
     report_review
-    reviewer_user { report_review.reviewer_user }
+    consultant_user { report_review.consultant_user }
     section_key { "signals" }
     sequence(:body) { |n| "Comment #{n}" }
   end

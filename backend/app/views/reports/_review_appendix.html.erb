@@ -3,29 +3,29 @@
 <% section_notes = Array(review_notes).select { |n| n["section_key"].present? } %>
 <% dispositions = local_assigns.fetch(:section_dispositions) { Array(local_assigns[:review_overlay]&.dig("section_dispositions")) } %>
 <% findings = local_assigns.fetch(:structured_findings) { Array(local_assigns[:review_overlay]&.dig("structured_findings")) } %>
-<% reviewers = (overall + findings).map { |n| n["reviewer"] }.uniq %>
+<% consultants = (overall + findings).map { |n| n["consultant"] }.uniq %>
 
 <%= render "reports/divider",
       accent_label: "Appendix",
       accent_bg: "var(--blue)",
       eyebrow: "Appendix — included on platform-approved reports only",
-      title: "Expert validation",
-      lead: "Overall notes, section dispositions, and publishable structured findings from expert review. Live discussions and interview follow-up threads are collaboration tooling and are intentionally excluded from this deliverable.",
+      title: "Expert judgement",
+      lead: "Where our independent consultants agreed with the analysis, where they changed it, and what they concluded. Live discussions and interview follow-up threads are collaboration tooling and are intentionally excluded from this deliverable.",
       highlights: [
-        "<strong>#{reviewers.size}</strong> reviewer#{'s' unless reviewers.size == 1} contributed.".html_safe,
+        "<strong>#{consultants.size}</strong> consultant#{'s' unless consultants.size == 1} contributed.".html_safe,
         "<strong>#{findings.size}</strong> publishable finding#{'s' unless findings.size == 1}.".html_safe,
         "<strong>#{section_notes.size}</strong> section comment#{'s' unless section_notes.size == 1}.".html_safe
       ] %>
 
 <section class="page">
-  <div class="eyebrow">Appendix · Expert validation</div>
+  <div class="eyebrow">Appendix · Expert judgement</div>
   <h1 style="font-size:26pt;margin:4mm 0 5mm;">Overall notes</h1>
   <% if overall.any? %>
     <div class="split" style="grid-template-columns:1fr 1fr;">
       <% overall.each do |note| %>
-        <div class="reviewer-note">
-          <div class="who"><%= h note["reviewer"] %></div>
-          <div class="role"><%= h note["reviewer_credential"].presence || "Independent expert reviewer" %></div>
+        <div class="consultant-note">
+          <div class="who"><%= h note["consultant"] %></div>
+          <div class="role"><%= h note["consultant_credential"].presence || "Independent expert consultant" %></div>
           <p><%= h note["body"] %></p>
         </div>
       <% end %>
@@ -40,7 +40,7 @@
       <thead>
         <tr>
           <th>Section</th>
-          <th>Reviewer</th>
+          <th>Consultant</th>
           <th>Disposition</th>
           <th>Comment</th>
         </tr>
@@ -49,7 +49,7 @@
         <% dispositions.each do |row| %>
           <tr>
             <td><%= h ReportsHelper.section_label(row["section_key"]) %></td>
-            <td><%= h row["reviewer"] %></td>
+            <td><%= h row["consultant"] %></td>
             <td><%= h row["disposition"].to_s.humanize %></td>
             <td><%= h row["comment"] %></td>
           </tr>
@@ -71,7 +71,7 @@
           <% if finding["disposition"].present? %>
             <span class="status disposition"><%= h finding["disposition"].to_s.humanize %></span>
           <% end %>
-          <span class="muted"><%= h finding["reviewer"] %></span>
+          <span class="muted"><%= h finding["consultant"] %></span>
           <% if finding["section_key"].present? %>
             <span class="muted">· <%= h ReportsHelper.section_label(finding["section_key"]) %></span>
           <% end %>
@@ -99,8 +99,8 @@
       <div style="margin-bottom:4mm;">
         <div style="font-weight:600;margin-bottom:1mm;"><%= h ReportsHelper.section_label(section_key) %></div>
         <% notes.each do |note| %>
-          <div class="reviewer-note" style="margin-bottom:2mm;">
-            <div class="who"><%= h note["reviewer"] %></div>
+          <div class="consultant-note" style="margin-bottom:2mm;">
+            <div class="who"><%= h note["consultant"] %></div>
             <p><%= h note["body"] %></p>
           </div>
         <% end %>
@@ -110,6 +110,6 @@
 
   <div class="footer">
     <div>Worktruth · <%= h company_name %> · Confidential</div>
-    <div>Expert validation</div>
+    <div>Expert judgement</div>
   </div>
 </section>

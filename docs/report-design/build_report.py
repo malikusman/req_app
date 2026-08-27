@@ -513,7 +513,7 @@ Add, remove, or reorder sections to fit each company's actual snapshot. Fonts &a
   <div class="method" style="margin-top:3mm;">
     <p>Findings draw on structured interviews conducted over WhatsApp and web chat between June 2025 and February 2026. Four employees across Finance and Operations participated; three completed the full discovery flow.</p>
     <dl><dt>Readiness weighting</dt><dd style="font-size:9pt;color:var(--muted);">Employee coverage (30%), department spread (25%), pattern confidence (25%), multimodal evidence (20%).</dd>
-    <dt>Review</dt><dd style="font-size:9pt;color:var(--muted);">Reviewed by one external expert and approved by the Req platform team before delivery. Reviewer notes appear in the appendix on approved reports.</dd></dl>
+    <dt>Review</dt><dd style="font-size:9pt;color:var(--muted);">Reviewed by one external expert and approved by the Req platform team before delivery. Consultant notes appear in the appendix on approved reports.</dd></dl>
   </div>{footer(11)}
 </section>
 

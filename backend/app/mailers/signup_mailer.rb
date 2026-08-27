@@ -29,25 +29,25 @@ class SignupMailer < ApplicationMailer
     mail(to: registration.admin_email, subject: "Update on your Worktruth signup request")
   end
 
-  def reviewer_application_received(reviewer)
-    @reviewer = reviewer
-    mail(to: reviewer.email, subject: "We received your Worktruth reviewer application")
+  def consultant_application_received(consultant)
+    @consultant = consultant
+    mail(to: consultant.email, subject: "We received your Worktruth consultant application")
   end
 
-  def reviewer_application_admin_notice(reviewer)
-    @reviewer = reviewer
-    mail(to: admin_inbox, subject: "Reviewer application pending — #{reviewer.name}")
+  def consultant_application_admin_notice(consultant)
+    @consultant = consultant
+    mail(to: admin_inbox, subject: "Consultant application pending — #{consultant.name}")
   end
 
-  def reviewer_application_approved(reviewer, token)
-    @reviewer = reviewer
-    @set_password_url = set_password_url(token, portal: "reviewer")
-    mail(to: reviewer.email, subject: "Your Worktruth reviewer account is approved")
+  def consultant_application_approved(consultant, token)
+    @consultant = consultant
+    @set_password_url = set_password_url(token, portal: "consultant")
+    mail(to: consultant.email, subject: "Your Worktruth consultant account is approved")
   end
 
-  def reviewer_application_rejected(reviewer)
-    @reviewer = reviewer
-    mail(to: reviewer.email, subject: "Update on your Worktruth reviewer application")
+  def consultant_application_rejected(consultant)
+    @consultant = consultant
+    mail(to: consultant.email, subject: "Update on your Worktruth consultant application")
   end
 
   def password_reset(user, token, portal)

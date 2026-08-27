@@ -23,7 +23,7 @@ RSpec.describe Message do
 
     it "labels a consultant follow-up from the legacy boolean" do
       conversation = create(:conversation, employee: employee, company: company, status: "completed")
-      message = create(:message, conversation: conversation, reviewer_followup: true)
+      message = create(:message, conversation: conversation, consultant_followup: true)
 
       expect(message.track).to eq("consultant_followup")
     end
@@ -71,17 +71,17 @@ RSpec.describe Message do
   describe "legacy boolean sync" do
     let(:conversation) { create(:conversation, employee: employee, company: company, status: "completed") }
 
-    it "sets reviewer_followup when the track is consultant_followup" do
+    it "sets consultant_followup when the track is consultant_followup" do
       message = create(:message, conversation: conversation, track: "consultant_followup")
 
-      expect(message.reviewer_followup).to be(true)
-      expect(described_class.reviewer_followup_only).to include(message)
+      expect(message.consultant_followup).to be(true)
+      expect(described_class.consultant_followup_only).to include(message)
     end
 
-    it "clears reviewer_followup for every other track" do
-      message = create(:message, conversation: conversation, track: "companion", reviewer_followup: true)
+    it "clears consultant_followup for every other track" do
+      message = create(:message, conversation: conversation, track: "companion", consultant_followup: true)
 
-      expect(message.reviewer_followup).to be(false)
+      expect(message.consultant_followup).to be(false)
       expect(described_class.discovery_only).to include(message)
     end
   end
@@ -112,10 +112,10 @@ RSpec.describe Message do
   describe "track_ref" do
     it "attributes a message to the request that prompted it" do
       conversation = create(:conversation, employee: employee, company: company, status: "completed")
-      reviewer = create(:reviewer_user)
-      request = ReviewerInfoRequest.create!(
+      consultant = create(:consultant_user)
+      request = ConsultantInfoRequest.create!(
         company: company,
-        reviewer_user: reviewer,
+        consultant_user: consultant,
         employee: employee,
         conversation: conversation,
         body: "Which system holds the approval record?",

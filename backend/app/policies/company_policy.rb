@@ -29,7 +29,7 @@ class CompanyPolicy < ApplicationPolicy
         scope.all
       elsif company?
         scope.where(id: company_id)
-      elsif reviewer?
+      elsif consultant?
         scope.where(id: assigned_company_ids)
       else
         scope.none

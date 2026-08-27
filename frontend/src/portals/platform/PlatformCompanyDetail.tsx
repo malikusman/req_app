@@ -36,7 +36,7 @@ import {
   DiscoveryProvenancePanel,
 } from '../../components/ui';
 import { label } from '../../lib/labels';
-import { PlatformCompanyReviewers } from './PlatformCompanyReviewers';
+import { PlatformCompanyConsultants } from './PlatformCompanyConsultants';
 import { ConversationMediaCard, ConversationMediaList } from '../../components/ConversationMediaCard';
 import { CompanyStackPanel } from './CompanyStackPanel';
 import { AgenticIdeasPanel } from '../shared/AgenticIdeasPanel';
@@ -168,7 +168,7 @@ export function PlatformCompanyDetail() {
   const [intelligenceLoading, setIntelligenceLoading] = useState(false);
   const [intelligenceError, setIntelligenceError] = useState('');
   const [searchParams] = useSearchParams();
-  const TABS = ['overview', 'conversations', 'intelligence', 'stack', 'ideas', 'reports', 'reviewers', 'audit'];
+  const TABS = ['overview', 'conversations', 'intelligence', 'stack', 'ideas', 'reports', 'consultants', 'audit'];
   const initialTab = searchParams.get('tab');
   const [tab, setTab] = useState(initialTab && TABS.includes(initialTab) ? initialTab : 'overview');
   const [loading, setLoading] = useState(true);
@@ -336,17 +336,17 @@ export function PlatformCompanyDetail() {
     }
   };
 
-  // A reviewer flagging sections as "needs clarification" blocks approval until
-  // it's resolved (regenerate with the changes, or the reviewer re-marks them).
-  const reviewerNeedsInfo = (report: PlatformReport) =>
-    (report.reviewer_progress || []).some((p) => p.status === 'needs_info');
+  // A consultant flagging sections as "needs clarification" blocks approval until
+  // it's resolved (regenerate with the changes, or the consultant re-marks them).
+  const consultantNeedsInfo = (report: PlatformReport) =>
+    (report.consultant_progress || []).some((p) => p.status === 'needs_info');
 
   const canApprove = (report: PlatformReport) =>
     report.status === 'ready' &&
     report.review_workflow_status !== 'platform_approved' &&
-    report.review_workflow_status !== 'awaiting_reviewers' &&
+    report.review_workflow_status !== 'awaiting_consultants' &&
     report.review_workflow_status !== 'in_review' &&
-    !reviewerNeedsInfo(report);
+    !consultantNeedsInfo(report);
 
   const selectedReport = reports.find((r) => r.id === selectedReportId) ?? null;
 
@@ -370,7 +370,7 @@ export function PlatformCompanyDetail() {
     };
   }, [token, companyId, selectedReport?.id, selectedReport?.status]);
 
-  // Live "with reviewer edits" render so the approver sees exactly what the
+  // Live "with consultant edits" render so the approver sees exactly what the
   // client will get after the approve-triggered regenerate.
   useEffect(() => {
     if (!token || !selectedReport || selectedReport.status !== 'ready') {
@@ -431,7 +431,7 @@ export function PlatformCompanyDetail() {
           { value: 'stack', label: 'Client stack' },
           { value: 'ideas', label: 'Agentic ideas' },
           { value: 'reports', label: 'Reports' },
-          { value: 'reviewers', label: 'Reviewers' },
+          { value: 'consultants', label: 'Consultants' },
           { value: 'audit', label: 'Audit' },
         ]}
         value={tab}
@@ -754,11 +754,11 @@ export function PlatformCompanyDetail() {
               },
               {
                 key: 'notes',
-                header: 'Reviewer notes',
+                header: 'Consultant notes',
                 render: (r) => {
                   const count =
-                    (r.reviewer_feedback || []).reduce((sum, review) => sum + review.comments.length, 0) +
-                    (r.reviewer_feedback || []).filter((review) => review.overall_note).length;
+                    (r.consultant_feedback || []).reduce((sum, review) => sum + review.comments.length, 0) +
+                    (r.consultant_feedback || []).filter((review) => review.overall_note).length;
                   return count > 0 ? `${count} note${count === 1 ? '' : 's'}` : '—';
                 },
               },
@@ -781,8 +781,8 @@ export function PlatformCompanyDetail() {
                     </Button>
                   ) : r.review_workflow_status === 'platform_approved' ? (
                     <Badge variant="success">Approved</Badge>
-                  ) : reviewerNeedsInfo(r) ? (
-                    <span title="A reviewer flagged sections needing clarification. Regenerate with the requested changes, or have the reviewer resolve them, before this can be approved.">
+                  ) : consultantNeedsInfo(r) ? (
+                    <span title="A consultant flagged sections needing clarification. Regenerate with the requested changes, or have the consultant resolve them, before this can be approved.">
                       <Badge variant="warning">Needs clarification</Badge>
                     </span>
                   ) : null,
@@ -795,15 +795,15 @@ export function PlatformCompanyDetail() {
 
           {selectedReport && (
             <div className="grid gap-4 lg:grid-cols-2">
-              <Card title={`Reviewer feedback · v${selectedReport.version}`}>
-                {(selectedReport.reviewer_feedback || []).length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No reviewer comments yet.</p>
+              <Card title={`Consultant feedback · v${selectedReport.version}`}>
+                {(selectedReport.consultant_feedback || []).length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No consultant comments yet.</p>
                 ) : (
                   <div className="space-y-4">
-                    {selectedReport.reviewer_feedback!.map((review) => (
-                      <div key={review.reviewer_name} className="rounded-lg border border-border p-3">
+                    {selectedReport.consultant_feedback!.map((review) => (
+                      <div key={review.consultant_name} className="rounded-lg border border-border p-3">
                         <p className="m-0 text-sm font-medium text-foreground">
-                          {review.reviewer_name}{' '}
+                          {review.consultant_name}{' '}
                           <Badge variant="neutral">{review.status}</Badge>
                         </p>
                         {review.overall_note && (
@@ -835,7 +835,7 @@ export function PlatformCompanyDetail() {
                       onClick={() => setReportPreviewMode('draft')}
                       className={`rounded-full px-3 py-1 text-xs font-medium transition ${reportPreviewMode === 'draft' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}
                     >
-                      With reviewer edits
+                      With consultant edits
                     </button>
                     <button
                       type="button"
@@ -860,8 +860,8 @@ export function PlatformCompanyDetail() {
         </>
       )}
 
-      {tab === 'reviewers' && (
-        <PlatformCompanyReviewers companyId={companyId} companyName={name} embedded />
+      {tab === 'consultants' && (
+        <PlatformCompanyConsultants companyId={companyId} companyName={name} embedded />
       )}
 
       {tab === 'audit' && (

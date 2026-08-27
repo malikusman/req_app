@@ -6,13 +6,13 @@ RSpec.describe Whatsapp::OutreachReplyHandler do
   let(:company) { create(:company) }
   let(:employee) { create(:employee, company: company) }
   let(:conversation) { create(:conversation, company: company, employee: employee) }
-  let(:reviewer) { create(:reviewer_user) }
+  let(:consultant) { create(:consultant_user) }
   let!(:outreach) do
-    ReviewerOutreach.create!(
+    ConsultantOutreach.create!(
       company: company,
       employee: employee,
       conversation: conversation,
-      reviewer_user: reviewer,
+      consultant_user: consultant,
       recipient_type: "employee",
       recipient_id: employee.id,
       purpose: "clarification",
@@ -34,7 +34,7 @@ RSpec.describe Whatsapp::OutreachReplyHandler do
 
     expect(handled).to eq(true)
     expect(outreach.reload.status).to eq("replied")
-    expect(outreach.reviewer_outreach_replies.last.body).to eq("Approvals take 3 days")
+    expect(outreach.consultant_outreach_replies.last.body).to eq("Approvals take 3 days")
     expect(conversation.messages.where(direction: "inbound").last.body).to eq("Approvals take 3 days")
   end
 

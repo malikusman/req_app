@@ -66,7 +66,7 @@ module Api
         def organization_params
           permitted = params.permit(
             :engagement_mode,
-            :reviewer_can_contact_employees,
+            :consultant_can_contact_employees,
             department_targets: {},
             custom_departments: [],
             report_thresholds: {}
@@ -76,9 +76,9 @@ module Api
             # Nested under Api::V1::Company — use top-level ::Company model constant.
             permitted.delete("engagement_mode") unless ::Company::ENGAGEMENT_MODES.include?(mode)
           end
-          if permitted.key?("reviewer_can_contact_employees")
-            permitted["reviewer_can_contact_employees"] =
-              ActiveModel::Type::Boolean.new.cast(permitted["reviewer_can_contact_employees"])
+          if permitted.key?("consultant_can_contact_employees")
+            permitted["consultant_can_contact_employees"] =
+              ActiveModel::Type::Boolean.new.cast(permitted["consultant_can_contact_employees"])
           end
           permitted
         end

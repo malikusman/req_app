@@ -8,7 +8,7 @@ Artifacts in this folder:
 - [e2e_llm_summarize.json](./e2e_llm_summarize.json) — live Gemma summarize sample
 - [e2e_intel_sample.json](./e2e_intel_sample.json) — signals / pattern / rec
 - [e2e_kb_clarifications.json](./e2e_kb_clarifications.json) — KB + open clarification Qs from docs Analyze
-- [e2e_review_overlay.json](./e2e_review_overlay.json) — submitted reviewer Layer C
+- [e2e_review_overlay.json](./e2e_review_overlay.json) — submitted consultant Layer C
 - [e2e_report_v1_reviewed.pdf](./e2e_report_v1_reviewed.pdf) — PDF after review regenerate
 - [e2e_report_with_review.html](./e2e_report_with_review.html) — HTML with appendix
 
@@ -28,7 +28,7 @@ flowchart TD
   kb --> snap
   snap --> html[HtmlBuilder ERB]
   html --> pdf[Gotenberg PDF]
-  reviewer[Reviewer submit] --> overlay[ReviewNotesCollector]
+  consultant[Consultant submit] --> overlay[ReviewNotesCollector]
   overlay --> regen[RegenerateWithReviewService appendix]
 ```
 
@@ -39,7 +39,7 @@ flowchart TD
 | Docs Analyze graph | Yes (LangGraph → Gemma) | Prior run produced KB + 5 open clarifications (samples below) |
 | Signal/pattern/rec | Mostly **rules** + thresholds | 6 signals, 1 pattern, 1 rec (strengths ≤0.58; pattern gate lowered for test) |
 | PDF narrative | Template + snapshot strings | baseline / docs-first; Company context slide present |
-| Reviewer text | Human | Overlay → PDF appendix on regenerate |
+| Consultant text | Human | Overlay → PDF appendix on regenerate |
 
 ---
 
@@ -93,11 +93,11 @@ Excerpts on signals were empty in the sample dump — evidence is thinner than i
 | Participation | Omitted correctly (0 invited / 0 completed) |
 | Review appendix after submit | **Present** — overall note, recommendations `needs_info` comment, publishable executive finding |
 
-**Reviewer-facing visibility:** report stays `internal_only` while reviews are in flight — company download 403; reviewer download OK.
+**Consultant-facing visibility:** report stays `internal_only` while reviews are in flight — company download 403; consultant download OK.
 
 ---
 
-## 4. Reviewer end-to-end (what they see / do)
+## 4. Consultant end-to-end (what they see / do)
 
 | Surface | Status for company 10 |
 |---------|------------------------|
@@ -109,7 +109,7 @@ Excerpts on signals were empty in the sample dump — evidence is thinner than i
 | Agentic ideas | Published E2E idea → next PDF opportunities |
 | Submit | Status **`needs_info`** (because recommendations marked needs_info) |
 
-### Reviewer response captured
+### Consultant response captured
 
 - Overall note: validate AP bottleneck with finance interviews  
 - Section comment on recommendations: SAP AP vs Excel first?  
@@ -127,7 +127,7 @@ Overlay JSON: [e2e_review_overlay.json](./e2e_review_overlay.json) — 2 notes, 
 2. **Gemma empty `content` / reasoning-only** → `message_text` fallback.
 3. **`Hash#dig` into string error** when API returns `"error": "…"` string → safe error parsing.
 4. Documents UI: Download + Updated; hide purged failed rows.
-5. Reviewer empty evidence/synthesis: docs-first empty states.
+5. Consultant empty evidence/synthesis: docs-first empty states.
 
 ---
 
@@ -141,7 +141,7 @@ Overlay JSON: [e2e_review_overlay.json](./e2e_review_overlay.json) — 2 notes, 
 | Agent context pack | PASS |
 | Report PDF generate | PASS |
 | LangGraph health | PASS |
-| Reviewer comment / finding / catalog / idea | PASS |
+| Consultant comment / finding / catalog / idea | PASS |
 | Review submit | PASS (`needs_info`) |
 | PDF appendix regenerate | PASS |
 | WhatsApp interview loop | **SKIP** (no Meta token) |
@@ -158,8 +158,8 @@ Do **after** push, with PROFILE A (OpenAI) and Meta credentials set:
 3. Upload / Analyze GulfLink (or prod fixture) — watch LangGraph logs for specialist extract + question generator.
 4. Set **real** `website_url`; Refresh website research; confirm KB summary quality.
 5. Invite 1–2 employees with WhatsApp; complete discovery; confirm AggregateIntelligence and readiness blend.
-6. Generate report; company + reviewer download paths.
-7. Reviewer: Profile → Catalog endorse → Agentic idea publish → Report sections → Submit.
+6. Generate report; company + consultant download paths.
+7. Consultant: Profile → Catalog endorse → Agentic idea publish → Report sections → Submit.
 8. Platform approve → regenerate PDF with appendix; confirm findings appear, discussions do not.
 9. Optional: answer clarification Qs in Knowledge; re-run incremental analysis.
 
@@ -176,7 +176,7 @@ Do **after** push, with PROFILE A (OpenAI) and Meta credentials set:
 
 ## 8. Verdict
 
-**Local E2E plumbing is green** with live LM Studio LLMs for summarize/embed, full report PDF, and a complete reviewer Layer C loop into the PDF appendix.
+**Local E2E plumbing is green** with live LM Studio LLMs for summarize/embed, full report PDF, and a complete consultant Layer C loop into the PDF appendix.
 
 **Gaps before calling it “client ready”:** WhatsApp interview path untested here; clarification Qs unanswered; signal excerpts thin; website is `example.com` (replace with real domain); pattern/rec strength restored to **0.65**; run one fresh full Docs Analyze on OpenAI in prod for quality comparison.
 
@@ -202,7 +202,7 @@ Gemma-4 via LM Studio burns completion tokens on `reasoning_content` before writ
 | Portal | New data | Observed (company 10) |
 |--------|----------|------------------------|
 | Company | `intel_counts` + readiness/dept bar charts | readiness 100; docs 5/5; signals 6; patterns 1; clarifications open 5; recs 1; systems 11 |
-| Reviewer | portfolio bars + `completion_rate` / `ready_documents` | avg readiness 100; ready docs 5; pending reviews 1; participation 0% (no invites) |
+| Consultant | portfolio bars + `completion_rate` / `ready_documents` | avg readiness 100; ready docs 5; pending reviews 1; participation 0% (no invites) |
 
 ### E2E state still green
 

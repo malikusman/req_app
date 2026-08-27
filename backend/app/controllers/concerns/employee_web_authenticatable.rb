@@ -60,7 +60,7 @@ module EmployeeWebAuthenticatable
   end
 
   # Shows every track the employee is part of, including consultant follow-ups.
-  # These were previously filtered out by `discovery_only` (reviewer_followup: false),
+  # These were previously filtered out by `discovery_only` (consultant_followup: false),
   # so a consultant's question was invisible in the very thread the employee replies in.
   def visible_messages
     current_conversation.messages

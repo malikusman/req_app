@@ -18,10 +18,10 @@ module AuthHelpers
                   role: user.role,
                   jti: user.jti
                 }
-              when ReviewerUser
+              when ConsultantUser
                 {
-                  sub: "reviewer_user:#{user.id}",
-                  aud: "reviewer",
+                  sub: "consultant_user:#{user.id}",
+                  aud: "consultant",
                   jti: user.jti
                 }
               else

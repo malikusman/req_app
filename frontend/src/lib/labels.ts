@@ -17,7 +17,7 @@ const MAPS = {
   },
   reviewWorkflow: {
     not_required: 'No review needed',
-    awaiting_reviewers: 'Awaiting reviewers',
+    awaiting_consultants: 'Awaiting consultants',
     in_review: 'In review',
     reviews_complete: 'Ready to approve',
     platform_approved: 'Approved',

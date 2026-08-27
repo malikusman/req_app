@@ -27,7 +27,7 @@ module Api
 
           payload = { report: report_json(report, detailed: true) }
           if report.status == "ready"
-            payload[:expert_reviewers] = expert_reviewers_for_company
+            payload[:expert_consultants] = expert_consultants_for_company
           end
           render json: payload
         end
@@ -85,12 +85,12 @@ module Api
 
         private
 
-        def expert_reviewers_for_company
-          current_company.reviewer_assignments.active
-            .includes(:reviewer_user)
-            .map(&:reviewer_user)
+        def expert_consultants_for_company
+          current_company.consultant_assignments.active
+            .includes(:consultant_user)
+            .map(&:consultant_user)
             .select(&:published_profile?)
-            .map { |r| Reviewers::ProfileSerializer.public_card(r, request: request) }
+            .map { |r| Consultants::ProfileSerializer.public_card(r, request: request) }
         end
 
         def report_json(report, detailed: false)

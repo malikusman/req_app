@@ -43,7 +43,7 @@ module Api
 
         def find_outreach!
           digest = Digest::SHA256.hexdigest(params[:token].to_s)
-          ReviewerOutreach.find_by!(reply_token_digest: digest)
+          ConsultantOutreach.find_by!(reply_token_digest: digest)
         end
 
         def can_reply?(outreach)

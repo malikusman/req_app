@@ -11,7 +11,7 @@ import { UserMenu, type UserMenuProps } from './UserMenu';
 const defaultLogos: Record<Portal, string> = {
   platform: 'Worktruth — Platform',
   company: 'Worktruth — Company',
-  reviewer: 'Worktruth — Reviewer',
+  consultant: 'Worktruth — Consultant',
 };
 
 export type PortalShellProps = {

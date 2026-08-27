@@ -28,7 +28,7 @@ export function PrivacyPage() {
             <section>
               <h2 className="font-display text-lg font-semibold text-marketing-foreground">Access & roles</h2>
               <p className="mt-2">
-                Access is scoped by portal: company admins see their tenant; assigned expert reviewers see assigned
+                Access is scoped by portal: company admins see their tenant; assigned expert consultants see assigned
                 companies; platform operators manage trials and system health. Report share links are tokenized and
                 access is logged.
               </p>

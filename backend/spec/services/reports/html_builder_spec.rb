@@ -47,11 +47,11 @@ RSpec.describe Reports::HtmlBuilder do
     html = described_class.call(
       snapshot: snapshot,
       review_notes: [
-        { "reviewer" => "Alex Expert", "section_key" => "signals", "body" => "Clarify SAP pain with finance lead." }
+        { "consultant" => "Alex Expert", "section_key" => "signals", "body" => "Clarify SAP pain with finance lead." }
       ]
     )
 
-    expect(html).to include("Expert validation").or include("Reviewer notes")
+    expect(html).to include("Expert judgement").or include("Consultant notes")
     expect(html).to include("Alex Expert")
     expect(html).to include("Clarify SAP pain with finance lead.")
     expect(html).to include("A4 landscape")
@@ -69,7 +69,7 @@ RSpec.describe Reports::HtmlBuilder do
               "reason" => "Fits invoice intake",
               "solution_id" => 1,
               "endorsements" => [
-                { "disposition" => "endorse", "reviewer_name" => "Alex Expert", "rationale" => "Strong fit" }
+                { "disposition" => "endorse", "consultant_name" => "Alex Expert", "rationale" => "Strong fit" }
               ]
             }
           ],
@@ -83,7 +83,7 @@ RSpec.describe Reports::HtmlBuilder do
         "section_dispositions" => [],
         "structured_findings" => [
           {
-            "reviewer" => "Alex Expert",
+            "consultant" => "Alex Expert",
             "kind" => "executive_conclusion",
             "title" => "Executive conclusion",
             "disposition" => "endorse",

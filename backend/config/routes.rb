@@ -10,7 +10,9 @@ Rails.application.routes.draw do
       namespace :auth do
         post "platform/login", to: "platform_sessions#create"
         post "company/login", to: "company_sessions#create"
-        post "reviewer/login", to: "reviewer_sessions#create"
+        post "consultant/login", to: "consultant_sessions#create"
+        # Pre-rename path — a cached frontend bundle still posts to it.
+        post "reviewer/login", to: "consultant_sessions#create"
       end
 
       get "webhooks/whatsapp", to: "webhooks/whatsapp#verify"
@@ -23,7 +25,7 @@ Rails.application.routes.draw do
         get "playbooks/active", to: "playbooks#active"
       end
 
-      get "reviewer_users/:id/avatar", to: "reviewer_avatars#show"
+      get "consultant_users/:id/avatar", to: "consultant_avatars#show"
 
       namespace :platform do
         resources :companies, only: %i[index show create update] do
@@ -84,20 +86,20 @@ Rails.application.routes.draw do
         get "registrations", to: "registrations#index"
         post "registrations/companies/:id/approve", to: "registrations#approve_company"
         post "registrations/companies/:id/reject", to: "registrations#reject_company"
-        post "registrations/reviewers/:id/approve", to: "registrations#approve_reviewer"
-        post "registrations/reviewers/:id/reject", to: "registrations#reject_reviewer"
-        resources :reviewers, only: %i[index show create update] do
+        post "registrations/consultants/:id/approve", to: "registrations#approve_consultant"
+        post "registrations/consultants/:id/reject", to: "registrations#reject_consultant"
+        resources :consultants, only: %i[index show create update] do
           member do
             get :cv
           end
         end
-        get "companies/:company_id/reviewer_assignments", to: "reviewer_assignments#index"
-        post "companies/:company_id/reviewer_assignments", to: "reviewer_assignments#create"
-        delete "companies/:company_id/reviewer_assignments/:id", to: "reviewer_assignments#destroy"
-        get "companies/:company_id/reviewer_chat", to: "reviewer_chat#index"
+        get "companies/:company_id/consultant_assignments", to: "consultant_assignments#index"
+        post "companies/:company_id/consultant_assignments", to: "consultant_assignments#create"
+        delete "companies/:company_id/consultant_assignments/:id", to: "consultant_assignments#destroy"
+        get "companies/:company_id/consultant_chat", to: "consultant_chat#index"
       end
 
-      namespace :reviewer do
+      namespace :consultant do
         get "me", to: "me#show"
         get "dashboard", to: "dashboard#show"
         get "followups", to: "followups#index"
@@ -167,7 +169,7 @@ Rails.application.routes.draw do
         get "me", to: "me#show"
         patch "me", to: "me#update"
         get "dashboard", to: "dashboard#show"
-        get "expert_reviewers", to: "expert_reviewers#index"
+        get "expert_consultants", to: "expert_consultants#index"
         get "onboarding", to: "onboarding#show"
         patch "onboarding/profile", to: "onboarding#update_profile"
         patch "onboarding/questionnaire", to: "onboarding#update_questionnaire"
@@ -251,7 +253,10 @@ Rails.application.routes.draw do
         post "outreach/:token/reply", to: "outreach_replies#create"
         post "demo_requests", to: "demo_requests#create"
         post "company_registrations", to: "company_registrations#create"
-        post "reviewer_applications", to: "reviewer_applications#create"
+        post "consultant_applications", to: "consultant_applications#create"
+        # Pre-rename path, kept so links already in the wild (marketing site,
+        # sent emails) keep working. Remove once nothing references it.
+        post "reviewer_applications", to: "consultant_applications#create"
         post "password_resets", to: "password_resets#create"
         get "password_resets/verify", to: "password_resets#show"
         put "password_resets/confirm", to: "password_resets#update"

@@ -46,7 +46,7 @@ module Api
             department: params[:department].presence,
             document_type: params[:document_type].presence || "other",
             sensitivity: params[:sensitivity].presence || "internal",
-            reviewer_visible: params[:reviewer_visible] != "false",
+            consultant_visible: params[:consultant_visible] != "false",
             filename: filename,
             content_type: content_type,
             byte_size: body.bytesize,
@@ -105,8 +105,8 @@ module Api
           authorize document, :update?
 
           attrs = {}
-          if params.key?(:reviewer_visible)
-            attrs[:reviewer_visible] = ActiveModel::Type::Boolean.new.cast(params[:reviewer_visible])
+          if params.key?(:consultant_visible)
+            attrs[:consultant_visible] = ActiveModel::Type::Boolean.new.cast(params[:consultant_visible])
           end
           attrs[:department] = params[:department].presence if params.key?(:department)
 
@@ -145,7 +145,7 @@ module Api
             department: document.department,
             document_type: document.try(:document_type),
             sensitivity: document.try(:sensitivity),
-            reviewer_visible: document.try(:reviewer_visible),
+            consultant_visible: document.try(:consultant_visible),
             source: document.source,
             status: document.status,
             content_type: document.content_type,

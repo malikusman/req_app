@@ -19,7 +19,7 @@
 <%= render "reports/cover", snapshot: snapshot, generated_label: generated_label, report_version: report_version %>
 <%= render "reports/contents", snapshot: snapshot, toc_entries: toc_entries %>
 
-<%# Reviewer overrides: an "edit" REPLACES the AI section with the expert's text
+<%# Consultant overrides: an "edit" REPLACES the AI section with the expert's text
     (not a note beside it); "hide" drops it; "add" injects a custom section after
     its anchor. ai_or_edit picks the expert's body when present, else the AI render. %>
 <% custom_after = ->(key) { report_custom_sections(snapshot, after: key).map { |cs| render("reports/custom_section", snapshot: snapshot, section: cs) }.join.html_safe } %>

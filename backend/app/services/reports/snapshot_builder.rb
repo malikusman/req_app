@@ -603,8 +603,8 @@ module Reports
               "url" => entry.website_url,
               "partnership_tier" => entry.partnership_tier,
               "first_party" => entry.try(:first_party) == true,
-              "reviewer_added" => match.added_by_reviewer_id.present?,
-              "reviewer_name" => match.try(:added_by_reviewer)&.name,
+              "consultant_added" => match.added_by_consultant_id.present?,
+              "consultant_name" => match.try(:added_by_consultant)&.name,
               "reason" => match.why_it_fits,
               "score" => match.score,
               "matched_at" => match.matched_at,
@@ -636,7 +636,7 @@ module Reports
       if defined?(CatalogEndorsement) && CatalogEndorsement.table_exists?
         endorsements = CatalogEndorsement
           .where(company_id: @company.id, publishable: true)
-          .includes(:solution_catalog_entry, :reviewer_user)
+          .includes(:solution_catalog_entry, :consultant_user)
           .order(created_at: :desc)
           .limit(20)
           .map do |e|
@@ -648,8 +648,8 @@ module Reports
               "solution_catalog_entry_id" => e.solution_catalog_entry_id,
               "solution_name" => entry&.name,
               "solution_vendor" => entry&.vendor,
-              "reviewer_user_id" => e.reviewer_user_id,
-              "reviewer_name" => e.reviewer_user&.name,
+              "consultant_user_id" => e.consultant_user_id,
+              "consultant_name" => e.consultant_user&.name,
               "created_at" => e.created_at&.iso8601
             }
           end
@@ -663,7 +663,7 @@ module Reports
       {
         "curated_matches" => curated.first(8),
         "endorsements" => endorsements,
-        "disclaimer" => "Catalog suggestions are advisory. Reviewer-validated picks appear with endorsement notes below."
+        "disclaimer" => "Catalog suggestions are advisory. Consultant-validated picks appear with endorsement notes below."
       }
     end
   end

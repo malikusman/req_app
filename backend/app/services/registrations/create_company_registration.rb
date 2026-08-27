@@ -111,7 +111,7 @@ module Registrations
       if CompanyUser.exists?(email: @admin_email) || CompanyRegistration.pending.exists?(admin_email: @admin_email)
         raise Error, "An account with this email already exists or is pending approval"
       end
-      if ReviewerUser.exists?(email: @admin_email) || PlatformUser.exists?(email: @admin_email)
+      if ConsultantUser.exists?(email: @admin_email) || PlatformUser.exists?(email: @admin_email)
         raise Error, "An account with this email already exists"
       end
     end

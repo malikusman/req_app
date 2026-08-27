@@ -2,7 +2,7 @@
 
 class NotificationPolicy < ApplicationPolicy
   def index?
-    company? || reviewer? || platform?
+    company? || consultant? || platform?
   end
 
   def update?

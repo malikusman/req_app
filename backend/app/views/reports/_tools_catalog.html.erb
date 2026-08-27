@@ -7,7 +7,7 @@
   <div class="eyebrow">Capabilities & evidence</div>
   <h1 style="font-size:28pt;margin:4mm 0 3mm;">Products that already fit</h1>
   <% if tools.any? %>
-    <p class="lead" style="max-width:210mm;margin-bottom:5mm;">Existing solutions — our own products and partner tools — matched to the frictions above. "Worktruth product" is built by us; others are curated partners. Reviewer-endorsed picks are flagged.</p>
+    <p class="lead" style="max-width:210mm;margin-bottom:5mm;">Existing solutions — our own products and partner tools — matched to the frictions above. "Worktruth product" is built by us; others are curated partners. Consultant-endorsed picks are flagged.</p>
   <% end %>
   <% if tools.any? %>
     <div class="card-grid-3">
@@ -19,15 +19,15 @@
           <div class="match"><%= h tool["category"] %><% if score_label %> · <%= h score_label %><% end %><% if tool["placement"] == "extends_stack" || tool["already_in_stack"] %> · Extends stack<% elsif tool["placement"] == "new_capability" %> · New capability<% end %></div>
           <h4><%= h tool["name"] %><% if tool["first_party"] %> <span style="font-size:8pt;color:var(--teal);font-weight:700;">· Worktruth product</span><% end %></h4>
           <% if tool["vendor"].present? %><p><%= h tool["vendor"] %></p><% end %>
-          <% if tool["reviewer_added"] %><p style="font-size:8pt;color:var(--magenta);">Added by reviewer<%= tool["reviewer_name"].present? ? " (#{tool['reviewer_name']})" : "" %></p><% end %>
+          <% if tool["consultant_added"] %><p style="font-size:8pt;color:var(--magenta);">Added by consultant<%= tool["consultant_name"].present? ? " (#{tool['consultant_name']})" : "" %></p><% end %>
           <% clean_reason = report_clean_reason(tool["reason"]) %>
           <% if clean_reason.present? %><p><%= h clean_reason.truncate(220) %></p><% end %>
           <% if tool_endorsements.any? %>
             <% tool_endorsements.first(2).each do |en| %>
               <div class="endorsement-chip"><%= h en["disposition"].to_s.titleize %></div>
               <p style="margin-top:1mm;font-size:8pt;">
-                <% if en["reviewer_name"].present? %><%= h en["reviewer_name"] %><% end %>
-                <% if en["rationale"].present? %><% if en["reviewer_name"].present? %> · <% end %><%= h en["rationale"].to_s.truncate(160) %><% end %>
+                <% if en["consultant_name"].present? %><%= h en["consultant_name"] %><% end %>
+                <% if en["rationale"].present? %><% if en["consultant_name"].present? %> · <% end %><%= h en["rationale"].to_s.truncate(160) %><% end %>
               </p>
             <% end %>
           <% end %>
@@ -39,13 +39,13 @@
 
   <% orphan_endorsements = endorsements.reject { |e| tools.any? { |t| t["solution_id"].to_i == e["solution_catalog_entry_id"].to_i } } %>
   <% if orphan_endorsements.any? %>
-    <div class="eyebrow" style="margin-top:8mm;">Reviewer catalog notes</div>
+    <div class="eyebrow" style="margin-top:8mm;">Consultant catalog notes</div>
     <div class="card-grid-3">
       <% orphan_endorsements.first(6).each do |en| %>
         <div class="rec-card">
           <div class="match"><%= h en["disposition"].to_s.titleize %></div>
           <h4><%= h en["solution_name"].presence || "Catalog entry" %></h4>
-          <% if en["reviewer_name"].present? %><p><%= h en["reviewer_name"] %></p><% end %>
+          <% if en["consultant_name"].present? %><p><%= h en["consultant_name"] %></p><% end %>
           <% if en["rationale"].present? %><p><%= h en["rationale"].to_s.truncate(180) %></p><% end %>
         </div>
       <% end %>

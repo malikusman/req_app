@@ -15,7 +15,7 @@ class MediaAttachmentPolicy < ApplicationPolicy
         scope.all
       elsif company?
         scope.where(company_id: company_id)
-      elsif reviewer?
+      elsif consultant?
         scope.where(company_id: assigned_company_ids)
       else
         scope.none

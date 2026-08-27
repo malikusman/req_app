@@ -53,7 +53,7 @@ flowchart TD
 | Employee web | `POST /api/v1/public/discover/messages` | `Web::TurnRouter` |
 | Web media | discover attachments | `Web::TurnRouter.handle_media` |
 
-WhatsApp text order: outreach reply → reviewer follow-up → profiling **or** discovery **or** onboarding. Completed discovery messages go to the companion router.
+WhatsApp text order: outreach reply → consultant follow-up → profiling **or** discovery **or** onboarding. Completed discovery messages go to the companion router.
 
 ---
 
@@ -166,7 +166,7 @@ Next discovery turns retrieve top-3 memory facts (cosine ≤ 0.35), excluding se
 | `LanguageDetector` | Consent language |
 | `Employees::NudgeService` | Remind stalled interviews |
 | `MarkAbandonedConversationsJob` | After `discovery_session_timeout_hours` (default 72) |
-| Outreach / reviewer follow-up handlers | WhatsApp replies outside discovery |
+| Outreach / consultant follow-up handlers | WhatsApp replies outside discovery |
 
 ---
 

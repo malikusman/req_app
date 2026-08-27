@@ -18,7 +18,7 @@ RSpec.describe "Company document analysis API", type: :request do
       status: "uploaded",
       document_type: "policy",
       sensitivity: "internal",
-      reviewer_visible: true
+      consultant_visible: true
     )
   end
 

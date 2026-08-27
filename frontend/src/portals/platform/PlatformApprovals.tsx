@@ -70,10 +70,10 @@ export function PlatformApprovals() {
               ),
           },
           {
-            key: 'reviewer',
-            header: 'Reviewer',
+            key: 'consultant',
+            header: 'Consultant',
             render: (r) => (
-              <span className="text-sm text-muted-foreground">{r.has_reviewer ? 'Expert reviewed' : 'No reviewer'}</span>
+              <span className="text-sm text-muted-foreground">{r.has_consultant ? 'Expert reviewed' : 'No consultant'}</span>
             ),
           },
           {

@@ -8,7 +8,7 @@ Bot WhatsApp: **+971 55 290 9236**
 | Role | Login |
 |------|--------|
 | Company admin | `pilot-admin@gulflink-pilot.test` / `PilotPass1!` |
-| Reviewer (100%) | `nadia.pilot@reqapp.review` / `ReviewerPass1!` |
+| Consultant (100%) | `nadia.pilot@reqapp.review` / `ConsultantPass1!` |
 | Usman (WhatsApp) | **+971526187620** · employee_id **13** · onboarding `awaiting_consent` |
 
 Company: **GulfLink Freight Pilot** (`id=5`)  
@@ -20,12 +20,12 @@ Report: **id=5** version **2** · Review **id=5** · 5 findings · 3 section com
 |-------|--------|
 | Questionnaire | **100%** |
 | First-party catalog | Worktruth AP Copilot + Ops Copilot matched |
-| Reviewer Nadia | ProfileCompleteness **100%**, assigned |
+| Consultant Nadia | ProfileCompleteness **100%**, assigned |
 | Usman WA invite | **sent** (Meta wamid present) · **no profile seed** |
 | James / Elena / Ahmer | Full web discovery **completed** · 10 insights each · media attached |
 | Docs | **7/7 ready** · analyze run id=5 completed |
 | Intelligence | signals=6 · patterns=7 · recs=4 |
-| Reviewer richness | overall note ≥400 chars · 3 section comments · 5 publishable findings · CEO Q&A closed · Usman outreach pending admin · discussion thread |
+| Consultant richness | overall note ≥400 chars · 3 section comments · 5 publishable findings · CEO Q&A closed · Usman outreach pending admin · discussion thread |
 | Checks | Web sims **15/15** · Full cycle **23/23** |
 
 ## Web employees (simulated — emails not SMTP-delivered)
@@ -65,7 +65,7 @@ That refreshes intelligence, generates a new report version, and re-approves for
 
 - [x] Company questionnaire 100%, systems, 7 docs
 - [x] James / Elena / Ahmer conversations completed with media
-- [x] Report v2 with first_party tools + rich reviewer appendix
+- [x] Report v2 with first_party tools + rich consultant appendix
 - [x] Platform shared with company
 - [ ] Usman live WhatsApp discovery
 - [ ] Post-WA report refresh

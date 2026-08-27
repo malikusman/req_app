@@ -2,11 +2,11 @@
 
 class ReportReviewPolicy < ApplicationPolicy
   def show?
-    platform? || owns_review? || co_reviewer_on_report?
+    platform? || owns_review? || co_consultant_on_report?
   end
 
   def update?
-    reviewer? && owns_review? && !record.submitted?
+    consultant? && owns_review? && !record.submitted?
   end
 
   def submit?
@@ -17,8 +17,8 @@ class ReportReviewPolicy < ApplicationPolicy
     def resolve
       if platform?
         scope.all
-      elsif reviewer?
-        scope.where(reviewer_user_id: context.actor.id)
+      elsif consultant?
+        scope.where(consultant_user_id: context.actor.id)
           .or(scope.where(company_id: context.actor.active_company_ids))
       else
         scope.none
@@ -29,13 +29,13 @@ class ReportReviewPolicy < ApplicationPolicy
   private
 
   def owns_review?
-    reviewer? && record.reviewer_user_id == context.actor.id
+    consultant? && record.consultant_user_id == context.actor.id
   end
 
-  def co_reviewer_on_report?
-    reviewer? &&
+  def co_consultant_on_report?
+    consultant? &&
       assigned_company?(record.company_id) &&
-      record.report.report_reviews.exists?(reviewer_user_id: context.actor.id) == false &&
+      record.report.report_reviews.exists?(consultant_user_id: context.actor.id) == false &&
       record.report.report_reviews.exists?
   end
 end

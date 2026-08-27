@@ -6,7 +6,7 @@ FactoryBot.define do
     direction { "inbound" }
     message_type { "text" }
     sequence(:body) { |n| "Message #{n}" }
-    reviewer_followup { false }
+    consultant_followup { false }
     is_discovery_question { false }
   end
 end

@@ -200,10 +200,10 @@ class DiscoverySimulator
     company ||= employee.company
     CompanyMemoryFact.where(employee_id: employee.id).delete_all
     ConversationInsight.where(employee_id: employee.id).delete_all
-    ReviewerInfoRequest.where(employee_id: employee.id).find_each do |request|
-      request.reviewer_info_replies.delete_all
+    ConsultantInfoRequest.where(employee_id: employee.id).find_each do |request|
+      request.consultant_info_replies.delete_all
     end
-    ReviewerInfoRequest.where(employee_id: employee.id).delete_all
+    ConsultantInfoRequest.where(employee_id: employee.id).delete_all
     EmployeeNudge.where(employee_id: employee.id).delete_all
     employee.conversations.each do |conversation|
       doc_ids = Document.where(conversation_id: conversation.id).pluck(:id)
@@ -230,7 +230,7 @@ class DiscoverySimulator
     EmployeeMarketAlert.where(employee_id: employee.id).delete_all
     EmployeeWebSession.where(employee_id: employee.id).delete_all
     MediaAttachment.where(employee_id: employee.id).delete_all
-    ReviewerOutreach.where(employee_id: employee.id).delete_all if defined?(ReviewerOutreach)
+    ConsultantOutreach.where(employee_id: employee.id).delete_all if defined?(ConsultantOutreach)
     ReviewDiscussion.where(employee_id: employee.id).delete_all if defined?(ReviewDiscussion)
     employee.delete
   end

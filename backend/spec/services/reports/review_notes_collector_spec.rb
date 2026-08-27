@@ -4,21 +4,21 @@ require "rails_helper"
 
 RSpec.describe Reports::ReviewNotesCollector do
   let(:company) { create(:company) }
-  let(:reviewer) { create(:reviewer_user, name: "Alex Expert") }
+  let(:consultant) { create(:consultant_user, name: "Alex Expert") }
   let(:report) { create(:report, :ready, company: company) }
   let!(:submitted) do
-    create(:report_review, report: report, reviewer_user: reviewer, company: company,
+    create(:report_review, report: report, consultant_user: consultant, company: company,
                            overall_note: "Ready to share.", submitted_at: Time.current, status: "approved")
   end
   let!(:draft) do
-    other = create(:reviewer_user, name: "Draft Reviewer", email: "draft@reqapp.local")
-    create(:report_review, report: report, reviewer_user: other, company: company, overall_note: "Not ready")
+    other = create(:consultant_user, name: "Draft Consultant", email: "draft@reqapp.local")
+    create(:report_review, report: report, consultant_user: other, company: company, overall_note: "Not ready")
   end
 
   before do
-    create(:report_review_comment, report_review: submitted, reviewer_user: reviewer,
+    create(:report_review_comment, report_review: submitted, consultant_user: consultant,
                                    section_key: "signals", body: "Open comment", resolved: false)
-    create(:report_review_comment, report_review: submitted, reviewer_user: reviewer,
+    create(:report_review_comment, report_review: submitted, consultant_user: consultant,
                                    section_key: "patterns", body: "Resolved comment", resolved: true)
   end
 
@@ -31,7 +31,7 @@ RSpec.describe Reports::ReviewNotesCollector do
 
   it "overlays publishable findings with disposition and evidence refs" do
     submitted.report_review_findings.create!(
-      reviewer_user: reviewer,
+      consultant_user: consultant,
       finding_type: "executive_conclusion",
       severity: "material",
       disposition: "endorse",
@@ -40,7 +40,7 @@ RSpec.describe Reports::ReviewNotesCollector do
       publishable: true
     )
     submitted.report_review_findings.create!(
-      reviewer_user: reviewer,
+      consultant_user: consultant,
       finding_type: "risk",
       severity: "info",
       body: "Draft-only note",
@@ -52,7 +52,7 @@ RSpec.describe Reports::ReviewNotesCollector do
 
     expect(findings.size).to eq(1)
     expect(findings.first).to include(
-      "reviewer" => "Alex Expert",
+      "consultant" => "Alex Expert",
       "disposition" => "endorse",
       "severity" => "material",
       "body" => "Evidence supports the readiness claim.",

@@ -2,7 +2,7 @@
 
 class ReportReviewFinding < ApplicationRecord
   belongs_to :report_review
-  belongs_to :reviewer_user
+  belongs_to :consultant_user
 
   FINDING_TYPES = %w[
     executive_conclusion evidence_sufficiency correction risk recommendation_disposition

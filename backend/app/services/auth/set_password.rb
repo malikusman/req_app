@@ -26,8 +26,8 @@ module Auth
       case record
       when CompanyUser
         activate_company_user!(record)
-      when ReviewerUser
-        activate_reviewer!(record)
+      when ConsultantUser
+        activate_consultant!(record)
       when PlatformUser
         record.update!(password: @password)
         record.regenerate_jti!
@@ -55,16 +55,16 @@ module Auth
       user.regenerate_jti!
     end
 
-    def activate_reviewer!(reviewer)
-      unless reviewer.status.in?(%w[pending active])
-        raise Error, "This reviewer account cannot set a password"
+    def activate_consultant!(consultant)
+      unless consultant.status.in?(%w[pending active])
+        raise Error, "This consultant account cannot set a password"
       end
 
       attrs = { password: @password }
-      attrs[:status] = "active" if reviewer.status == "pending"
-      attrs[:approved_at] = Time.current if reviewer.approved_at.blank? && attrs[:status] == "active"
-      reviewer.update!(attrs)
-      reviewer.regenerate_jti!
+      attrs[:status] = "active" if consultant.status == "pending"
+      attrs[:approved_at] = Time.current if consultant.approved_at.blank? && attrs[:status] == "active"
+      consultant.update!(attrs)
+      consultant.regenerate_jti!
     end
   end
 end

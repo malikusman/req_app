@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module Companies
-  # Shared firmographic + stack pack for agents, reports, and reviewer APIs.
+  # Shared firmographic + stack pack for agents, reports, and consultant APIs.
   class AgentContext
     PROFILE_KEYS = ProfileUpdater::PROFILE_KEYS
 
@@ -66,7 +66,7 @@ module Companies
       }.compact
     end
 
-    def self.reviewer_profile_json(company)
+    def self.consultant_profile_json(company)
       {
         "company_profile" => profile_slice(company),
         "website_url" => company.try(:website_url),

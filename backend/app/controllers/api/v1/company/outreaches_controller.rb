@@ -7,7 +7,7 @@ module Api
         before_action :require_company_admin!, only: %i[approve decline answer]
 
         def index
-          outreaches = ::ReviewerOutreach.where(company_id: current_company.id).order(created_at: :desc)
+          outreaches = ::ConsultantOutreach.where(company_id: current_company.id).order(created_at: :desc)
           render json: { outreaches: outreaches.map { |o| outreach_json(o) } }
         end
 
@@ -73,7 +73,7 @@ module Api
         private
 
         def find_outreach!
-          ::ReviewerOutreach.where(company_id: current_company.id).find(params[:id])
+          ::ConsultantOutreach.where(company_id: current_company.id).find(params[:id])
         end
 
         def require_company_admin!
@@ -86,8 +86,8 @@ module Api
           {
             id: o.id,
             report_id: o.report_id,
-            reviewer_user_id: o.reviewer_user_id,
-            reviewer_name: o.reviewer_user&.name,
+            consultant_user_id: o.consultant_user_id,
+            consultant_name: o.consultant_user&.name,
             employee_id: o.employee_id,
             recipient_type: o.recipient_type,
             recipient_id: o.recipient_id,
@@ -104,7 +104,7 @@ module Api
             declined_at: o.declined_at,
             sent_at: o.sent_at,
             admin_note: o.admin_note,
-            replies: o.reviewer_outreach_replies.order(:received_at).map { |r| reply_json(r) },
+            replies: o.consultant_outreach_replies.order(:received_at).map { |r| reply_json(r) },
             created_at: o.created_at,
             updated_at: o.updated_at
           }

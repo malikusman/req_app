@@ -10,13 +10,13 @@ RSpec.describe Inbound::TrackRouter do
   let(:conversation) do
     create(:conversation, employee: employee, company: company, status: "completed", question_count: 6)
   end
-  let(:reviewer) { create(:reviewer_user) }
+  let(:consultant) { create(:consultant_user) }
   let(:client) { Web::CapturingMetaClient.new }
 
   def open_info_request(body: "Which system holds the approval record?")
-    ReviewerInfoRequest.create!(
+    ConsultantInfoRequest.create!(
       company: company,
-      reviewer_user: reviewer,
+      consultant_user: consultant,
       employee: employee,
       conversation: conversation,
       body: body,
@@ -152,9 +152,9 @@ RSpec.describe Inbound::TrackRouter do
       older = open_info_request(body: "older question")
       older.update!(created_at: 2.days.ago)
 
-      outreach = ReviewerOutreach.create!(
+      outreach = ConsultantOutreach.create!(
         company: company,
-        reviewer_user: reviewer,
+        consultant_user: consultant,
         employee: employee,
         conversation: conversation,
         recipient_type: "employee",

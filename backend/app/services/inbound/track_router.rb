@@ -69,17 +69,17 @@ module Inbound
 
       case channel
       when :outreach     then Whatsapp::OutreachReplyHandler.new(**handler_args).handle
-      when :info_request then Whatsapp::ReviewerFollowupHandler.new(**handler_args).handle
+      when :info_request then Whatsapp::ConsultantFollowupHandler.new(**handler_args).handle
       else false
       end
     end
 
-    # A consultant can have an open question in EITHER channel (ReviewerOutreach or
-    # the legacy ReviewerInfoRequest). Attribute the reply to whichever opened most
+    # A consultant can have an open question in EITHER channel (ConsultantOutreach or
+    # the legacy ConsultantInfoRequest). Attribute the reply to whichever opened most
     # recently, so a stale request can't hijack a reply meant for a newer question.
     def newest_consultant_request_channel
-      outreach = ReviewerOutreach.open_whatsapp_for_employee(@employee.id)
-      info = ReviewerInfoRequest.open_for_employee(@employee.id)
+      outreach = ConsultantOutreach.open_whatsapp_for_employee(@employee.id)
+      info = ConsultantInfoRequest.open_for_employee(@employee.id)
       return nil if outreach.nil? && info.nil?
       return :outreach if info.nil?
       return :info_request if outreach.nil?

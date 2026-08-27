@@ -133,7 +133,7 @@ export const marketingContent = {
       {
         title: 'A report you can defend',
         description:
-          'Worktruth generates versioned reports with deltas against the last run. Expert reviewers annotate section by section before anything reaches leadership. Recommendations map to your solution catalog with evidence links.',
+          'Worktruth generates versioned reports with deltas against the last run. Expert consultants annotate section by section before anything reaches leadership. Recommendations map to your solution catalog with evidence links.',
         details: [
           'Versioned PDF & share links with access logging',
           'Independent expert review before delivery',
@@ -205,7 +205,7 @@ export const marketingContent = {
     outputs: [
       { step: 'Signal', text: 'Manual invoice entry + approval bottleneck · Finance' },
       { step: 'Pattern', text: 'Confirmed across 3 teams · high automation potential' },
-      { step: 'Report v3', text: 'Reviewer-approved PDF · ranked opportunities · deltas vs v2' },
+      { step: 'Report v3', text: 'Consultant-approved PDF · ranked opportunities · deltas vs v2' },
     ],
   },
 
@@ -251,13 +251,13 @@ export const marketingContent = {
         ],
       },
       {
-        title: 'Reviewer portal',
+        title: 'Consultant portal',
         for: 'Domain experts & delivery partners',
         features: [
-          'Assigned companies only — up to two reviewers per client',
+          'Assigned companies only — up to two consultants per client',
           'Section-by-section report review and approval workflow',
           'WhatsApp follow-ups with employees for clarification',
-          'Co-reviewer chat for coordination on complex accounts',
+          'Co-consultant chat for coordination on complex accounts',
         ],
       },
       {
@@ -293,7 +293,7 @@ export const marketingContent = {
       },
       {
         title: 'Consultancies & BPO partners',
-        body: 'Repeatable discovery engagements with governed reviewer workflows, client-ready PDFs, and high participation without new apps.',
+        body: 'Repeatable discovery engagements with governed consultant workflows, client-ready PDFs, and high participation without new apps.',
       },
     ],
   },
@@ -322,7 +322,7 @@ export const marketingContent = {
       },
       {
         q: 'How do you handle privacy and access?',
-        a: 'Invite-only participation (bound phone or personal discover link), consent capture, JWT-scoped portals, and role separation between company admins and external reviewers. Report share links are tokenized with access logging. See our Privacy page for retention and contact details.',
+        a: 'Invite-only participation (bound phone or personal discover link), consent capture, JWT-scoped portals, and role separation between company admins and external consultants. Report share links are tokenized with access logging. See our Privacy page for retention and contact details.',
       },
       {
         q: 'Can we upload existing process documents?',
@@ -366,7 +366,7 @@ export const marketingContent = {
       { label: 'How it works', href: '#how-it-works' },
       { label: 'Platform', href: '#platform' },
       { label: 'FAQ', href: '#faq' },
-      { label: 'Become a reviewer', href: '/reviewer/apply' },
+      { label: 'Become a consultant', href: '/consultant/apply' },
       { label: 'Privacy', href: '/privacy' },
     ],
   },

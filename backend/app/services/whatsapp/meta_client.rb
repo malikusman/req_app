@@ -63,7 +63,7 @@ module Whatsapp
       )
     end
 
-    def send_reviewer_followup_template(to:, employee_name:, company_name:)
+    def send_consultant_followup_template(to:, employee_name:, company_name:)
       template_name = ENV.fetch("META_TEMPLATE_REVIEWER_FOLLOWUP", "reviewer_followup_reopen")
       send_template(
         to: to,

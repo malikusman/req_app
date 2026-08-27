@@ -25,7 +25,7 @@ module Api
           send_report_download(report, disposition: disposition)
         end
 
-        # WYSIWYG preview with pending reviewer edits applied — so the approver
+        # WYSIWYG preview with pending consultant edits applied — so the approver
         # sees exactly what the client will get before approving the regenerate.
         def preview
           report = Report.joins(:company).find_by!(id: params[:id], company_id: params[:company_id])
@@ -40,22 +40,22 @@ module Api
           report = Report.joins(:company).find_by!(id: params[:id], company_id: params[:company_id])
           authorize report, :approve?
 
-          if report.review_workflow_status.in?(%w[awaiting_reviewers in_review])
-            return render json: { error: "Reviewer reviews not yet complete" }, status: :unprocessable_entity
+          if report.review_workflow_status.in?(%w[awaiting_consultants in_review])
+            return render json: { error: "Consultant reviews not yet complete" }, status: :unprocessable_entity
           end
 
-          if report.company.reviewer_assignments.active.exists? &&
+          if report.company.consultant_assignments.active.exists? &&
              report.review_workflow_status != "reviews_complete" &&
              !report.company.merged_settings["skip_platform_review"]
-            return render json: { error: "All reviewer submissions required before approval" }, status: :unprocessable_entity
+            return render json: { error: "All consultant submissions required before approval" }, status: :unprocessable_entity
           end
 
-          # A reviewer flagging sections as "needs clarification" must block approval —
-          # resolve (regenerate with the requested changes, or have the reviewer
+          # A consultant flagging sections as "needs clarification" must block approval —
+          # resolve (regenerate with the requested changes, or have the consultant
           # re-mark them) before the report can ship to the company.
           if report.report_reviews.where(status: "needs_info").exists?
             return render json: {
-              error: "A reviewer flagged sections needing clarification. Regenerate with the requested changes, or have the reviewer resolve them, before approving."
+              error: "A consultant flagged sections needing clarification. Regenerate with the requested changes, or have the consultant resolve them, before approving."
             }, status: :unprocessable_entity
           end
 
@@ -99,9 +99,9 @@ module Api
         private
 
         def report_json(report, company: report.company)
-          active_reviewer_ids = company.reviewer_assignments.active.pluck(:reviewer_user_id)
-          reviews = report.report_reviews.where(reviewer_user_id: active_reviewer_ids)
-            .includes(:reviewer_user, :report_review_comments)
+          active_consultant_ids = company.consultant_assignments.active.pluck(:consultant_user_id)
+          reviews = report.report_reviews.where(consultant_user_id: active_consultant_ids)
+            .includes(:consultant_user, :report_review_comments)
 
           {
             id: report.id,
@@ -112,22 +112,22 @@ module Api
             reviews_completed_at: report.reviews_completed_at,
             generated_at: report.generated_at,
             company_id: report.company_id,
-            reviewer_progress: reviews.map do |rv|
+            consultant_progress: reviews.map do |rv|
               {
-                reviewer_user_id: rv.reviewer_user_id,
-                reviewer_name: rv.reviewer_user.name,
+                consultant_user_id: rv.consultant_user_id,
+                consultant_name: rv.consultant_user.name,
                 status: rv.status,
                 submitted_at: rv.submitted_at
               }
             end,
-            reviewer_feedback: reviewer_feedback_json(reviews)
+            consultant_feedback: consultant_feedback_json(reviews)
           }
         end
 
-        def reviewer_feedback_json(reviews)
+        def consultant_feedback_json(reviews)
           reviews.map do |review|
             {
-              reviewer_name: review.reviewer_user.name,
+              consultant_name: review.consultant_user.name,
               status: review.status,
               submitted_at: review.submitted_at,
               overall_note: review.overall_note,

@@ -17,7 +17,7 @@ export function CompanyLayout() {
   const [navCounts, setNavCounts] = useState<{
     profilePercent?: number;
     reportVersion?: number | null;
-    reviewerQuestions?: number;
+    consultantQuestions?: number;
   }>({});
 
   const impersonating = Boolean(session?.portal === 'company' && session.impersonating);
@@ -35,7 +35,7 @@ export function CompanyLayout() {
         }));
       })
       .catch(() => undefined);
-    // Badge on the "Reviewer questions" item must match its destination
+    // Badge on the "Consultant questions" item must match its destination
     // (/company/outreaches): count outreaches actually waiting on the admin.
     api
       .companyOutreaches(token)
@@ -43,7 +43,7 @@ export function CompanyLayout() {
         const needsInput = (d.outreaches || []).filter(
           (o) => o.status === 'pending_admin_approval' || (o.recipient_type === 'company_admin' && o.status === 'sent')
         ).length;
-        setNavCounts((prev) => ({ ...prev, reviewerQuestions: needsInput }));
+        setNavCounts((prev) => ({ ...prev, consultantQuestions: needsInput }));
       })
       .catch(() => undefined);
   }, [token]);

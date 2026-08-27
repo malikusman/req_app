@@ -1,7 +1,7 @@
 {
   "notes": [
     {
-      "reviewer": "Rev Verify",
+      "consultant": "Rev Verify",
       "section_key": null,
       "body": "Local E2E review: docs-first baseline looks coherent; recommend validating AP approval bottleneck with finance interviews.",
       "kind": "overall_note",
@@ -9,7 +9,7 @@
       "publishable": true
     },
     {
-      "reviewer": "Rev Verify",
+      "consultant": "Rev Verify",
       "section_key": "recommendations",
       "body": "E2E: Please confirm whether Automate manual data entry should target SAP AP or Excel trackers first.",
       "kind": "section_comment",
@@ -19,43 +19,43 @@
   ],
   "section_dispositions": [
     {
-      "reviewer": "Rev Verify",
+      "consultant": "Rev Verify",
       "section_key": "executive_summary",
       "disposition": "approved",
       "comment": null
     },
     {
-      "reviewer": "Rev Verify",
+      "consultant": "Rev Verify",
       "section_key": "readiness",
       "disposition": "approved",
       "comment": null
     },
     {
-      "reviewer": "Rev Verify",
+      "consultant": "Rev Verify",
       "section_key": "participation",
       "disposition": "approved",
       "comment": null
     },
     {
-      "reviewer": "Rev Verify",
+      "consultant": "Rev Verify",
       "section_key": "delta",
       "disposition": "approved",
       "comment": null
     },
     {
-      "reviewer": "Rev Verify",
+      "consultant": "Rev Verify",
       "section_key": "signals",
       "disposition": "approved",
       "comment": null
     },
     {
-      "reviewer": "Rev Verify",
+      "consultant": "Rev Verify",
       "section_key": "patterns",
       "disposition": "approved",
       "comment": null
     },
     {
-      "reviewer": "Rev Verify",
+      "consultant": "Rev Verify",
       "section_key": "recommendations",
       "disposition": "needs_info",
       "comment": null
@@ -63,7 +63,7 @@
   ],
   "structured_findings": [
     {
-      "reviewer": "Rev Verify",
+      "consultant": "Rev Verify",
       "kind": "executive_conclusion",
       "finding_type": "executive_conclusion",
       "title": "Executive conclusion",

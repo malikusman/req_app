@@ -43,7 +43,7 @@ module Catalog
               { "size_band" => @company.profile_value("size_band") }
             ].compact,
             assumptions: already_in_stack ? ["Capability may extend an existing system rather than replace it"] : [],
-            risks: ["Catalog suggestion is advisory until reviewer endorsement"],
+            risks: ["Catalog suggestion is advisory until consultant endorsement"],
             estimated_effort: already_in_stack ? "low" : effort_for_size,
             validate_next: already_in_stack ?
               "Validate how this extends the systems already in use" :

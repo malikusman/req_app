@@ -6,7 +6,7 @@ import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { api } from '../lib/api';
 
-const PORTALS: AuthPortal[] = ['company', 'reviewer', 'platform'];
+const PORTALS: AuthPortal[] = ['company', 'consultant', 'platform'];
 
 export function ForgotPasswordPage() {
   const [params] = useSearchParams();
@@ -65,7 +65,7 @@ export function ForgotPasswordPage() {
                 onChange={(e) => setPortal(e.target.value as AuthPortal)}
               >
                 <option value="company">Company</option>
-                <option value="reviewer">Reviewer</option>
+                <option value="consultant">Consultant</option>
                 <option value="platform">Platform</option>
               </select>
             </label>

@@ -1,16 +1,16 @@
 import { useEffect, useState } from 'react';
-import { api, type CompanyRegistrationRow, type ReviewerApplicationRow } from '../../lib/api';
+import { api, type CompanyRegistrationRow, type ConsultantApplicationRow } from '../../lib/api';
 import { usePlatformToken } from '../../lib/auth';
 import { PageHeader, Card, DataTable, Badge, Button, EmptyState, Textarea, Modal } from '../../components/ui';
 
 type PendingAction =
   | { kind: 'company'; id: number; action: 'approve' | 'reject'; label: string }
-  | { kind: 'reviewer'; id: number; action: 'approve' | 'reject'; label: string };
+  | { kind: 'consultant'; id: number; action: 'approve' | 'reject'; label: string };
 
 export function PlatformRegistrations() {
   const token = usePlatformToken();
   const [companies, setCompanies] = useState<CompanyRegistrationRow[]>([]);
-  const [reviewers, setReviewers] = useState<ReviewerApplicationRow[]>([]);
+  const [consultants, setConsultants] = useState<ConsultantApplicationRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [pending, setPending] = useState<PendingAction | null>(null);
@@ -25,7 +25,7 @@ export function PlatformRegistrations() {
       .platformRegistrations(token, 'pending')
       .then((data) => {
         setCompanies(data.company_registrations.filter((r) => r.status === 'pending'));
-        setReviewers(data.reviewer_applications.filter((r) => r.status === 'pending'));
+        setConsultants(data.consultant_applications.filter((r) => r.status === 'pending'));
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load'))
       .finally(() => setLoading(false));
@@ -54,8 +54,8 @@ export function PlatformRegistrations() {
         if (pending.action === 'approve') await api.approveCompanyRegistration(token, pending.id, note || undefined);
         else await api.rejectCompanyRegistration(token, pending.id, note || undefined);
       } else {
-        if (pending.action === 'approve') await api.approveReviewerApplication(token, pending.id, note || undefined);
-        else await api.rejectReviewerApplication(token, pending.id, note || undefined);
+        if (pending.action === 'approve') await api.approveConsultantApplication(token, pending.id, note || undefined);
+        else await api.rejectConsultantApplication(token, pending.id, note || undefined);
       }
       setPending(null);
       setNote('');
@@ -73,7 +73,7 @@ export function PlatformRegistrations() {
     <div className="space-y-6">
       <PageHeader
         title="Registrations"
-        description="Approve or reject company signups and reviewer applications."
+        description="Approve or reject company signups and consultant applications."
       />
 
       {error && !pending ? (
@@ -156,11 +156,11 @@ export function PlatformRegistrations() {
       </Card>
 
       <Card>
-        <h2 className="font-display m-0 mb-4 text-lg text-text-primary">Reviewer applications</h2>
+        <h2 className="font-display m-0 mb-4 text-lg text-text-primary">Consultant applications</h2>
         {loading ? (
           <p className="text-sm text-text-secondary">Loading…</p>
-        ) : reviewers.length === 0 ? (
-          <EmptyState title="No pending reviewer applications" description="New applications will appear here." />
+        ) : consultants.length === 0 ? (
+          <EmptyState title="No pending consultant applications" description="New applications will appear here." />
         ) : (
           <DataTable
             columns={[
@@ -179,7 +179,7 @@ export function PlatformRegistrations() {
                     <Button
                       size="sm"
                       onClick={() =>
-                        openAction({ kind: 'reviewer', id: r.id, action: 'approve', label: r.name })
+                        openAction({ kind: 'consultant', id: r.id, action: 'approve', label: r.name })
                       }
                     >
                       Approve
@@ -188,7 +188,7 @@ export function PlatformRegistrations() {
                       size="sm"
                       variant="secondary"
                       onClick={() =>
-                        openAction({ kind: 'reviewer', id: r.id, action: 'reject', label: r.name })
+                        openAction({ kind: 'consultant', id: r.id, action: 'reject', label: r.name })
                       }
                     >
                       Reject
@@ -197,7 +197,7 @@ export function PlatformRegistrations() {
                 ),
               },
             ]}
-            rows={reviewers}
+            rows={consultants}
           />
         )}
       </Card>
@@ -205,7 +205,7 @@ export function PlatformRegistrations() {
       <Modal
         open={Boolean(pending)}
         onClose={closeModal}
-        title={pending ? `${confirmLabel} ${pending.kind === 'company' ? 'company' : 'reviewer'}` : ''}
+        title={pending ? `${confirmLabel} ${pending.kind === 'company' ? 'company' : 'consultant'}` : ''}
         footer={
           <>
             <Button variant="secondary" onClick={closeModal} disabled={acting}>

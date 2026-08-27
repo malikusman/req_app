@@ -8,7 +8,7 @@ module Api
           authorize :discovery_question, :index?
           messages = Message.joins(:conversation)
                             .where(conversations: { company_id: current_company.id })
-                            .where(direction: "outbound", is_discovery_question: true, reviewer_followup: false)
+                            .where(direction: "outbound", is_discovery_question: true, consultant_followup: false)
                             .includes(conversation: :employee)
                             .order(created_at: :desc)
                             .limit(100)
