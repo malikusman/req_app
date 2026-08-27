@@ -111,17 +111,19 @@ module Discovery
         user_message: @user_message,
         inbound_message: @inbound_message
       )
+      # A reopened conversation carries a raised ceiling, so the per-conversation
+      # value wins over the company/ENV default the ContextBuilder resolved.
+      limits = context[:limits].merge(max_questions: @conversation.max_questions)
       {
         profile: context[:profile],
         blackboard: context[:blackboard],
-        limits: context[:limits],
+        limits: limits,
         memory_facts: context[:memory_facts],
         document_snippets: context[:document_snippets],
         knowledge_snippets: context[:knowledge_snippets],
         media_context: context[:media_context],
         media_snippets: context[:media_snippets],
         company_profile: context[:company_profile],
-        area_routing: @company.merged_settings["discovery_area_routing_enabled"] == true
       }
     end
 

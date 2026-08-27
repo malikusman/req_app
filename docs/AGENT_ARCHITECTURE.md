@@ -1,6 +1,6 @@
 # Agent architecture
 
-How Worktruth agents run, who owns state, and what each one is for. Interview behavior is documented as it exists today; interview-code changes are out of scope here (see [Discovery interview UX](#discovery-interview-ux-known-issue)).
+How Worktruth agents run, who owns state, and what each one is for. Interview behaviour is documented as it exists today — see [Discovery interview length](#discovery-interview-length-resolved) for how the interview decides when it is done.
 
 > **See also:** a visual version of this map (flow diagrams + a card per agent) and the concrete interview redesign live in [`DISCOVERY_REDESIGN_PLAN.md`](DISCOVERY_REDESIGN_PLAN.md). Verified against the current code Aug 2026.
 
@@ -22,14 +22,13 @@ flowchart TD
   inbound --> processor[InboundProcessor_or_TurnRouter]
   processor --> onboarding[OnboardingHandler]
   onboarding --> profiling[ProfilingHandler]
-  profiling --> route["POST /v1/threads/id/route"]
-  route --> kickoff[ProactiveStart_kickoff]
+  profiling --> kickoff[ProactiveStart_kickoff]
   kickoff --> turn["POST /v1/threads/id/turn"]
   processor --> discovery[DiscoveryHandler]
   discovery --> turn
-  turn --> prepare[prepare_node]
+  turn --> prepare[prepare_node_dossier]
   prepare --> interview[interview_node]
-  prepare --> close[close_node]
+  prepare --> close[close_node_four_exits]
   interview --> persist[Rails_persist_blackboard]
   close --> finalize[FinalizeConversation]
   persist --> intel[AggregateIntelligence]
@@ -37,7 +36,7 @@ flowchart TD
   discovery --> companion[PostDiscoveryRouter]
   companion --> chat[companion_chat]
   companion --> tools[ToolsSuggest]
-  companion --> addendum[Reopen_plus_3Q]
+  companion --> addendum[Reopen_raises_ceiling]
   addendum --> turn
   media[Media_job] --> discovery
   docs[DocumentAnalysisRun] --> docsGraph[docs_analysis_graph]
@@ -184,31 +183,92 @@ Defaults in `Company::DEFAULT_SETTINGS` (`backend/app/models/company.rb`):
 | `discovery_memory_retrieval_enabled` | true |
 | `discovery_multimodal_enabled` | true |
 | `discovery_media_indexing_enabled` | true |
-| `discovery_max_followup_depth` | 2 |
-| `discovery_max_questions_per_agent` | 5 |
-| `discovery_max_active_agents` | 4 |
 
-LangGraph `default_limits()` in `agent/app/state.py` matches the last three. Per-agent budgets are `min(persona budget, max_questions_per_agent)`; `total_budget = min(sum, question_target)`.
+`discovery_question_target` is read only by the legacy single-agent path.
+
+**Interview limits** are NOT in `DEFAULT_SETTINGS` — they resolve
+**company setting -> ENV -> code default** in `Discovery::ContextBuilder::LIMIT_DEFAULTS`.
+Their absence from the defaults hash is what makes that precedence work, since
+`merged_settings` folds the defaults in and would make every key look operator-set:
+
+| Setting key | ENV | Default |
+|---|---|---|
+| `discovery_max_questions` | `DISCOVERY_MAX_QUESTIONS` | 8 |
+| `discovery_min_questions` | `DISCOVERY_MIN_QUESTIONS` | 4 |
+| `discovery_stall_turns` | `DISCOVERY_STALL_TURNS` | 2 |
+| `discovery_slot_confidence` | `DISCOVERY_SLOT_CONFIDENCE` | 0.6 |
+| `discovery_orient_questions` | `DISCOVERY_ORIENT_QUESTIONS` | 3 |
+| `discovery_switch_after` | `DISCOVERY_SWITCH_AFTER` | 3 |
+
+`agent/app/state.py::default_limits()` mirrors these; Rails is the authority. A reopened
+conversation carries a raised ceiling in `state_snapshot["max_questions"]`, read by
+`Conversation#max_questions`.
 
 Playbooks: `DiscoveryPlaybook` per department (`finance`, `sales`, `hr`, `operations`, `support`, `executive`, `default`). Seed `prompt_block` asks adaptive questions about processes, tools, pain, time sinks — one question at a time. Platform CRUD: `api/v1/platform/playbooks`.
 
-Blackboard (Rails `state_snapshot`): `profile`, `agent_queue`, `skipped_agents`, `total_budget`, `active_agent_id`, `agent_states` (`questions_asked`, `question_budget`, `status`, `open_threads`), `coverage`, `shared_findings`, `conversation_summary`, `last_routing_decision`.
+Blackboard (Rails `state_snapshot`): `profile`, `role_areas`, `orient_done`, `orient_asked`, `current_area_idx`, `area_streak`, `dossier` (`slots`, `parked`), `stall_turns`, `close_reason`, `shared_findings`, `conversation_summary`, `summary_through_turn`, `last_routing_decision`.
+
+Queue-era keys (`agent_queue`, `agent_states`, `coverage`) may still be present on
+conversations that started before the change. They are ignored, not migrated —
+`ensure_blackboard` seeds what they lack and leaves them in place.
 
 LangGraph HTTP (`agent/app/main.py`): `GET /health`, `POST /v1/threads`, `POST /v1/threads/{id}/turn`, `POST /v1/threads/{id}/route`, `POST /v1/companion/turn` (unused by Rails), `POST /v1/docs_analysis/runs`, `GET /v1/playbooks/active`.
 
 ---
 
-## Discovery interview UX (known issue)
+## Discovery interview length (resolved)
 
-**Symptom:** Around question 7 the interview feels repetitive and stuck — often on inter-department communication. Tone feels like a pushing interviewer, not a companion.
+**What it used to do.** The interview ran to a counter: `question_count >= question_target`
+(default 10). A specialist queue marched domain -> process -> technical on per-agent
+question budgets, and around Q7 it reliably fixated on inter-department communication —
+the process persona's explicit focus, on a theme earlier agents had already covered.
+Coverage was recorded (`topics_covered`) but nothing read it to decide completion.
 
-**What is happening (not a bug in the 10-question cap).** For a typical IC the queue is domain (Q1–4) then **process** (Q5–8). The process persona is explicitly “handoffs between people and teams.” Domain already asks who they depend on (mock Q3). Coverage always includes `handoffs`. Follow-ups can deepen the same topic twice (`max_followup_depth` 2). **Q7 is usually the process agent’s 3rd question** — the same theme as earlier coordination questions.
+**What it does now.** Length follows the conversation. The interview maps the person's
+own 2-3 role areas in the first turns, then asks for whichever **dossier slot** is still
+missing, and ends when every required slot is filled — typically 5-7 questions rather
+than always 10.
 
-**Tone:** Interview prompts are specialist (“lean expert”, “McKinsey-caliber”). Companion warmth only starts after `completed`.
+The dossier (`agent/app/dossier.py`) is a set of named slots:
 
-**Feedback we want later (not this pass):** Use the first few questions to find the person’s main role areas, then branch into short follow-up threads per area (tools, “have you thought about AI / how”, pain) — still the same intel, still max 10, voice more like a friend/companion. That is routing + coverage + prompts, not copy-only.
+| Slot | Scope | Required |
+|---|---|---|
+| `how_it_works` | per area | yes |
+| `friction` | per area | yes |
+| `ai_current_usage` | global | yes |
+| `ai_openness` | per area | no |
+| `volume_or_frequency` | global | no |
 
-→ **Now specced:** the map-then-branch redesign, with the six verified root causes and file-by-file changes, is in [`DISCOVERY_REDESIGN_PLAN.md`](DISCOVERY_REDESIGN_PLAN.md).
+Having named role areas is itself required, enforced directly rather than as a slot.
+
+**Four ways it ends**, in precedence order:
+
+1. `ceiling` — `question_count` hit `max_questions` (default 8). A backstop. Frequent
+   firing means the dossier wants more than an interview can get.
+2. `dossier_complete` — every required slot filled. The intended exit.
+3. `stalled` — `stall_turns` consecutive turns filled no new required slot. This is what
+   stops an uncapped interview circling.
+4. `employee_ended` — they asked to stop.
+
+2 and 3 are gated on `min_questions` (default 4), so a terse employee cannot end the
+interview before there is anything worth packaging. In practice the stall exit fires
+before the ceiling, which is the intended ordering.
+
+**Not an interrogation.** `switch_after` force-rotates off an area; an interesting aside
+is written to `dossier.parked` and left alone rather than drilled into, becoming raw
+material for follow-up questions later. Every question is constrained to one clause,
+answerable in a sentence.
+
+**Limits** resolve **company setting -> ENV -> code default** in
+`Discovery::ContextBuilder::LIMIT_DEFAULTS`. Those keys are deliberately absent from
+`Company::DEFAULT_SETTINGS`: `merged_settings` folds the defaults in, so a key listed
+there would always look operator-set and ENV could never win.
+
+**Retired with this change:** the specialist queue (`router.py`, per-agent
+`question_budget`, `agent_states`, `open_threads`), the `POST /v1/threads/{id}/route`
+endpoint, the specialist personas, and the `discovery_area_routing_enabled` flag — the
+map-then-branch flow is now the only engine. `ensure_blackboard` upgrades a
+queue-era blackboard in place so mid-interview employees are not dropped.
 
 ---
 

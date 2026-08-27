@@ -48,6 +48,10 @@ class Company < ApplicationRecord
 
   DEFAULT_SETTINGS = {
     "engagement_mode" => "hybrid",
+    # Interview length is decided by the dossier now (see Discovery::ContextBuilder
+    # for the max/min/stall limits, which resolve company -> ENV -> default and are
+    # deliberately NOT listed here). discovery_question_target is read only by the
+    # legacy single-agent path.
     "discovery_question_target" => 10,
     "discovery_addendum_budget" => 3,
     "discovery_session_timeout_hours" => 72,
@@ -56,14 +60,7 @@ class Company < ApplicationRecord
     "discovery_memory_retrieval_enabled" => true,
     "discovery_media_indexing_enabled" => true,
     "discovery_multimodal_enabled" => true,
-    "discovery_max_followup_depth" => 2,
-    "discovery_max_questions_per_agent" => 5,
-    "discovery_max_active_agents" => 4,
-    # Phase 3 — map-then-branch interview (orient -> per-area rotation). Off by
-    # default; enable per company (or via AREA_ROUTING=1 in the simulator).
-    "discovery_area_routing_enabled" => false,
-    "discovery_orient_questions" => 3,
-    "discovery_switch_after" => 3,
+
     # When true, an assigned consultant may message an employee directly (via
     # WhatsApp follow-up) during report review. Company admins can turn this off
     # to require their approval for any consultant→employee contact.

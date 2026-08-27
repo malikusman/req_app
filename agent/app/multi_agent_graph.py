@@ -1,8 +1,8 @@
-"""Multi-agent supervisor graph.
+"""Discovery interview graph.
 
-prepare (deterministic orchestration) -> interview (one LLM call as the active
-specialist) -> finalize (deterministic blackboard update), with a conditional
-edge to close when the interview is done before asking another question.
+prepare (deterministic: what to ask, or whether to stop) -> interview (one LLM
+call) -> finalize (deterministic blackboard update), with a conditional edge to
+close when the dossier is full, the conversation has stalled, or the ceiling is hit.
 
 The graph is stateless across turns: the blackboard travels in/out via Rails.
 """
@@ -32,6 +32,9 @@ def _close(state: MultiTurnState) -> MultiTurnState:
         state.get("employee_name", ""),
     )
     bb = state.get("blackboard") or {}
+    # Why the interview ended is worth keeping: a high rate of "ceiling" means the
+    # dossier is asking for more than an interview can reasonably get.
+    bb["close_reason"] = state.get("close_reason") or bb.get("close_reason") or "dossier_complete"
     return {
         **state,
         "assistant_message": message,

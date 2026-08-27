@@ -56,7 +56,10 @@ RSpec.describe Discovery::ProcessTurnService do
       inbound = create(:message, conversation: conversation, direction: "inbound", message_type: "text")
       expect(client).to receive(:run_turn!) do |args|
         expect(args[:multi_agent]).to include(:profile, :blackboard, :limits, :media_context, :media_snippets)
-        expect(args[:multi_agent][:limits][:max_followup_depth]).to eq(2)
+        # The ceiling is the per-conversation value, so a reopened conversation's
+        # raised ceiling reaches the agent rather than the company default.
+        expect(args[:multi_agent][:limits][:max_questions]).to eq(conversation.max_questions)
+        expect(args[:multi_agent][:limits][:slot_confidence]).to eq(0.6)
         {
           "assistant_message" => "Walk me through month-end close.",
           "insight" => { "summary" => "Insight", "topics" => ["daily_workflow"] },

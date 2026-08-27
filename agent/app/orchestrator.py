@@ -1,210 +1,133 @@
 """Deterministic orchestration around the per-turn LLM call.
 
-prepare_turn: ensure queue/states exist, pick the active agent, enforce limits,
-decide whether the interview should close before asking another question.
+prepare_turn: make sure the blackboard is in shape, decide what to ask next from
+the dossier, and decide whether the interview should end before asking anything.
 
-finalize_turn: fold the agent's structured output back into the blackboard —
-question counts, open follow-up threads (depth-capped), findings, coverage,
-rolling summary — and decide handoff/completion.
+finalize_turn: fold the model's structured output back into the blackboard —
+dossier slots, parked asides, findings, rolling summary — and track the stall
+counter that ends a conversation going nowhere.
+
+The interview ends for one of four reasons, in this precedence:
+
+  1. ceiling        — question_count reached max_questions. A backstop; if this
+                      fires often, the dossier is mis-specified.
+  2. dossier_complete — every required slot filled. The intended exit.
+  3. stalled        — stall_turns consecutive turns filled no new required slot.
+                      This is what stops an uncapped interview circling.
+  4. employee_ended — the model set completed=true (they asked to stop). Handled
+                      in finalize, because its message doubles as the farewell.
+
+2 and 3 are both gated on min_questions, so a terse employee can't end the
+interview before there is anything worth packaging.
 """
 
 import copy
 from typing import Any
 
-from app import area_flow
-from app.router import build_agent_queue
-from app.state import Blackboard, default_limits, empty_coverage
+from app import area_flow, dossier
+from app.state import Blackboard, resolve_limits
 
 SUMMARY_REFRESH_EVERY = 3
 
 
-def ensure_blackboard(
-    blackboard: Blackboard | None,
-    profile: dict[str, Any],
-    limits: dict[str, int],
-    question_target: int,
-) -> Blackboard:
+def ensure_blackboard(blackboard: Blackboard | None, profile: dict[str, Any]) -> Blackboard:
+    """Also upgrades a blackboard written by the retired specialist-queue engine.
+
+    In-flight conversations at deploy time carry `agent_queue` / `agent_states` and
+    no dossier. Those keys are simply left alone (harmless, and they keep the
+    provenance view honest about how the interview started) while the area and
+    dossier state they lack is seeded, so a mid-interview employee is not dropped.
+    """
     bb: Blackboard = copy.deepcopy(blackboard) if blackboard else {}
     bb.setdefault("profile", profile or {})
-
-    if not bb.get("agent_queue"):
-        routed = build_agent_queue(bb.get("profile") or {}, limits, question_target)
-        bb["agent_queue"] = routed["agents"]
-        bb.setdefault("skipped_agents", routed["skipped"])
-        bb.setdefault("total_budget", routed["total_budget"])
-
-    states = bb.setdefault("agent_states", {})
-    for entry in bb["agent_queue"]:
-        states.setdefault(
-            entry["id"],
-            {
-                "questions_asked": 0,
-                "question_budget": entry.get("question_budget", 4),
-                "status": "active",
-                "open_threads": [],
-            },
-        )
-
-    bb.setdefault("coverage", empty_coverage())
     bb.setdefault("shared_findings", [])
     bb.setdefault("conversation_summary", "")
     bb.setdefault("summary_through_turn", 0)
+    bb.setdefault("stall_turns", 0)
+    area_flow.ensure_area_state(bb)
+    dossier.ensure_dossier(bb)
+
+    # Carried over from the queue engine: it had already asked real questions, so
+    # don't restart orientation from zero.
+    if bb.get("agent_states") and not bb.get("role_areas") and not bb.get("orient_done"):
+        asked = sum(s.get("questions_asked", 0) for s in bb["agent_states"].values())
+        bb["orient_asked"] = max(bb.get("orient_asked", 0), min(asked, 3))
+
     return bb
 
 
-def pick_active_agent(bb: Blackboard) -> str | None:
-    """Lowest-priority-number agent in the queue that still has budget."""
-    states = bb.get("agent_states", {})
-    for entry in sorted(bb.get("agent_queue", []), key=lambda a: a.get("priority", 99)):
-        state = states.get(entry["id"], {})
-        if state.get("status") == "complete":
-            continue
-        if state.get("questions_asked", 0) >= state.get("question_budget", 0):
-            continue
-        return entry["id"]
-    return None
-
-
 def prepare_turn(state: dict[str, Any]) -> dict[str, Any]:
-    limits = {**default_limits(), **(state.get("limits") or {})}
-    question_target = state.get("question_target", 12)
-    bb = ensure_blackboard(state.get("blackboard"), state.get("profile") or {}, limits, question_target)
-
-    # Phase 3: map-then-branch flow (flag-gated). Falls back to the specialist
-    # queue below only if orient produced no areas.
-    if state.get("area_routing"):
-        decision = area_flow.prepare(state, bb, limits, question_target)
-        if decision is not None:
-            previous_active = bb.get("active_agent_id")
-            active_id = decision.get("active") or ""
-            routing = area_flow.routing_decision(decision, previous_active)
-            bb["active_agent_id"] = active_id or previous_active or ""
-            bb["last_routing_decision"] = routing
-            return {
-                **state,
-                "blackboard": bb,
-                "limits": limits,
-                "active_agent_id": active_id,
-                "followup_allowed": False,
-                "followup_topic": "",
-                "should_close": bool(decision.get("should_close")),
-                "routing_decision": routing,
-                "area_decision": decision,
-            }
-
+    limits = resolve_limits(state.get("limits"))
+    bb = ensure_blackboard(state.get("blackboard"), state.get("profile") or {})
     question_count = state.get("question_count", 0)
-    active_id = pick_active_agent(bb)
 
-    should_close = question_count >= question_target or active_id is None
-
-    followup_allowed = False
-    followup_topic = ""
-    if active_id and not should_close:
-        agent_state = bb["agent_states"][active_id]
-        covered = set(bb.get("coverage", {}).get("topics_covered", []))
-        open_threads = [
-            t
-            for t in agent_state.get("open_threads", [])
-            if t.get("needs_followup") and t.get("topic") not in covered
-        ]
-        if open_threads:
-            thread = open_threads[0]
-            if thread.get("depth", 0) < limits["max_followup_depth"]:
-                followup_allowed = True
-                followup_topic = thread.get("topic", "")
-
-    previous_active = bb.get("active_agent_id")
-    routing_decision = {
-        "action": "close" if should_close else ("handoff" if active_id != previous_active else "continue"),
-        "agent": active_id,
-        "reason": (
-            "question target reached or all agents complete"
-            if should_close
-            else f"active agent {active_id} has budget remaining"
-        ),
-    }
-    bb["active_agent_id"] = active_id or previous_active or ""
-    bb["last_routing_decision"] = routing_decision
+    decision = area_flow.prepare(bb, limits, question_count)
+    previous = (bb.get("last_routing_decision") or {}).get("agent")
+    routing = area_flow.routing_decision(decision, previous)
+    bb["last_routing_decision"] = routing
+    if decision.get("should_close"):
+        bb["close_reason"] = decision.get("close_reason", "")
 
     return {
         **state,
         "blackboard": bb,
         "limits": limits,
-        "active_agent_id": active_id or "",
-        "followup_allowed": followup_allowed,
-        "followup_topic": followup_topic,
-        "should_close": should_close,
-        "routing_decision": routing_decision,
+        "beat": decision.get("beat"),
+        "phase": decision.get("phase"),
+        "should_close": bool(decision.get("should_close")),
+        "close_reason": decision.get("close_reason", ""),
+        "routing_decision": routing,
+        # Provenance: Rails stamps this onto messages.agent_id, so a stored turn
+        # still says which phase produced it.
+        "active_agent_id": decision.get("phase"),
     }
 
 
 def finalize_turn(state: dict[str, Any], llm_output: dict[str, Any]) -> dict[str, Any]:
     bb: Blackboard = state["blackboard"]
     limits = state["limits"]
-    active_id = state["active_agent_id"]
     question_count = state.get("question_count", 0)
     turn_number = question_count + 1
+    threshold = limits["slot_confidence"]
 
-    area_decision = state.get("area_decision")
-    if area_decision is not None:
-        # Area flow tracks its own state (orient_asked, per-area beats_done) —
-        # the per-agent budget/thread machinery below is bypassed in this mode.
-        area_flow.finalize(state, bb, llm_output, area_decision)
+    area_flow.finalize(bb, llm_output, state.get("phase"), state.get("beat"))
 
-    agent_state = bb["agent_states"].get(active_id)
-    if agent_state is not None:
-        agent_state["questions_asked"] = agent_state.get("questions_asked", 0) + 1
+    progress = dossier.merge_slots(bb, llm_output.get("slots_filled"), turn_number, threshold)
+    dossier.park(
+        bb,
+        llm_output.get("parked"),
+        turn_number,
+        area=(state.get("beat") or {}).get("area"),
+    )
 
-        followup = llm_output.get("followup") or {}
-        threads = agent_state.setdefault("open_threads", [])
-        # A topic already marked covered must not keep pulling follow-ups — that
-        # (topic-of-the-new-question + always re-surfacing open_threads[0]) is what
-        # made the interview circle handoffs after ~Q7.
-        already_covered = set(bb.get("coverage", {}).get("topics_covered", []))
-        topic = followup.get("topic")
-        if topic:
-            wants_followup = bool(followup.get("needed")) and topic not in already_covered
-            existing = next((t for t in threads if t.get("topic") == topic), None)
-            if existing:
-                existing["depth"] = existing.get("depth", 0) + 1
-                existing["needs_followup"] = (
-                    wants_followup and existing["depth"] < limits["max_followup_depth"]
-                )
-            else:
-                threads.append({"topic": topic, "depth": 1, "needs_followup": wants_followup})
-        else:
-            for thread in threads:
-                thread["needs_followup"] = False
-
-        if agent_state["questions_asked"] >= agent_state.get("question_budget", 0):
-            agent_state["status"] = "complete"
+    # Stall detection. A turn that fills nothing required is not automatically a
+    # problem — the answer may have been a clarification — but several in a row
+    # means the conversation is going nowhere and should end warmly.
+    bb["stall_turns"] = 0 if progress else bb.get("stall_turns", 0) + 1
 
     finding = llm_output.get("finding")
     if finding and finding.get("content"):
         bb["shared_findings"].append(
             {
-                "agent": active_id,
+                "agent": "interviewer",
                 "finding": finding["content"],
                 "confidence": float(finding.get("confidence") or 0.5),
                 "turn": turn_number,
             }
         )
 
-    covered = llm_output.get("topics_covered") or []
-    coverage = bb["coverage"]
-    for topic in covered:
-        if topic in coverage.get("topics_required", []) and topic not in coverage.get("topics_covered", []):
-            coverage.setdefault("topics_covered", []).append(topic)
-
     updated_summary = llm_output.get("updated_summary")
     if updated_summary:
         bb["conversation_summary"] = updated_summary
         bb["summary_through_turn"] = turn_number
 
-    # Closure on budget/target exhaustion is prepare's job (close node next turn):
-    # completing here would orphan the question we just asked. Only the LLM may end
-    # the interview mid-turn, because its assistant_message doubles as the farewell.
+    # Closing on a filled dossier or a stall is prepare's job on the NEXT turn —
+    # completing here would orphan the question we just asked. Only the employee
+    # asking to stop ends the interview mid-turn, because the model's
+    # assistant_message doubles as the farewell.
     completed = bool(llm_output.get("completed"))
+    if completed:
+        bb["close_reason"] = "employee_ended"
 
     return {
         **state,

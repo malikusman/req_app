@@ -9,7 +9,6 @@ from app.circuit_breaker import is_open
 from app.config import configure_langsmith, settings
 from app.graph import execute_turn
 from app.multi_agent_graph import execute_multi_agent_turn
-from app.router import build_agent_queue
 
 app = FastAPI(title="Req Discovery Agent", version="1.0.0")
 
@@ -34,6 +33,8 @@ class TurnContext(BaseModel):
     employee_name: str = ""
     department: str = "default"
     question_count: int = 0
+    # Legacy single-agent path only (multi_agent=false). The interview engine takes
+    # its ceiling from limits["max_questions"] instead.
     question_target: int = 10
     industry: str | None = None
     size_band: str | None = None
@@ -57,15 +58,13 @@ class TurnRequest(BaseModel):
     multi_agent: bool = False
     profile: dict[str, Any] | None = None
     blackboard: dict[str, Any] | None = None
-    limits: dict[str, int] | None = None
+    limits: dict[str, Any] | None = None
     memory_facts: list[dict[str, Any]] = Field(default_factory=list)
     document_snippets: list[str] = Field(default_factory=list)
     knowledge_snippets: list[str] = Field(default_factory=list)
     media_context: dict[str, Any] | None = None
     company_profile: dict[str, Any] | None = None
     media_snippets: list[str] = Field(default_factory=list)
-    # Phase 3: map-then-branch flow (orient -> per-area rotation)
-    area_routing: bool = False
 
 
 class TurnResponse(BaseModel):
@@ -79,18 +78,6 @@ class TurnResponse(BaseModel):
     blackboard: dict[str, Any] | None = None
     active_agent_id: str | None = None
     routing_decision: dict[str, Any] | None = None
-
-
-class RouteRequest(BaseModel):
-    profile: dict[str, Any]
-    limits: dict[str, int] | None = None
-    question_target: int = 12
-
-
-class RouteResponse(BaseModel):
-    agents: list[dict[str, Any]]
-    skipped: list[dict[str, Any]]
-    total_budget: int
 
 
 @app.get("/health")
@@ -136,7 +123,6 @@ def run_turn(thread_id: str, body: TurnRequest):
                 "media_context": body.media_context,
                 "media_snippets": body.media_snippets,
                 "company_profile": body.company_profile or body.context.company_profile or {},
-                "area_routing": body.area_routing,
             }
         )
         result = execute_multi_agent_turn(state)
@@ -160,12 +146,6 @@ def run_turn(thread_id: str, body: TurnRequest):
         active_agent_id=result.get("active_agent_id") if body.multi_agent else None,
         routing_decision=result.get("routing_decision") if body.multi_agent else None,
     )
-
-
-@app.post("/v1/threads/{thread_id}/route", response_model=RouteResponse)
-def route_agents(thread_id: str, body: RouteRequest):
-    result = build_agent_queue(body.profile, body.limits, body.question_target)
-    return RouteResponse(**result)
 
 
 class CompanionTurnRequest(BaseModel):

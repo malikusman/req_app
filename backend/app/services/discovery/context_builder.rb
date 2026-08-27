@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module Discovery
-  # Assembles the multi-agent turn context: limits, profile, blackboard, and
+  # Assembles the interview turn context: limits, profile, blackboard, and
   # (flag-gated) memory retrieval — top-k similar company facts and document
   # chunks for cross-employee recall.
   class ContextBuilder
@@ -10,17 +10,45 @@ module Discovery
     # Cosine distance from neighbor gem; keep only reasonably similar memories.
     MAX_COSINE_DISTANCE = 0.35
 
+    # Interview limits, resolved company setting -> ENV -> code default.
+    #
+    # These keys are deliberately absent from Company::DEFAULT_SETTINGS. merged_settings
+    # merges the defaults in, so a key present there would always be "set" and ENV
+    # could never win. Their absence is what makes the precedence work: the key
+    # appears only when an operator set it for that company.
+    LIMIT_DEFAULTS = {
+      # A BACKSTOP, not a target. The interview closes on a filled dossier, usually
+      # several questions earlier. If this fires often, the dossier wants too much.
+      "discovery_max_questions" => { env: "DISCOVERY_MAX_QUESTIONS", default: 8, cast: :int },
+      # Without a floor, a two-word-answer employee trips the stall exit at turn 3
+      # and the discovery package gets built on almost nothing.
+      "discovery_min_questions" => { env: "DISCOVERY_MIN_QUESTIONS", default: 4, cast: :int },
+      "discovery_stall_turns" => { env: "DISCOVERY_STALL_TURNS", default: 2, cast: :int },
+      "discovery_slot_confidence" => { env: "DISCOVERY_SLOT_CONFIDENCE", default: 0.6, cast: :float },
+      "discovery_orient_questions" => { env: "DISCOVERY_ORIENT_QUESTIONS", default: 3, cast: :int },
+      "discovery_switch_after" => { env: "DISCOVERY_SWITCH_AFTER", default: 3, cast: :int }
+    }.freeze
+
+    # The agent-side keys are short (max_questions, not discovery_max_questions).
+    AGENT_KEY = ->(setting_key) { setting_key.delete_prefix("discovery_").to_sym }
+
     def self.limits_for(company)
-      settings = company.merged_settings
-      {
-        max_followup_depth: settings.fetch("discovery_max_followup_depth", 2).to_i,
-        max_questions_per_agent: settings.fetch("discovery_max_questions_per_agent", 5).to_i,
-        max_active_agents: settings.fetch("discovery_max_active_agents", 4).to_i,
-        # Phase 3 (map-then-branch) tunables — only used when area routing is on.
-        orient_questions: settings.fetch("discovery_orient_questions", 3).to_i,
-        switch_after: settings.fetch("discovery_switch_after", 2).to_i
-      }
+      # Read the raw column, NOT merged_settings: merged_settings folds
+      # DEFAULT_SETTINGS in, which would make every key look operator-set.
+      overrides = company.settings.is_a?(Hash) ? company.settings : {}
+
+      LIMIT_DEFAULTS.each_with_object({}) do |(key, spec), out|
+        out[AGENT_KEY.call(key)] = resolve_limit(overrides[key], spec)
+      end
     end
+
+    def self.resolve_limit(override, spec)
+      raw = override.presence || ENV[spec[:env]].presence
+      return spec[:default] if raw.nil?
+
+      spec[:cast] == :float ? raw.to_f : raw.to_i
+    end
+    private_class_method :resolve_limit
 
     def self.call(conversation:, employee:, user_message:, inbound_message: nil)
       new(conversation: conversation, employee: employee, user_message: user_message,

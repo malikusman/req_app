@@ -2,10 +2,32 @@ import type { DiscoveryProvenanceEntry, DiscoveryState } from '../../lib/api';
 import { Badge } from './Badge';
 import { cn } from '../../lib/cn';
 
+const SLOT_SEP = '::';
+
+/** "friction::Invoicing" -> { label: "friction", area: "Invoicing" } */
+function parseSlotKey(key: string): { label: string; area: string | null } {
+  const [slot, area] = key.split(SLOT_SEP);
+  return { label: slot.replace(/_/g, ' '), area: area ?? null };
+}
+
 export function agentLabel(id: string): string {
+  // Phases of the interview, not specialists: the specialist queue is retired.
+  const labels: Record<string, string> = {
+    orient: 'Orienting',
+    branch: 'Exploring',
+    close: 'Closing',
+  };
+  if (labels[id]) return labels[id];
   if (id.startsWith('domain_')) return `Domain · ${id.replace('domain_', '')}`;
   return id.charAt(0).toUpperCase() + id.slice(1);
 }
+
+const CLOSE_REASON_LABEL: Record<string, { text: string; tone: 'success' | 'warning' | 'neutral' }> = {
+  dossier_complete: { text: 'Ended with everything covered', tone: 'success' },
+  employee_ended: { text: 'Employee asked to stop', tone: 'neutral' },
+  stalled: { text: 'Ended — conversation had stopped progressing', tone: 'warning' },
+  ceiling: { text: 'Ended at the question ceiling', tone: 'warning' },
+};
 
 function actionVariant(action: string | undefined): 'info' | 'success' | 'warning' | 'neutral' {
   if (action === 'handoff') return 'warning';
@@ -27,9 +49,11 @@ export function DiscoveryProvenancePanel({
   onSelectMessage?: (messageId: number) => void;
   className?: string;
 }) {
-  const required = state?.coverage.topics_required ?? [];
-  const covered = state?.coverage.topics_covered ?? [];
-  const hasQueue = (state?.agent_queue.length ?? 0) > 0;
+  const areas = state?.role_areas ?? [];
+  const slots = state?.slots ?? {};
+  const parked = state?.parked ?? [];
+  const slotKeys = Object.keys(slots);
+  const closeReason = state?.close_reason ? CLOSE_REASON_LABEL[state.close_reason] : null;
 
   return (
     <div className={cn('max-h-[520px] space-y-5 overflow-y-auto pr-1', className)}>
@@ -39,9 +63,7 @@ export function DiscoveryProvenancePanel({
         </p>
         {provenance.length === 0 ? (
           <p className="m-0 text-sm text-muted-foreground">
-            {hasQueue
-              ? 'Agent routing metadata appears on new discovery questions.'
-              : 'Multi-agent provenance appears when routing is enabled for this company.'}
+            Question provenance appears as the interview runs.
           </p>
         ) : (
           <ol className="m-0 list-none space-y-2 p-0">
@@ -79,36 +101,56 @@ export function DiscoveryProvenancePanel({
         )}
       </div>
 
-      {hasQueue && state && (
+      {closeReason && (
         <div>
-          <p className="m-0 mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Agent queue</p>
+          <p className="m-0 mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            How it ended
+          </p>
+          <Badge variant={closeReason.tone}>{closeReason.text}</Badge>
+        </div>
+      )}
+
+      {areas.length > 0 && (
+        <div>
+          <p className="m-0 mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Their role areas
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {areas.map((area) => (
+              <Badge key={area.name} variant="info">
+                {area.name}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {slotKeys.length > 0 && (
+        <div>
+          <p className="m-0 mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            What the interview learned
+          </p>
           <div className="space-y-2">
-            {state.agent_queue.map((agent) => {
-              const agentState = state.agent_states[agent.id];
-              const isActive = state.active_agent_id === agent.id;
+            {slotKeys.map((key) => {
+              const slot = slots[key];
+              const { label, area } = parseSlotKey(key);
               return (
                 <div
-                  key={agent.id}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2"
+                  key={key}
+                  className="rounded-lg border border-border bg-muted/40 px-3 py-2"
                 >
-                  <div className="min-w-0">
-                    <span className="text-sm font-medium text-foreground">{agentLabel(agent.id)}</span>
-                    <p className="m-0 truncate text-xs text-muted-foreground">{agent.reason}</p>
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <span className="text-sm font-medium text-foreground">
+                      {label}
+                      {area && <span className="text-muted-foreground"> · {area}</span>}
+                    </span>
+                    <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                      {Math.round(slot.confidence * 100)}% · Q{slot.turn}
+                    </span>
                   </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    {agentState && (
-                      <span className="text-xs text-muted-foreground">
-                        {agentState.questions_asked}/{agentState.question_budget} q
-                      </span>
-                    )}
-                    {isActive ? (
-                      <Badge variant="info">active</Badge>
-                    ) : agentState?.status === 'complete' ? (
-                      <Badge variant="success">done</Badge>
-                    ) : (
-                      <Badge variant="neutral">queued</Badge>
-                    )}
-                  </div>
+                  {slot.value && (
+                    <p className="m-0 mt-1 line-clamp-2 text-xs text-muted-foreground">{slot.value}</p>
+                  )}
                 </div>
               );
             })}
@@ -116,16 +158,19 @@ export function DiscoveryProvenancePanel({
         </div>
       )}
 
-      {required.length > 0 && state && (
+      {parked.length > 0 && (
         <div>
-          <p className="m-0 mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Coverage</p>
-          <div className="flex flex-wrap gap-1.5">
-            {required.map((topic) => (
-              <Badge key={topic} variant={covered.includes(topic) ? 'success' : 'neutral'}>
-                {topic.replace(/_/g, ' ')}
-              </Badge>
+          <p className="m-0 mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Captured, not chased
+          </p>
+          <ul className="m-0 list-none space-y-1 p-0">
+            {parked.map((item) => (
+              <li key={`${item.turn}-${item.note}`} className="text-xs text-muted-foreground">
+                <span className="tabular-nums">Q{item.turn}</span>
+                {item.area && <span> · {item.area}</span>} — {item.note}
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
       )}
 

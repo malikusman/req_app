@@ -2287,30 +2287,39 @@ export interface CompanyConversation {
   discovery_state?: DiscoveryState;
 }
 
-export interface DiscoveryAgentQueueEntry {
-  id: string;
-  priority: number;
-  question_budget: number;
-  reason: string;
+/** One thing the interview set out to learn, and how clearly it was answered. */
+export interface DiscoverySlot {
+  value: string;
+  confidence: number;
+  turn: number;
 }
 
-export interface DiscoveryAgentState {
-  questions_asked: number;
-  question_budget: number;
-  status: string;
-  open_threads?: { topic: string; depth: number; needs_followup: boolean }[];
+/** An aside the interview captured and moved on from, rather than drilling into. */
+export interface DiscoveryParkedItem {
+  note: string;
+  turn: number;
+  area: string;
 }
+
+export type DiscoveryCloseReason =
+  | 'dossier_complete'
+  | 'stalled'
+  | 'ceiling'
+  | 'employee_ended';
 
 export interface DiscoveryState {
   profile: Record<string, unknown>;
-  agent_queue: DiscoveryAgentQueueEntry[];
-  skipped_agents: { id: string; reason: string }[];
-  agent_states: Record<string, DiscoveryAgentState>;
-  active_agent_id: string | null;
-  coverage: { topics_required?: string[]; topics_covered?: string[] };
+  role_areas: { name: string }[];
+  /** Keyed by slot name, or "slot::area" for per-area slots. */
+  slots: Record<string, DiscoverySlot>;
+  parked: DiscoveryParkedItem[];
+  close_reason: DiscoveryCloseReason | null;
+  stall_turns: number;
   shared_findings: { agent: string; finding: string; confidence: number; turn: number }[];
   conversation_summary: string | null;
-  last_routing_decision: { action: string; agent: string | null; reason: string } | null;
+  last_routing_decision:
+    | { action: string; agent: string | null; reason: string; slot?: string | null; area?: string | null }
+    | null;
 }
 
 export interface DiscoveryProvenanceEntry {

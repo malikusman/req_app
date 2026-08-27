@@ -22,7 +22,6 @@ module Discovery
 
     def call
       merge_profile_into_blackboard!
-      route_agents!
       kickoff_body = KickoffMessage.build(employee: @employee)
       inbound = persist_kickoff!(kickoff_body)
       show_typing_indicator!
@@ -50,24 +49,6 @@ module Discovery
       return if @conversation.blackboard["profile"].present?
 
       @conversation.update_blackboard!("profile" => @employee.profile_card)
-    end
-
-    def route_agents!
-      return unless @company.merged_settings["discovery_multi_agent_enabled"]
-
-      result = Langgraph::Client.new.route!(
-        thread_id: ensure_thread_id,
-        profile: @employee.profile_card,
-        limits: ContextBuilder.limits_for(@company),
-        context: { question_target: @company.merged_settings.fetch("discovery_question_target", 10).to_i }
-      )
-      @conversation.update_blackboard!(
-        "agent_queue" => result["agents"],
-        "skipped_agents" => result["skipped"],
-        "total_budget" => result["total_budget"]
-      )
-    rescue Langgraph::UnavailableError => e
-      Rails.logger.warn("[ProactiveStart] agent routing failed, deferring to first turn: #{e.message}")
     end
 
     def ensure_thread_id

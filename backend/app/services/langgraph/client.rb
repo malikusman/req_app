@@ -39,23 +39,9 @@ module Langgraph
         body[:media_context] = multi_agent[:media_context]
         body[:media_snippets] = multi_agent[:media_snippets] || []
         body[:company_profile] = multi_agent[:company_profile] if multi_agent[:company_profile].present?
-        body[:area_routing] = multi_agent[:area_routing] == true
       end
 
       post("/v1/threads/#{thread_id}/turn", body)
-    rescue Langgraph::UnavailableError
-      raise
-    rescue StandardError => e
-      raise Langgraph::UnavailableError.new(e.message, retryable: true)
-    end
-
-    def route!(thread_id:, profile:, limits:, context: {})
-      body = {
-        profile: profile,
-        limits: limits,
-        question_target: context.fetch(:question_target, 12)
-      }
-      post("/v1/threads/#{thread_id}/route", body)
     rescue Langgraph::UnavailableError
       raise
     rescue StandardError => e

@@ -57,24 +57,18 @@ RSpec.describe Discovery::ProactiveStartService do
       expect(meta_client).to have_received(:send_typing_on).with(message_id: "wamid.consent")
     end
 
-    it "routes agents when multi-agent is enabled" do
+    # There is no agent queue to build any more: the interview discovers the
+    # person's own role areas on its first turns. What kickoff must still do is
+    # seed the profile the orientation phase builds on.
+    it "seeds the profile onto the blackboard for the interview to start from" do
       company.update!(settings: company.settings.merge("discovery_multi_agent_enabled" => true))
-      client = instance_double(Langgraph::Client)
-      allow(Langgraph::Client).to receive(:new).and_return(client)
-      allow(client).to receive(:create_thread!).and_return(SecureRandom.uuid)
-      allow(client).to receive(:route!).and_return(
-        "agents" => [{ "id" => "domain_finance", "priority" => 1, "question_budget" => 4 }],
-        "skipped" => [],
-        "total_budget" => 4
-      )
       allow(Discovery::ProcessTurnService).to receive(:call).and_return(
         { "assistant_message" => "Q", "completed" => false, "question_count" => 1 }
       )
 
       described_class.call(conversation: conversation, employee: employee, client: meta_client)
 
-      expect(client).to have_received(:route!)
-      expect(conversation.reload.blackboard["agent_queue"].first["id"]).to eq("domain_finance")
+      expect(conversation.reload.blackboard["profile"]).to be_present
     end
   end
 end
