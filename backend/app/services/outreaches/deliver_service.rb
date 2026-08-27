@@ -79,6 +79,8 @@ module Outreaches
         body: body,
         external_id: meta_id,
         reviewer_followup: true,
+        track: "consultant_followup",
+        track_ref: @outreach,
         raw_payload: { "reviewer_outreach_id" => @outreach.id }
       )
 

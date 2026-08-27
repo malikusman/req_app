@@ -59,10 +59,12 @@ module EmployeeWebAuthenticatable
     header&.match(pattern)&.captures&.first
   end
 
+  # Shows every track the employee is part of, including consultant follow-ups.
+  # These were previously filtered out by `discovery_only` (reviewer_followup: false),
+  # so a consultant's question was invisible in the very thread the employee replies in.
   def visible_messages
     current_conversation.messages
-                        .discovery_only
-                        .where.not(message_type: "system")
+                        .employee_visible
                         .order(:created_at)
   end
 
@@ -73,6 +75,9 @@ module EmployeeWebAuthenticatable
       message_type: message.message_type,
       body: message.body,
       is_discovery_question: message.is_discovery_question,
+      # A question from a named human expert reads differently from the companion's
+      # voice, so the client can attribute it rather than blending the two.
+      track: message.track,
       created_at: message.created_at
     }
   end

@@ -35,34 +35,21 @@ module Web
       )
     end
 
+    # Shares Inbound::TrackRouter with the WhatsApp channel. Before that, this method
+    # went straight to profiling/discovery/onboarding and never checked for an open
+    # consultant question — so an employee answering one here had their reply
+    # swallowed by the discovery handler and the consultant was never notified.
     def self.handle_text(employee:, conversation:, text:)
       text = text.to_s.strip
       return { employee: employee, conversation: conversation } if text.blank?
 
-      client = CapturingMetaClient.new
-
-      if conversation.profiling?
-        Whatsapp::ProfilingHandler.new(
-          employee: employee,
-          conversation: conversation,
-          client: client,
-          channel: CHANNEL
-        ).handle_inbound_text(text)
-      elsif conversation.discovery? || employee.onboarding_step == "verified"
-        Whatsapp::DiscoveryHandler.new(
-          employee: employee,
-          conversation: conversation,
-          client: client,
-          channel: CHANNEL
-        ).handle_inbound_text(text)
-      else
-        Whatsapp::OnboardingHandler.new(
-          employee: employee,
-          conversation: conversation,
-          client: client,
-          channel: CHANNEL
-        ).handle_inbound_text(text)
-      end
+      Inbound::TrackRouter.call(
+        employee: employee,
+        conversation: conversation,
+        text: text,
+        channel: CHANNEL,
+        client: CapturingMetaClient.new
+      )
 
       { employee: employee.reload, conversation: conversation.reload }
     end

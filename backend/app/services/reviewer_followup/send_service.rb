@@ -55,6 +55,8 @@ module ReviewerFollowup
         body: @body,
         external_id: meta_id,
         reviewer_followup: true,
+        track: "consultant_followup",
+        track_ref: request,
         raw_payload: { reviewer_info_request_id: request.id }
       )
 

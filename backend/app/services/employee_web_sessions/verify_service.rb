@@ -114,10 +114,11 @@ module EmployeeWebSessions
       }
     end
 
+    # Mirrors EmployeeWebAuthenticatable#visible_messages — consultant follow-ups
+    # included, system plumbing excluded.
     def visible_messages(conversation)
       conversation.messages
-                  .discovery_only
-                  .where.not(message_type: "system")
+                  .employee_visible
                   .order(:created_at)
     end
 
@@ -128,6 +129,7 @@ module EmployeeWebSessions
         message_type: message.message_type,
         body: message.body,
         is_discovery_question: message.is_discovery_question,
+        track: message.track,
         created_at: message.created_at
       }
     end

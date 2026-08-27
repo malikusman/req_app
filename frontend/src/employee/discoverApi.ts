@@ -7,12 +7,21 @@ export type DiscoverSession = {
   requires_verification: boolean;
 };
 
+export type DiscoverTrack =
+  | 'onboarding'
+  | 'profiling'
+  | 'discovery'
+  | 'companion'
+  | 'consultant_followup';
+
 export type DiscoverMessage = {
   id: number;
   direction: 'inbound' | 'outbound';
   message_type: string;
   body: string;
   is_discovery_question: boolean;
+  /** Which thread the turn belongs to. Absent on responses from an older server. */
+  track?: DiscoverTrack;
   created_at: string;
 };
 

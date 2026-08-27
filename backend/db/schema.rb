@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_21_000000) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_27_090000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -744,10 +744,15 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_21_000000) do
     t.boolean "reviewer_followup", default: false, null: false
     t.string "agent_id"
     t.jsonb "routing_decision", default: {}, null: false
+    t.string "track", null: false
+    t.string "track_ref_type"
+    t.bigint "track_ref_id"
     t.index ["agent_id"], name: "index_messages_on_agent_id", where: "(agent_id IS NOT NULL)"
     t.index ["conversation_id", "reviewer_followup", "created_at"], name: "index_messages_on_conversation_followup"
+    t.index ["conversation_id", "track", "created_at"], name: "index_messages_on_conversation_track"
     t.index ["conversation_id"], name: "index_messages_on_conversation_id"
     t.index ["external_id"], name: "index_messages_on_external_id", unique: true, where: "(external_id IS NOT NULL)"
+    t.index ["track_ref_type", "track_ref_id"], name: "index_messages_on_track_ref", where: "(track_ref_type IS NOT NULL)"
   end
 
   create_table "notifications", force: :cascade do |t|

@@ -20,6 +20,8 @@ module Whatsapp
         body: @text,
         external_id: @external_id,
         reviewer_followup: true,
+        track: "consultant_followup",
+        track_ref: request,
         raw_payload: { reviewer_info_request_id: request.id }
       )
 
