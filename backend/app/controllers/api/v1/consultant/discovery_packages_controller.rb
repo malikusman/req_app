@@ -85,10 +85,13 @@ module Api
           question = @package.discovery_followup_questions.find(params[:id])
           ConsultantRequirements::SendQuestionService.call(
             question: question,
-            consultant: current_consultant_user
+            consultant: current_consultant_user,
+            # Omitted means the employee's own preferred channel decides.
+            channel: params[:channel]
           )
           render json: { question: followup_question_json(question.reload) }
-        rescue ConsultantRequirements::SendQuestionService::BudgetExhausted => e
+        rescue ConsultantRequirements::SendQuestionService::BudgetExhausted,
+               ConsultantFollowup::SendService::Undeliverable => e
           render json: { error: e.message }, status: :unprocessable_entity
         rescue ArgumentError => e
           render json: { error: e.message }, status: :unprocessable_entity

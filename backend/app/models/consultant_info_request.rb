@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class ConsultantInfoRequest < ApplicationRecord
+  include TokenisedReply
+
   belongs_to :company
   belongs_to :report, optional: true
   belongs_to :consultant_user
@@ -13,8 +15,10 @@ class ConsultantInfoRequest < ApplicationRecord
   has_many :consultant_info_replies, dependent: :destroy
 
   STATUSES = %w[draft sent awaiting_reply replied closed failed].freeze
+  CHANNELS = %w[whatsapp email].freeze
 
   validates :status, inclusion: { in: STATUSES }
+  validates :channel, inclusion: { in: CHANNELS }
   validates :body, presence: true
 
   scope :awaiting_reply, -> { where(status: "awaiting_reply") }

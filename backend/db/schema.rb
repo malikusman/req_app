@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_28_090000) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_28_100000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -438,12 +438,16 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_28_090000) do
     t.datetime "updated_at", null: false
     t.bigint "message_id"
     t.bigint "review_discussion_id"
+    t.string "channel", default: "whatsapp", null: false
+    t.string "reply_token_digest"
+    t.datetime "email_sent_at"
     t.index ["company_id"], name: "index_consultant_info_requests_on_company_id"
     t.index ["consultant_user_id"], name: "index_consultant_info_requests_on_consultant_user_id"
     t.index ["conversation_id"], name: "index_consultant_info_requests_on_conversation_id"
     t.index ["employee_id", "status"], name: "index_consultant_info_requests_awaiting_reply", where: "((status)::text = 'awaiting_reply'::text)"
     t.index ["employee_id"], name: "index_consultant_info_requests_on_employee_id"
     t.index ["message_id"], name: "index_consultant_info_requests_on_message_id"
+    t.index ["reply_token_digest"], name: "index_consultant_info_requests_on_reply_token_digest", unique: true, where: "(reply_token_digest IS NOT NULL)"
     t.index ["report_id"], name: "index_consultant_info_requests_on_report_id"
     t.index ["review_discussion_id"], name: "index_consultant_info_requests_on_review_discussion_id"
   end

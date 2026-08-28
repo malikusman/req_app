@@ -11,13 +11,16 @@ module ConsultantRequirements
   class SendQuestionService
     class BudgetExhausted < StandardError; end
 
-    def self.call(question:, consultant:)
-      new(question: question, consultant: consultant).call
+    def self.call(question:, consultant:, channel: nil)
+      new(question: question, consultant: consultant, channel: channel).call
     end
 
-    def initialize(question:, consultant:)
+    def initialize(question:, consultant:, channel: nil)
       @question = question
       @consultant = consultant
+      # nil means "follow the employee's own preference" — see
+      # ConsultantFollowup::SendService#resolve_channel.
+      @channel = channel
       @package = question.discovery_package
       @employee = @package.employee
       @company = @package.company
@@ -37,7 +40,8 @@ module ConsultantRequirements
         consultant: @consultant,
         employee: @employee,
         body: @question.body,
-        report: @package.conversation.company.reports.order(version: :desc).first
+        report: @package.conversation.company.reports.order(version: :desc).first,
+        channel: @channel
       )
 
       @question.update!(

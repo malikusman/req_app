@@ -54,6 +54,25 @@ class TestGrounding:
     def test_keeps_prose_with_no_figures(self):
         assert package._grounded("Approvals are slow and drag on.", allowed())
 
+    def test_ignores_bare_counts(self):
+        # "6 issues" is not a magnitude claim; demanding evidence for it would
+        # reject almost every summary sentence.
+        assert package._grounded("We found 6 issues across 3 teams.", allowed())
+
+    def test_a_stated_range_licenses_both_bounds(self):
+        # Kept in step with Llm::GroundedNumbers — evidence stating a real range must
+        # not reject prose quoting either end of it.
+        span = package._allowed_numbers({"summary": "Payment runs 11-14 days", "learned": [],
+                                         "parked": [], "findings": [], "insights": []})
+        assert package._grounded("as long as 14 days", span)
+        assert package._grounded("at least 11 days", span)
+        assert package._grounded("as long as 40 days", span) is None
+
+    def test_singular_and_plural_units_match(self):
+        one = package._allowed_numbers({"summary": "takes 1 day", "learned": [],
+                                        "parked": [], "findings": [], "insights": []})
+        assert package._grounded("about 1 days", one)
+
 
 class TestNormalize:
     def test_an_ungrounded_recommendation_makes_the_package_unusable(self):

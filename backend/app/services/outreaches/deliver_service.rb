@@ -93,12 +93,9 @@ module Outreaches
       raise ArgumentError, "Employee required for email outreach" unless employee
       raise ArgumentError, "Employee email missing" if employee.email.blank?
 
-      raw_token = SecureRandom.urlsafe_base64(32)
-      @outreach.update!(
-        reply_token_digest: Digest::SHA256.hexdigest(raw_token),
-        status: "sent",
-        sent_at: Time.current
-      )
+      # Minted through TokenisedReply so both ask-channels derive tokens identically.
+      raw_token = @outreach.mint_reply_token!
+      @outreach.update!(status: "sent", sent_at: Time.current)
       OutreachMailer.request_email(@outreach, raw_token).deliver_later
     end
   end

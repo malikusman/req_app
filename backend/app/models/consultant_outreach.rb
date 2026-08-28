@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class ConsultantOutreach < ApplicationRecord
+  include TokenisedReply
+
   belongs_to :company
   belongs_to :report, optional: true
   belongs_to :consultant_user

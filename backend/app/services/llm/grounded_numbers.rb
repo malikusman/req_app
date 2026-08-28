@@ -9,11 +9,18 @@ module Llm
   # collect every significant figure that appears in the evidence, then reject any
   # sentence containing a significant figure that isn't in that set.
   #
-  # Extracted from Reports::NarrativeWriter so the discovery package uses the same
-  # guard rather than a second implementation of it.
+  # Two kinds of figure are checked, for different reasons:
+  #
+  #   SIGNIFICANT_NUMBER  currency, thousands, decimals, percentages, ranges. Bare
+  #                       integers are excluded on purpose, so "6 issues" or "3
+  #                       people" never trips the guard.
+  #
+  #   QUANTITY_WITH_UNIT  a bare number WITH a unit — "14 hours a week", "3 days to
+  #                       approve", "200 invoices". This is the shape that actually
+  #                       gets invented in this domain, and the pattern above misses
+  #                       it entirely. The unit is part of the key, so evidence
+  #                       saying "2 hours" does not license a claim of "2 days".
   module GroundedNumbers
-    # "Significant" figures we require to be grounded. Bare 1-2 digit counts
-    # ("6 frictions", "3 people") are left alone to avoid false positives.
     SIGNIFICANT_NUMBER = /
       AED\s?[\d,]+(?:\.\d+)? | \$\s?[\d,]+(?:\.\d+)? |   # currency
       \d{1,3}(?:,\d{3})+(?:\.\d+)? |                      # thousands
@@ -22,23 +29,56 @@ module Llm
       \d+\s?(?:[-–—]|to)\s?\d+                            # ranges (11-14, 3 to 12)
     /xi
 
+    QUANTITY_UNITS = "hours?|hrs?|minutes?|mins?|days?|weeks?|months?|years?|" \
+                     "invoices?|orders?|tickets?|emails?|documents?|files?|" \
+                     "people|persons?|staff|employees?|times?|steps?"
+
+    QUANTITY_WITH_UNIT = /\b(\d+(?:[.,]\d+)?)\s*(#{QUANTITY_UNITS})\b/i
+
+    # "11–14 days" must license BOTH bounds with the unit. Without this, evidence
+    # stating a real range would reject prose quoting either end of it — a false
+    # positive that silently deletes correct sentences.
+    RANGE_WITH_UNIT = /\b(\d+(?:[.,]\d+)?)\s*(?:[-–—]|to)\s*(\d+(?:[.,]\d+)?)\s*(#{QUANTITY_UNITS})\b/i
+
     module_function
 
     # Every significant figure appearing anywhere in the given evidence strings.
     def allowed_numbers(*sources)
       sources.flatten.each_with_object(Set.new) do |source, set|
-        source.to_s.scan(SIGNIFICANT_NUMBER) { |token| set << canon(token) }
+        set.merge(figures(source))
       end
+    end
+
+    # The figures a piece of text asserts, canonicalised for comparison.
+    def figures(text)
+      value = text.to_s
+      found = Set.new
+
+      value.scan(SIGNIFICANT_NUMBER) { |token| found << canon(token) }
+
+      value.scan(RANGE_WITH_UNIT) do |low, high, unit|
+        found << quantity(low, unit)
+        found << quantity(high, unit)
+      end
+
+      value.scan(QUANTITY_WITH_UNIT) { |number, unit| found << quantity(number, unit) }
+
+      found
     end
 
     def canon(token)
       token.to_s.downcase.gsub(/\s+/, "").tr("–—", "--").gsub("to", "-")
     end
 
-    # True when every significant figure in `text` traces to the evidence. Text with
-    # no significant figures is trivially grounded.
+    # Unit is part of the key, singularised so "1 day" and "3 days" compare.
+    def quantity(number, unit)
+      "#{number.to_s.tr(',', '')}#{unit.to_s.downcase.sub(/s\z/, '')}"
+    end
+
+    # True when every figure in `text` traces to the evidence. Text with no figures
+    # is trivially grounded.
     def grounded?(text, allowed)
-      text.to_s.scan(SIGNIFICANT_NUMBER).all? { |token| allowed.include?(canon(token)) }
+      figures(text).subset?(allowed.to_set)
     end
 
     # The text if it's grounded, otherwise nil — the common call shape.

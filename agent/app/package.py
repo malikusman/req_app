@@ -224,31 +224,44 @@ SIGNIFICANT_NUMBER = re.compile(
     re.IGNORECASE,
 )
 
-# Additional to the report-side guard, and the important one here. A bare integer is
-# ignored by SIGNIFICANT_NUMBER to avoid false positives on counts ("6 issues"), but
-# a bare integer WITH A UNIT is exactly the shape a model invents in this domain —
-# "14 hours a week", "3 days to approve", "200 invoices". Those must be grounded.
+# A bare integer is ignored by SIGNIFICANT_NUMBER to avoid false positives on counts
+# ("6 issues"), but a bare integer WITH A UNIT is exactly the shape a model invents
+# in this domain — "14 hours a week", "3 days to approve", "200 invoices".
 #
-# Applied to the package only. The report's NarrativeWriter keeps the original
-# pattern: tightening it there would start dropping narrative prose that ships
-# today, which is a deliberate decision to make on its own, not a side effect here.
+# Kept in step with Llm::GroundedNumbers on the Rails side, which grounds the report
+# the same way. If one changes, change both; both have tests that lock the behaviour.
 QUANTITY_UNITS = (
     r"hours?|hrs?|minutes?|mins?|days?|weeks?|months?|years?"
-    r"|invoices?|orders?|tickets?|emails?|documents?|people|staff|employees?|times?"
+    r"|invoices?|orders?|tickets?|emails?|documents?|files?"
+    r"|people|persons?|staff|employees?|times?|steps?"
 )
-QUANTITY_WITH_UNIT = re.compile(rf"\b(\d+(?:\.\d+)?)\s*({QUANTITY_UNITS})\b", re.IGNORECASE)
+QUANTITY_WITH_UNIT = re.compile(rf"\b(\d+(?:[.,]\d+)?)\s*({QUANTITY_UNITS})\b", re.IGNORECASE)
+
+# "11-14 days" must license BOTH bounds with the unit. Without this, evidence stating
+# a real range would reject prose quoting either end of it — a false positive that
+# silently deletes correct sentences.
+RANGE_WITH_UNIT = re.compile(
+    rf"\b(\d+(?:[.,]\d+)?)\s*(?:[-–—]|to)\s*(\d+(?:[.,]\d+)?)\s*({QUANTITY_UNITS})\b",
+    re.IGNORECASE,
+)
 
 
 def _canon(token: str) -> str:
     return token.lower().replace(" ", "").replace("–", "-").replace("—", "-").replace("to", "-")
 
 
+def _quantity(number: str, unit: str) -> str:
+    # Unit is part of the key, singularised so "1 day" and "3 days" compare.
+    return f"{number.replace(',', '')}{unit.lower().rstrip('s')}"
+
+
 def _figures(text: str) -> set[str]:
     found = {_canon(t) for t in SIGNIFICANT_NUMBER.findall(text)}
-    # Store the quantity as "14hours" so the unit has to match too: evidence saying
-    # "2 hours" does not license a claim of "2 days".
+    for low, high, unit in RANGE_WITH_UNIT.findall(text):
+        found.add(_quantity(low, unit))
+        found.add(_quantity(high, unit))
     for number, unit in QUANTITY_WITH_UNIT.findall(text):
-        found.add(_canon(f"{number}{unit.rstrip('s')}"))
+        found.add(_quantity(number, unit))
     return found
 
 

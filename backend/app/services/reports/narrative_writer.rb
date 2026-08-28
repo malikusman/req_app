@@ -115,10 +115,31 @@ module Reports
 
     # The number guardrail now lives in Llm::GroundedNumbers so the discovery
     # package uses the same one rather than a second implementation.
+    # Everything the writer was actually GIVEN, not just key_metrics.
+    #
+    # The old set read key_metrics alone, which made the guard strict in the wrong
+    # place: a figure the model correctly lifted from a pattern description or a
+    # recommendation was treated as invented. Widening the source is what makes it
+    # safe to also catch bare quantities like "14 hours a week" — otherwise
+    # tightening the pattern would start deleting correct sentences.
+    #
+    # Metric headlines are truncated to 24 chars by MetricExtractor, so a unit can
+    # be cut off ("11-14 business da..."). Reading the full context recovers those
+    # numbers from the surrounding label and source text.
     def grounded_number_set
-      Llm::GroundedNumbers.allowed_numbers(
-        Array(@snapshot["key_metrics"]).flat_map { |m| [m["headline"], m["comparison"]] }
-      )
+      Llm::GroundedNumbers.allowed_numbers(evidence_number_sources)
+    end
+
+    def evidence_number_sources
+      context = evidence_context
+      [
+        Array(context["key_metrics"]).flat_map { |m| [m["headline"], m["comparison"], m["label"], m["source"]] },
+        Array(context["signals"]).map { |s| s["label"] },
+        Array(context["patterns"]).flat_map { |p| [p["title"], p["description"]] },
+        Array(context["recommendations"]).flat_map { |r| [r["title"], r["description"]] },
+        Array(@snapshot["implications"]).map { |i| i["statement"] },
+        @snapshot.dig("situation", "context")
+      ].flatten.compact
     end
 
     def text_numbers_grounded?(text, allowed)
