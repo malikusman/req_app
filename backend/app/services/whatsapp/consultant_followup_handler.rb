@@ -35,6 +35,13 @@ module Whatsapp
       request.update!(status: "replied")
       @conversation.update!(last_activity_at: Time.current)
 
+      # If this request carried a drafted package question, attribute the answer to
+      # it and re-evaluate the consultant's stated need. Never raises — the reply is
+      # already persisted, and losing it to an evaluation error would be worse than
+      # an unevaluated requirement.
+      question = DiscoveryFollowupQuestion.find_by(consultant_info_request_id: request.id)
+      ConsultantRequirements::RecordAnswerService.call(question: question, message: message) if question
+
       NotificationService.notify_info_reply_received(
         consultant: request.consultant_user,
         request: request,

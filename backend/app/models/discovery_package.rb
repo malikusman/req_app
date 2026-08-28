@@ -15,6 +15,7 @@ class DiscoveryPackage < ApplicationRecord
 
   has_many :discovery_package_items, dependent: :destroy
   has_many :discovery_followup_questions, dependent: :destroy
+  has_many :consultant_requirements, dependent: :destroy
 
   STATUSES = %w[generating ready consultant_reviewed failed superseded].freeze
 
@@ -43,5 +44,9 @@ class DiscoveryPackage < ApplicationRecord
 
   def built_without_model?
     generated_by == "deterministic"
+  end
+
+  def open_requirements
+    consultant_requirements.open_requirements.order(:created_at)
   end
 end

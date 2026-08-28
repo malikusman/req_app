@@ -100,6 +100,20 @@ Rails.application.routes.draw do
       end
 
       namespace :consultant do
+        # The Discovery handover the consultant amends, and the stated needs they
+        # raise against it. Not nested under a company — a package is identified by
+        # its own id, and DiscoveryPackagePolicy::Scope already limits it to the
+        # consultant's assigned companies.
+        scope "discovery_packages/:package_id", controller: "discovery_packages" do
+          patch "/", action: :update
+          post "items", action: :create_item
+          patch "items/:id", action: :update_item
+          post "requirements", action: :create_requirement
+          patch "requirements/:id", action: :update_requirement
+          patch "followup_questions/:id", action: :update_question
+          post "followup_questions/:id/send", action: :send_question
+        end
+
         get "me", to: "me#show"
         get "dashboard", to: "dashboard#show"
         get "followups", to: "followups#index"

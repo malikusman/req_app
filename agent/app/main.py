@@ -206,6 +206,46 @@ def build_discovery_package(body: DiscoveryPackageRequest):
     return build_package(body.model_dump())
 
 
+class DraftQuestionsRequest(BaseModel):
+    statement: str
+    max_questions: int = 1
+    already_asked: list[str] = Field(default_factory=list)
+    package: dict[str, Any] = Field(default_factory=dict)
+    profile: dict[str, Any] = Field(default_factory=dict)
+    language: str = "en"
+
+
+@app.post("/v1/consultant/requirements/draft")
+def draft_requirement_questions(body: DraftQuestionsRequest):
+    """Turn a consultant's stated need into questions for the employee.
+
+    Never raises: a consultant who stated a need and got nothing back would have to
+    state it again, so this falls back to a plainly-worded question built from their
+    own words.
+    """
+    from app.requirements import draft_questions
+
+    return draft_questions(body.model_dump())
+
+
+class EvaluateRequirementRequest(BaseModel):
+    statement: str
+    answers: list[dict[str, Any]] = Field(default_factory=list)
+    language: str = "en"
+
+
+@app.post("/v1/consultant/requirements/evaluate")
+def evaluate_requirement_satisfaction(body: EvaluateRequirementRequest):
+    """Judge whether the answers so far settle the consultant's need.
+
+    Never raises, and fails to NOT satisfied — wrongly closing a requirement loses
+    the consultant's question silently.
+    """
+    from app.requirements import evaluate_requirement
+
+    return evaluate_requirement(body.model_dump())
+
+
 @app.post("/v1/threads", response_model=dict)
 def create_thread():
     return {"thread_id": str(uuid.uuid4())}

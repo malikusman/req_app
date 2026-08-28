@@ -67,6 +67,41 @@ module Langgraph
       raise Langgraph::UnavailableError.new(e.message, retryable: true)
     end
 
+    # Neither of these raises on the agent side — they fall back rather than fail,
+    # because a consultant mid-review should not hit an error page.
+    def draft_requirement_questions!(statement:, max_questions:, already_asked:, package:, profile:, language:)
+      post(
+        "/v1/consultant/requirements/draft",
+        {
+          statement: statement,
+          max_questions: max_questions,
+          already_asked: already_asked,
+          package: package,
+          profile: profile,
+          language: language
+        },
+        # Runs from a job, not a request, so it can wait as long as docs analysis
+        # does. A local model can take well over a minute for this.
+        read_timeout: Integer(ENV.fetch("LANGGRAPH_DRAFT_READ_TIMEOUT", "180"))
+      )
+    rescue Langgraph::UnavailableError
+      raise
+    rescue StandardError => e
+      raise Langgraph::UnavailableError.new(e.message, retryable: true)
+    end
+
+    def evaluate_requirement!(statement:, answers:, language:)
+      post(
+        "/v1/consultant/requirements/evaluate",
+        { statement: statement, answers: answers, language: language },
+        read_timeout: Integer(ENV.fetch("LANGGRAPH_DRAFT_READ_TIMEOUT", "180"))
+      )
+    rescue Langgraph::UnavailableError
+      raise
+    rescue StandardError => e
+      raise Langgraph::UnavailableError.new(e.message, retryable: true)
+    end
+
     def run_docs_analysis!(payload)
       post(
         "/v1/docs_analysis/runs",

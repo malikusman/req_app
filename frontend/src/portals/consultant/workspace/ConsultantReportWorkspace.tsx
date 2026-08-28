@@ -787,6 +787,7 @@ export function ConsultantReportWorkspace() {
               <ConsultantDiscoveryPackagePanel
                 pkg={activeConversation.discovery_package}
                 employeeName={activeConversation.employee_name}
+                onChanged={load}
               />
               <ConsultantSharedFindingsPanel
                 findings={activeConversation.discovery_state.shared_findings}

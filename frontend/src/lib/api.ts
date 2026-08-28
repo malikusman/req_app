@@ -1240,6 +1240,82 @@ export const api = {
       token
     ),
 
+  // --- Discovery handover: the consultant amends it and states what they need ---
+
+  amendDiscoveryPackage: (
+    token: string,
+    packageId: number,
+    payload: { recommendation?: string; recommendation_rationale?: string }
+  ) =>
+    request<{ discovery_package: DiscoveryPackage }>(
+      `/api/v1/consultant/discovery_packages/${packageId}`,
+      { method: 'PATCH', body: JSON.stringify(payload) },
+      token
+    ),
+
+  createDiscoveryPackageItem: (
+    token: string,
+    packageId: number,
+    payload: { kind: 'issue' | 'solution'; title?: string; body: string; impact?: string }
+  ) =>
+    request<{ item: DiscoveryPackageItem }>(
+      `/api/v1/consultant/discovery_packages/${packageId}/items`,
+      { method: 'POST', body: JSON.stringify(payload) },
+      token
+    ),
+
+  updateDiscoveryPackageItem: (
+    token: string,
+    packageId: number,
+    itemId: number,
+    payload: { title?: string; body?: string; impact?: string; status?: string }
+  ) =>
+    request<{ item: DiscoveryPackageItem }>(
+      `/api/v1/consultant/discovery_packages/${packageId}/items/${itemId}`,
+      { method: 'PATCH', body: JSON.stringify(payload) },
+      token
+    ),
+
+  /** States what the consultant needs to know. The agent drafts the questions. */
+  createConsultantRequirement: (token: string, packageId: number, statement: string) =>
+    request<{ requirement: ConsultantRequirement }>(
+      `/api/v1/consultant/discovery_packages/${packageId}/requirements`,
+      { method: 'POST', body: JSON.stringify({ statement }) },
+      token
+    ),
+
+  updateConsultantRequirement: (
+    token: string,
+    packageId: number,
+    requirementId: number,
+    status: 'satisfied' | 'withdrawn'
+  ) =>
+    request<{ requirement: ConsultantRequirement }>(
+      `/api/v1/consultant/discovery_packages/${packageId}/requirements/${requirementId}`,
+      { method: 'PATCH', body: JSON.stringify({ status }) },
+      token
+    ),
+
+  /** Reorder or skip a drafted question — its text is the agent's to write. */
+  updateDiscoveryFollowupQuestion: (
+    token: string,
+    packageId: number,
+    questionId: number,
+    payload: { queue_position?: number; status?: 'drafted' | 'queued' | 'skipped' }
+  ) =>
+    request<{ question: DiscoveryFollowupQuestion }>(
+      `/api/v1/consultant/discovery_packages/${packageId}/followup_questions/${questionId}`,
+      { method: 'PATCH', body: JSON.stringify(payload) },
+      token
+    ),
+
+  sendDiscoveryFollowupQuestion: (token: string, packageId: number, questionId: number) =>
+    request<{ question: DiscoveryFollowupQuestion }>(
+      `/api/v1/consultant/discovery_packages/${packageId}/followup_questions/${questionId}/send`,
+      { method: 'POST' },
+      token
+    ),
+
   updateConsultantReportReview: (
     token: string,
     companyId: number,
@@ -1705,8 +1781,26 @@ export interface DiscoveryFollowupQuestion {
   queue_position: number;
   /** The interview parked this thread rather than drilling into it. */
   from_parked_aside: boolean;
+  consultant_requirement_id: number | null;
   sent_at: string | null;
   answered_at: string | null;
+}
+
+export interface ConsultantRequirement {
+  id: number;
+  /** The consultant's own words. Never sent to the employee verbatim. */
+  statement: string;
+  status: 'open' | 'questions_drafted' | 'partially_satisfied' | 'satisfied' | 'withdrawn';
+  max_questions: number;
+  questions_asked: number;
+  budget_remaining: number;
+  /** What the agent thinks is still unanswered — why this is still open. */
+  missing_aspects: string[];
+  satisfaction_basis: 'agent_judged' | 'consultant_manual' | null;
+  satisfied_at: string | null;
+  consultant_name: string | null;
+  created_at: string;
+  question_ids: number[];
 }
 
 export interface DiscoveryPackage {
@@ -1724,6 +1818,9 @@ export interface DiscoveryPackage {
   issues: DiscoveryPackageItem[];
   solutions: DiscoveryPackageItem[];
   followup_questions: DiscoveryFollowupQuestion[];
+  requirements: ConsultantRequirement[];
+  /** How many more questions this employee can be asked, across all requirements. */
+  followup_budget_remaining: number;
 }
 
 export interface ConsultantWorkspaceConversation {

@@ -15,7 +15,8 @@ module Api
         DiscoveryPackage
           .current
           .where(conversation_id: conversation_ids)
-          .includes(:discovery_package_items, :discovery_followup_questions)
+          .includes(:discovery_package_items, :discovery_followup_questions,
+                    consultant_requirements: %i[consultant_user discovery_followup_questions])
           .order(version: :desc)
           .index_by(&:conversation_id)
       end
@@ -43,7 +44,31 @@ module Api
                             .sort_by { |i| [i.ordinal, i.id] }.map { |i| package_item_json(i) },
           followup_questions: package.discovery_followup_questions
                                      .sort_by { |q| [q.queue_position, q.id] }
-                                     .map { |q| followup_question_json(q) }
+                                     .map { |q| followup_question_json(q) },
+          requirements: package.consultant_requirements
+                               .sort_by(&:created_at)
+                               .map { |r| requirement_json(r) },
+          # How many more questions this EMPLOYEE can be asked for this package,
+          # across every requirement. The cap that protects them, not the consultant.
+          followup_budget_remaining: Discovery::FollowupLimits.package_budget_remaining(package)
+        }
+      end
+
+      def requirement_json(requirement)
+        {
+          id: requirement.id,
+          statement: requirement.statement,
+          status: requirement.status,
+          max_questions: requirement.max_questions,
+          questions_asked: requirement.questions_asked,
+          budget_remaining: requirement.budget_remaining,
+          # What the agent thinks is still unanswered — why this is still open.
+          missing_aspects: requirement.missing_aspects,
+          satisfaction_basis: requirement.satisfaction_basis,
+          satisfied_at: requirement.satisfied_at,
+          consultant_name: requirement.consultant_user&.name,
+          created_at: requirement.created_at,
+          question_ids: requirement.discovery_followup_questions.map(&:id)
         }
       end
 
@@ -70,6 +95,7 @@ module Api
           queue_position: question.queue_position,
           # True when the interview parked this thread rather than drilling into it.
           from_parked_aside: question.from_parked_aside?,
+          consultant_requirement_id: question.consultant_requirement_id,
           sent_at: question.sent_at,
           answered_at: question.answered_at
         }

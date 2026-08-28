@@ -111,9 +111,24 @@ export function ConsultantEmployeeFollowup() {
         ))
       )}
 
-      <Card title="Send follow-up">
+      {/* Kept as an explicit escape hatch, not the way to ask a question. Questions
+          are drafted by the agent from what you state you need, in the report
+          workspace — that is what lets the system tell when a need is settled. This
+          box exists for everything else: acknowledging an answer, closing a loop. */}
+      <Card title="Send a direct message">
         <form onSubmit={send} className="space-y-4">
-          <Textarea rows={4} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Your message…" />
+          <p className="m-0 text-sm text-muted-foreground">
+            For a direct note to {displayName} — a thank-you, or closing a loop. To{' '}
+            <strong>ask something</strong>, open the report workspace and say what you need to know
+            under the Discovery handover: the agent drafts the question and tracks whether your
+            answer actually arrived.
+          </p>
+          <Textarea
+            rows={4}
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            placeholder="A short note — not a question…"
+          />
           <Button type="submit" disabled={!body.trim() || sending} loading={sending}>
             Send via WhatsApp
           </Button>

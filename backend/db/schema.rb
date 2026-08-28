@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_27_110000) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_28_090000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -499,6 +499,27 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_27_110000) do
     t.index ["status"], name: "index_consultant_outreaches_on_status"
   end
 
+  create_table "consultant_requirements", force: :cascade do |t|
+    t.bigint "consultant_user_id", null: false
+    t.bigint "discovery_package_id", null: false
+    t.bigint "employee_id", null: false
+    t.bigint "company_id", null: false
+    t.text "statement", null: false
+    t.string "status", default: "open", null: false
+    t.integer "max_questions", default: 3, null: false
+    t.string "satisfaction_basis"
+    t.datetime "satisfied_at"
+    t.jsonb "missing_aspects", default: [], null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_consultant_requirements_on_company_id"
+    t.index ["consultant_user_id"], name: "index_consultant_requirements_on_consultant_user_id"
+    t.index ["discovery_package_id", "status"], name: "idx_on_discovery_package_id_status_6dfae56fd4"
+    t.index ["discovery_package_id"], name: "index_consultant_requirements_on_discovery_package_id"
+    t.index ["employee_id", "status"], name: "index_consultant_requirements_on_employee_id_and_status"
+    t.index ["employee_id"], name: "index_consultant_requirements_on_employee_id"
+  end
+
   create_table "consultant_users", force: :cascade do |t|
     t.string "email", null: false
     t.string "password_digest", null: false
@@ -598,7 +619,11 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_27_110000) do
     t.datetime "answered_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "consultant_requirement_id"
+    t.bigint "consultant_info_request_id"
     t.index ["answered_message_id"], name: "index_discovery_followup_questions_on_answered_message_id"
+    t.index ["consultant_info_request_id"], name: "idx_on_consultant_info_request_id_a0460ab2ae"
+    t.index ["consultant_requirement_id"], name: "idx_on_consultant_requirement_id_05b81c72b1"
     t.index ["discovery_package_id", "queue_position"], name: "index_followup_questions_on_package_position"
     t.index ["discovery_package_id"], name: "index_discovery_followup_questions_on_discovery_package_id"
     t.index ["sent_message_id"], name: "index_discovery_followup_questions_on_sent_message_id"
@@ -1342,12 +1367,18 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_27_110000) do
   add_foreign_key "consultant_outreaches", "conversations"
   add_foreign_key "consultant_outreaches", "employees"
   add_foreign_key "consultant_outreaches", "reports"
+  add_foreign_key "consultant_requirements", "companies"
+  add_foreign_key "consultant_requirements", "consultant_users"
+  add_foreign_key "consultant_requirements", "discovery_packages"
+  add_foreign_key "consultant_requirements", "employees"
   add_foreign_key "conversation_insights", "companies"
   add_foreign_key "conversation_insights", "conversations"
   add_foreign_key "conversation_insights", "employees"
   add_foreign_key "conversation_insights", "messages"
   add_foreign_key "conversations", "companies"
   add_foreign_key "conversations", "employees"
+  add_foreign_key "discovery_followup_questions", "consultant_info_requests"
+  add_foreign_key "discovery_followup_questions", "consultant_requirements"
   add_foreign_key "discovery_followup_questions", "discovery_packages"
   add_foreign_key "discovery_followup_questions", "messages", column: "answered_message_id"
   add_foreign_key "discovery_followup_questions", "messages", column: "sent_message_id"
