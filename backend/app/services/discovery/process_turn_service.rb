@@ -31,7 +31,11 @@ module Discovery
       raise Langgraph::UnavailableError.new("no_playbook", retryable: false) unless playbook
 
       if OpenaiCircuitBreaker.open?
-        return handle_unavailable!(playbook: playbook, trip_breaker: true)
+        # Do NOT re-trip: trip! is a setex, so tripping an already-open breaker
+        # refreshes its TTL. Under continuous traffic that turns a 300s cool-off
+        # into a permanent block — the breaker can never expire because every
+        # request it rejects extends it.
+        return handle_unavailable!(playbook: playbook, trip_breaker: false)
       end
 
       result = @client.run_turn!(
@@ -169,7 +173,9 @@ module Discovery
     end
 
     def handle_unavailable!(playbook: nil, trip_breaker: true, defer: nil)
-      OpenaiCircuitBreaker.trip! if trip_breaker
+      # Only trip a CLOSED breaker. trip! is a setex, so calling it while open
+      # refreshes the cool-off window and the breaker never reopens under load.
+      OpenaiCircuitBreaker.trip! if trip_breaker && !OpenaiCircuitBreaker.open?
       lang = @employee.preferred_language.presence || @company.locale
       defer = @defer_on_failure if defer.nil?
 

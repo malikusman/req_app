@@ -8,7 +8,9 @@ require_relative "../companion_scenario_runner"
 require_relative "../nimbus_scenario_runner"
 
 namespace :scenario do
-  desc "Nimbus Trading Co: full-app run — admin+client+reviewer, 4 employees (WhatsApp+web), docs, gated report, reviewer contribution, approval. CLEANUP=1 to purge sim employees."
+  desc "Nimbus Trading Co: full-app run — admin+client+consultant, employees on WhatsApp+web, docs, " \
+       "dossier-driven discovery, handover package, consultant amends + states a need, gated report, approval. " \
+       "NIMBUS_MAX_EMPLOYEES / NIMBUS_MAX_QUESTIONS / NIMBUS_MIN_QUESTIONS to size a run; CLEANUP=1 to purge sim employees."
   task nimbus: :environment do
     NimbusScenarioRunner.call(cleanup: ENV["CLEANUP"] == "1")
   end

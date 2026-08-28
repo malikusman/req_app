@@ -132,12 +132,7 @@ def run_turn(thread_id: str, body: TurnRequest):
     if result.get("error") == "openai_unavailable":
         raise HTTPException(
             status_code=503,
-            detail={
-                "error": "openai_unavailable",
-                "retryable": True,
-                # Why, not just that. Rails logs this verbatim.
-                "reason": result.get("error_detail"),
-            },
+            detail={"error": "openai_unavailable", "retryable": True},
         )
 
     return TurnResponse(

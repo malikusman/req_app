@@ -7,7 +7,6 @@ close when the dossier is full, the conversation has stalled, or the ceiling is 
 The graph is stateless across turns: the blackboard travels in/out via Rails.
 """
 
-import logging
 from typing import Any
 
 from langgraph.graph import END, StateGraph
@@ -67,10 +66,5 @@ multi_agent_graph = build_multi_agent_graph()
 def execute_multi_agent_turn(state: dict[str, Any]) -> dict[str, Any]:
     try:
         return multi_agent_graph.invoke(state)
-    except OpenAIUnavailable as exc:
-        # Rails only ever saw a bare 503 "openai_unavailable", so every failure mode
-        # — truncated JSON, a refused request, a real outage — looked identical from
-        # the outside. Log the reason; it is the difference between a five-minute
-        # diagnosis and an afternoon of guessing.
-        logging.getLogger("uvicorn.error").warning("discovery turn failed: %s", exc)
-        return {**state, "error": "openai_unavailable", "assistant_message": "", "error_detail": str(exc)}
+    except OpenAIUnavailable:
+        return {**state, "error": "openai_unavailable", "assistant_message": ""}

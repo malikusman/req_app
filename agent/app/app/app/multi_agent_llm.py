@@ -24,9 +24,6 @@ from app.openai_factory import build_chat_openai, llm_configured
 from app.orchestrator import needs_summary_refresh
 from app.personas import ORIENT_PERSONA
 
-# How many times a truncated reply may be retried with a doubled token cap.
-MAX_TRUNCATION_RETRIES = 1
-
 CLOSING_MESSAGES = {
     "en": (
         "Thank you, {name}! We've got what we need for the discovery interview. "
@@ -123,27 +120,20 @@ def run_agent_turn(state: dict[str, Any]) -> dict[str, Any]:
             messages.append(HumanMessage(content=content))
     messages.append(HumanMessage(content=state["user_message"]))
 
-    # A cap that is too tight is worse than none: the reply is cut off mid-JSON,
-    # which cannot parse, and re-asking at the same cap truncates identically. So the
-    # cap escalates on truncation instead — one retry with real headroom recovers a
-    # verbose turn rather than failing the interview over it.
-    cap = settings.openai_max_tokens
-    llm = build_chat_openai(temperature=0.4, json_mode=True, max_tokens=cap)
+    llm = build_chat_openai(temperature=0.4, json_mode=True)
 
     last_error = None
-    truncation_retries = 0
     for attempt in range(settings.max_openai_retries + 1):
         try:
             response = llm.invoke(messages)
+            # A reply cut off at the token limit is not malformed JSON to be
+            # re-asked — the reformat retry hits the same ceiling and fails the same
+            # way, burning three model calls before surfacing as a generic timeout.
+            # Fail immediately with something actionable.
             if _truncated(response):
-                if truncation_retries < MAX_TRUNCATION_RETRIES:
-                    truncation_retries += 1
-                    cap *= 2
-                    llm = build_chat_openai(temperature=0.4, json_mode=True, max_tokens=cap)
-                    continue
                 raise OpenAIUnavailable(
-                    f"model reply was still cut off mid-JSON at max_tokens={cap}; "
-                    "the prompt is asking for more output than the model will finish"
+                    "model reply hit the token limit and was cut off mid-JSON; "
+                    "raise OPENAI_MAX_TOKENS"
                 )
             try:
                 payload = _parse_payload(response.content)

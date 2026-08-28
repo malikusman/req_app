@@ -8,13 +8,10 @@ class Settings(BaseSettings):
     openai_base_url: str = ""
     # Disable strict JSON response_format for local servers that reject it
     openai_json_mode: bool = True
-    # Cap on generated tokens. Uncapped, a local model rambles (a realistic Gemma 12B
-    # discovery turn measured 570s). But too tight is worse than uncapped: at 1200
-    # the reply was cut off mid-JSON (finish_reason=length), which cannot parse, and
-    # the reformat retry truncated identically — three model calls, ~508s, then a
-    # generic timeout. MEASURED: this turn uses ~1000 completion tokens and finishes
-    # in ~69s at 3000, stopping on its own.
-    openai_max_tokens: int = 3000
+    # Cap on generated tokens. Every prompt here asks for a compact JSON object, so
+    # an uncapped generation just lets a local model ramble — which on a 12B model is
+    # the difference between a 2-minute turn and a 10-minute one.
+    openai_max_tokens: int = 1200
     rails_internal_url: str = "http://rails:3000"
     internal_api_token: str = "dev-internal-token"
     redis_url: str = "redis://redis:6379/0"

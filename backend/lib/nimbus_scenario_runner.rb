@@ -26,11 +26,23 @@ class NimbusScenarioRunner
   # Tuned for a SLOW local model: interviews run strictly one employee at a time
   # (the runner is fully serial), and these keep the total LLM turn count small.
   #   NIMBUS_MAX_EMPLOYEES  how many employees to interview (default 2 = 1 WhatsApp + 1 web)
-  #   NIMBUS_QUESTION_TARGET discovery questions per employee before wrap-up (default 6)
-  # Raise them (e.g. 4 / 10) for a full run once the model is fast enough.
+  #   NIMBUS_MAX_QUESTIONS  ceiling per employee (default 6)
+  #   NIMBUS_MIN_QUESTIONS  floor per employee (default 4)
+  # Raise them (e.g. 4 / 8) for a full run once the model is fast enough.
+  #
+  # The ceiling is a BACKSTOP, not a target: discovery ends when the role dossier is
+  # filled, so a good interview closes below it. A run that always closes on the
+  # ceiling is a signal the dossier is asking for more than the answers supply.
   MAX_EMPLOYEES = Integer(ENV.fetch("NIMBUS_MAX_EMPLOYEES", "2"))
-  QUESTION_TARGET = Integer(ENV.fetch("NIMBUS_QUESTION_TARGET", "6"))
-  MAX_DISCOVERY_TURNS = QUESTION_TARGET + 4
+  MAX_QUESTIONS = Integer(ENV.fetch("NIMBUS_MAX_QUESTIONS", "6"))
+  MIN_QUESTIONS = Integer(ENV.fetch("NIMBUS_MIN_QUESTIONS", "4"))
+  # Memory retrieval (embedding-matched document chunks + cross-employee facts) adds
+  # a lot of prompt. MEASURED on Gemma 12B: a turn without it ~145s, with it ~570s.
+  # Twelve turns at 570s is a two-hour run, so it is OFF by default here and the run
+  # says so. NIMBUS_RETRIEVAL=1 exercises it when you have the time.
+  RETRIEVAL = ENV.fetch("NIMBUS_RETRIEVAL", "0") == "1"
+  # Guard against a runaway loop in the runner itself, not an interview limit.
+  MAX_DISCOVERY_TURNS = MAX_QUESTIONS + 4
 
   FIXTURE_DIRS = [
     Pathname.new("/docs/manual-test/scenario-nimbus"),
@@ -131,9 +143,12 @@ class NimbusScenarioRunner
     provision!
     upload_documents!
     run_discovery!
+    verify_dossier!
+    build_packages!
     run_intelligence!
     generate_report!
     consultant_contribution!
+    consultant_reviews_package!
     assert_gate_blocks_when_needs_info!
     platform_approve!
     verify_final_report!
@@ -164,7 +179,26 @@ class NimbusScenarioRunner
       log "  ! Sidekiq clear skipped: #{e.class}: #{e.message}"
     end
     OpenaiCircuitBreaker.reset! if defined?(OpenaiCircuitBreaker)
+    # reset! clears the flag but not the agent's windowed failure counter, so four
+    # stale failures could re-trip the breaker on the first hiccup of a fresh run.
+    # A "fresh reset" that leaves the window intact is not fresh.
+    begin
+      REDIS.del("openai:error_window")
+    rescue StandardError => e
+      log "  ! Could not clear the agent failure window: #{e.class}"
+    end
     log "  ✓ Circuit breaker reset (open? #{defined?(OpenaiCircuitBreaker) && OpenaiCircuitBreaker.open?})"
+
+    timeout = Integer(ENV.fetch("LANGGRAPH_READ_TIMEOUT", "45"))
+    needed = RETRIEVAL ? 700 : 250
+    log "  ✓ Agent read timeout #{timeout}s · memory retrieval #{RETRIEVAL ? 'ON' : 'OFF'}"
+    # MEASURED on Gemma 12B: ~145s per turn without retrieval, ~570s with it. Below
+    # that, every turn times out, the interview never advances, and the breaker trips
+    # — which reads as "discovery is broken" rather than "the timeout is too low".
+    if timeout < needed
+      log "  ! WARNING: #{timeout}s is under the measured turn time for this configuration."
+      log "    Set LANGGRAPH_READ_TIMEOUT=#{needed} in .env, then: docker compose up -d rails"
+    end
   end
 
   def provision!
@@ -178,7 +212,10 @@ class NimbusScenarioRunner
       portal_onboarding_completed_at: Time.current,
       settings: (@company.settings.presence || {}).merge(
         "engagement_mode" => "hybrid", "skip_platform_review" => false,
-        "discovery_question_target" => QUESTION_TARGET, "consultant_can_contact_employees" => true
+        # Interview limits (Discovery::ContextBuilder resolves company -> ENV -> default).
+        "discovery_max_questions" => MAX_QUESTIONS, "discovery_min_questions" => MIN_QUESTIONS,
+        "discovery_memory_retrieval_enabled" => RETRIEVAL,
+        "consultant_can_contact_employees" => true
       )
     )
     @company.save!
@@ -259,7 +296,7 @@ class NimbusScenarioRunner
     specs = selected_employees
     wa = specs.count { |s| s[:channel] == :whatsapp }
     web_n = specs.count { |s| s[:channel] == :web }
-    stage "Discovery — #{wa} WhatsApp + #{web_n} web (target #{QUESTION_TARGET} q each, one at a time)"
+    stage "Discovery — #{wa} WhatsApp + #{web_n} web (ceiling #{MAX_QUESTIONS}, floor #{MIN_QUESTIONS}, one at a time)"
 
     # Strictly serial: each employee is fully interviewed before the next begins,
     # so a slow local model only ever handles one conversation at a time.
@@ -357,6 +394,157 @@ class NimbusScenarioRunner
     return conversation.reload if conversation
 
     employee.conversations.order(:created_at).last
+  end
+
+  # ------------------------------------------------------------------ dossier
+  # Discovery now ends on a filled role dossier rather than a question counter, so
+  # the run has to show WHY each interview stopped and what it actually learned.
+  def verify_dossier!
+    stage "Dossier — what each interview learned, and why it stopped"
+
+    @employees.each do |employee|
+      conv = employee.conversations.where(status: "completed").order(:created_at).last
+      next unless conv
+
+      bb = conv.blackboard
+      slots = (bb.dig("dossier", "slots") || {})
+      threshold = Discovery::ContextBuilder.limits_for(@company)[:slot_confidence]
+      filled = slots.select { |_, v| v["confidence"].to_f >= threshold }
+      areas = Array(bb["role_areas"]).filter_map { |a| a["name"] }
+      reason = bb["close_reason"]
+      parked = Array(bb.dig("dossier", "parked"))
+
+      name = employee.display_name
+      check "#{name}: role areas discovered (#{areas.join(', ')})", areas.any?
+      check "#{name}: dossier slots filled (#{filled.size})", filled.any?
+      check "#{name}: close reason recorded (#{reason})", reason.present?
+      check "#{name}: asked #{conv.question_count}, ceiling #{MAX_QUESTIONS}",
+            conv.question_count <= MAX_QUESTIONS
+      check "#{name}: reached the floor (#{conv.question_count} >= #{MIN_QUESTIONS})",
+            conv.question_count >= MIN_QUESTIONS
+
+      # Not a failure — a signal. Closing on the ceiling every time means the dossier
+      # wants more than the interview can get.
+      observe("dossier", reason == "ceiling" ? "warn" : "info", "#{name} close",
+              "#{reason} after #{conv.question_count}q")
+      observe("dossier", "info", "#{name} filled", filled.keys.join(" | "))
+      observe("dossier", "info", "#{name} parked", parked.map { |x| x["note"] }.join(" | ")) if parked.any?
+    end
+  end
+
+  # ------------------------------------------------------------------ package
+  # The structured handover the consultant reads instead of a transcript. Built
+  # synchronously here; in the app a job does it on interview completion.
+  def build_packages!
+    stage "Discovery packages — the consultant handover"
+    @packages = []
+
+    @employees.each do |employee|
+      conv = employee.conversations.where(status: "completed").order(:created_at).last
+      next unless conv
+
+      # FinalizeConversationService also enqueues BuildDiscoveryPackageJob, so if a
+      # worker is running one already exists. Reuse it rather than minting a second
+      # version that supersedes the first — otherwise this stage reviews a package
+      # the rest of the app considers stale.
+      package = DiscoveryPackage.current.where(conversation: conv).order(version: :desc).first ||
+                Discovery::BuildPackageService.call(conversation: conv)
+      @packages << package
+      name = employee.display_name
+
+      check "#{name}: package ready (v#{package.version}, #{package.generated_by})",
+            package.status == "ready"
+      check "#{name}: package has a recommendation", package.recommendation.present?
+      check "#{name}: package has issues (#{package.issues.count})", package.issues.any?
+      check "#{name}: package drafted follow-ups (#{package.discovery_followup_questions.count})",
+            package.discovery_followup_questions.any?
+
+      observe("package", "info", "#{name} recommendation", package.recommendation.to_s.truncate(220))
+      observe("package", "info", "#{name} issues",
+              package.issues.map { |i| "[#{i.impact}] #{i.title}" }.join(" | "))
+      observe("package", "info", "#{name} solutions",
+              package.solutions.map { |x| x.title }.join(" | ").presence || "(none — deterministic build)")
+      observe("package", "info", "#{name} next question",
+              package.next_followup&.body.to_s.truncate(160))
+    end
+
+    check "A package exists per interviewed employee (#{@packages.size}/#{@employees.size})",
+          @packages.size == @employees.size
+  end
+
+  # --------------------------------------------------- consultant reviews package
+  # The consultant amends the handover, then states what they still need to know —
+  # in their own words. The agent drafts the question; the employee answers on their
+  # real channel; the requirement is re-evaluated. This is the loop end to end.
+  def consultant_reviews_package!
+    stage "Consultant reviews the handover and raises a need"
+    package = @packages.first
+    return check("Package available to review", false) if package.nil?
+
+    spec = selected_employees.first
+    employee = @employees.first
+
+    # 1. Amend the substance. The agent's original survives in agent_payload.
+    original = package.recommendation
+    package.update!(recommendation: "Automate the PI-to-LPO match first; AP re-keying is downstream of it.")
+    check "Consultant rewrote the recommendation",
+          package.reload.recommendation != original && package.agent_payload["recommendation"] == original
+
+    # 2. Reject one agent issue and add one of their own. A rejection is kept, not
+    #    deleted — it is a signal about agent quality.
+    rejected = package.issues.first
+    rejected&.update!(status: "rejected")
+    package.discovery_package_items.create!(
+      kind: "issue", origin: "consultant", status: "accepted", impact: "medium",
+      title: "Advance payment exposure",
+      body: "PIs are paid on advance before the price drift is caught, so the cash is already out the door."
+    )
+    check "Agent issue rejected but retained", rejected.nil? || rejected.reload.status == "rejected"
+    check "Consultant added their own issue",
+          package.discovery_package_items.where(origin: "consultant").exists?
+
+    # 3. State a need. The consultant never writes the question text.
+    requirement = ConsultantRequirements::CreateService.call(
+      package: package, consultant: @consultant,
+      statement: "I need to know who signs off on a PI once a price mismatch is found, and whether they can hold the payment."
+    )
+    ConsultantRequirements::DraftQuestionsService.call(requirement: requirement.reload)
+    requirement.reload
+    drafted = requirement.discovery_followup_questions.in_queue_order.to_a
+
+    check "Requirement recorded", requirement.statement.present?
+    check "Agent drafted question(s) from the need (#{drafted.size})", drafted.any?
+    observe("requirement", "info", "consultant stated", requirement.statement)
+    observe("requirement", "info", "agent drafted", drafted.map(&:body).join(" | "))
+
+    return unless drafted.any?
+
+    # 4. Send it on the employee's real channel and have them answer through the
+    #    real inbound path, so routing and attribution are exercised, not stubbed.
+    question = drafted.first
+    ConsultantRequirements::SendQuestionService.call(question: question, consultant: @consultant)
+    question.reload
+    check "Question sent (#{question.consultant_info_request&.channel})", question.status == "sent"
+
+    answer = "Our finance manager Aisha signs off any PI with a mismatch, and she can hold the payment until it is fixed."
+    if spec[:channel] == :whatsapp
+      wa_send(spec, answer)
+    else
+      conv = active_conversation(employee, nil)
+      Web::TurnRouter.handle_text(employee: employee, conversation: conv, text: answer) if conv
+    end
+
+    question.reload
+    requirement.reload
+    check "Employee's answer attributed to the question", question.status == "answered"
+    check "Requirement re-evaluated (#{requirement.status})",
+          %w[satisfied partially_satisfied].include?(requirement.status)
+    observe("requirement", "info", "outcome",
+            "#{requirement.status} (#{requirement.satisfaction_basis || 'n/a'}) missing=#{requirement.missing_aspects.inspect}")
+
+    budget = Discovery::FollowupLimits.package_budget_remaining(package)
+    check "Employee follow-up budget decremented (#{budget} left)",
+          budget < Discovery::FollowupLimits.max_per_package(@company)
   end
 
   # ---------------------------------------------------------------- intelligence
@@ -559,7 +747,15 @@ class NimbusScenarioRunner
   end
 
   def stage(name)
-    puts "\n— #{name} " + "-" * [60 - name.length, 5].max
+    # The shared circuit breaker is the single most common reason a run degrades
+    # into "delay" messages, and it is invisible unless you print it. Showing it at
+    # every boundary turns "discovery is broken" into "the breaker opened during X".
+    breaker = begin
+      OpenaiCircuitBreaker.open? ? " [BREAKER OPEN]" : ""
+    rescue StandardError
+      " [breaker unknown]"
+    end
+    puts "\n— #{name}#{breaker} " + "-" * [60 - name.length, 5].max
   end
 
   def log(msg)
