@@ -66,6 +66,9 @@ services:
       # so an uncapped generation only lets a local model ramble. MEASURED on
       # Gemma 12B: a realistic discovery turn went 570s uncapped -> 81s at 1200.
       OPENAI_MAX_TOKENS: ${OPENAI_MAX_TOKENS:-3000}
+      # Only sent when set. Required for local reasoning models, rejected by
+      # non-reasoning ones — hence empty by default.
+      OPENAI_REASONING_EFFORT: ${OPENAI_REASONING_EFFORT:-}
       DOCS_MODEL_FAST: ${DOCS_MODEL_FAST:-gpt-4.1-mini}
       DOCS_MODEL_REASONING: ${DOCS_MODEL_REASONING:-o4-mini}
       RAILS_INTERNAL_URL: http://rails:3000

@@ -46,6 +46,17 @@ def build_chat_openai(
     }
     if settings.openai_base_url.strip():
         kwargs["base_url"] = settings.openai_base_url.rstrip("/")
+    model_kwargs: dict = {}
     if _use_json_mode(json_mode):
-        kwargs["model_kwargs"] = {"response_format": {"type": "json_object"}}
+        model_kwargs["response_format"] = {"type": "json_object"}
+
+    if model_kwargs:
+        kwargs["model_kwargs"] = model_kwargs
+
+    effort = settings.openai_reasoning_effort.strip()
+    if effort:
+        # A first-class ChatOpenAI parameter — passing it through model_kwargs works
+        # but warns. Only sent when configured: a non-reasoning model rejects it.
+        kwargs["reasoning_effort"] = effort
+
     return ChatOpenAI(**kwargs)

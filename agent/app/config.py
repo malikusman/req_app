@@ -8,6 +8,15 @@ class Settings(BaseSettings):
     openai_base_url: str = ""
     # Disable strict JSON response_format for local servers that reject it
     openai_json_mode: bool = True
+    # Reasoning budget for models that think before answering ("low" | "medium" |
+    # "high" | "minimal"). EMPTY BY DEFAULT and only sent when set, because a
+    # non-reasoning model rejects the parameter outright.
+    #
+    # This matters enormously for local reasoning models: reasoning tokens count
+    # against max_tokens, and on the discovery prompt Gemma 12B spent 7251 of them
+    # thinking and never emitted the JSON at all (519s, finish_reason=length, empty
+    # content). At "low" the same turn used 471 reasoning tokens and finished in 52s.
+    openai_reasoning_effort: str = ""
     # Cap on generated tokens. Uncapped, a local model rambles (a realistic Gemma 12B
     # discovery turn measured 570s). But too tight is worse than uncapped: at 1200
     # the reply was cut off mid-JSON (finish_reason=length), which cannot parse, and
