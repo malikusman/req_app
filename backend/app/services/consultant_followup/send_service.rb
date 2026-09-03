@@ -53,6 +53,19 @@ module ConsultantFollowup
     #
     # Then fall back on what contact details exist. Asking on a channel the employee
     # has no address for is worse than asking on their second choice.
+    # A missing or unapproved template is the one failure with an obvious next step,
+    # and it only happens outside the session window — say so, rather than making the
+    # consultant guess from a raw Meta string.
+    def whatsapp_failure_message(error, within_window:)
+      if !within_window && error.message.to_s.match?(TEMPLATE_ERROR_HINT)
+        "WhatsApp would not accept this message because it has been over 24 hours " \
+          "since #{@employee.display_name || 'this employee'} last replied, and the " \
+          "follow-up template is not available. Send it by email instead."
+      else
+        "WhatsApp could not deliver this message: #{error.message}"
+      end
+    end
+
     def resolve_channel
       preferred = if CHANNELS.include?(@requested_channel)
                     @requested_channel
@@ -71,6 +84,15 @@ module ConsultantFollowup
 
       raise Undeliverable, "#{@employee.display_name || 'This employee'} has no phone or email on file."
     end
+
+    # Meta rejects a send for reasons the consultant can do nothing about (an
+    # unapproved template, an expired token, a rate limit) and MetaClient raises
+    # ApiError. Nothing on this path caught it, so the consultant got an opaque 500
+    # and the question sat in "drafted" with no clue why. Translate it into an
+    # Undeliverable the controller already renders as a readable 422, and leave the
+    # request marked failed rather than as an orphaned draft indistinguishable from
+    # one never attempted.
+    TEMPLATE_ERROR_HINT = /template/i
 
     def deliver_whatsapp!(request, conversation)
       client = Whatsapp::MetaClient.new
@@ -98,6 +120,13 @@ module ConsultantFollowup
       request.update!(status: "awaiting_reply", meta_message_id: meta_id, sent_at: Time.current)
       conversation.update!(last_activity_at: Time.current)
       { request: request, message: outbound }
+    rescue Whatsapp::MetaClient::ApiError => e
+      request.update(status: "failed")
+      Rails.logger.error(
+        "[ConsultantFollowup::Send] WhatsApp rejected request=#{request.id} " \
+        "employee=#{@employee.id} within_window=#{within_window}: #{e.message}"
+      )
+      raise Undeliverable, whatsapp_failure_message(e, within_window: within_window)
     end
 
     def deliver_email!(request, conversation)
