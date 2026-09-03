@@ -18,7 +18,14 @@ module Discovery
     def call
       if @result["delayed"]
         body = @result["assistant_message"].to_s
-        return persist_outbound(body, is_discovery_question: false) if body.present?
+        # Tagged so build_history can exclude it. Untagged, this canned apology was
+        # persisted as an ordinary discovery message and fed straight back to the
+        # model on the retry as if it were a real turn — with the anti-repeat guard
+        # then instructing the model "do NOT repeat this", a nonsensical constraint.
+        # One transient failure compounded into an unrecoverable spiral: every retry
+        # added another delay notice to history, making the next attempt more
+        # confusing than the last.
+        return persist_outbound(body, is_discovery_question: false, delay_notice: true) if body.present?
         return nil
       end
 
@@ -44,7 +51,7 @@ module Discovery
 
     private
 
-    def persist_outbound(body, is_discovery_question:, agent_id: nil, routing_decision: nil)
+    def persist_outbound(body, is_discovery_question:, agent_id: nil, routing_decision: nil, delay_notice: false)
       Message.create!(
         conversation: @conversation,
         direction: "outbound",
@@ -53,7 +60,10 @@ module Discovery
         body: body,
         is_discovery_question: is_discovery_question,
         agent_id: agent_id,
-        routing_decision: routing_decision.presence || {}
+        routing_decision: routing_decision.presence || {},
+        # message_type stays "text" (not "system") so the employee still sees the
+        # apology in their own thread — only build_history needs to exclude it.
+        raw_payload: delay_notice ? { "kind" => "delay_notice" } : {}
       )
     end
 

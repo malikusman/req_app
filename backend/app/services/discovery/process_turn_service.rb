@@ -96,6 +96,12 @@ module Discovery
       @conversation.messages.order(:created_at).last(window).filter_map do |msg|
         next if msg.body.blank?
         next if msg.message_type == "system"
+        # A "brief delay" apology is not something the interviewer said — it is a
+        # retry placeholder. Feeding it back as history poisoned every subsequent
+        # attempt: the anti-repeat guard told the model not to repeat a non-question,
+        # and each further failure added another one, compounding into a spiral a
+        # single transient hiccup could never recover from.
+        next if msg.raw_payload.is_a?(Hash) && msg.raw_payload["kind"] == "delay_notice"
 
         role = msg.direction == "outbound" ? "assistant" : "user"
         { role: role, content: msg.body }

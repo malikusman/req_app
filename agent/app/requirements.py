@@ -21,9 +21,14 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.circuit_breaker import record_failure, record_success
 from app.json_parse import extract_json_object
-from app.openai_factory import build_chat_openai, llm_configured
+from app.config import settings
+from app.openai_factory import build_chat_openai, llm_configured, truncated
 
 MAX_DRAFT = 3
+
+
+class TruncatedReply(RuntimeError):
+    """The model hit its token cap before producing usable output."""
 
 
 def draft_questions(payload: dict[str, Any]) -> dict[str, Any]:
@@ -147,16 +152,43 @@ Respond with JSON only:
 {{"satisfied": true, "missing_aspects": []}}"""
 
 
+# One retry with a doubled cap. A reasoning model can spend its whole budget
+# thinking and emit nothing; re-asking at the same cap fails identically, so the
+# only useful retry is a bigger one.
+MAX_TRUNCATION_RETRIES = 1
+
+
 def _call(system: str) -> dict[str, Any]:
-    llm = build_chat_openai(temperature=0.2, json_mode=True)
-    try:
-        response = llm.invoke([SystemMessage(content=system), HumanMessage(content="Respond now.")])
-        parsed = extract_json_object(response.content)
-        record_success()
-        return parsed
-    except Exception:
-        record_failure()
-        raise
+    """Both of these calls silently fell back to a canned template when the model
+    hit its cap — the consultant's stated need produced a stiff, echoed question and
+    nothing said why. Detecting truncation and escalating recovers the real answer.
+    """
+    cap = settings.openai_max_tokens
+    messages = [SystemMessage(content=system), HumanMessage(content="Respond now.")]
+
+    for attempt in range(MAX_TRUNCATION_RETRIES + 1):
+        llm = build_chat_openai(temperature=0.2, json_mode=True, max_tokens=cap)
+        try:
+            response = llm.invoke(messages)
+            if truncated(response):
+                if attempt < MAX_TRUNCATION_RETRIES:
+                    cap *= 2
+                    continue
+                raise TruncatedReply(
+                    f"model reply was still cut off at max_tokens={cap}; "
+                    "the prompt asks for more output than the model will finish"
+                )
+            parsed = extract_json_object(response.content)
+            record_success()
+            return parsed
+        except TruncatedReply:
+            record_failure()
+            raise
+        except Exception:
+            record_failure()
+            raise
+
+    raise TruncatedReply("exhausted truncation retries")
 
 
 # --------------------------------------------------------------------------- #
@@ -166,19 +198,45 @@ def _call(system: str) -> dict[str, Any]:
 _SENTENCE = re.compile(r"[.!?]\s")
 
 
+# A consultant states a need in the FIRST person ("I need to know who signs off").
+# Splicing that verbatim into a question addressed to the employee produced
+# "Could you tell me a bit more about i need to know who signs off...?" — broken
+# grammar and nonsensical to the person receiving it. These strip the framing so
+# what remains is the subject of the need, not the consultant's narration of it.
+_NEED_PREFIXES = re.compile(
+    r"^\s*(?:i\s+(?:need|want|would\s+like)\s+to\s+(?:know|understand|find\s+out|check)"
+    r"|i\s+(?:need|want)"
+    r"|can\s+(?:you|we)\s+(?:find\s+out|check|confirm)"
+    r"|please\s+(?:find\s+out|check|confirm|ask)"
+    r"|find\s+out|check|confirm|ask\s+(?:them|him|her)?)"
+    r"\s*(?:about|whether|if|that|:)?\s*",
+    re.IGNORECASE,
+)
+
+
+def _need_subject(statement: str) -> str:
+    """The thing being asked about, with the consultant's first-person framing removed."""
+    first = _SENTENCE.split(statement)[0].strip() if statement else ""
+    subject = _NEED_PREFIXES.sub("", first).strip().rstrip(".?!,;")
+    # If stripping left nothing useful, fall back to the whole first clause.
+    return subject or first.rstrip(".?!,;")
+
+
 def _fallback_draft(payload: dict[str, Any], reason: str) -> dict[str, Any]:
     """One question, built from the statement itself.
 
-    Deliberately quotes the consultant's words rather than paraphrasing: without a
-    model, a paraphrase would be a guess, and a slightly stiff question that asks
-    the right thing beats a smooth one that asks the wrong thing.
+    Deliberately grounded in the consultant's own words rather than paraphrasing:
+    without a model, a paraphrase would be a guess, and a slightly stiff question
+    that asks the right thing beats a smooth one that asks the wrong thing. But it
+    must still read as a question TO THE EMPLOYEE, not as the consultant's note to
+    themselves.
     """
     statement = str(payload.get("statement") or "").strip()
-    first = _SENTENCE.split(statement)[0].strip().rstrip(".?!") if statement else ""
+    subject = _need_subject(statement)
     body = (
-        f"Could you tell me a bit more about {first[0].lower() + first[1:]}?"
-        if first
-        else "Could you tell me a bit more about your work?"
+        f"Could you tell me a bit more about {subject[0].lower() + subject[1:]}?"
+        if subject
+        else "Could you tell me a bit more about how that part of your work runs?"
     )
     return {
         "questions": [

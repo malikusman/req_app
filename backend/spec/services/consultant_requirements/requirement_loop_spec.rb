@@ -183,13 +183,29 @@ RSpec.describe "Consultant requirement loop", type: :job do
     it "records what is still missing and drafts again when not satisfied" do
       allow(client).to receive(:evaluate_requirement!)
         .and_return({ "satisfied" => false, "missing_aspects" => ["Who approves it"] })
+      # The redraft must ask something NEW. The default stub returns the same body as
+      # the question already sent, and re-persisting that gave the consultant the
+      # same question twice in their queue.
+      allow(client).to receive(:draft_requirement_questions!)
+        .and_return({ "questions" => [{ "body" => "Who approves a mismatched PI?" }] })
 
       ConsultantRequirements::RecordAnswerService.call(question: question, message: answer)
       perform_enqueued_jobs
 
       expect(requirement.reload.status).to eq("partially_satisfied")
       expect(requirement.missing_aspects).to eq(["Who approves it"])
-      expect(requirement.discovery_followup_questions.count).to eq(2)
+      expect(requirement.discovery_followup_questions.pluck(:body))
+        .to contain_exactly("Which system holds the approval?", "Who approves a mismatched PI?")
+    end
+
+    it "does not re-ask a question the employee has already been sent" do
+      allow(client).to receive(:evaluate_requirement!)
+        .and_return({ "satisfied" => false, "missing_aspects" => ["Who approves it"] })
+      # Default stub returns the same body as the sent question.
+      ConsultantRequirements::RecordAnswerService.call(question: question, message: answer)
+      perform_enqueued_jobs
+
+      expect(requirement.reload.discovery_followup_questions.count).to eq(1)
     end
 
     it "leaves the requirement open for the consultant when evaluation is unavailable" do

@@ -20,7 +20,7 @@ from app.circuit_breaker import record_failure, record_success
 from app.config import settings
 from app.json_parse import LlmJsonParseError, extract_json_object
 from app.llm import OpenAIUnavailable
-from app.openai_factory import build_chat_openai, llm_configured
+from app.openai_factory import build_chat_openai, llm_configured, truncated as _truncated
 from app.orchestrator import needs_summary_refresh
 from app.personas import ORIENT_PERSONA
 
@@ -179,12 +179,6 @@ def run_agent_turn(state: dict[str, Any]) -> dict[str, Any]:
 
     raise OpenAIUnavailable(str(last_error))
 
-
-
-def _truncated(response: Any) -> bool:
-    """True when the provider stopped generation at the token cap."""
-    meta = getattr(response, "response_metadata", None) or {}
-    return meta.get("finish_reason") == "length"
 
 
 def _parse_payload(content: str) -> dict[str, Any]:

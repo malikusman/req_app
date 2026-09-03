@@ -23,6 +23,16 @@ module ConsultantRequirements
       return [] unless allowance.positive?
 
       payload = fetch_draft(allowance)
+      # The agent never raises for drafting — it falls back to a canned template and
+      # says why in fallback_reason. Rails discarded that, so a consultant silently
+      # received a stiff templated question with nothing anywhere explaining that the
+      # model call had failed. Surface it.
+      if payload["generated_by"] == "deterministic"
+        Rails.logger.warn(
+          "[ConsultantRequirements::Draft] requirement=#{@requirement.id} " \
+          "fell back to a templated question: #{payload['fallback_reason']}"
+        )
+      end
       questions = persist!(payload)
       @requirement.update!(status: "questions_drafted") if questions.any? && @requirement.status == "open"
       questions
@@ -66,19 +76,41 @@ module ConsultantRequirements
 
     def persist!(payload)
       next_position = (@package.discovery_followup_questions.maximum(:queue_position) || 0)
+      # Drafting can legitimately run more than once for one need — on creation, and
+      # again after an answer leaves it partially satisfied. Without this, each pass
+      # appended another copy of the same question and the consultant saw the same
+      # thing three times in their queue.
+      seen = existing_bodies
 
       Array(payload["questions"]).filter_map do |item|
-        next if item["body"].blank?
+        body = item["body"].to_s.strip
+        next if body.blank?
+        next if seen.include?(normalize(body))
 
+        seen << normalize(body)
         next_position += 1
         @package.discovery_followup_questions.create!(
           consultant_requirement: @requirement,
-          body: item["body"],
+          body: body,
           rationale: item["rationale"],
           status: "drafted",
           queue_position: next_position
         )
       end
+    end
+
+    # Everything already drafted or asked for this package, so a redraft cannot
+    # duplicate a question the employee has seen or is about to see.
+    def existing_bodies
+      @package.discovery_followup_questions
+              .where.not(status: "superseded")
+              .pluck(:body)
+              .map { |b| normalize(b) }
+              .to_set
+    end
+
+    def normalize(body)
+      body.to_s.downcase.gsub(/\s+/, " ").strip
     end
   end
 end

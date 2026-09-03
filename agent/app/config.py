@@ -13,9 +13,12 @@ class Settings(BaseSettings):
     # non-reasoning model rejects the parameter outright.
     #
     # This matters enormously for local reasoning models: reasoning tokens count
-    # against max_tokens, and on the discovery prompt Gemma 12B spent 7251 of them
-    # thinking and never emitted the JSON at all (519s, finish_reason=length, empty
-    # content). At "low" the same turn used 471 reasoning tokens and finished in 52s.
+    # against max_tokens. On a simple synthetic prompt "low" was plenty (471
+    # reasoning tokens, 52s). But MEASURED on a real turn once conversation history
+    # accumulates, "low" still exhausted the cap (5997/6000 reasoning tokens, empty
+    # content, finish_reason=length, 419s) while "minimal" on the identical turn
+    # completed cleanly (2796 reasoning tokens, valid JSON, finish_reason=stop,
+    # 366s). Use "minimal" for this model, not "low".
     openai_reasoning_effort: str = ""
     # Cap on generated tokens. Uncapped, a local model rambles (a realistic Gemma 12B
     # discovery turn measured 570s). But too tight is worse than uncapped: at 1200

@@ -19,7 +19,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from app.circuit_breaker import record_failure, record_success
 from app.config import settings
 from app.json_parse import LlmJsonParseError, extract_json_object
-from app.openai_factory import build_chat_openai, llm_configured
+from app.openai_factory import build_chat_openai, llm_configured, truncated
 
 MAX_ISSUES = 6
 MAX_SOLUTIONS = 6
@@ -123,13 +123,25 @@ Respond with JSON only:
   "followup_questions": [{{ "body": "the question to ask the employee", "rationale": "what it would settle", "from_parked": "the parked note it came from, or null" }}]
 }}"""
 
-    llm = build_chat_openai(temperature=0.3, json_mode=True)
+    # Escalate the cap on truncation rather than re-asking at the same one: a
+    # reasoning model that spent its budget thinking will do so again identically.
+    cap = settings.openai_max_tokens
     messages = [SystemMessage(content=system), HumanMessage(content="Produce the package.")]
+    truncation_retries = 0
 
     last_error: Exception | None = None
     for attempt in range(settings.max_openai_retries + 1):
         try:
+            llm = build_chat_openai(temperature=0.3, json_mode=True, max_tokens=cap)
             response = llm.invoke(messages)
+            if truncated(response):
+                if truncation_retries < 1:
+                    truncation_retries += 1
+                    cap *= 2
+                    continue
+                raise RuntimeError(
+                    f"package reply cut off at max_tokens={cap}"
+                )
             payload_out = extract_json_object(response.content)
             record_success()
             return payload_out

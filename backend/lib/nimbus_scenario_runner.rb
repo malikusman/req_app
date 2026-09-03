@@ -427,6 +427,7 @@ class NimbusScenarioRunner
       # wants more than the interview can get.
       observe("dossier", reason == "ceiling" ? "warn" : "info", "#{name} close",
               "#{reason} after #{conv.question_count}q")
+      log "  · #{name}: discovery ENDED ITSELF after #{conv.question_count} questions — reason: #{reason.inspect}"
       observe("dossier", "info", "#{name} filled", filled.keys.join(" | "))
       observe("dossier", "info", "#{name} parked", parked.map { |x| x["note"] }.join(" | ")) if parked.any?
     end
@@ -466,6 +467,21 @@ class NimbusScenarioRunner
               package.solutions.map { |x| x.title }.join(" | ").presence || "(none — deterministic build)")
       observe("package", "info", "#{name} next question",
               package.next_followup&.body.to_s.truncate(160))
+
+      log "\n  ┌─ what the consultant sees for #{name} (package v#{package.version}, #{package.generated_by}) ─"
+      log "  │ recommendation: #{package.recommendation.to_s.truncate(180)}"
+      package.issues.each { |i| log "  │ issue [#{i.impact}] #{i.title}: #{i.body.to_s.truncate(120)}" }
+      if package.solutions.any?
+        package.solutions.each { |sn| log "  │ solution: #{sn.title}: #{sn.body.to_s.truncate(120)}" }
+      else
+        log "  │ solutions: none (deterministic build — no model solutions proposed)"
+      end
+      if package.next_followup
+        log "  │ agent's drafted next question: #{package.next_followup.body}"
+      else
+        log "  │ agent drafted no follow-up questions"
+      end
+      log "  └───────────────────────────────────────────────────────"
     end
 
     check "A package exists per interviewed employee (#{@packages.size}/#{@employees.size})",
@@ -508,7 +524,8 @@ class NimbusScenarioRunner
       package: package, consultant: @consultant,
       statement: "I need to know who signs off on a PI once a price mismatch is found, and whether they can hold the payment."
     )
-    ConsultantRequirements::DraftQuestionsService.call(requirement: requirement.reload)
+    # CreateService already drafts on creation — calling it again here was what
+    # produced duplicate questions in the queue.
     requirement.reload
     drafted = requirement.discovery_followup_questions.in_queue_order.to_a
 
@@ -517,7 +534,16 @@ class NimbusScenarioRunner
     observe("requirement", "info", "consultant stated", requirement.statement)
     observe("requirement", "info", "agent drafted", drafted.map(&:body).join(" | "))
 
-    return unless drafted.any?
+    log "\n  ┌─ consultant → agent → employee, end to end ─"
+    log "  │ consultant STATED (their own words, not question text):"
+    log "  │   \"#{requirement.statement}\""
+    log "  │ agent DRAFTED (this is what actually gets sent):"
+    drafted.each { |q| log "  │   \"#{q.body}\"" }
+
+    if drafted.empty?
+      log "  └── no question drafted — nothing to send"
+      return
+    end
 
     # 4. Send it on the employee's real channel and have them answer through the
     #    real inbound path, so routing and attribution are exercised, not stubbed.
@@ -526,7 +552,10 @@ class NimbusScenarioRunner
     question.reload
     check "Question sent (#{question.consultant_info_request&.channel})", question.status == "sent"
 
+    log "  │ SENT on channel: #{question.consultant_info_request&.channel} (real delivery path, template if outside 24h window)"
+
     answer = "Our finance manager Aisha signs off any PI with a mismatch, and she can hold the payment until it is fixed."
+    log "  │ EMPLOYEE answers (via #{spec[:channel]}, real inbound path): \"#{answer}\""
     if spec[:channel] == :whatsapp
       wa_send(spec, answer)
     else
@@ -541,6 +570,9 @@ class NimbusScenarioRunner
           %w[satisfied partially_satisfied].include?(requirement.status)
     observe("requirement", "info", "outcome",
             "#{requirement.status} (#{requirement.satisfaction_basis || 'n/a'}) missing=#{requirement.missing_aspects.inspect}")
+    log "  │ REQUIREMENT re-evaluated: #{requirement.status} (basis: #{requirement.satisfaction_basis || 'n/a'})"
+    log "  │   missing_aspects: #{requirement.missing_aspects.inspect}"
+    log "  └───────────────────────────────────────────────────────"
 
     budget = Discovery::FollowupLimits.package_budget_remaining(package)
     check "Employee follow-up budget decremented (#{budget} left)",

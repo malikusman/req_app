@@ -24,6 +24,19 @@ def _use_json_mode(requested: bool) -> bool:
     return host in ("api.openai.com",) or host.endswith(".openai.com")
 
 
+def truncated(response) -> bool:
+    """True when the provider stopped generation at the token cap.
+
+    Reasoning models spend their token budget thinking BEFORE emitting content, so a
+    cap that looks generous can still be exhausted with nothing written. The reply
+    then cannot be parsed, and re-asking at the same cap truncates identically —
+    which is why every call site needs to detect this rather than treat it as
+    malformed JSON to retry.
+    """
+    meta = getattr(response, "response_metadata", None) or {}
+    return meta.get("finish_reason") == "length"
+
+
 def build_chat_openai(
     *,
     model: str | None = None,
