@@ -168,17 +168,24 @@ function QuestionRow({
 function RequirementCard({
   requirement,
   questions,
+  budgetExhausted,
   onSatisfy,
   onWithdraw,
   busy,
 }: {
   requirement: ConsultantRequirement;
   questions: DiscoveryFollowupQuestion[];
+  /** The package-wide follow-up budget for this employee is used up, so this
+   * requirement will NOT get another drafted question even though it is still
+   * open — the consultant needs to know that, not just see it go quiet. */
+  budgetExhausted: boolean;
   onSatisfy: () => void;
   onWithdraw: () => void;
   busy: boolean;
 }) {
   const open = !['satisfied', 'withdrawn'].includes(requirement.status);
+  const stalledOnBudget =
+    open && budgetExhausted && !questions.some((q) => q.status === 'drafted' || q.status === 'queued');
 
   return (
     <li className="rounded-lg border border-border bg-card px-3 py-2.5">
@@ -198,6 +205,13 @@ function RequirementCard({
       {requirement.missing_aspects.length > 0 && open && (
         <p className="m-0 mt-1.5 text-xs text-warning">
           Still missing: {requirement.missing_aspects.join('; ')}
+        </p>
+      )}
+
+      {stalledOnBudget && (
+        <p className="m-0 mt-1.5 text-xs text-warning">
+          Nothing left is queued — this employee has already been asked as many follow-up
+          questions as allowed. Mark this settled with what you have, or withdraw it.
         </p>
       )}
 
@@ -479,11 +493,18 @@ export function ConsultantDiscoveryPackagePanel({
             Say it in your own words. The agent turns it into questions{' '}
             {employeeName || 'the employee'} can answer — you don&apos;t write the question text.
           </p>
+          {!canSend && (
+            <p className="m-0 mb-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+              This employee has already been asked as many follow-up questions as allowed.
+              Stating a need here will not produce a question — resolve or withdraw an open
+              one first if you need to ask something else.
+            </p>
+          )}
           <form
             className="space-y-2"
             onSubmit={(e: FormEvent) => {
               e.preventDefault();
-              if (!statement.trim()) return;
+              if (!statement.trim() || !canSend) return;
               run('Could not record what you need', async () => {
                 await api.createConsultantRequirement(token!, pkg.id, statement.trim());
                 setStatement('');
@@ -494,24 +515,23 @@ export function ConsultantDiscoveryPackagePanel({
               value={statement}
               onChange={(e) => setStatement(e.target.value)}
               rows={2}
-              placeholder="e.g. I need to know which system is the system of record for approvals, and who signs off"
+              disabled={!canSend}
+              placeholder={
+                canSend
+                  ? 'e.g. I need to know which system is the system of record for approvals, and who signs off'
+                  : 'No more follow-up questions can be asked of this employee right now.'
+              }
             />
             <div className="flex flex-wrap items-center gap-3">
-              <Button type="submit" size="sm" disabled={busy || !statement.trim()}>
+              <Button type="submit" size="sm" disabled={busy || !statement.trim() || !canSend}>
                 Draft questions
               </Button>
-              <span
-                className={cn(
-                  'text-xs tabular-nums',
-                  canSend ? 'text-muted-foreground' : 'text-warning'
-                )}
-              >
-                {canSend
-                  ? `${pkg.followup_budget_remaining} more question${
-                      pkg.followup_budget_remaining === 1 ? '' : 's'
-                    } can be asked of this person`
-                  : 'This person has been asked as many follow-ups as allowed'}
-              </span>
+              {canSend && (
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  {pkg.followup_budget_remaining} more question
+                  {pkg.followup_budget_remaining === 1 ? '' : 's'} can be asked of this person
+                </span>
+              )}
             </div>
           </form>
 
@@ -522,6 +542,7 @@ export function ConsultantDiscoveryPackagePanel({
                   key={requirement.id}
                   requirement={requirement}
                   questions={questionsByRequirement.get(requirement.id) ?? []}
+                  budgetExhausted={!canSend}
                   busy={busy}
                   onSatisfy={() =>
                     run('Could not close this', () =>
