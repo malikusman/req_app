@@ -181,6 +181,22 @@ class DiscoverySimulator
 
   def self.purge_employee!(employee, company: nil)
     company ||= employee.company
+    # DiscoveryFollowupQuestion carries FOUR optional FKs (consultant_requirement,
+    # consultant_info_request, sent_message, answered_message) on top of its
+    # required discovery_package -- a live question sent and answered points at all
+    # of them. Three separate runs each hit a different one of these as a bare
+    # ForeignKeyViolation (deleting the request it was sent through, then the
+    # message it was answered in) before the actual rows below got a chance to
+    # delete them, because deleting THIS employee's data always touches something
+    # a question still points at. Nullify every one up front so nothing later in
+    # this method -- present now or added later -- can be blocked by it again.
+    followup_question_ids = DiscoveryFollowupQuestion.where(
+      discovery_package_id: DiscoveryPackage.where(conversation_id: employee.conversations.select(:id)).select(:id)
+    ).select(:id)
+    DiscoveryFollowupQuestion.where(id: followup_question_ids).update_all(
+      consultant_requirement_id: nil, consultant_info_request_id: nil,
+      sent_message_id: nil, answered_message_id: nil
+    )
     CompanyMemoryFact.where(employee_id: employee.id).delete_all
     ConversationInsight.where(employee_id: employee.id).delete_all
     ConsultantInfoRequest.where(employee_id: employee.id).find_each do |request|
