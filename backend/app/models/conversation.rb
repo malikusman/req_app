@@ -8,6 +8,10 @@ class Conversation < ApplicationRecord
   has_many :media_attachments, dependent: :destroy
   has_many :documents, dependent: :nullify
   has_many :employee_nudges, dependent: :nullify
+  # Never declared when discovery_packages was added -- the FK on
+  # discovery_packages.conversation_id had nothing telling Rails to clean these up,
+  # so deleting a conversation with a package raised a bare ForeignKeyViolation.
+  has_many :discovery_packages, dependent: :destroy
 
   STATUSES = %w[onboarding profiling discovery completed abandoned].freeze
 

@@ -206,6 +206,16 @@ class DiscoverySimulator
     if employee.display_name.present?
       Notification.where(company_id: company.id).where("body ILIKE ?", "%#{employee.display_name}%").delete_all
     end
+    # discovery_packages FKs to conversation_id; without clearing it first, deleting
+    # the conversation below raises a bare ForeignKeyViolation instead of a clean
+    # purge. Package items/questions/requirements cascade off the package itself.
+    package_ids = DiscoveryPackage.where(conversation_id: employee.conversations.select(:id)).pluck(:id)
+    if package_ids.any?
+      DiscoveryPackageItem.where(discovery_package_id: package_ids).delete_all
+      DiscoveryFollowupQuestion.where(discovery_package_id: package_ids).delete_all
+      ConsultantRequirement.where(discovery_package_id: package_ids).delete_all
+      DiscoveryPackage.where(id: package_ids).delete_all
+    end
     employee.conversations.delete_all
     EmployeeInvitation.where(employee_id: employee.id).delete_all
     EmployeeValueDigest.where(employee_id: employee.id).delete_all
