@@ -252,6 +252,14 @@ class NimbusScenarioRunner
       ConsultantAssignments::AssignService.call(company: @company, consultant_user: @consultant, platform_user: @platform)
     end
 
+    # A stray active assignment from an older run (e.g. the pre-rename
+    # samir.ops@reviewers.worktruth.local record) sits on this company forever
+    # otherwise, and check_all_submitted! correctly refuses to call reviews
+    # complete while ANY active consultant hasn't submitted -- so a leftover
+    # nobody submits for silently blocks reviews_complete indefinitely. A fresh
+    # scenario run means exactly one active consultant: this one.
+    @company.consultant_assignments.active.where.not(consultant_user_id: @consultant.id).find_each(&:remove!)
+
     check "Company provisioned (#{@company.name})", @company.persisted?
     check "Company admin #{ADMIN_EMAIL}", @admin.email == ADMIN_EMAIL
     check "Consultant assigned", @company.consultant_assignments.active.exists?(consultant_user_id: @consultant.id)
@@ -524,10 +532,13 @@ class NimbusScenarioRunner
       package: package, consultant: @consultant,
       statement: "I need to know who signs off on a PI once a price mismatch is found, and whether they can hold the payment."
     )
-    # CreateService already drafts on creation — calling it again here was what
-    # produced duplicate questions in the queue.
-    requirement.reload
-    drafted = requirement.discovery_followup_questions.in_queue_order.to_a
+    # CreateService drafts via DraftRequirementQuestionsJob.perform_later -- real
+    # Sidekiq here, not inline. Reading the association right after create raced the
+    # worker and reported "0 questions drafted" even though the job went on to draft
+    # two good ones a few seconds later. Wait for it, the way the package stage above
+    # tolerates a worker that hasn't run yet rather than assuming synchronous timing.
+    drafted = wait_for { requirement.reload.discovery_followup_questions.in_queue_order.to_a.presence }
+    drafted ||= []
 
     check "Requirement recorded", requirement.statement.present?
     check "Agent drafted question(s) from the need (#{drafted.size})", drafted.any?
@@ -793,6 +804,20 @@ class NimbusScenarioRunner
   def log(msg)
     puts msg
     $stdout.flush
+  end
+
+  # Polls for something a Sidekiq worker produces asynchronously. Matches
+  # LANGGRAPH_DRAFT_READ_TIMEOUT (180s) plus margin for the worker to pick the job
+  # up at all -- a real model draft call can legitimately take tens of seconds.
+  def wait_for(timeout: 200, interval: 2)
+    deadline = Time.current + timeout
+    loop do
+      result = yield
+      return result if result
+      return nil if Time.current > deadline
+
+      sleep interval
+    end
   end
 
   def banner(text)
