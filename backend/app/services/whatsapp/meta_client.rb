@@ -63,8 +63,15 @@ module Whatsapp
       )
     end
 
-    def send_consultant_followup_template(to:, employee_name:, company_name:)
-      template_name = ENV.fetch("META_TEMPLATE_REVIEWER_FOLLOWUP", "reviewer_followup_reopen")
+    # Carries the actual question as {{3}} rather than a generic "we'll be in
+    # touch" nudge. A two-step "reopen, then deliver the real content" flow needs a
+    # state machine to know whether the question has been sent yet, and reads as
+    # confusing indirection to someone who isn't expecting a WhatsApp back-and-forth
+    # with an interview bot. One message with the real question means any reply is
+    # unambiguously the answer, in or out of the 24h session window alike -- exactly
+    # how the in-window free-text path already behaves.
+    def send_consultant_followup_template(to:, employee_name:, company_name:, question:)
+      template_name = ENV.fetch("META_TEMPLATE_CONSULTANT_FOLLOWUP", "consultant_followup_reopen")
       send_template(
         to: to,
         template_name: template_name,
@@ -74,7 +81,11 @@ module Whatsapp
             type: "body",
             parameters: [
               { type: "text", text: employee_name.presence || "there" },
-              { type: "text", text: company_name }
+              { type: "text", text: company_name },
+              # WhatsApp template parameters reject newlines/tabs/runs of spaces --
+              # strip defensively even though the drafting prompt already asks for a
+              # single short clause.
+              { type: "text", text: question.to_s.gsub(/\s+/, " ").strip }
             ]
           }
         ]

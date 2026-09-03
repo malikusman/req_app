@@ -83,7 +83,8 @@ module ConsultantFollowup
                      client.send_consultant_followup_template(
                        to: @employee.phone_e164,
                        employee_name: @employee.display_name || "there",
-                       company_name: @company.display_name || @company.name
+                       company_name: @company.display_name || @company.name,
+                       question: @body
                      )
                    end
                  else
