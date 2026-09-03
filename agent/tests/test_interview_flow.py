@@ -1,7 +1,7 @@
 """The four ways an interview ends, and the guarantee it neither runs long nor
 ends before there is anything worth packaging."""
 
-from app import area_flow, dossier
+from app import area_flow, dossier, multi_agent_llm
 from app.orchestrator import finalize_turn, prepare_turn
 from app.state import resolve_limits
 
@@ -155,6 +155,61 @@ class TestParkingNotDrilling:
         # The next beat moves on to the next required slot rather than the aside.
         nxt = prepare_turn({**out, "question_count": 4})
         assert nxt["beat"]["slot"] == "friction"
+
+
+class TestLastBeatTracking:
+    """`beat` at prompt-build time is the topic of the question about to be asked --
+    not what the employee's incoming reply (already sitting in user_message) was
+    actually answering, which was whatever question got asked LAST turn. Confusing
+    the two meant slots_filled almost never matched anything real: two real scenario
+    runs against gpt-4.1-mini came back with 0 filled slots despite good, specific
+    answers, so dossier_complete never once fired as a close reason."""
+
+    def test_finalize_stashes_the_beat_just_used_for_next_turn_to_reference(self):
+        bb = {"role_areas": [{"name": "Invoicing"}], "orient_done": True}
+        beat = {"slot": "how_it_works", "area": "Invoicing", "intent": "how it works"}
+
+        area_flow.finalize(bb, {"role_areas": []}, "branch", beat)
+
+        assert bb["last_beat"] == beat
+
+    def test_orient_turns_leave_last_beat_empty(self):
+        bb = {"role_areas": [], "orient_asked": 0}
+
+        area_flow.finalize(bb, {"role_areas": ["Invoicing"]}, "orient", None)
+
+        assert bb["last_beat"] is None
+
+
+class TestSlotHintReferencesThePreviousBeat:
+    def _branch_state(self, last_beat=None):
+        bb = {
+            "role_areas": [{"name": "Invoicing"}], "orient_done": True,
+            "profile": {}, "shared_findings": [], "dossier": {"slots": {}, "parked": []},
+        }
+        if last_beat is not None:
+            bb["last_beat"] = last_beat
+        return {
+            "blackboard": bb, "phase": "branch",
+            # The UPCOMING topic -- must drive the question, but not the slot_hint.
+            "beat": {"slot": "friction", "area": "Invoicing", "intent": "what's annoying"},
+            "limits": LIMITS, "preferred_language": "en", "company_name": "Acme",
+        }
+
+    def test_names_the_previous_slot_the_reply_actually_addressed(self):
+        prev = {"slot": "how_it_works", "area": "Invoicing", "intent": "how it works"}
+
+        prompt = multi_agent_llm._build_system_prompt(self._branch_state(last_beat=prev))
+
+        assert "how_it_works" in prompt
+        assert "replying to the 'friction' slot" not in prompt
+
+    def test_does_not_claim_a_slot_on_the_orient_to_branch_transition(self):
+        # No branch question has been asked yet, so the reply being graded (to the
+        # last orient question) is not about any specific dossier slot.
+        prompt = multi_agent_llm._build_system_prompt(self._branch_state(last_beat=None))
+
+        assert "wasn't replying to a specific dossier slot" in prompt
 
 
 class TestLegacyBlackboardUpgrade:

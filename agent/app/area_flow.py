@@ -77,6 +77,10 @@ def finalize(
     beat: dict[str, Any] | None,
 ) -> None:
     ensure_area_state(bb)
+    # `beat` here is the topic of the question just asked THIS turn -- the employee's
+    # NEXT reply answers it. Stashed so next turn's prompt can grade that reply
+    # against the slot it actually addresses, instead of whatever comes next.
+    bb["last_beat"] = beat
     if phase == "orient":
         bb["orient_asked"] = bb.get("orient_asked", 0) + 1
         _merge_role_areas(bb, llm_output.get("role_areas"))

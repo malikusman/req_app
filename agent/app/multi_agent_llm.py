@@ -322,11 +322,26 @@ def _build_system_prompt(state: dict[str, Any]) -> str:
             "React warmly to their last answer first — and even if that answer drifted "
             f"elsewhere, gently steer back so THIS question is clearly about {scope}."
         )
-        slot_hint = (
-            f"You are asking for the '{beat.get('slot')}' slot"
-            + (f" on area '{area}'" if area else "")
-            + ". Report it in slots_filled when their answer supplies it."
-        )
+        # `beat` here is the NEXT question's topic, not what the employee's message
+        # you're looking at right now was actually answering -- that was whatever
+        # question got asked LAST turn. Grading this turn's incoming reply against
+        # the upcoming topic instead of the one it actually addressed meant
+        # slots_filled almost never matched anything real. `last_beat`, stashed at
+        # the end of the previous turn, is the slot this reply is actually about.
+        prev_beat = bb.get("last_beat")
+        if prev_beat and prev_beat.get("slot"):
+            slot_hint = (
+                f"Their answer you're looking at now was replying to the '{prev_beat['slot']}' slot"
+                + (f" on area '{prev_beat.get('area')}'" if prev_beat.get("area") else "")
+                + ". Report it in slots_filled if their answer actually supplied it — omit it "
+                "if they didn't really address it."
+            )
+        else:
+            slot_hint = (
+                "Their answer you're looking at now wasn't replying to a specific dossier slot "
+                "yet (e.g. it followed the orient questions) — only report slots_filled if "
+                "something they said clearly maps to one of the valid slot names below."
+            )
 
     return f"""{persona}
 
