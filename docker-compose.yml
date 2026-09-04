@@ -117,6 +117,12 @@ services:
       OPENAI_VISION_MODEL: ${OPENAI_VISION_MODEL:-gpt-4.1-mini}
       DOCS_MODEL_FAST: ${DOCS_MODEL_FAST:-gpt-4.1-mini}
       DOCS_MODEL_REASONING: ${DOCS_MODEL_REASONING:-o4-mini}
+      # Rails and Sidekiq make model calls of their own (report narrative, doc
+      # summaries, vision, companion intent). Without this they silently fell back
+      # to Openai::Client#chat_max_tokens's 2500 non-official-host floor and ignored
+      # the configured value, so tuning OPENAI_MAX_TOKENS only ever moved the agent.
+      OPENAI_MAX_TOKENS: ${OPENAI_MAX_TOKENS:-}
+      OPENAI_JSON_MODE: ${OPENAI_JSON_MODE:-}
       EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-}
       EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-768}
@@ -166,6 +172,12 @@ services:
       OPENAI_VISION_MODEL: ${OPENAI_VISION_MODEL:-gpt-4.1-mini}
       DOCS_MODEL_FAST: ${DOCS_MODEL_FAST:-gpt-4.1-mini}
       DOCS_MODEL_REASONING: ${DOCS_MODEL_REASONING:-o4-mini}
+      # Rails and Sidekiq make model calls of their own (report narrative, doc
+      # summaries, vision, companion intent). Without this they silently fell back
+      # to Openai::Client#chat_max_tokens's 2500 non-official-host floor and ignored
+      # the configured value, so tuning OPENAI_MAX_TOKENS only ever moved the agent.
+      OPENAI_MAX_TOKENS: ${OPENAI_MAX_TOKENS:-}
+      OPENAI_JSON_MODE: ${OPENAI_JSON_MODE:-}
       EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-}
       EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-768}
