@@ -88,10 +88,23 @@ module Inbound
       outreach_time >= info.created_at ? :outreach : :info_request
     end
 
+    # Sources that represent an actual read of the message rather than a fallback.
+    # IntentClassifier NEVER raises — it swallows model failures internally and
+    # returns {intent: "casual", confidence: 0.5, source: "default"}, which is
+    # indistinguishable from real chit-chat. "casual" is a NON_ANSWER_INTENT, so a
+    # failed or unsure classification used to read as "this isn't the answer" and
+    # silently diverted a genuine reply into the companion: the request stayed
+    # awaiting_reply forever, the requirement stayed open, the consultant was never
+    # notified, the employee believed they had answered, and a follow-up budget slot
+    # was burned for nothing. Observed intermittently (2 of 3 runs) against a local
+    # model, and reachable in production on any transient failure or open breaker.
+    CONFIDENT_SOURCES = %w[phrase llm awaiting_affirm].freeze
+
     # Only asked once a request is actually open, so the classifier cost is paid on
-    # the rare turn rather than every inbound message. Fail-safe: if classification
-    # errors, treat the message as the answer — losing a consultant's reply is worse
-    # than mis-filing a companion aside.
+    # the rare turn rather than every inbound message. Fail-safe in BOTH directions:
+    # a raised error and an unconfident verdict alike treat the message as the
+    # answer, because losing a consultant's reply is worse than mis-filing a
+    # companion aside.
     def answers_pending_question?
       return true unless @conversation.completed?
 
@@ -100,7 +113,19 @@ module Inbound
         recent_messages: recent_bodies,
         awaiting_promote_confirm: false
       )
-      !NON_ANSWER_INTENTS.include?(classification[:intent])
+      return true unless NON_ANSWER_INTENTS.include?(classification[:intent])
+
+      # Divert to the companion only on a confident read. A defaulted or fail-safe
+      # "casual" means the classifier didn't know, not that this isn't the answer.
+      unless CONFIDENT_SOURCES.include?(classification[:source].to_s)
+        Rails.logger.info(
+          "[Inbound::TrackRouter] unconfident #{classification[:intent]} " \
+          "(source=#{classification[:source]}) with a question open — treating as the answer"
+        )
+        return true
+      end
+
+      false
     rescue StandardError => e
       Rails.logger.warn("[Inbound::TrackRouter] intent check failed, treating as answer: #{e.class}: #{e.message}")
       true

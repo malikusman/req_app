@@ -28,7 +28,7 @@ RSpec.describe Inbound::TrackRouter do
   describe "with an open consultant question" do
     it "routes a substantive reply to the consultant follow-up track" do
       request = open_info_request
-      allow(Companion::IntentClassifier).to receive(:call).and_return({ intent: "share", confidence: 0.9 })
+      allow(Companion::IntentClassifier).to receive(:call).and_return({ intent: "share", confidence: 0.9, source: "llm" })
 
       track = described_class.call(
         employee: employee,
@@ -47,7 +47,7 @@ RSpec.describe Inbound::TrackRouter do
 
     it "answers as companion when the message is plainly about something else" do
       request = open_info_request
-      allow(Companion::IntentClassifier).to receive(:call).and_return({ intent: "tools", confidence: 0.9 })
+      allow(Companion::IntentClassifier).to receive(:call).and_return({ intent: "tools", confidence: 0.9, source: "phrase" })
 
       described_class.call(
         employee: employee,
@@ -58,6 +58,57 @@ RSpec.describe Inbound::TrackRouter do
       )
 
       # The question stays open — a companion aside must not consume it.
+      expect(request.reload.status).to eq("awaiting_reply")
+      expect(conversation.messages.on_track("consultant_followup").where(direction: "inbound")).to be_empty
+    end
+
+    # IntentClassifier never raises -- it swallows model failures and returns
+    # {intent: "casual", confidence: 0.5, source: "default"}. Because "casual" is a
+    # NON_ANSWER_INTENT, that used to read as "not the answer" and silently diverted
+    # a real reply into the companion: request stuck awaiting_reply forever, the
+    # requirement still open, the consultant never notified, and the employee sure
+    # they had answered. Seen intermittently against a local model.
+    it "treats the message as the answer when the classifier defaulted rather than decided" do
+      request = open_info_request
+      allow(Companion::IntentClassifier).to receive(:call)
+        .and_return({ intent: "casual", confidence: 0.5, source: "default" })
+
+      track = described_class.call(
+        employee: employee, conversation: conversation,
+        text: "Our warehouse supervisor Khalid approves POD exceptions.",
+        channel: "web", client: client
+      )
+
+      expect(track).to eq(:consultant_followup)
+      expect(request.reload.status).to eq("replied")
+    end
+
+    it "treats the message as the answer when the classifier hit its fail-safe" do
+      request = open_info_request
+      allow(Companion::IntentClassifier).to receive(:call)
+        .and_return({ intent: "casual", confidence: 0.4, source: "fail_safe" })
+
+      track = described_class.call(
+        employee: employee, conversation: conversation,
+        text: "Finance approves it.", channel: "web", client: client
+      )
+
+      expect(track).to eq(:consultant_followup)
+      expect(request.reload.status).to eq("replied")
+    end
+
+    # The other direction still has to hold: a CONFIDENT casual read is genuine
+    # chit-chat and must not consume the open question.
+    it "leaves the question open on a confident casual read" do
+      request = open_info_request
+      allow(Companion::IntentClassifier).to receive(:call)
+        .and_return({ intent: "casual", confidence: 0.9, source: "llm" })
+
+      described_class.call(
+        employee: employee, conversation: conversation,
+        text: "haha thanks, have a good weekend", channel: "web", client: client
+      )
+
       expect(request.reload.status).to eq("awaiting_reply")
       expect(conversation.messages.on_track("consultant_followup").where(direction: "inbound")).to be_empty
     end
@@ -164,7 +215,7 @@ RSpec.describe Inbound::TrackRouter do
         body: "newer question",
         sent_at: Time.current
       )
-      allow(Companion::IntentClassifier).to receive(:call).and_return({ intent: "share", confidence: 0.9 })
+      allow(Companion::IntentClassifier).to receive(:call).and_return({ intent: "share", confidence: 0.9, source: "llm" })
 
       described_class.call(
         employee: employee,

@@ -78,7 +78,7 @@ RSpec.describe "Api::V1::Public::DiscoverMessages", type: :request do
   describe "POST /api/v1/public/discover/messages" do
     it "routes a reply to the open consultant question rather than the companion" do
       request = consultant_question!
-      allow(Companion::IntentClassifier).to receive(:call).and_return({ intent: "share", confidence: 0.9 })
+      allow(Companion::IntentClassifier).to receive(:call).and_return({ intent: "share", confidence: 0.9, source: "llm" })
 
       post "/api/v1/public/discover/messages",
            params: { body: "It sits in SAP and finance signs it off by hand." },
@@ -95,7 +95,10 @@ RSpec.describe "Api::V1::Public::DiscoverMessages", type: :request do
 
     it "leaves the question open when the employee asks about something else" do
       request = consultant_question!
-      allow(Companion::IntentClassifier).to receive(:call).and_return({ intent: "tools", confidence: 0.9 })
+      # source matters now: only a CONFIDENT read may divert an open question to the
+      # companion, so the stub has to say where the verdict came from.
+      allow(Companion::IntentClassifier).to receive(:call)
+        .and_return({ intent: "tools", confidence: 0.9, source: "phrase" })
       allow(Companion::PostDiscoveryRouter).to receive(:call)
 
       post "/api/v1/public/discover/messages",
