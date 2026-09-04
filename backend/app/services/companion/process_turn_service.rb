@@ -51,18 +51,36 @@ module Companion
 
     private
 
+    # The model call lives in the agent, not here: Rails assembles the context and
+    # the agent reasons, the same split discovery uses. There used to be a second,
+    # never-wired companion implementation in Python alongside this one -- both were
+    # added in the same commit and this is the consolidation onto one.
     def generate_reply
       lang = (@employee.preferred_language.presence || @company.locale || "en").to_s
-      context = build_context
-      result = Openai::Client.new.companion_chat(
+      result = Langgraph::Client.new.companion_turn!(
         user_message: @user_message,
         intent: @intent,
-        context: context,
-        language: lang
+        language: lang,
+        context: build_context
       )
-      text = result["reply"].to_s.strip
+
+      if result["generated_by"] == "deterministic"
+        # The agent never raises for a companion turn — it returns its canned line and
+        # says why. Without surfacing that, a model failing every turn is
+        # indistinguishable from one doing its job.
+        Rails.logger.warn(
+          "[Companion::ProcessTurn] conversation=#{@conversation.id} " \
+          "agent fell back to a canned reply: #{result['fallback_reason']}"
+        )
+      end
+
+      text = result["assistant_message"].to_s.strip
       return text if text.present?
 
+      FALLBACK[lang] || FALLBACK["en"]
+    rescue Langgraph::UnavailableError => e
+      # Includes the 503 the agent returns when the shared breaker is open.
+      Rails.logger.warn("[Companion::ProcessTurn] agent unavailable: #{e.message}")
       FALLBACK[lang] || FALLBACK["en"]
     rescue StandardError => e
       Rails.logger.warn("[Companion::ProcessTurn] #{e.class}: #{e.message}")

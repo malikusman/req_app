@@ -164,6 +164,9 @@ class CompanionTurnResponse(BaseModel):
     assistant_message: str
     intent: str
     mode: str = "companion"
+    # So Rails can tell a real reply from the canned one and log why.
+    generated_by: str = "llm"
+    fallback_reason: str | None = None
 
 
 @app.post("/v1/companion/turn", response_model=CompanionTurnResponse)
@@ -177,16 +180,18 @@ def companion_turn(body: CompanionTurnRequest):
 
     from app.companion import generate_companion_reply
 
-    reply = generate_companion_reply(
+    result = generate_companion_reply(
         user_message=body.user_message,
         intent=body.intent,
         language=body.language,
         context=body.context or {},
     )
     return CompanionTurnResponse(
-        assistant_message=reply,
+        assistant_message=result["reply"],
         intent=body.intent,
         mode="companion",
+        generated_by=result["generated_by"],
+        fallback_reason=result.get("fallback_reason"),
     )
 
 

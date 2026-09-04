@@ -15,7 +15,15 @@ import pytest
 
 # Modules that import llm_configured into their own namespace, so each needs its own
 # patch target.
-MODULES_USING_LLM_SWITCH = ("app.package", "app.requirements", "app.multi_agent_llm")
+MODULES_USING_LLM_SWITCH = (
+    "app.package",
+    "app.requirements",
+    "app.multi_agent_llm",
+    # Omitting this cost a real 33s model call the moment companion tests existed:
+    # llm_configured() was true on a machine set up for local Gemma, so the
+    # no-model test took the model path and asserted against a live reply.
+    "app.companion",
+)
 
 
 @pytest.fixture(autouse=True)

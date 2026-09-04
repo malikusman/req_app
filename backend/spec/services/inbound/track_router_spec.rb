@@ -13,6 +13,17 @@ RSpec.describe Inbound::TrackRouter do
   let(:consultant) { create(:consultant_user) }
   let(:client) { Web::CapturingMetaClient.new }
 
+  before do
+    # Anything that falls through to the companion now reaches the agent over HTTP.
+    # This spec is about the routing decision, not about reply generation.
+    allow(Langgraph::Client).to receive(:new).and_return(
+      instance_double(
+        Langgraph::Client,
+        companion_turn!: { "assistant_message" => "Sure — anytime.", "generated_by" => "llm" }
+      )
+    )
+  end
+
   def open_info_request(body: "Which system holds the approval record?")
     ConsultantInfoRequest.create!(
       company: company,

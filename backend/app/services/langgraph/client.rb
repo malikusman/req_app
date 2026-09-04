@@ -90,6 +90,23 @@ module Langgraph
       raise Langgraph::UnavailableError.new(e.message, retryable: true)
     end
 
+    # Post-discovery companion reply. Rails assembles the context (interview
+    # insights, memory facts, recent notes) and the agent does the reasoning, the
+    # same split discovery already uses. Lives here rather than in Openai::Client so
+    # there is ONE companion prompt, and so it inherits the agent's max_tokens,
+    # reasoning_effort, truncation retry and shared circuit breaker.
+    def companion_turn!(user_message:, intent:, language:, context:)
+      post(
+        "/v1/companion/turn",
+        { user_message: user_message, intent: intent, language: language, context: context },
+        read_timeout: Integer(ENV.fetch("LANGGRAPH_COMPANION_READ_TIMEOUT", "120"))
+      )
+    rescue Langgraph::UnavailableError
+      raise
+    rescue StandardError => e
+      raise Langgraph::UnavailableError.new(e.message, retryable: true)
+    end
+
     def evaluate_requirement!(statement:, answers:, language:)
       post(
         "/v1/consultant/requirements/evaluate",
