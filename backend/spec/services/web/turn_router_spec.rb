@@ -16,9 +16,14 @@ RSpec.describe Web::TurnRouter do
       instance_double(
         Openai::Client,
         configured?: true,
-        companion_chat: { "reply" => "Noted — happy to help." },
         classify_companion_intent: { "intent" => "casual", "confidence" => 0.2 },
         companion_general_tools: { "suggestions" => [] }
+      )
+    )
+    allow(Langgraph::Client).to receive(:new).and_return(
+      instance_double(
+        Langgraph::Client,
+        companion_turn!: { "assistant_message" => "Noted — happy to help.", "generated_by" => "llm" }
       )
     )
 

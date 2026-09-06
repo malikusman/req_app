@@ -81,3 +81,27 @@ jobs:
 
       - name: Build
         run: npx vite build
+
+  agent:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: agent
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: agent/requirements-dev.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      # The interview's termination logic and the package's number guardrail are
+      # pure Python and were previously untested in CI.
+      - name: Run pytest
+        run: python -m pytest tests -q

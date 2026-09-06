@@ -22,7 +22,7 @@ module ReportReviews
       status = needs_info? ? "needs_info" : "approved"
       @report_review.update!(submitted_at: Time.current, status: status)
 
-      NotificationService.notify_review_submitted(report: @report, reviewer: @report_review.reviewer_user)
+      NotificationService.notify_review_submitted(report: @report, consultant: @report_review.consultant_user)
 
       check_all_submitted!
       @report_review
@@ -67,10 +67,10 @@ module ReportReviews
     end
 
     def check_all_submitted!
-      active_reviewer_ids = @company.reviewer_assignments.active.pluck(:reviewer_user_id)
-      return if active_reviewer_ids.empty?
+      active_consultant_ids = @company.consultant_assignments.active.pluck(:consultant_user_id)
+      return if active_consultant_ids.empty?
 
-      reviews = @report.report_reviews.where(reviewer_user_id: active_reviewer_ids)
+      reviews = @report.report_reviews.where(consultant_user_id: active_consultant_ids)
       return unless reviews.all?(&:submitted?)
 
       @report.update!(

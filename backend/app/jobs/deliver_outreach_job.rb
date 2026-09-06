@@ -8,7 +8,7 @@ class DeliverOutreachJob < ApplicationJob
   end
 
   def perform(outreach_id)
-    outreach = ReviewerOutreach.find(outreach_id)
+    outreach = ConsultantOutreach.find(outreach_id)
     Outreaches::DeliverService.call(outreach: outreach)
   end
 end

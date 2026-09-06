@@ -4,16 +4,16 @@ require "rails_helper"
 
 RSpec.describe Reports::RegenerateWithReviewService do
   let(:company) { create(:company) }
-  let(:reviewer) { create(:reviewer_user, name: "Alex Expert") }
+  let(:consultant) { create(:consultant_user, name: "Alex Expert") }
   let(:report) { create(:report, :ready, company: company) }
 
   before do
-    review = create(:report_review, report: report, reviewer_user: reviewer, company: company,
+    review = create(:report_review, report: report, consultant_user: consultant, company: company,
                                     overall_note: "Looks solid.", submitted_at: Time.current, status: "approved")
-    create(:report_review_comment, report_review: review, reviewer_user: reviewer, section_key: "signals",
+    create(:report_review_comment, report_review: review, consultant_user: consultant, section_key: "signals",
                                    body: "Add more finance evidence.")
     review.report_review_findings.create!(
-      reviewer_user: reviewer,
+      consultant_user: consultant,
       finding_type: "executive_conclusion",
       severity: "info",
       disposition: "endorse",
@@ -25,12 +25,12 @@ RSpec.describe Reports::RegenerateWithReviewService do
     allow(Reports::PdfGenerator).to receive(:call).and_return("%PDF-1.4 test")
   end
 
-  it "rebuilds the artifact with reviewer notes in the HTML payload" do
+  it "rebuilds the artifact with consultant notes in the HTML payload" do
     expect(Reports::HtmlBuilder).to receive(:call).with(
       hash_including(
         snapshot: report.report_snapshot,
         review_notes: array_including(
-          hash_including("reviewer" => "Alex Expert", "body" => "Looks solid."),
+          hash_including("consultant" => "Alex Expert", "body" => "Looks solid."),
           hash_including("section_key" => "signals", "body" => "Add more finance evidence.")
         ),
         review_overlay: hash_including(

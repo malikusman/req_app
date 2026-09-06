@@ -4,7 +4,7 @@ require "net/http"
 
 # End-to-end product simulation beyond discovery:
 #
-#   discovery (live LLM) → nudge → intelligence → report/PDF → reviewer follow-up
+#   discovery (live LLM) → nudge → intelligence → report/PDF → consultant follow-up
 #
 # Usage:
 #   rails demo:full_cycle
@@ -32,15 +32,15 @@ class FullCycleSimulator
     @company = Company.find_by!(slug: @slug)
     @admin = @company.company_users.find_by!(role: "company_admin")
     @platform = PlatformUser.first!
-    @reviewer = ReviewerUser.find_by!(email: "reviewer@reqapp.local")
-    ensure_reviewer_assignment!
+    @consultant = ConsultantUser.find_by!(email: "consultant@reqapp.local")
+    ensure_consultant_assignment!
 
     run_discovery!
     run_multimodal!
     run_nudge!
     run_intelligence!
     run_report!
-    run_reviewer_followup!
+    run_consultant_followup!
 
     print_report
   ensure
@@ -49,12 +49,12 @@ class FullCycleSimulator
 
   private
 
-  def ensure_reviewer_assignment!
-    return if @company.reviewer_assignments.active.exists?(reviewer_user_id: @reviewer.id)
+  def ensure_consultant_assignment!
+    return if @company.consultant_assignments.active.exists?(consultant_user_id: @consultant.id)
 
-    ReviewerAssignment.create!(
+    ConsultantAssignment.create!(
       company: @company,
-      reviewer_user: @reviewer,
+      consultant_user: @consultant,
       assigned_by_platform_user: @platform,
       assigned_at: Time.current,
       status: "active"
@@ -190,11 +190,11 @@ class FullCycleSimulator
     supporting = Array(@created_report.report_snapshot["supporting_media"])
     check "Report includes supporting media (#{supporting.size})", supporting.any?
 
-    if @company.reviewer_assignments.active.exists?
+    if @company.consultant_assignments.active.exists?
       review_count = @created_report.report_reviews.count
-      check "Reviewer reviews bootstrapped (#{review_count})", review_count.positive?
+      check "Consultant reviews bootstrapped (#{review_count})", review_count.positive?
     else
-      check "Reviewer assigned to company", false
+      check "Consultant assigned to company", false
     end
 
     body = Storage::MinioClient.new.download(@created_report.storage_key)
@@ -213,10 +213,10 @@ class FullCycleSimulator
     puts "  ✗ Report error: #{e.message}"
   end
 
-  def run_reviewer_followup!
-    stage "Reviewer follow-up (send + employee reply)"
-    unless @reviewer && @company.reviewer_assignments.active.exists?(reviewer_user_id: @reviewer.id)
-      check "Reviewer assigned for follow-up", false
+  def run_consultant_followup!
+    stage "Consultant follow-up (send + employee reply)"
+    unless @consultant && @company.consultant_assignments.active.exists?(consultant_user_id: @consultant.id)
+      check "Consultant assigned for follow-up", false
       return
     end
 
@@ -225,8 +225,8 @@ class FullCycleSimulator
     @conversation.update!(last_activity_at: Time.current)
 
     followup_body = "Can you share one concrete example of the manual step you mentioned?"
-    result = ReviewerFollowup::SendService.call(
-      reviewer: @reviewer,
+    result = ConsultantFollowup::SendService.call(
+      consultant: @consultant,
       employee: @employee,
       body: followup_body,
       report: @created_report
@@ -235,17 +235,17 @@ class FullCycleSimulator
 
     check "Follow-up request created", request.present?
     check "Follow-up status awaiting_reply", request.status == "awaiting_reply"
-    check "Follow-up outbound message marked reviewer_followup",
-          result[:message].reviewer_followup?
+    check "Follow-up outbound message marked consultant_followup",
+          result[:message].consultant_followup?
 
     reply_text = "Sure — I export the open invoice list from SAP every morning and re-enter approved rows by hand in Excel."
     simulate_inbound(@employee, reply_text)
 
     request.reload
     check "Employee reply recorded", request.status == "replied"
-    check "ReviewerInfoReply created", request.reviewer_info_replies.exists?
-    check "Reply message flagged reviewer_followup",
-          @conversation.messages.where(direction: "inbound", reviewer_followup: true).exists?
+    check "ConsultantInfoReply created", request.consultant_info_replies.exists?
+    check "Reply message flagged consultant_followup",
+          @conversation.messages.where(direction: "inbound", consultant_followup: true).exists?
   end
 
   def create_stalled_employee!

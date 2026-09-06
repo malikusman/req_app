@@ -2,7 +2,11 @@
 
 module Discovery
   # Reopens a completed conversation so the employee can share more (FEAT-ADDMORE).
-  # Grants a bounded question-target top-up from company setting discovery_addendum_budget.
+  #
+  # The interview now ends on a filled dossier rather than a counter, so reopening
+  # is no longer about granting question budget: it raises the ceiling for the
+  # addendum, clears the stall counter (the previous close may have been a stall),
+  # and lets the flow ask for whatever the addendum leaves open.
   class ReopenConversationService
     ADDENDUM_NOTE = "Employee volunteered additional info after completion."
 
@@ -21,13 +25,16 @@ module Discovery
 
       budget = addendum_budget
       current_count = @conversation.question_count.to_i
-      new_target = current_count + budget
+      new_ceiling = current_count + budget
 
       snapshot = @conversation.state_snapshot.merge(
-        "question_target" => new_target,
+        # Per-conversation ceiling override, read by Conversation#max_questions.
+        # question_target is kept in step for the legacy single-agent path.
+        "max_questions" => new_ceiling,
+        "question_target" => new_ceiling,
         "addendum_count" => @conversation.state_snapshot.fetch("addendum_count", 0).to_i + 1,
         "reopened_at" => Time.current.iso8601,
-        "blackboard" => top_up_blackboard(@conversation.blackboard, budget)
+        "blackboard" => reopen_blackboard(@conversation.blackboard)
       )
 
       @conversation.update!(
@@ -52,34 +59,14 @@ module Discovery
       budget.positive? ? budget : 3
     end
 
-    def top_up_blackboard(blackboard, budget)
+    def reopen_blackboard(blackboard)
       bb = (blackboard.presence || {}).deep_dup
       summary = bb["conversation_summary"].to_s
       bb["conversation_summary"] = [summary, ADDENDUM_NOTE].reject(&:blank?).join("\n")
-
-      states = bb["agent_states"]
-      return bb unless states.is_a?(Hash) && states.any?
-
-      preferred = bb["active_agent_id"].presence || bb.dig("agent_queue", 0, "id") || states.keys.first
-      state = (states[preferred] || {}).dup
-      asked = state["questions_asked"].to_i
-      state["questions_asked"] = asked
-      state["question_budget"] = asked + budget
-      state["status"] = "active"
-      state["open_threads"] ||= []
-      states[preferred] = state
-      bb["agent_states"] = states
-      bb["active_agent_id"] = preferred
-
-      if bb["agent_queue"].is_a?(Array)
-        bb["agent_queue"] = bb["agent_queue"].map do |entry|
-          next entry unless entry.is_a?(Hash) && entry["id"] == preferred
-
-          entry.merge("question_budget" => asked + budget)
-        end
-      end
-
-      bb["total_budget"] = bb["total_budget"].to_i + budget if bb.key?("total_budget")
+      # The previous close may have been a stall; starting the addendum already
+      # stalled would end it on the first turn.
+      bb["stall_turns"] = 0
+      bb.delete("close_reason")
       bb
     end
   end

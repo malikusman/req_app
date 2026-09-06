@@ -41,7 +41,7 @@ module Api
         def portal_for(record)
           case record
           when CompanyUser then "company"
-          when ReviewerUser then "reviewer"
+          when ConsultantUser then "consultant"
           when PlatformUser then "platform"
           else "unknown"
           end

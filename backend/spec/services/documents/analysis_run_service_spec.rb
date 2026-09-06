@@ -16,7 +16,7 @@ RSpec.describe Documents::AnalysisRunService do
       status: "uploaded",
       document_type: "sop",
       sensitivity: "internal",
-      reviewer_visible: true
+      consultant_visible: true
     )
   end
   let(:run) do

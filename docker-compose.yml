@@ -37,8 +37,10 @@ services:
   mailpit:
     image: axllent/mailpit
     ports:
-      - "8025:8025"
-      - "1025:1025"
+      # Host ports are overridable so the stack can run alongside another
+      # project's mail catcher (see .env). Defaults are unchanged.
+      - "${MAILPIT_WEB_PORT:-8025}:8025"
+      - "${MAILPIT_SMTP_PORT:-1025}:1025"
 
   gotenberg:
     image: gotenberg/gotenberg:8
@@ -60,6 +62,13 @@ services:
       OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
       OPENAI_JSON_MODE: ${OPENAI_JSON_MODE:-true}
+      # Cap on generated tokens. Every agent prompt asks for a compact JSON object,
+      # so an uncapped generation only lets a local model ramble. MEASURED on
+      # Gemma 12B: a realistic discovery turn went 570s uncapped -> 81s at 1200.
+      OPENAI_MAX_TOKENS: ${OPENAI_MAX_TOKENS:-3000}
+      # Only sent when set. Required for local reasoning models, rejected by
+      # non-reasoning ones — hence empty by default.
+      OPENAI_REASONING_EFFORT: ${OPENAI_REASONING_EFFORT:-}
       DOCS_MODEL_FAST: ${DOCS_MODEL_FAST:-gpt-4.1-mini}
       DOCS_MODEL_REASONING: ${DOCS_MODEL_REASONING:-o4-mini}
       RAILS_INTERNAL_URL: http://rails:3000
@@ -80,7 +89,9 @@ services:
       - ./backend:/app
       - ./docs/manual-test:/docs/manual-test
     ports:
-      - "3000:3000"
+      # Overridable so the stack can run alongside another project holding 3000
+      # (see .env). Default unchanged. Keep in step with API_PUBLIC_HOST below.
+      - "${RAILS_HOST_PORT:-3000}:3000"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
@@ -106,6 +117,12 @@ services:
       OPENAI_VISION_MODEL: ${OPENAI_VISION_MODEL:-gpt-4.1-mini}
       DOCS_MODEL_FAST: ${DOCS_MODEL_FAST:-gpt-4.1-mini}
       DOCS_MODEL_REASONING: ${DOCS_MODEL_REASONING:-o4-mini}
+      # Rails and Sidekiq make model calls of their own (report narrative, doc
+      # summaries, vision, companion intent). Without this they silently fell back
+      # to Openai::Client#chat_max_tokens's 2500 non-official-host floor and ignored
+      # the configured value, so tuning OPENAI_MAX_TOKENS only ever moved the agent.
+      OPENAI_MAX_TOKENS: ${OPENAI_MAX_TOKENS:-}
+      OPENAI_JSON_MODE: ${OPENAI_JSON_MODE:-}
       EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-}
       EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-768}
@@ -116,7 +133,7 @@ services:
       AI_MARKET_ALERT_MIN_SCORE: ${AI_MARKET_ALERT_MIN_SCORE:-0.8}
       AI_MARKET_NEWS_MAX_AGE_DAYS: ${AI_MARKET_NEWS_MAX_AGE_DAYS:-14}
       GOTENBERG_URL: http://gotenberg:3000
-      API_PUBLIC_HOST: http://localhost:3000
+      API_PUBLIC_HOST: http://localhost:${RAILS_HOST_PORT:-3000}
       RAILS_ENV: development
     depends_on:
       gotenberg:
@@ -155,6 +172,12 @@ services:
       OPENAI_VISION_MODEL: ${OPENAI_VISION_MODEL:-gpt-4.1-mini}
       DOCS_MODEL_FAST: ${DOCS_MODEL_FAST:-gpt-4.1-mini}
       DOCS_MODEL_REASONING: ${DOCS_MODEL_REASONING:-o4-mini}
+      # Rails and Sidekiq make model calls of their own (report narrative, doc
+      # summaries, vision, companion intent). Without this they silently fell back
+      # to Openai::Client#chat_max_tokens's 2500 non-official-host floor and ignored
+      # the configured value, so tuning OPENAI_MAX_TOKENS only ever moved the agent.
+      OPENAI_MAX_TOKENS: ${OPENAI_MAX_TOKENS:-}
+      OPENAI_JSON_MODE: ${OPENAI_JSON_MODE:-}
       EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-}
       EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-768}

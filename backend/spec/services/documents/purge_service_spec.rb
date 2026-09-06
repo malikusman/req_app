@@ -15,7 +15,7 @@ RSpec.describe Documents::PurgeService do
       status: "ready",
       document_type: "policy",
       sensitivity: "internal",
-      reviewer_visible: true
+      consultant_visible: true
     )
   end
 

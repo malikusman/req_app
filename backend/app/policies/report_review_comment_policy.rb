@@ -6,11 +6,11 @@ class ReportReviewCommentPolicy < ApplicationPolicy
   end
 
   def create?
-    reviewer? && owns_review? && !record.report_review.submitted?
+    consultant? && owns_review? && !record.report_review.submitted?
   end
 
   def update?
-    reviewer? && record.reviewer_user_id == context.actor.id && !record.report_review.submitted?
+    consultant? && record.consultant_user_id == context.actor.id && !record.report_review.submitted?
   end
 
   def destroy?
@@ -24,6 +24,6 @@ class ReportReviewCommentPolicy < ApplicationPolicy
   end
 
   def owns_review?
-    reviewer? && record.report_review.reviewer_user_id == context.actor.id
+    consultant? && record.report_review.consultant_user_id == context.actor.id
   end
 end

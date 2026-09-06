@@ -12,18 +12,18 @@ module ReportReviews
     end
 
     def call
-      assignments = @company.reviewer_assignments.active.includes(:reviewer_user)
+      assignments = @company.consultant_assignments.active.includes(:consultant_user)
       return if assignments.empty?
 
       @report.update!(
-        review_workflow_status: "awaiting_reviewers",
+        review_workflow_status: "awaiting_consultants",
         visibility: "internal_only"
       )
 
       assignments.each do |assignment|
         review = ReportReview.find_or_create_by!(
           report: @report,
-          reviewer_user: assignment.reviewer_user
+          consultant_user: assignment.consultant_user
         ) do |r|
           r.company = @company
           r.status = "pending"
@@ -33,8 +33,8 @@ module ReportReviews
           review.report_review_section_states.find_or_create_by!(section_key: key)
         end
 
-        NotificationService.notify_reviewer_report_ready(
-          reviewer: assignment.reviewer_user,
+        NotificationService.notify_consultant_report_ready(
+          consultant: assignment.consultant_user,
           company: @company,
           report: @report
         )

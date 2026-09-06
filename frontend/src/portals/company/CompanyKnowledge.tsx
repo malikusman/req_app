@@ -11,7 +11,7 @@ import { PageHeader, Card, Badge, Button, Textarea, EmptyState } from '../../com
 function statusVariant(status: string): 'info' | 'success' | 'warning' | 'error' | 'neutral' {
   if (status === 'open' || status === 'pending_rag') return 'warning';
   if (status === 'answered' || status === 'auto_answered') return 'success';
-  if (status === 'dismissed_by_reviewer' || status === 'stale') return 'neutral';
+  if (status === 'dismissed_by_consultant' || status === 'stale') return 'neutral';
   return 'info';
 }
 

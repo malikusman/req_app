@@ -113,32 +113,37 @@ module Reports
       }
     end
 
-    # "Significant" figures we require to be grounded (bare 1-2 digit counts like
-    # "6 frictions" are left alone to avoid false positives).
-    SIGNIFICANT_NUMBER = /
-      AED\s?[\d,]+(?:\.\d+)? | \$\s?[\d,]+(?:\.\d+)? |   # currency
-      \d{1,3}(?:,\d{3})+(?:\.\d+)? |                      # thousands
-      \d+\.\d+ |                                          # decimals
-      \d+\s?% |                                          # percentages
-      \d+\s?(?:[-–—]|to)\s?\d+                            # ranges (11-14, 3 to 12)
-    /xi
-
+    # The number guardrail now lives in Llm::GroundedNumbers so the discovery
+    # package uses the same one rather than a second implementation.
+    # Everything the writer was actually GIVEN, not just key_metrics.
+    #
+    # The old set read key_metrics alone, which made the guard strict in the wrong
+    # place: a figure the model correctly lifted from a pattern description or a
+    # recommendation was treated as invented. Widening the source is what makes it
+    # safe to also catch bare quantities like "14 hours a week" — otherwise
+    # tightening the pattern would start deleting correct sentences.
+    #
+    # Metric headlines are truncated to 24 chars by MetricExtractor, so a unit can
+    # be cut off ("11-14 business da..."). Reading the full context recovers those
+    # numbers from the surrounding label and source text.
     def grounded_number_set
-      set = Set.new
-      Array(@snapshot["key_metrics"]).each do |m|
-        [m["headline"], m["comparison"]].each do |s|
-          s.to_s.scan(SIGNIFICANT_NUMBER) { |tok| set << canon_number(tok) }
-        end
-      end
-      set
+      Llm::GroundedNumbers.allowed_numbers(evidence_number_sources)
     end
 
-    def canon_number(token)
-      token.to_s.downcase.gsub(/\s+/, "").tr("–—", "--").gsub("to", "-")
+    def evidence_number_sources
+      context = evidence_context
+      [
+        Array(context["key_metrics"]).flat_map { |m| [m["headline"], m["comparison"], m["label"], m["source"]] },
+        Array(context["signals"]).map { |s| s["label"] },
+        Array(context["patterns"]).flat_map { |p| [p["title"], p["description"]] },
+        Array(context["recommendations"]).flat_map { |r| [r["title"], r["description"]] },
+        Array(@snapshot["implications"]).map { |i| i["statement"] },
+        @snapshot.dig("situation", "context")
+      ].flatten.compact
     end
 
     def text_numbers_grounded?(text, allowed)
-      text.to_s.scan(SIGNIFICANT_NUMBER).all? { |tok| allowed.include?(canon_number(tok)) }
+      Llm::GroundedNumbers.grounded?(text, allowed)
     end
 
     def normalize_roadmap(roadmap)

@@ -6,8 +6,6 @@
   "model": "google/gemma-4-12b-qat",
   "base_url": "http://host.docker.internal:1234/v1",
   "allow_mocks": false,
-  "note": "Captured from live scenario:companion run 2026-08-09; artifact write failed initially due to :ro mount — structural+judge all passed before abort.",
-  "at": "2026-08-09T22:44:28Z",
   "results": [
     {
       "id": "C1",
@@ -16,10 +14,35 @@
       "channel": "whatsapp",
       "status": "completed",
       "agent_id": "companion",
-      "layer_a": { "pass": true, "score": 1.0 },
-      "layer_b": { "score": 1.0, "interview_leak": false },
-      "pass": true,
-      "reply": "You're very welcome, Aisha! I'm here whenever you need anything else. If you think of any other details regarding those AP bottlenecks, just say 'add this to my interview'."
+      "is_discovery_question": false,
+      "awaiting_promote": false,
+      "question_count_before": 10,
+      "question_count_after": 10,
+      "reply": "You're very welcome, Aisha! I'm here whenever you need help. If you think of any other details about your workflow or the AP process, just say 'add this to my interview' to include them in your report.",
+      "layer_a": {
+        "pass": true,
+        "score": 1.0,
+        "checks": {
+          "status": true,
+          "agent": true,
+          "reply_present": true,
+          "not_discovery_question": true,
+          "question_count_stable": true,
+          "length_ok": true,
+          "no_interview_leak": true,
+          "no_hallucinated_stack": true
+        }
+      },
+      "layer_b": {
+        "grounded": true,
+        "helpful": true,
+        "interview_leak": false,
+        "tone_ok": true,
+        "score": 1.0,
+        "notes": "Perfect closing response that acknowledges the user's thanks and provides a clear way to follow up without initiating new discovery questions.",
+        "pass": true
+      },
+      "pass": true
     },
     {
       "id": "C2",
@@ -28,10 +51,35 @@
       "channel": "whatsapp",
       "status": "completed",
       "agent_id": "companion",
-      "layer_a": { "pass": true, "score": 1.0 },
-      "layer_b": { "score": 0.95, "interview_leak": false },
-      "pass": true,
-      "reply": "It sounds like those dual approval bottlenecks before SAP are a real hurdle for your workflow. You might consider setting up automated reminders or a shared tracker — and say 'add this to my interview' if you want that friction in the report."
+      "is_discovery_question": false,
+      "awaiting_promote": false,
+      "question_count_before": 10,
+      "question_count_after": 10,
+      "reply": "To help clear those dual approval bottlenecks before SAP, you could try sending a weekly summary email that highlights only the overdue items for quick review. This makes it easier for approvers to see what needs immediate attention. You can say 'add this to my interview' to include this process improvement in your report.",
+      "layer_a": {
+        "pass": true,
+        "score": 1.0,
+        "checks": {
+          "status": true,
+          "agent": true,
+          "reply_present": true,
+          "not_discovery_question": true,
+          "question_count_stable": true,
+          "length_ok": true,
+          "no_interview_leak": true,
+          "no_hallucinated_stack": true
+        }
+      },
+      "layer_b": {
+        "grounded": true,
+        "helpful": true,
+        "interview_leak": false,
+        "tone_ok": true,
+        "score": 1.0,
+        "notes": "Provides a specific, actionable solution based on previous context without initiating a new discovery process.",
+        "pass": true
+      },
+      "pass": true
     },
     {
       "id": "C3",
@@ -40,10 +88,36 @@
       "channel": "whatsapp",
       "status": "completed",
       "agent_id": "companion",
-      "layer_a": { "pass": true, "score": 1.0 },
-      "layer_b": { "score": 1.0, "interview_leak": false },
-      "pass": true,
-      "reply": "From your company catalog / matches:\n1. Worktruth AP Copilot (Worktruth) — tag_match:finance; keyword_match:invoice,matching\n2. Bill.com (Bill.com) — tag_match..."
+      "is_discovery_question": false,
+      "awaiting_promote": false,
+      "question_count_before": 10,
+      "question_count_after": 10,
+      "reply": "From your company catalog / matches:\n1. Worktruth AP Copilot (Worktruth) — tag_match:finance; keyword_match:invoice,matching\n2. Bill.com (Bill.com) — tag_match:finance; keyword_match:invoice\n3. Automate POD exception capture — Reduce Excel retyping of handwritten POD notes before SAP posting.\n\nWant something added to your discovery interview for the company report? Say \"add this to my interview\".",
+      "layer_a": {
+        "pass": true,
+        "score": 1.0,
+        "checks": {
+          "status": true,
+          "agent": true,
+          "reply_present": true,
+          "not_discovery_question": true,
+          "question_count_stable": true,
+          "length_ok": true,
+          "no_interview_leak": true,
+          "no_hallucinated_stack": true,
+          "tools_formatting": true
+        }
+      },
+      "layer_b": {
+        "grounded": true,
+        "helpful": true,
+        "interview_leak": false,
+        "tone_ok": true,
+        "score": 1.0,
+        "notes": "The assistant directly answers the user's request with specific tools from the catalog and provides a clear next step.",
+        "pass": true
+      },
+      "pass": true
     },
     {
       "id": "C7",
@@ -52,10 +126,35 @@
       "channel": "whatsapp",
       "status": "completed",
       "agent_id": "companion",
-      "layer_a": { "pass": true, "score": 1.0 },
-      "layer_b": { "score": 1.0, "interview_leak": false },
-      "pass": true,
-      "reply": "Sounds good! Take your time looking through those. If you think of any other specific details about your workflow you'd like to include in the report, just say 'add this to my interview'."
+      "is_discovery_question": false,
+      "awaiting_promote": false,
+      "question_count_before": 10,
+      "question_count_after": 10,
+      "reply": "Sounds good! Take your time looking through those. If you think of any other details about your workflow or those approval bottlenecks, just say \"add this to my interview\" to include them in your report.",
+      "layer_a": {
+        "pass": true,
+        "score": 1.0,
+        "checks": {
+          "status": true,
+          "agent": true,
+          "reply_present": true,
+          "not_discovery_question": true,
+          "question_count_stable": true,
+          "length_ok": true,
+          "no_interview_leak": true,
+          "no_hallucinated_stack": true
+        }
+      },
+      "layer_b": {
+        "grounded": true,
+        "helpful": true,
+        "interview_leak": false,
+        "tone_ok": true,
+        "score": 1.0,
+        "notes": "The assistant correctly acknowledges the user's intent to review the materials later and provides a clear, non-intrusive way to update the report without starting a new interview.",
+        "pass": true
+      },
+      "pass": true
     },
     {
       "id": "C4",
@@ -64,10 +163,37 @@
       "channel": "whatsapp",
       "status": "completed",
       "agent_id": "companion",
-      "layer_a": { "pass": true, "score": 1.0 },
-      "layer_b": { "score": 0.95, "interview_leak": false },
-      "pass": true,
-      "reply": "Thanks — I've noted that. Want me to add it to your discovery interview so it can inform the company report? Reply yes to add it."
+      "is_discovery_question": false,
+      "awaiting_promote": true,
+      "question_count_before": 10,
+      "question_count_after": 10,
+      "reply": "Thanks — I've noted that. Want me to add it to your discovery interview so it can inform the company report? Reply yes to add it.",
+      "layer_a": {
+        "pass": true,
+        "score": 1.0,
+        "checks": {
+          "status": true,
+          "agent": true,
+          "reply_present": true,
+          "not_discovery_question": true,
+          "question_count_stable": true,
+          "length_ok": true,
+          "no_interview_leak": true,
+          "no_hallucinated_stack": true,
+          "awaiting_promote": true,
+          "promote_prompt": true
+        }
+      },
+      "layer_b": {
+        "grounded": true,
+        "helpful": true,
+        "interview_leak": false,
+        "tone_ok": true,
+        "score": 1.0,
+        "notes": "The assistant correctly acknowledges the user's input and offers a clear, relevant next step to include the information in the final output.",
+        "pass": true
+      },
+      "pass": true
     },
     {
       "id": "C5",
@@ -76,10 +202,23 @@
       "channel": "whatsapp",
       "status": "discovery",
       "agent_id": "domain_finance",
-      "layer_a": { "pass": true, "score": 1.0 },
-      "layer_b": { "skipped": true },
-      "pass": true,
-      "reply": "Thanks — I've captured that addendum for discovery."
+      "is_discovery_question": true,
+      "awaiting_promote": false,
+      "question_count_before": 10,
+      "question_count_after": 10,
+      "reply": "Thanks — I've captured that addendum for discovery.",
+      "layer_a": {
+        "pass": true,
+        "score": 1.0,
+        "checks": {
+          "status": true,
+          "reply_present": true
+        }
+      },
+      "layer_b": {
+        "skipped": true
+      },
+      "pass": true
     },
     {
       "id": "C6",
@@ -88,10 +227,23 @@
       "channel": "whatsapp",
       "status": "discovery",
       "agent_id": "domain_finance",
-      "layer_a": { "pass": true, "score": 1.0 },
-      "layer_b": { "skipped": true },
-      "pass": true,
-      "reply": "Thanks — I've captured that addendum for discovery."
+      "is_discovery_question": true,
+      "awaiting_promote": false,
+      "question_count_before": 10,
+      "question_count_after": 10,
+      "reply": "Thanks — I've captured that addendum for discovery.",
+      "layer_a": {
+        "pass": true,
+        "score": 1.0,
+        "checks": {
+          "status": true,
+          "reply_present": true
+        }
+      },
+      "layer_b": {
+        "skipped": true
+      },
+      "pass": true
     },
     {
       "id": "W1",
@@ -100,10 +252,36 @@
       "channel": "web",
       "status": "completed",
       "agent_id": "companion",
-      "layer_a": { "pass": true, "score": 1.0 },
-      "layer_b": { "score": 1.0, "interview_leak": false },
-      "pass": true,
-      "reply": "You're very welcome, Aisha! That manual retyping of POD notes sounds like a real time sink. If you'd like me to include that in your company report, just say 'add this to my interview'."
+      "is_discovery_question": false,
+      "awaiting_promote": false,
+      "question_count_before": 10,
+      "question_count_after": 10,
+      "reply": "You're very welcome, Aisha! I'm here whenever you'd like to share more about your workflow or if you need help with anything else.",
+      "layer_a": {
+        "pass": true,
+        "score": 1.0,
+        "checks": {
+          "status": true,
+          "agent": true,
+          "reply_present": true,
+          "not_discovery_question": true,
+          "question_count_stable": true,
+          "length_ok": true,
+          "no_interview_leak": true,
+          "no_hallucinated_stack": true
+        }
+      },
+      "layer_b": {
+        "grounded": true,
+        "helpful": true,
+        "interview_leak": false,
+        "tone_ok": true,
+        "score": 1.0,
+        "notes": "The assistant provides a polite, friendly closing that acknowledges the user's thanks without initiating any new discovery questions.",
+        "pass": true
+      },
+      "pass": true
     }
-  ]
+  ],
+  "at": "2026-09-04T13:28:33Z"
 }

@@ -23,7 +23,7 @@ export function PlatformLayout() {
       .then((d) => {
         const pending =
           d.company_registrations.filter((r) => r.status === 'pending').length +
-          d.reviewer_applications.filter((r) => r.status === 'pending').length;
+          d.consultant_applications.filter((r) => r.status === 'pending').length;
         setCounts((prev) => ({ ...prev, registrations: pending }));
       })
       .catch(() => undefined);

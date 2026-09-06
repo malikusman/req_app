@@ -74,7 +74,7 @@ class DemoSeeder
     @company = Company.find_by!(slug: slug)
     @admin = @company.company_users.find_by!(role: "company_admin")
     @platform = PlatformUser.first!
-    @reviewer = ReviewerUser.find_by!(email: "reviewer@reqapp.local")
+    @consultant = ConsultantUser.find_by!(email: "consultant@reqapp.local")
   end
 
   def call
@@ -96,12 +96,12 @@ class DemoSeeder
     seed_question_feedback!
     seed_nudges!
     seed_timeline_events!
-    seed_reviewer_profile!
-    seed_additional_reviewers!
+    seed_consultant_profile!
+    seed_additional_consultants!
 
     report = seed_report! if @company.reports.ready.none?
     seed_approve_report!(report) if report&.status == "ready"
-    seed_reviewer_activity!(report) if report
+    seed_consultant_activity!(report) if report
 
     seed_audit_logs!
 
@@ -227,11 +227,11 @@ class DemoSeeder
     end
   end
 
-  def seed_reviewer_profile!
-    @reviewer.update!(
+  def seed_consultant_profile!
+    @consultant.update!(
       headline: "Operations transformation · GCC · 15 yrs",
       bio: "Former Big Four operations lead helping mid-market teams cut manual work across finance, HR, and supply chain. Published playbooks on month-end close and onboarding automation.",
-      linkedin_url: "https://linkedin.com/in/expert-reviewer",
+      linkedin_url: "https://linkedin.com/in/expert-consultant",
       expertise_tags: %w[Finance Operations Change\ management HR],
       industries: %w[Manufacturing SaaS],
       languages: %w[English Spanish],
@@ -242,7 +242,7 @@ class DemoSeeder
       platform_verified_at: 1.week.ago
     )
 
-    ReviewerExperience.find_or_create_by!(reviewer_user: @reviewer, title: "Operations Director") do |exp|
+    ConsultantExperience.find_or_create_by!(consultant_user: @consultant, title: "Operations Director") do |exp|
       exp.organization = "Global Manufacturing Co"
       exp.start_year = 2015
       exp.end_year = 2022
@@ -251,21 +251,21 @@ class DemoSeeder
     end
   end
 
-  def seed_additional_reviewers!
-    finance_reviewer = ReviewerUser.find_or_create_by!(email: "reviewer2@reqapp.local") do |u|
+  def seed_additional_consultants!
+    finance_consultant = ConsultantUser.find_or_create_by!(email: "consultant2@reqapp.local") do |u|
       u.name = "Finance Specialist"
       u.password = "password123"
       u.status = "active"
       u.jti = SecureRandom.uuid
     end
-    finance_reviewer.update!(
+    finance_consultant.update!(
       headline: "Finance & AP automation",
       bio: "A" * 80,
       linkedin_url: "https://linkedin.com/in/finance-specialist",
       expertise_tags: %w[Finance AP Automation],
       profile_status: "draft"
     )
-    ReviewerExperience.find_or_create_by!(reviewer_user: finance_reviewer, title: "AP Manager") do |exp|
+    ConsultantExperience.find_or_create_by!(consultant_user: finance_consultant, title: "AP Manager") do |exp|
       exp.organization = "Regional Bank"
       exp.start_year = 2018
       exp.end_year = nil
@@ -318,7 +318,7 @@ class DemoSeeder
       triggered_by_id: @platform.id,
       previous_report: previous
     )
-    ReportReviews::BootstrapService.call(report: report) if @company.reviewer_assignments.active.exists?
+    ReportReviews::BootstrapService.call(report: report) if @company.consultant_assignments.active.exists?
     report
   end
 
@@ -333,15 +333,15 @@ class DemoSeeder
     )
   end
 
-  def seed_reviewer_activity!(report)
+  def seed_consultant_activity!(report)
     sam = @company.employees.find_by!(display_name: "Sam Rivera")
     conversation = sam.conversations.first
 
-    info_request = ReviewerInfoRequest.find_or_create_by!(
+    info_request = ConsultantInfoRequest.find_or_create_by!(
       company: @company,
       employee: sam,
       conversation: conversation,
-      reviewer_user: @reviewer,
+      consultant_user: @consultant,
       body: "Can you share an example of the customer status update you copy between systems?"
     ) do |req|
       req.report = report
@@ -352,11 +352,11 @@ class DemoSeeder
     reply_message = conversation.messages.find_or_create_by!(body: "Sure — I pull order status from Jira, then paste into our CRM and email template.") do |m|
       m.direction = "inbound"
       m.message_type = "text"
-      m.reviewer_followup = true
+      m.consultant_followup = true
       m.created_at = 1.day.ago
     end
 
-    ReviewerInfoReply.find_or_create_by!(reviewer_info_request: info_request, message: reply_message) do |r|
+    ConsultantInfoReply.find_or_create_by!(consultant_info_request: info_request, message: reply_message) do |r|
       r.body = reply_message.body
       r.received_at = 1.day.ago
     end
@@ -366,16 +366,16 @@ class DemoSeeder
       "Should we call out the SAP re-entry issue as a cross-department pattern?",
       "Agreed. I'll flag it in the patterns section."
     ].each_with_index do |body, index|
-      ReviewerChatMessage.find_or_create_by!(
+      ConsultantChatMessage.find_or_create_by!(
         company: @company,
-        sender_reviewer_user: @reviewer,
+        sender_consultant_user: @consultant,
         body: body
       ) do |msg|
         msg.created_at = (3 - index).hours.ago
       end
     end
 
-    review = ReportReview.find_or_create_by!(report: report, reviewer_user: @reviewer) do |r|
+    review = ReportReview.find_or_create_by!(report: report, consultant_user: @consultant) do |r|
       r.company = @company
       r.status = "in_review"
     end
@@ -386,7 +386,7 @@ class DemoSeeder
 
     review.report_review_section_states.find_by(section_key: "executive_summary")&.update!(status: "approved")
     review.report_review_comments.find_or_create_by!(report_review: review, section_key: "signals") do |c|
-      c.reviewer_user = @reviewer
+      c.consultant_user = @consultant
       c.body = "Consider highlighting the SAP re-entry bottleneck more prominently."
     end
   end
@@ -394,7 +394,7 @@ class DemoSeeder
   def seed_audit_logs!
     entries = [
       { action: "company_created", target: @company, at: 2.weeks.ago },
-      { action: "reviewer_assigned", target: @company, at: 1.week.ago, metadata: { reviewer_email: @reviewer.email } },
+      { action: "consultant_assigned", target: @company, at: 1.week.ago, metadata: { consultant_email: @consultant.email } },
       { action: "report_generated", target: @company.reports.ready.order(version: :desc).first, at: 2.days.ago },
       { action: "report_approved", target: @company.reports.ready.order(version: :desc).first, at: 1.day.ago }
     ]
@@ -449,7 +449,7 @@ class BetaDemoSeeder
     @company = Company.find_by!(slug: slug)
     @admin = @company.company_users.find_by!(role: "company_admin")
     @platform = PlatformUser.first!
-    @reviewer = ReviewerUser.find_by!(email: "reviewer@reqapp.local")
+    @consultant = ConsultantUser.find_by!(email: "consultant@reqapp.local")
   end
 
   def call
@@ -569,12 +569,12 @@ class BetaDemoSeeder
       triggered_by_id: @platform.id,
       previous_report: previous
     )
-    ReportReviews::BootstrapService.call(report: report) if @company.reviewer_assignments.active.exists?
+    ReportReviews::BootstrapService.call(report: report) if @company.consultant_assignments.active.exists?
     report
   end
 
   def seed_beta_report_review!(report)
-    review = ReportReview.find_or_create_by!(report: report, reviewer_user: @reviewer) do |r|
+    review = ReportReview.find_or_create_by!(report: report, consultant_user: @consultant) do |r|
       r.company = @company
       r.status = "approved"
     end
@@ -594,7 +594,7 @@ class BetaDemoSeeder
   def seed_beta_audit_logs!(report)
     [
       { action: "company_created", target: @company, at: 5.days.ago },
-      { action: "reviewer_assigned", target: @company, at: 4.days.ago, metadata: { reviewer_email: @reviewer.email } }
+      { action: "consultant_assigned", target: @company, at: 4.days.ago, metadata: { consultant_email: @consultant.email } }
     ].each do |entry|
       PlatformAuditLog.find_or_create_by!(
         platform_user: @platform,
@@ -636,20 +636,20 @@ class DemoScript
     puts ""
     puts "Beta Industries (in review — platform must approve)"
     puts "  Company portal: admin@beta.local / password123"
-    puts "  → Expiring trial, report awaiting platform approval (reviewer submitted)"
+    puts "  → Expiring trial, report awaiting platform approval (consultant submitted)"
     puts ""
     puts "Platform admin"
     puts "  admin@reqapp.local / password123"
     puts "  → 2 companies, expiring trials, audit log, approve Beta report"
     puts ""
-    puts "Expert reviewer"
-    puts "  reviewer@reqapp.local / password123"
-    puts "  reviewer2@reqapp.local / password123 (draft profile, unassigned)"
+    puts "Expert consultant"
+    puts "  consultant@reqapp.local / password123"
+    puts "  consultant2@reqapp.local / password123 (draft profile, unassigned)"
     puts "  → Acme in-progress review + follow-ups; Beta pending report"
     puts ""
     puts "Suggested flow:"
     puts "  1. Company (Acme) → dashboard, conversations, reports (download)"
-    puts "  2. Reviewer → report review, follow-ups, co-reviewer chat"
+    puts "  2. Consultant → report review, follow-ups, co-consultant chat"
     puts "  3. Platform → trials, audit, Acme intelligence, approve Beta report"
     puts "  4. Company (Beta) → verify report download after approval"
     puts "=" * 60

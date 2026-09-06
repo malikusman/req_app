@@ -36,7 +36,7 @@ splits, and a pull-quote page. **Presentation only — do not touch the snapshot
 - `Reports::GenerateReportService` -> `HtmlBuilder` renders ERB at `backend/app/views/reports/document`
 - `PdfGenerator` sends that HTML to **Gotenberg** (Chromium) -> PDF
 - On approval, `RegenerateWithReviewService` re-renders the same snapshot with a review
-  appendix (reviewer overall notes + section comments only — NOT live discussions or
+  appendix (consultant overall notes + section comments only — NOT live discussions or
   WhatsApp threads; keep that rule).
 
 ## Suggested implementation
@@ -90,7 +90,7 @@ Keep it inline SVG so Gotenberg needs no external asset.
 ## Acceptance
 - Renders end-to-end from a real report_snapshot, pages appearing/disappearing by available data.
 - Cover art, contents, a section divider, all exhibit types, and the pull-quote page render correctly.
-- Reviewer appendix renders on the approval regenerate path.
+- Consultant appendix renders on the approval regenerate path.
 - Visual language matches req-report-template-landscape.html.
 - Verify both seed companies: Acme (approved) and Beta (in-review).
 

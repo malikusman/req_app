@@ -64,7 +64,7 @@ export const api = {
       { method: 'POST', body: JSON.stringify(payload) }
     ),
 
-  publicReviewerApplication: (payload: {
+  publicConsultantApplication: (payload: {
     name: string;
     email: string;
     headline?: string;
@@ -73,7 +73,7 @@ export const api = {
     website?: string;
   }) =>
     request<{ ok: boolean; application?: { id: number; status: string } }>(
-      '/api/v1/public/reviewer_applications',
+      '/api/v1/public/consultant_applications',
       { method: 'POST', body: JSON.stringify(payload) }
     ),
 
@@ -97,7 +97,7 @@ export const api = {
   platformRegistrations: (token: string, status?: string) =>
     request<{
       company_registrations: CompanyRegistrationRow[];
-      reviewer_applications: ReviewerApplicationRow[];
+      consultant_applications: ConsultantApplicationRow[];
     }>(
       `/api/v1/platform/registrations${status ? `?status=${encodeURIComponent(status)}` : ''}`,
       {},
@@ -118,16 +118,16 @@ export const api = {
       token
     ),
 
-  approveReviewerApplication: (token: string, id: number, review_note?: string) =>
-    request<{ reviewer_application: ReviewerApplicationRow }>(
-      `/api/v1/platform/registrations/reviewers/${id}/approve`,
+  approveConsultantApplication: (token: string, id: number, review_note?: string) =>
+    request<{ consultant_application: ConsultantApplicationRow }>(
+      `/api/v1/platform/registrations/consultants/${id}/approve`,
       { method: 'POST', body: JSON.stringify({ review_note }) },
       token
     ),
 
-  rejectReviewerApplication: (token: string, id: number, review_note?: string) =>
-    request<{ reviewer_application: ReviewerApplicationRow }>(
-      `/api/v1/platform/registrations/reviewers/${id}/reject`,
+  rejectConsultantApplication: (token: string, id: number, review_note?: string) =>
+    request<{ consultant_application: ConsultantApplicationRow }>(
+      `/api/v1/platform/registrations/consultants/${id}/reject`,
       { method: 'POST', body: JSON.stringify({ review_note }) },
       token
     ),
@@ -138,9 +138,9 @@ export const api = {
       { method: 'POST', body: JSON.stringify({ email, password }) }
     ),
 
-  reviewerLogin: (email: string, password: string) =>
+  consultantLogin: (email: string, password: string) =>
     request<{ token: string; user: { id: number; email: string; name: string } }>(
-      '/api/v1/auth/reviewer/login',
+      '/api/v1/auth/consultant/login',
       { method: 'POST', body: JSON.stringify({ email, password }) }
     ),
 
@@ -422,7 +422,7 @@ export const api = {
   updateCompanyDocument: (
     token: string,
     id: number,
-    payload: { reviewer_visible?: boolean; department?: string | null }
+    payload: { consultant_visible?: boolean; department?: string | null }
   ) =>
     request<{ document: CompanyDocument }>(
       `/api/v1/company/documents/${id}`,
@@ -460,14 +460,14 @@ export const api = {
     URL.revokeObjectURL(url);
   },
 
-  reviewerDocuments: (token: string, companyId: number) =>
-    request<{ documents: CompanyDocument[] }>(`/api/v1/reviewer/companies/${companyId}/documents`, {}, token),
+  consultantDocuments: (token: string, companyId: number) =>
+    request<{ documents: CompanyDocument[] }>(`/api/v1/consultant/companies/${companyId}/documents`, {}, token),
 
-  reviewerDocument: (token: string, companyId: number, id: number) =>
-    request<{ document: CompanyDocument }>(`/api/v1/reviewer/companies/${companyId}/documents/${id}`, {}, token),
+  consultantDocument: (token: string, companyId: number, id: number) =>
+    request<{ document: CompanyDocument }>(`/api/v1/consultant/companies/${companyId}/documents/${id}`, {}, token),
 
-  downloadReviewerDocument: async (token: string, companyId: number, id: number, filename: string) => {
-    const res = await fetch(`${API_URL}/api/v1/reviewer/companies/${companyId}/documents/${id}/download`, {
+  downloadConsultantDocument: async (token: string, companyId: number, id: number, filename: string) => {
+    const res = await fetch(`${API_URL}/api/v1/consultant/companies/${companyId}/documents/${id}/download`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) throw new Error('Download failed');
@@ -483,14 +483,14 @@ export const api = {
   companyOutreaches: (token: string) =>
     request<{ outreaches: Array<Record<string, unknown>> }>('/api/v1/company/outreaches', {}, token),
 
-  reviewerOutreaches: (token: string, companyId: number) =>
+  consultantOutreaches: (token: string, companyId: number) =>
     request<{ outreaches: Array<Record<string, unknown>> }>(
-      `/api/v1/reviewer/companies/${companyId}/outreaches`,
+      `/api/v1/consultant/companies/${companyId}/outreaches`,
       {},
       token
     ),
 
-  createReviewerOutreach: (
+  createConsultantOutreach: (
     token: string,
     companyId: number,
     payload: {
@@ -506,7 +506,7 @@ export const api = {
     }
   ) =>
     request<{ outreach: Record<string, unknown> }>(
-      `/api/v1/reviewer/companies/${companyId}/outreaches`,
+      `/api/v1/consultant/companies/${companyId}/outreaches`,
       { method: 'POST', body: JSON.stringify(payload) },
       token
     ),
@@ -532,21 +532,21 @@ export const api = {
       token
     ),
 
-  reviewerReportFindings: (token: string, companyId: number, reportId: number) =>
+  consultantReportFindings: (token: string, companyId: number, reportId: number) =>
     request<{ findings: Array<Record<string, unknown>> }>(
-      `/api/v1/reviewer/companies/${companyId}/reports/${reportId}/review/findings`,
+      `/api/v1/consultant/companies/${companyId}/reports/${reportId}/review/findings`,
       {},
       token
     ),
 
-  createReviewerReportFinding: (
+  createConsultantReportFinding: (
     token: string,
     companyId: number,
     reportId: number,
     payload: Record<string, unknown>
   ) =>
     request<{ finding: Record<string, unknown> }>(
-      `/api/v1/reviewer/companies/${companyId}/reports/${reportId}/review/findings`,
+      `/api/v1/consultant/companies/${companyId}/reports/${reportId}/review/findings`,
       { method: 'POST', body: JSON.stringify({ finding: payload }) },
       token
     ),
@@ -621,40 +621,40 @@ export const api = {
       token
     ),
 
-  reviewerCatalog: (token: string, companyId: number) =>
+  consultantCatalog: (token: string, companyId: number) =>
     request<{
       matches: Array<Record<string, unknown>>;
       endorsements: Array<Record<string, unknown>>;
       last_matched_at?: string | null;
       note?: string;
-    }>(`/api/v1/reviewer/companies/${companyId}/catalog`, {}, token),
+    }>(`/api/v1/consultant/companies/${companyId}/catalog`, {}, token),
 
-  reviewerAvailableCatalog: (token: string, companyId: number, q?: string) =>
+  consultantAvailableCatalog: (token: string, companyId: number, q?: string) =>
     request<{ solutions: SolutionCatalogEntry[] }>(
-      `/api/v1/reviewer/companies/${companyId}/catalog/available${q ? `?q=${encodeURIComponent(q)}` : ''}`,
+      `/api/v1/consultant/companies/${companyId}/catalog/available${q ? `?q=${encodeURIComponent(q)}` : ''}`,
       {},
       token
     ),
 
-  reviewerAddCatalogProduct: (
+  consultantAddCatalogProduct: (
     token: string,
     companyId: number,
     payload: { solution_catalog_entry_id: number; why_it_fits?: string }
   ) =>
     request<{ match: Record<string, unknown> }>(
-      `/api/v1/reviewer/companies/${companyId}/catalog/add`,
+      `/api/v1/consultant/companies/${companyId}/catalog/add`,
       { method: 'POST', body: JSON.stringify(payload) },
       token
     ),
 
-  endorseReviewerCatalogMatch: (
+  endorseConsultantCatalogMatch: (
     token: string,
     companyId: number,
     matchId: number,
     payload: { disposition: string; rationale?: string; report_id?: number; publishable?: boolean; source_url?: string }
   ) =>
     request<{ endorsement: Record<string, unknown> }>(
-      `/api/v1/reviewer/companies/${companyId}/catalog/${matchId}/endorse`,
+      `/api/v1/consultant/companies/${companyId}/catalog/${matchId}/endorse`,
       { method: 'POST', body: JSON.stringify(payload) },
       token
     ),
@@ -673,11 +673,11 @@ export const api = {
       token
     ),
 
-  uploadDocument: async (token: string, file: File, opts?: { department?: string; reviewer_visible?: boolean }) => {
+  uploadDocument: async (token: string, file: File, opts?: { department?: string; consultant_visible?: boolean }) => {
     const form = new FormData();
     form.append('file', file);
     if (opts?.department) form.append('department', opts.department);
-    if (opts?.reviewer_visible === false) form.append('reviewer_visible', 'false');
+    if (opts?.consultant_visible === false) form.append('consultant_visible', 'false');
 
     const res = await fetch(`${API_URL}/api/v1/company/documents`, {
       method: 'POST',
@@ -731,18 +731,18 @@ export const api = {
       token
     ),
 
-  reviewerDocumentAnalysis: (token: string, companyId: number) =>
+  consultantDocumentAnalysis: (token: string, companyId: number) =>
     request<{
       company_id: number;
       latest_run: DocumentAnalysisRun | null;
       events: DocumentAnalysisEvent[];
       knowledge_entries: CompanyKnowledgeEntry[];
       clarification_questions: CompanyClarificationQuestion[];
-    }>(`/api/v1/reviewer/companies/${companyId}/document_analysis`, {}, token),
+    }>(`/api/v1/consultant/companies/${companyId}/document_analysis`, {}, token),
 
   dismissClarificationQuestion: (token: string, companyId: number, id: number) =>
     request<{ clarification_question: CompanyClarificationQuestion }>(
-      `/api/v1/reviewer/companies/${companyId}/clarification_questions/${id}/dismiss`,
+      `/api/v1/consultant/companies/${companyId}/clarification_questions/${id}/dismiss`,
       { method: 'POST', body: JSON.stringify({}) },
       token
     ),
@@ -814,12 +814,12 @@ export const api = {
   previewPlatformReport: (token: string, companyId: number, reportId: number) =>
     fetchPreviewBlob(token, `/api/v1/platform/companies/${companyId}/reports/${reportId}/download`),
 
-  previewReviewerReport: (token: string, companyId: number, reportId: number) =>
-    fetchPreviewBlob(token, `/api/v1/reviewer/companies/${companyId}/reports/${reportId}/download`),
+  previewConsultantReport: (token: string, companyId: number, reportId: number) =>
+    fetchPreviewBlob(token, `/api/v1/consultant/companies/${companyId}/reports/${reportId}/download`),
 
-  // Live HTML render WITH the reviewer's pending section edits + findings applied.
-  previewReviewerReportDraft: (token: string, companyId: number, reportId: number) =>
-    fetchPreviewBlob(token, `/api/v1/reviewer/companies/${companyId}/reports/${reportId}/preview`),
+  // Live HTML render WITH the consultant's pending section edits + findings applied.
+  previewConsultantReportDraft: (token: string, companyId: number, reportId: number) =>
+    fetchPreviewBlob(token, `/api/v1/consultant/companies/${companyId}/reports/${reportId}/preview`),
 
   previewPlatformReportDraft: (token: string, companyId: number, reportId: number) =>
     fetchPreviewBlob(token, `/api/v1/platform/companies/${companyId}/reports/${reportId}/preview`),
@@ -938,30 +938,30 @@ export const api = {
       token
     ),
 
-  reviewerAgenticIdeas: (token: string, companyId: number) =>
+  consultantAgenticIdeas: (token: string, companyId: number) =>
     request<{ agentic_ideas: AgenticIdea[] }>(
-      `/api/v1/reviewer/companies/${companyId}/agentic_ideas`,
+      `/api/v1/consultant/companies/${companyId}/agentic_ideas`,
       {},
       token
     ),
 
-  createReviewerAgenticIdea: (token: string, companyId: number, payload: Partial<AgenticIdea>) =>
+  createConsultantAgenticIdea: (token: string, companyId: number, payload: Partial<AgenticIdea>) =>
     request<{ agentic_idea: AgenticIdea }>(
-      `/api/v1/reviewer/companies/${companyId}/agentic_ideas`,
+      `/api/v1/consultant/companies/${companyId}/agentic_ideas`,
       { method: 'POST', body: JSON.stringify({ agentic_idea: payload }) },
       token
     ),
 
-  updateReviewerAgenticIdea: (token: string, companyId: number, id: number, payload: Partial<AgenticIdea>) =>
+  updateConsultantAgenticIdea: (token: string, companyId: number, id: number, payload: Partial<AgenticIdea>) =>
     request<{ agentic_idea: AgenticIdea }>(
-      `/api/v1/reviewer/companies/${companyId}/agentic_ideas/${id}`,
+      `/api/v1/consultant/companies/${companyId}/agentic_ideas/${id}`,
       { method: 'PATCH', body: JSON.stringify({ agentic_idea: payload }) },
       token
     ),
 
-  publishReviewerAgenticIdea: (token: string, companyId: number, id: number) =>
+  publishConsultantAgenticIdea: (token: string, companyId: number, id: number) =>
     request<{ agentic_idea: AgenticIdea }>(
-      `/api/v1/reviewer/companies/${companyId}/agentic_ideas/${id}/publish`,
+      `/api/v1/consultant/companies/${companyId}/agentic_ideas/${id}/publish`,
       { method: 'POST' },
       token
     ),
@@ -1036,7 +1036,7 @@ export const api = {
       department_targets?: Record<string, number>;
       company_profile?: CompanyProfile;
       known_systems?: string[];
-      reviewer_can_contact_employees?: boolean;
+      consultant_can_contact_employees?: boolean;
     }
   ) =>
     request<{ ok: boolean; settings?: Record<string, unknown>; company_profile?: CompanyProfile; website_url?: string | null }>(
@@ -1105,62 +1105,62 @@ export const api = {
     );
   },
 
-  platformReviewers: (token: string) => request<{ reviewers: ReviewerUser[] }>('/api/v1/platform/reviewers', {}, token),
+  platformConsultants: (token: string) => request<{ consultants: ConsultantUser[] }>('/api/v1/platform/consultants', {}, token),
 
-  platformReviewer: (token: string, id: number) =>
-    request<{ reviewer: ReviewerUser }>(`/api/v1/platform/reviewers/${id}`, {}, token),
+  platformConsultant: (token: string, id: number) =>
+    request<{ consultant: ConsultantUser }>(`/api/v1/platform/consultants/${id}`, {}, token),
 
-  platformReviewerCvUrl: async (token: string, id: number) => {
-    const res = await fetch(`${API_URL}/api/v1/platform/reviewers/${id}/cv`, {
+  platformConsultantCvUrl: async (token: string, id: number) => {
+    const res = await fetch(`${API_URL}/api/v1/platform/consultants/${id}/cv`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) throw new Error(res.status === 404 ? 'No CV on file' : 'Could not load CV');
     return URL.createObjectURL(await res.blob());
   },
 
-  createPlatformReviewer: (token: string, payload: { email: string; name: string; password: string }) =>
-    request<{ reviewer: ReviewerUser }>('/api/v1/platform/reviewers', { method: 'POST', body: JSON.stringify({ reviewer: payload }) }, token),
+  createPlatformConsultant: (token: string, payload: { email: string; name: string; password: string }) =>
+    request<{ consultant: ConsultantUser }>('/api/v1/platform/consultants', { method: 'POST', body: JSON.stringify({ consultant: payload }) }, token),
 
-  companyReviewerAssignments: (token: string, companyId: number) =>
-    request<{ assignments: ReviewerAssignment[]; active_count: number }>(
-      `/api/v1/platform/companies/${companyId}/reviewer_assignments`,
+  companyConsultantAssignments: (token: string, companyId: number) =>
+    request<{ assignments: ConsultantAssignment[]; active_count: number }>(
+      `/api/v1/platform/companies/${companyId}/consultant_assignments`,
       {},
       token
     ),
 
-  assignReviewer: (token: string, companyId: number, reviewerUserId: number) =>
-    request<{ assignment: ReviewerAssignment }>(
-      `/api/v1/platform/companies/${companyId}/reviewer_assignments`,
-      { method: 'POST', body: JSON.stringify({ reviewer_user_id: reviewerUserId }) },
+  assignConsultant: (token: string, companyId: number, consultantUserId: number) =>
+    request<{ assignment: ConsultantAssignment }>(
+      `/api/v1/platform/companies/${companyId}/consultant_assignments`,
+      { method: 'POST', body: JSON.stringify({ consultant_user_id: consultantUserId }) },
       token
     ),
 
-  removeReviewerAssignment: (token: string, companyId: number, assignmentId: number) =>
-    request<void>(`/api/v1/platform/companies/${companyId}/reviewer_assignments/${assignmentId}`, { method: 'DELETE' }, token),
+  removeConsultantAssignment: (token: string, companyId: number, assignmentId: number) =>
+    request<void>(`/api/v1/platform/companies/${companyId}/consultant_assignments/${assignmentId}`, { method: 'DELETE' }, token),
 
-  reviewerProfile: (token: string) =>
+  consultantProfile: (token: string) =>
     request<{
       ok: boolean;
       user: { id: number; email: string; name: string };
-      profile: ReviewerProfile;
+      profile: ConsultantProfile;
       questionnaire_answers?: Record<string, unknown>;
       questionnaire_step?: number;
       questionnaire_completed_at?: string | null;
       completion_percent?: number;
       section_status?: Record<string, { touched: boolean; complete: boolean }>;
-    }>('/api/v1/reviewer/profile', {}, token),
+    }>('/api/v1/consultant/profile', {}, token),
 
-  updateReviewerProfile: (
+  updateConsultantProfile: (
     token: string,
-    payload: Partial<ReviewerProfilePayload> & { name?: string; email?: string; password?: string; publish?: boolean }
+    payload: Partial<ConsultantProfilePayload> & { name?: string; email?: string; password?: string; publish?: boolean }
   ) =>
-    request<{ ok: boolean; user: { id: number; email: string; name: string }; profile: ReviewerProfile }>(
-      '/api/v1/reviewer/profile',
+    request<{ ok: boolean; user: { id: number; email: string; name: string }; profile: ConsultantProfile }>(
+      '/api/v1/consultant/profile',
       { method: 'PATCH', body: JSON.stringify(payload) },
       token
     ),
 
-  updateReviewerQuestionnaire: (
+  updateConsultantQuestionnaire: (
     token: string,
     payload: {
       questionnaire_answers: Record<string, unknown>;
@@ -1170,19 +1170,19 @@ export const api = {
     request<{
       ok: boolean;
       user: { id: number; email: string; name: string };
-      profile: ReviewerProfile;
+      profile: ConsultantProfile;
       questionnaire_answers: Record<string, unknown>;
       questionnaire_step: number;
       completion_percent: number;
       section_status?: Record<string, { touched: boolean; complete: boolean }>;
-    }>('/api/v1/reviewer/profile/questionnaire', { method: 'PATCH', body: JSON.stringify(payload) }, token),
+    }>('/api/v1/consultant/profile/questionnaire', { method: 'PATCH', body: JSON.stringify(payload) }, token),
 
-  uploadReviewerAvatar: async (token: string, file: File) => {
+  uploadConsultantAvatar: async (token: string, file: File) => {
     const headers: Record<string, string> = {};
     if (token) headers['Authorization'] = `Bearer ${token}`;
     const body = new FormData();
     body.append('file', file);
-    const res = await fetch(`${API_URL}/api/v1/reviewer/profile/avatar`, { method: 'POST', headers, body });
+    const res = await fetch(`${API_URL}/api/v1/consultant/profile/avatar`, { method: 'POST', headers, body });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       const err = (data as ApiError).error || res.statusText;
@@ -1191,25 +1191,25 @@ export const api = {
     return data as {
       ok: boolean;
       user: { id: number; email: string; name: string };
-      profile: ReviewerProfile;
+      profile: ConsultantProfile;
       completion_percent?: number;
     };
   },
 
   /** Avatar endpoint requires Authorization — use blob URL for <img>, not raw avatar_url. */
-  fetchReviewerAvatarPreview: async (token: string, avatarUrl: string) => {
+  fetchConsultantAvatarPreview: async (token: string, avatarUrl: string) => {
     const path = avatarUrl.startsWith('http') ? avatarUrl : `${API_URL}${avatarUrl}`;
     const res = await fetch(path, { headers: { Authorization: `Bearer ${token}` } });
     if (!res.ok) throw new Error('Could not load photo');
     return URL.createObjectURL(await res.blob());
   },
 
-  uploadReviewerCv: async (token: string, file: File) => {
+  uploadConsultantCv: async (token: string, file: File) => {
     const headers: Record<string, string> = {};
     if (token) headers['Authorization'] = `Bearer ${token}`;
     const body = new FormData();
     body.append('file', file);
-    const res = await fetch(`${API_URL}/api/v1/reviewer/profile/cv`, { method: 'POST', headers, body });
+    const res = await fetch(`${API_URL}/api/v1/consultant/profile/cv`, { method: 'POST', headers, body });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       const err = (data as ApiError).error || res.statusText;
@@ -1218,29 +1218,105 @@ export const api = {
     return data as {
       ok: boolean;
       user: { id: number; email: string; name: string };
-      profile: ReviewerProfile;
+      profile: ConsultantProfile;
       completion_percent?: number;
     };
   },
 
-  companyExpertReviewers: (token: string) =>
-    request<{ expert_reviewers: ReviewerPublicCard[] }>('/api/v1/company/expert_reviewers', {}, token),
+  companyExpertConsultants: (token: string) =>
+    request<{ expert_consultants: ConsultantPublicCard[] }>('/api/v1/company/expert_consultants', {}, token),
 
-  reviewerDashboard: (token: string) => request<ReviewerDashboardPayload>('/api/v1/reviewer/dashboard', {}, token),
+  consultantDashboard: (token: string) => request<ConsultantDashboardPayload>('/api/v1/consultant/dashboard', {}, token),
 
-  reviewerCompany: (token: string, id: number) => request<{ company: ReviewerCompanyDetail }>(`/api/v1/reviewer/companies/${id}`, {}, token),
+  consultantCompany: (token: string, id: number) => request<{ company: ConsultantCompanyDetail }>(`/api/v1/consultant/companies/${id}`, {}, token),
 
-  reviewerEmployees: (token: string, companyId: number) =>
-    request<{ employees: Employee[] }>(`/api/v1/reviewer/companies/${companyId}/employees`, {}, token),
+  consultantEmployees: (token: string, companyId: number) =>
+    request<{ employees: Employee[] }>(`/api/v1/consultant/companies/${companyId}/employees`, {}, token),
 
-  reviewerReportWorkspace: (token: string, companyId: number, reportId: number) =>
-    request<ReviewerReportWorkspacePayload>(
-      `/api/v1/reviewer/companies/${companyId}/reports/${reportId}/workspace`,
+  consultantReportWorkspace: (token: string, companyId: number, reportId: number) =>
+    request<ConsultantReportWorkspacePayload>(
+      `/api/v1/consultant/companies/${companyId}/reports/${reportId}/workspace`,
       {},
       token
     ),
 
-  updateReviewerReportReview: (
+  // --- Discovery handover: the consultant amends it and states what they need ---
+
+  amendDiscoveryPackage: (
+    token: string,
+    packageId: number,
+    payload: { recommendation?: string; recommendation_rationale?: string }
+  ) =>
+    request<{ discovery_package: DiscoveryPackage }>(
+      `/api/v1/consultant/discovery_packages/${packageId}`,
+      { method: 'PATCH', body: JSON.stringify(payload) },
+      token
+    ),
+
+  createDiscoveryPackageItem: (
+    token: string,
+    packageId: number,
+    payload: { kind: 'issue' | 'solution'; title?: string; body: string; impact?: string }
+  ) =>
+    request<{ item: DiscoveryPackageItem }>(
+      `/api/v1/consultant/discovery_packages/${packageId}/items`,
+      { method: 'POST', body: JSON.stringify(payload) },
+      token
+    ),
+
+  updateDiscoveryPackageItem: (
+    token: string,
+    packageId: number,
+    itemId: number,
+    payload: { title?: string; body?: string; impact?: string; status?: string }
+  ) =>
+    request<{ item: DiscoveryPackageItem }>(
+      `/api/v1/consultant/discovery_packages/${packageId}/items/${itemId}`,
+      { method: 'PATCH', body: JSON.stringify(payload) },
+      token
+    ),
+
+  /** States what the consultant needs to know. The agent drafts the questions. */
+  createConsultantRequirement: (token: string, packageId: number, statement: string) =>
+    request<{ requirement: ConsultantRequirement }>(
+      `/api/v1/consultant/discovery_packages/${packageId}/requirements`,
+      { method: 'POST', body: JSON.stringify({ statement }) },
+      token
+    ),
+
+  updateConsultantRequirement: (
+    token: string,
+    packageId: number,
+    requirementId: number,
+    status: 'satisfied' | 'withdrawn'
+  ) =>
+    request<{ requirement: ConsultantRequirement }>(
+      `/api/v1/consultant/discovery_packages/${packageId}/requirements/${requirementId}`,
+      { method: 'PATCH', body: JSON.stringify({ status }) },
+      token
+    ),
+
+  /** Reorder or skip a drafted question — its text is the agent's to write. */
+  updateDiscoveryFollowupQuestion: (
+    token: string,
+    packageId: number,
+    questionId: number,
+    payload: { queue_position?: number; status?: 'drafted' | 'queued' | 'skipped' }
+  ) =>
+    request<{ question: DiscoveryFollowupQuestion }>(
+      `/api/v1/consultant/discovery_packages/${packageId}/followup_questions/${questionId}`,
+      { method: 'PATCH', body: JSON.stringify(payload) },
+      token
+    ),
+
+  sendDiscoveryFollowupQuestion: (token: string, packageId: number, questionId: number) =>
+    request<{ question: DiscoveryFollowupQuestion }>(
+      `/api/v1/consultant/discovery_packages/${packageId}/followup_questions/${questionId}/send`,
+      { method: 'POST' },
+      token
+    ),
+
+  updateConsultantReportReview: (
     token: string,
     companyId: number,
     reportId: number,
@@ -1252,38 +1328,38 @@ export const api = {
       opportunity_basis?: string | null;
     },
   ) =>
-    request<ReportReviewPayload>(`/api/v1/reviewer/companies/${companyId}/reports/${reportId}/review`, { method: 'PATCH', body: JSON.stringify(payload) }, token),
+    request<ReportReviewPayload>(`/api/v1/consultant/companies/${companyId}/reports/${reportId}/review`, { method: 'PATCH', body: JSON.stringify(payload) }, token),
 
-  submitReviewerReportReview: (token: string, companyId: number, reportId: number) =>
-    request<ReportReviewPayload>(`/api/v1/reviewer/companies/${companyId}/reports/${reportId}/review/submit`, { method: 'POST' }, token),
+  submitConsultantReportReview: (token: string, companyId: number, reportId: number) =>
+    request<ReportReviewPayload>(`/api/v1/consultant/companies/${companyId}/reports/${reportId}/review/submit`, { method: 'POST' }, token),
 
   updateSectionState: (token: string, companyId: number, reportId: number, sectionKey: string, status: string) =>
     request<{ section_state: { section_key: string; status: string } }>(
-      `/api/v1/reviewer/companies/${companyId}/reports/${reportId}/review/section_states/${sectionKey}`,
+      `/api/v1/consultant/companies/${companyId}/reports/${reportId}/review/section_states/${sectionKey}`,
       { method: 'PATCH', body: JSON.stringify({ status }) },
       token
     ),
 
-  reviewerSectionOverrides: (token: string, companyId: number, reportId: number) =>
+  consultantSectionOverrides: (token: string, companyId: number, reportId: number) =>
     request<{ built_in_sections: string[]; overrides: ReportSectionOverride[] }>(
-      `/api/v1/reviewer/companies/${companyId}/reports/${reportId}/section_overrides`,
+      `/api/v1/consultant/companies/${companyId}/reports/${reportId}/section_overrides`,
       {},
       token
     ),
 
-  createReviewerSectionOverride: (
+  createConsultantSectionOverride: (
     token: string,
     companyId: number,
     reportId: number,
     payload: SectionOverrideInput
   ) =>
     request<{ override: ReportSectionOverride }>(
-      `/api/v1/reviewer/companies/${companyId}/reports/${reportId}/section_overrides`,
+      `/api/v1/consultant/companies/${companyId}/reports/${reportId}/section_overrides`,
       { method: 'POST', body: JSON.stringify({ section_override: payload }) },
       token
     ),
 
-  updateReviewerSectionOverride: (
+  updateConsultantSectionOverride: (
     token: string,
     companyId: number,
     reportId: number,
@@ -1291,21 +1367,21 @@ export const api = {
     payload: SectionOverrideInput
   ) =>
     request<{ override: ReportSectionOverride }>(
-      `/api/v1/reviewer/companies/${companyId}/reports/${reportId}/section_overrides/${id}`,
+      `/api/v1/consultant/companies/${companyId}/reports/${reportId}/section_overrides/${id}`,
       { method: 'PATCH', body: JSON.stringify({ section_override: payload }) },
       token
     ),
 
-  deleteReviewerSectionOverride: (token: string, companyId: number, reportId: number, id: number) =>
+  deleteConsultantSectionOverride: (token: string, companyId: number, reportId: number, id: number) =>
     request<void>(
-      `/api/v1/reviewer/companies/${companyId}/reports/${reportId}/section_overrides/${id}`,
+      `/api/v1/consultant/companies/${companyId}/reports/${reportId}/section_overrides/${id}`,
       { method: 'DELETE' },
       token
     ),
 
   addReviewComment: (token: string, companyId: number, reportId: number, comment: { section_key: string; body: string }) =>
     request<{ comment: ReviewCommentPayload }>(
-      `/api/v1/reviewer/companies/${companyId}/reports/${reportId}/review/comments`,
+      `/api/v1/consultant/companies/${companyId}/reports/${reportId}/review/comments`,
       { method: 'POST', body: JSON.stringify({ comment }) },
       token
     ),
@@ -1318,29 +1394,29 @@ export const api = {
     comment: { body?: string; resolved?: boolean }
   ) =>
     request<{ comment: ReviewCommentPayload }>(
-      `/api/v1/reviewer/companies/${companyId}/reports/${reportId}/review/comments/${commentId}`,
+      `/api/v1/consultant/companies/${companyId}/reports/${reportId}/review/comments/${commentId}`,
       { method: 'PATCH', body: JSON.stringify({ comment }) },
       token
     ),
 
   deleteReviewComment: (token: string, companyId: number, reportId: number, commentId: number) =>
     request<void>(
-      `/api/v1/reviewer/companies/${companyId}/reports/${reportId}/review/comments/${commentId}`,
+      `/api/v1/consultant/companies/${companyId}/reports/${reportId}/review/comments/${commentId}`,
       { method: 'DELETE' },
       token
     ),
 
-  reviewerReviewSync: (token: string, companyId: number, reportId: number, since?: string) => {
+  consultantReviewSync: (token: string, companyId: number, reportId: number, since?: string) => {
     const qs = new URLSearchParams({ report_id: String(reportId) });
     if (since) qs.set('since', since);
-    return request<ReviewerReviewSyncPayload>(
-      `/api/v1/reviewer/companies/${companyId}/review_sync?${qs}`,
+    return request<ConsultantReviewSyncPayload>(
+      `/api/v1/consultant/companies/${companyId}/review_sync?${qs}`,
       {},
       token
     );
   },
 
-  reviewerConversations: (token: string, companyId: number) =>
+  consultantConversations: (token: string, companyId: number) =>
     request<{
       conversations: {
         id: number;
@@ -1351,54 +1427,54 @@ export const api = {
         last_activity_at: string | null;
       }[];
     }>(
-      `/api/v1/reviewer/companies/${companyId}/conversations`,
+      `/api/v1/consultant/companies/${companyId}/conversations`,
       {},
       token
     ),
 
-  reviewerSignals: (token: string, companyId: number) =>
-    request<{ signals: CompanySignal[] }>(`/api/v1/reviewer/companies/${companyId}/signals`, {}, token),
+  consultantSignals: (token: string, companyId: number) =>
+    request<{ signals: CompanySignal[] }>(`/api/v1/consultant/companies/${companyId}/signals`, {}, token),
 
-  reviewerPatterns: (token: string, companyId: number) =>
-    request<{ patterns: CompanyPattern[] }>(`/api/v1/reviewer/companies/${companyId}/patterns`, {}, token),
+  consultantPatterns: (token: string, companyId: number) =>
+    request<{ patterns: CompanyPattern[] }>(`/api/v1/consultant/companies/${companyId}/patterns`, {}, token),
 
-  reviewerRecommendations: (token: string, companyId: number) =>
-    request<{ recommendations: Recommendation[] }>(`/api/v1/reviewer/companies/${companyId}/recommendations`, {}, token),
+  consultantRecommendations: (token: string, companyId: number) =>
+    request<{ recommendations: Recommendation[] }>(`/api/v1/consultant/companies/${companyId}/recommendations`, {}, token),
 
-  reviewerFollowups: (token: string) =>
-    request<{ followups: ReviewerFollowupRow[] }>('/api/v1/reviewer/followups', {}, token),
+  consultantFollowups: (token: string) =>
+    request<{ followups: ConsultantFollowupRow[] }>('/api/v1/consultant/followups', {}, token),
 
-  reviewerNotifications: (token: string, params?: { page?: number; per_page?: number }) => {
+  consultantNotifications: (token: string, params?: { page?: number; per_page?: number }) => {
     const search = new URLSearchParams();
     if (params?.page) search.set('page', String(params.page));
     if (params?.per_page) search.set('per_page', String(params.per_page));
     const qs = search.toString();
     return request<{ notifications: AppNotification[]; unread_count: number; page: number; per_page: number }>(
-      `/api/v1/reviewer/notifications${qs ? `?${qs}` : ''}`,
+      `/api/v1/consultant/notifications${qs ? `?${qs}` : ''}`,
       {},
       token
     );
   },
 
-  markReviewerNotificationRead: (token: string, id: number) =>
-    request<{ notification: AppNotification }>(`/api/v1/reviewer/notifications/${id}`, { method: 'PATCH' }, token),
+  markConsultantNotificationRead: (token: string, id: number) =>
+    request<{ notification: AppNotification }>(`/api/v1/consultant/notifications/${id}`, { method: 'PATCH' }, token),
 
-  markAllReviewerNotificationsRead: (token: string) =>
-    request<{ ok: boolean; unread_count: number }>('/api/v1/reviewer/notifications/mark_all_read', { method: 'POST' }, token),
+  markAllConsultantNotificationsRead: (token: string) =>
+    request<{ ok: boolean; unread_count: number }>('/api/v1/consultant/notifications/mark_all_read', { method: 'POST' }, token),
 
-  reviewerConversation: (token: string, companyId: number, conversationId: number) =>
+  consultantConversation: (token: string, companyId: number, conversationId: number) =>
     request<{
       conversation: { id: number; employee_id: number; status: string; discovery_state?: DiscoveryState };
       discovery_provenance: DiscoveryProvenanceEntry[];
       messages: CompanyConversationMessage[];
       media_attachments: MediaAttachment[];
     }>(
-      `/api/v1/reviewer/companies/${companyId}/conversations/${conversationId}`,
+      `/api/v1/consultant/companies/${companyId}/conversations/${conversationId}`,
       {},
       token
     ),
 
-  reviewerFollowupThread: (token: string, companyId: number, employeeId: number) =>
+  consultantFollowupThread: (token: string, companyId: number, employeeId: number) =>
     request<{
       employee: { id: number; display_name: string | null };
       threads: {
@@ -1408,25 +1484,25 @@ export const api = {
         sent_at: string | null;
         replies: { body: string; received_at: string }[];
       }[];
-    }>(`/api/v1/reviewer/companies/${companyId}/employees/${employeeId}/followup`, {}, token),
+    }>(`/api/v1/consultant/companies/${companyId}/employees/${employeeId}/followup`, {}, token),
 
-  sendReviewerFollowup: (token: string, companyId: number, employeeId: number, body: string, reportId?: number) =>
+  sendConsultantFollowup: (token: string, companyId: number, employeeId: number, body: string, reportId?: number) =>
     request<{ info_request: { id: number } }>(
-      `/api/v1/reviewer/companies/${companyId}/employees/${employeeId}/followup`,
+      `/api/v1/consultant/companies/${companyId}/employees/${employeeId}/followup`,
       { method: 'POST', body: JSON.stringify({ body, report_id: reportId }) },
       token
     ),
 
-  reviewerChatMessages: (token: string, companyId: number) =>
+  consultantChatMessages: (token: string, companyId: number) =>
     request<{ messages: { id: number; body: string; sender_name: string; created_at: string; mine: boolean }[] }>(
-      `/api/v1/reviewer/companies/${companyId}/chat_messages`,
+      `/api/v1/consultant/companies/${companyId}/chat_messages`,
       {},
       token
     ),
 
-  sendReviewerChat: (token: string, companyId: number, body: string) =>
+  sendConsultantChat: (token: string, companyId: number, body: string) =>
     request<{ message: { id: number } }>(
-      `/api/v1/reviewer/companies/${companyId}/chat_messages`,
+      `/api/v1/consultant/companies/${companyId}/chat_messages`,
       { method: 'POST', body: JSON.stringify({ body }) },
       token
     ),
@@ -1436,8 +1512,8 @@ export const api = {
     companyId: number,
     reportId: number,
     payload: {
-      target_type: 'reviewer' | 'employee';
-      target_reviewer_user_id?: number;
+      target_type: 'consultant' | 'employee';
+      target_consultant_user_id?: number;
       employee_id?: number;
       conversation_id?: number;
       anchor_type: 'message' | 'finding' | 'section';
@@ -1447,34 +1523,34 @@ export const api = {
     }
   ) =>
     request<{ discussion: ReviewDiscussion }>(
-      `/api/v1/reviewer/companies/${companyId}/reports/${reportId}/discussions`,
+      `/api/v1/consultant/companies/${companyId}/reports/${reportId}/discussions`,
       { method: 'POST', body: JSON.stringify(payload) },
       token
     ),
 
-  reviewerDiscussions: (token: string, companyId: number, reportId: number) =>
+  consultantDiscussions: (token: string, companyId: number, reportId: number) =>
     request<{ discussions: ReviewDiscussion[] }>(
-      `/api/v1/reviewer/companies/${companyId}/reports/${reportId}/discussions`,
+      `/api/v1/consultant/companies/${companyId}/reports/${reportId}/discussions`,
       {},
       token
     ),
 
   replyReviewDiscussion: (token: string, companyId: number, reportId: number, discussionId: number, body: string) =>
     request<{ discussion: ReviewDiscussion }>(
-      `/api/v1/reviewer/companies/${companyId}/reports/${reportId}/discussions/${discussionId}/reply`,
+      `/api/v1/consultant/companies/${companyId}/reports/${reportId}/discussions/${discussionId}/reply`,
       { method: 'POST', body: JSON.stringify({ body }) },
       token
     ),
 
   resolveReviewDiscussion: (token: string, companyId: number, reportId: number, discussionId: number) =>
     request<{ discussion: ReviewDiscussion }>(
-      `/api/v1/reviewer/companies/${companyId}/reports/${reportId}/discussions/${discussionId}/resolve`,
+      `/api/v1/consultant/companies/${companyId}/reports/${reportId}/discussions/${discussionId}/resolve`,
       { method: 'PATCH' },
       token
     ),
 };
 
-export interface ReviewerProfileCompleteness {
+export interface ConsultantProfileCompleteness {
   percent: number;
   complete: boolean;
   missing: string[];
@@ -1482,7 +1558,7 @@ export interface ReviewerProfileCompleteness {
   questionnaire_percent?: number;
 }
 
-export interface ReviewerExperience {
+export interface ConsultantExperience {
   id?: number;
   organization: string;
   title: string;
@@ -1492,7 +1568,7 @@ export interface ReviewerExperience {
   sort_order?: number;
 }
 
-export interface ReviewerProfile {
+export interface ConsultantProfile {
   headline: string | null;
   bio: string | null;
   linkedin_url: string | null;
@@ -1511,12 +1587,12 @@ export interface ReviewerProfile {
   cv_url?: string | null;
   has_cv?: boolean;
   verification_signals?: boolean;
-  experiences: ReviewerExperience[];
-  completeness: ReviewerProfileCompleteness;
+  experiences: ConsultantExperience[];
+  completeness: ConsultantProfileCompleteness;
   suggested_expertise_tags: string[];
 }
 
-export interface ReviewerProfilePayload {
+export interface ConsultantProfilePayload {
   headline?: string;
   bio?: string;
   linkedin_url?: string;
@@ -1528,10 +1604,10 @@ export interface ReviewerProfilePayload {
   industries?: string[];
   years_experience?: number | null;
   credentials?: { label: string; issuer?: string; year?: number }[];
-  experiences?: ReviewerExperience[];
+  experiences?: ConsultantExperience[];
 }
 
-export interface ReviewerPublicCard {
+export interface ConsultantPublicCard {
   id: number;
   name: string;
   headline: string | null;
@@ -1545,10 +1621,10 @@ export interface ReviewerPublicCard {
   linkedin_url: string | null;
   profile_status: string;
   platform_verified: boolean;
-  experiences?: ReviewerExperience[];
+  experiences?: ConsultantExperience[];
 }
 
-export interface ReviewerUser {
+export interface ConsultantUser {
   id: number;
   email: string;
   name: string;
@@ -1559,19 +1635,19 @@ export interface ReviewerUser {
   expertise_tags?: string[];
   avatar_url?: string | null;
   has_cv?: boolean;
-  profile?: ReviewerProfile;
-  public_card?: ReviewerPublicCard;
+  profile?: ConsultantProfile;
+  public_card?: ConsultantPublicCard;
   assignments?: { company_id: number; company_name: string }[];
 }
 
-export interface ReviewerAssignment {
+export interface ConsultantAssignment {
   id: number;
   status: string;
   assigned_at: string;
-  reviewer_user: ReviewerUser;
+  consultant_user: ConsultantUser;
 }
 
-export interface ReviewerCompanySummary {
+export interface ConsultantCompanySummary {
   id: number;
   name: string;
   report_readiness_score: number;
@@ -1579,7 +1655,7 @@ export interface ReviewerCompanySummary {
   invited_count: number;
 }
 
-export interface ReviewerCompanyDetail extends ReviewerCompanySummary {
+export interface ConsultantCompanyDetail extends ConsultantCompanySummary {
   participation: {
     invited?: number;
     started?: number;
@@ -1590,7 +1666,7 @@ export interface ReviewerCompanyDetail extends ReviewerCompanySummary {
   ready_documents?: number;
   latest_report: { id: number; version: number; status: string } | null;
   my_review_status: string | null;
-  co_reviewer_count: number;
+  co_consultant_count: number;
   review_pending?: boolean;
   company_admins?: { id: number; name: string; email: string }[];
   website_url?: string | null;
@@ -1606,7 +1682,7 @@ export interface ReviewerCompanyDetail extends ReviewerCompanySummary {
   };
 }
 
-export interface ReviewerReportDetail {
+export interface ConsultantReportDetail {
   id: number;
   version: number;
   status: string;
@@ -1620,8 +1696,8 @@ export interface ReviewCommentPayload {
   section_key: string;
   body: string;
   resolved: boolean;
-  reviewer_user_id: number;
-  reviewer_name?: string;
+  consultant_user_id: number;
+  consultant_name?: string;
   created_at?: string;
 }
 
@@ -1636,7 +1712,7 @@ export interface ReportSectionOverride {
   body: string | null;
   position: number;
   published: boolean;
-  reviewer_name: string | null;
+  consultant_name: string | null;
   editable: boolean;
 }
 
@@ -1650,11 +1726,11 @@ export interface SectionOverrideInput {
   published?: boolean;
 }
 
-export interface ReviewerReviewSyncPayload {
+export interface ConsultantReviewSyncPayload {
   synced_at: string;
-  reviews: { reviewer_user_id: number; status: string; submitted_at: string | null }[];
-  comments: { id: number; section_key: string; body: string; reviewer_user_id: number; updated_at: string }[];
-  section_states: { reviewer_user_id: number; section_key: string; status: string }[];
+  reviews: { consultant_user_id: number; status: string; submitted_at: string | null }[];
+  comments: { id: number; section_key: string; body: string; consultant_user_id: number; updated_at: string }[];
+  section_states: { consultant_user_id: number; section_key: string; status: string }[];
 }
 
 export interface ReportReviewPayload {
@@ -1669,9 +1745,9 @@ export interface ReportReviewPayload {
     section_states: { section_key: string; status: string }[];
     comments: ReviewCommentPayload[];
   };
-  co_reviewer_reviews: {
-    reviewer_user_id?: number;
-    reviewer_name: string;
+  co_consultant_reviews: {
+    consultant_user_id?: number;
+    consultant_name: string;
     status: string;
     activity?: 'not_started' | 'discussing' | 'reviewing' | 'submitted';
     activity_detail?: string;
@@ -1684,7 +1760,70 @@ export interface ReportReviewPayload {
   }[];
 }
 
-export interface ReviewerWorkspaceConversation {
+/** What Discovery hands the consultant when an interview finishes. */
+export interface DiscoveryPackageItem {
+  id: number;
+  kind: 'issue' | 'solution';
+  title: string | null;
+  body: string;
+  impact: 'low' | 'medium' | 'high' | null;
+  origin: 'agent' | 'consultant';
+  status: 'proposed' | 'accepted' | 'amended' | 'rejected';
+  linked_item_id: number | null;
+  ordinal: number;
+}
+
+export interface DiscoveryFollowupQuestion {
+  id: number;
+  body: string;
+  rationale: string | null;
+  status: 'drafted' | 'queued' | 'sent' | 'answered' | 'skipped' | 'superseded';
+  queue_position: number;
+  /** The interview parked this thread rather than drilling into it. */
+  from_parked_aside: boolean;
+  consultant_requirement_id: number | null;
+  sent_at: string | null;
+  answered_at: string | null;
+}
+
+export interface ConsultantRequirement {
+  id: number;
+  /** The consultant's own words. Never sent to the employee verbatim. */
+  statement: string;
+  status: 'open' | 'questions_drafted' | 'partially_satisfied' | 'satisfied' | 'withdrawn';
+  max_questions: number;
+  questions_asked: number;
+  budget_remaining: number;
+  /** What the agent thinks is still unanswered — why this is still open. */
+  missing_aspects: string[];
+  satisfaction_basis: 'agent_judged' | 'consultant_manual' | null;
+  satisfied_at: string | null;
+  consultant_name: string | null;
+  created_at: string;
+  question_ids: number[];
+}
+
+export interface DiscoveryPackage {
+  id: number;
+  version: number;
+  status: 'generating' | 'ready' | 'consultant_reviewed' | 'failed' | 'superseded';
+  recommendation: string | null;
+  recommendation_rationale: string | null;
+  confidence: number | null;
+  generated_by: string | null;
+  /** Assembled without a model: no solutions, and deliberately low confidence. */
+  built_without_model: boolean;
+  generated_at: string | null;
+  error_message: string | null;
+  issues: DiscoveryPackageItem[];
+  solutions: DiscoveryPackageItem[];
+  followup_questions: DiscoveryFollowupQuestion[];
+  requirements: ConsultantRequirement[];
+  /** How many more questions this employee can be asked, across all requirements. */
+  followup_budget_remaining: number;
+}
+
+export interface ConsultantWorkspaceConversation {
   id: number;
   employee_id: number;
   employee_name: string | null;
@@ -1693,6 +1832,7 @@ export interface ReviewerWorkspaceConversation {
   question_count: number;
   last_activity_at: string | null;
   discovery_state: DiscoveryState;
+  discovery_package: DiscoveryPackage | null;
   discovery_provenance: DiscoveryProvenanceEntry[];
   messages: CompanyConversationMessage[];
   media_attachments: MediaAttachment[];
@@ -1701,28 +1841,28 @@ export interface ReviewerWorkspaceConversation {
 export interface ReviewDiscussion {
   id: number;
   parent_id: number | null;
-  target_type: 'reviewer' | 'employee';
-  target_reviewer_user_id: number | null;
-  target_reviewer_name: string | null;
+  target_type: 'consultant' | 'employee';
+  target_consultant_user_id: number | null;
+  target_consultant_name: string | null;
   employee_id: number | null;
   conversation_id: number | null;
   anchor_type: 'message' | 'finding' | 'section';
   anchor_id: string;
   body: string;
   status: 'open' | 'resolved';
-  author_reviewer_user_id: number;
+  author_consultant_user_id: number;
   author_name: string;
   created_at: string;
   replies: ReviewDiscussion[];
 }
 
-export interface ReviewerReportWorkspacePayload {
+export interface ConsultantReportWorkspacePayload {
   company: { id: number; name: string };
-  report: ReviewerReportDetail;
+  report: ConsultantReportDetail;
   review: ReportReviewPayload['review'];
-  co_reviewer_reviews: ReportReviewPayload['co_reviewer_reviews'];
+  co_consultant_reviews: ReportReviewPayload['co_consultant_reviews'];
   discussions: ReviewDiscussion[];
-  conversations: ReviewerWorkspaceConversation[];
+  conversations: ConsultantWorkspaceConversation[];
 }
 
 export interface AppNotification {
@@ -1780,7 +1920,7 @@ export interface PlatformMonitoring {
 export interface PlatformApprovalRow {
   report: { id: number; version: number; generated_at: string | null };
   company: { id: number; name: string };
-  has_reviewer: boolean;
+  has_consultant: boolean;
   blocked_needs_info: boolean;
 }
 
@@ -1819,7 +1959,7 @@ export interface CompanyDashboardPayload {
     amount: number;
     unit: string | null;
     basis: string | null;
-    reviewer_name: string | null;
+    consultant_name: string | null;
     report_version: number;
   } | null;
   employees_summary: {
@@ -1853,7 +1993,7 @@ export interface CompanyDashboardPayload {
   };
 }
 
-export interface ReviewerDashboardPayload {
+export interface ConsultantDashboardPayload {
   profile: { profile_completeness_percent: number; profile_status: string };
   stats: {
     assigned_companies: number;
@@ -1871,8 +2011,8 @@ export interface ReviewerDashboardPayload {
     report_version: number;
     review_status: string | null;
   }[];
-  recent_followups: ReviewerFollowupRow[];
-  companies: ReviewerCompanyDetail[];
+  recent_followups: ConsultantFollowupRow[];
+  companies: ConsultantCompanyDetail[];
   unread_count: number;
 }
 
@@ -1987,9 +2127,9 @@ export interface CompanyPattern {
 export interface PlatformReport extends Report {
   review_workflow_status?: string;
   reviews_completed_at?: string | null;
-  reviewer_progress?: { reviewer_name: string; status: string; submitted_at?: string | null }[];
-  reviewer_feedback?: {
-    reviewer_name: string;
+  consultant_progress?: { consultant_name: string; status: string; submitted_at?: string | null }[];
+  consultant_feedback?: {
+    consultant_name: string;
     status: string;
     submitted_at?: string | null;
     overall_note?: string | null;
@@ -2076,7 +2216,7 @@ export interface CompanyDocument {
   department: string | null;
   document_type?: string | null;
   sensitivity?: string | null;
-  reviewer_visible?: boolean;
+  consultant_visible?: boolean;
   source: string;
   status: string;
   content_type: string | null;
@@ -2184,7 +2324,7 @@ export interface CompanyRegistrationRow {
   reviewed_at?: string | null;
 }
 
-export interface ReviewerApplicationRow {
+export interface ConsultantApplicationRow {
   id: number;
   status: string;
   name: string;
@@ -2287,30 +2427,39 @@ export interface CompanyConversation {
   discovery_state?: DiscoveryState;
 }
 
-export interface DiscoveryAgentQueueEntry {
-  id: string;
-  priority: number;
-  question_budget: number;
-  reason: string;
+/** One thing the interview set out to learn, and how clearly it was answered. */
+export interface DiscoverySlot {
+  value: string;
+  confidence: number;
+  turn: number;
 }
 
-export interface DiscoveryAgentState {
-  questions_asked: number;
-  question_budget: number;
-  status: string;
-  open_threads?: { topic: string; depth: number; needs_followup: boolean }[];
+/** An aside the interview captured and moved on from, rather than drilling into. */
+export interface DiscoveryParkedItem {
+  note: string;
+  turn: number;
+  area: string;
 }
+
+export type DiscoveryCloseReason =
+  | 'dossier_complete'
+  | 'stalled'
+  | 'ceiling'
+  | 'employee_ended';
 
 export interface DiscoveryState {
   profile: Record<string, unknown>;
-  agent_queue: DiscoveryAgentQueueEntry[];
-  skipped_agents: { id: string; reason: string }[];
-  agent_states: Record<string, DiscoveryAgentState>;
-  active_agent_id: string | null;
-  coverage: { topics_required?: string[]; topics_covered?: string[] };
+  role_areas: { name: string }[];
+  /** Keyed by slot name, or "slot::area" for per-area slots. */
+  slots: Record<string, DiscoverySlot>;
+  parked: DiscoveryParkedItem[];
+  close_reason: DiscoveryCloseReason | null;
+  stall_turns: number;
   shared_findings: { agent: string; finding: string; confidence: number; turn: number }[];
   conversation_summary: string | null;
-  last_routing_decision: { action: string; agent: string | null; reason: string } | null;
+  last_routing_decision:
+    | { action: string; agent: string | null; reason: string; slot?: string | null; area?: string | null }
+    | null;
 }
 
 export interface DiscoveryProvenanceEntry {
@@ -2328,7 +2477,7 @@ export interface CompanyConversationMessage {
   message_type?: string;
   body: string;
   is_discovery_question?: boolean;
-  reviewer_followup?: boolean;
+  consultant_followup?: boolean;
   agent_id?: string;
   routing_decision?: { action: string; agent: string | null; reason: string };
   media_attachment?: MediaAttachment;
@@ -2365,7 +2514,7 @@ export interface PlatformAuditLogEntry {
   ip: string | null;
 }
 
-export interface ReviewerFollowupRow {
+export interface ConsultantFollowupRow {
   id: number;
   company_id: number;
   company_name: string;

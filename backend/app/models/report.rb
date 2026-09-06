@@ -12,7 +12,7 @@ class Report < ApplicationRecord
   STATUSES = %w[queued generating ready failed].freeze
   VISIBILITIES = %w[internal_only shared_with_company].freeze
   REVIEW_WORKFLOW_STATUSES = %w[
-    not_required awaiting_reviewers in_review reviews_complete platform_approved
+    not_required awaiting_consultants in_review reviews_complete platform_approved
   ].freeze
 
   validates :version, presence: true
@@ -23,7 +23,7 @@ class Report < ApplicationRecord
   scope :ready, -> { where(status: "ready") }
 
   # Reports sitting on the platform-approval gate: generated, held back from the
-  # company, and with reviewer work complete — i.e. waiting on an operator to
+  # company, and with consultant work complete — i.e. waiting on an operator to
   # approve and ship. This is the operator's core worklist.
   scope :awaiting_platform_approval, lambda {
     where(status: "ready", visibility: "internal_only", review_workflow_status: "reviews_complete")

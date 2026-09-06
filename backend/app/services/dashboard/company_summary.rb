@@ -54,12 +54,12 @@ module Dashboard
 
     private
 
-    # The reviewer's opportunity estimate — surfaced only from a report that has
+    # The consultant's opportunity estimate — surfaced only from a report that has
     # actually shipped to the company (never leaked pre-approval), newest first.
     def opportunity_estimate_json
       review = ReportReview
                .joins(:report)
-               .includes(:reviewer_user)
+               .includes(:consultant_user)
                .where(reports: { company_id: @company.id, visibility: "shared_with_company" })
                .where.not(opportunity_amount: nil)
                .order(Arel.sql("reports.version DESC, report_reviews.updated_at DESC"))
@@ -70,7 +70,7 @@ module Dashboard
         amount: review.opportunity_amount,
         unit: review.opportunity_unit,
         basis: review.opportunity_basis,
-        reviewer_name: review.reviewer_user&.name,
+        consultant_name: review.consultant_user&.name,
         report_version: review.report.version
       }
     end

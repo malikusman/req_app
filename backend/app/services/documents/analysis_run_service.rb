@@ -113,7 +113,7 @@ module Documents
           { id: e.id, entry_type: e.entry_type, title: e.title, content: e.content.to_s.truncate(600) }
         end,
         existing_questions: @company.company_clarification_questions
-          .where(status: %w[open answered auto_answered dismissed_by_reviewer])
+          .where(status: %w[open answered auto_answered dismissed_by_consultant])
           .limit(40)
           .pluck(:id, :body, :status)
           .map { |id, body, status| { id: id, body: body, status: status } },
@@ -194,7 +194,7 @@ module Documents
       return if questions.empty?
 
       existing_bodies = @company.company_clarification_questions
-        .where(status: %w[open answered auto_answered dismissed_by_reviewer])
+        .where(status: %w[open answered auto_answered dismissed_by_consultant])
         .pluck(:body)
         .map { |b| normalize_q(b) }
 

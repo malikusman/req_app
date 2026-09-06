@@ -39,7 +39,6 @@ module Langgraph
         body[:media_context] = multi_agent[:media_context]
         body[:media_snippets] = multi_agent[:media_snippets] || []
         body[:company_profile] = multi_agent[:company_profile] if multi_agent[:company_profile].present?
-        body[:area_routing] = multi_agent[:area_routing] == true
       end
 
       post("/v1/threads/#{thread_id}/turn", body)
@@ -49,13 +48,71 @@ module Langgraph
       raise Langgraph::UnavailableError.new(e.message, retryable: true)
     end
 
-    def route!(thread_id:, profile:, limits:, context: {})
-      body = {
-        profile: profile,
-        limits: limits,
-        question_target: context.fetch(:question_target, 12)
-      }
-      post("/v1/threads/#{thread_id}/route", body)
+    # The agent never raises for this one — it returns a deterministic package
+    # rather than failing, because the interview has already completed.
+    def build_discovery_package!(blackboard:, profile:, company_name:, language:, insights: [])
+      post(
+        "/v1/discovery/package",
+        {
+          blackboard: blackboard,
+          profile: profile,
+          company_name: company_name,
+          language: language,
+          insights: insights
+        }
+      )
+    rescue Langgraph::UnavailableError
+      raise
+    rescue StandardError => e
+      raise Langgraph::UnavailableError.new(e.message, retryable: true)
+    end
+
+    # Neither of these raises on the agent side — they fall back rather than fail,
+    # because a consultant mid-review should not hit an error page.
+    def draft_requirement_questions!(statement:, max_questions:, already_asked:, package:, profile:, language:)
+      post(
+        "/v1/consultant/requirements/draft",
+        {
+          statement: statement,
+          max_questions: max_questions,
+          already_asked: already_asked,
+          package: package,
+          profile: profile,
+          language: language
+        },
+        # Runs from a job, not a request, so it can wait as long as docs analysis
+        # does. A local model can take well over a minute for this.
+        read_timeout: Integer(ENV.fetch("LANGGRAPH_DRAFT_READ_TIMEOUT", "180"))
+      )
+    rescue Langgraph::UnavailableError
+      raise
+    rescue StandardError => e
+      raise Langgraph::UnavailableError.new(e.message, retryable: true)
+    end
+
+    # Post-discovery companion reply. Rails assembles the context (interview
+    # insights, memory facts, recent notes) and the agent does the reasoning, the
+    # same split discovery already uses. Lives here rather than in Openai::Client so
+    # there is ONE companion prompt, and so it inherits the agent's max_tokens,
+    # reasoning_effort, truncation retry and shared circuit breaker.
+    def companion_turn!(user_message:, intent:, language:, context:)
+      post(
+        "/v1/companion/turn",
+        { user_message: user_message, intent: intent, language: language, context: context },
+        read_timeout: Integer(ENV.fetch("LANGGRAPH_COMPANION_READ_TIMEOUT", "120"))
+      )
+    rescue Langgraph::UnavailableError
+      raise
+    rescue StandardError => e
+      raise Langgraph::UnavailableError.new(e.message, retryable: true)
+    end
+
+    def evaluate_requirement!(statement:, answers:, language:)
+      post(
+        "/v1/consultant/requirements/evaluate",
+        { statement: statement, answers: answers, language: language },
+        read_timeout: Integer(ENV.fetch("LANGGRAPH_DRAFT_READ_TIMEOUT", "180"))
+      )
     rescue Langgraph::UnavailableError
       raise
     rescue StandardError => e

@@ -8,8 +8,8 @@ RSpec.describe "Api::V1::Platform::Conversations", type: :request do
   let(:company) { create(:company, :onboarded) }
   let!(:employee) { create(:employee, company: company) }
   let!(:conversation) { create(:conversation, employee: employee, company: company) }
-  let!(:discovery_message) { create(:message, conversation: conversation, body: "Discovery reply", reviewer_followup: false) }
-  let!(:followup_message) { create(:message, conversation: conversation, body: "Hidden followup", reviewer_followup: true) }
+  let!(:discovery_message) { create(:message, conversation: conversation, body: "Discovery reply", consultant_followup: false) }
+  let!(:followup_message) { create(:message, conversation: conversation, body: "Hidden followup", consultant_followup: true) }
 
   describe "GET /api/v1/platform/companies/:company_id/conversations" do
     it "lists conversations for the company" do
@@ -29,7 +29,7 @@ RSpec.describe "Api::V1::Platform::Conversations", type: :request do
   end
 
   describe "GET /api/v1/platform/companies/:company_id/conversations/:id" do
-    it "returns conversation messages excluding reviewer followups" do
+    it "returns conversation messages excluding consultant followups" do
       get "/api/v1/platform/companies/#{company.id}/conversations/#{conversation.id}", headers: headers
 
       expect(response).to have_http_status(:ok)

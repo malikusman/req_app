@@ -1,45 +1,24 @@
-"""Phase 3 — map-then-branch discovery flow (gated by state['area_routing']).
+"""The discovery interview flow: map, then branch.
 
-Instead of marching one narrow specialist (domain -> process -> technical) which
-fixates on handoffs around Q7, this:
+  A. ORIENT — a warm interviewer spends a few turns surfacing the person's 2-3
+     main role areas and writes them to the blackboard.
+  B. BRANCH — rotate short threads across those areas, asking for whichever
+     dossier slot is still missing, force-switching so no single area dominates.
 
-  A. ORIENT (first few turns): a warm interviewer surfaces the person's 2-3 main
-     role areas and writes them to the blackboard.
-  B. BRANCH: rotate short threads across those areas, each cycling how -> pain ->
-     ai, force-switching after a couple of questions so no single area (or the
-     handoffs lens) can dominate.
+This is now the only interview engine. The specialist queue it replaced marched
+domain -> process -> technical on per-agent question budgets, which fixated on
+handoffs around Q7 and — more importantly — could only ever end on a counter.
 
-Kept deterministic; the LLM only asks the question and (during orient) names the
-areas. Falls back to the specialist queue if no areas were discovered.
+The flow stays deterministic: the model asks the question and names the areas;
+what to ask next and when to stop is decided here, from the dossier.
 """
 
 import re
 from typing import Any
 
-AREA_BEATS = ["how", "pain", "ai"]
-DEFAULT_ORIENT_QUESTIONS = 3
-# Complete an area's short arc (how → pain → AI) before switching, so the
-# AI-openness beat actually surfaces per area instead of getting deferred to the
-# end. With a 10-question target this gives the top 2 areas a full arc.
-DEFAULT_SWITCH_AFTER = 3
+from app import dossier
+
 MAX_AREAS = 3
-
-BEAT_INTENT = {
-    "how": "how this part of their work actually gets done day to day, and which tools they use for it",
-    "pain": "what's slow, manual, annoying or error-prone about this part — where it snags",
-    "ai": (
-        "whether they've ever thought about letting software or AI take a boring slice of this "
-        "off their plate, and what they'd try — asked lightly, out of genuine curiosity, never as a pitch"
-    ),
-}
-
-
-def area_limits(limits: dict[str, Any] | None) -> dict[str, int]:
-    limits = limits or {}
-    return {
-        "orient_questions": int(limits.get("orient_questions", DEFAULT_ORIENT_QUESTIONS)),
-        "switch_after": int(limits.get("switch_after", DEFAULT_SWITCH_AFTER)),
-    }
 
 
 def ensure_area_state(bb: dict[str, Any]) -> None:
@@ -50,90 +29,101 @@ def ensure_area_state(bb: dict[str, Any]) -> None:
     bb.setdefault("area_streak", 0)
 
 
-def prepare(state: dict[str, Any], bb: dict[str, Any], limits: dict[str, Any], question_target: int) -> dict[str, Any] | None:
-    """Decide the turn. Returns a decision dict, or None to fall back to the
-    specialist queue (only when orient produced no areas)."""
+def prepare(bb: dict[str, Any], limits: dict[str, Any], question_count: int) -> dict[str, Any]:
+    """Decide the turn. Always returns a decision — there is no fallback engine."""
     ensure_area_state(bb)
-    al = area_limits(limits)
-    qc = state.get("question_count", 0)
-    if qc >= question_target:
-        return {"phase": "close", "active": None, "should_close": True}
+    threshold = limits["slot_confidence"]
 
-    # Phase A — orient
+    # 1. Hard ceiling. A backstop, not a target.
+    if question_count >= limits["max_questions"]:
+        return _close("ceiling")
+
+    past_floor = question_count >= limits["min_questions"]
+
+    # 2. Everything required is in.
+    if past_floor and dossier.is_complete(bb, threshold):
+        return _close("dossier_complete")
+
+    # 3. Going nowhere.
+    if past_floor and bb.get("stall_turns", 0) >= limits["stall_turns"]:
+        return _close("stalled")
+
+    # Phase A — orient. Keep going until we have areas, even past the nominal
+    # orient budget, because branching needs something to branch on.
     if not bb["orient_done"]:
-        if bb["orient_asked"] < al["orient_questions"]:
-            return {"phase": "orient", "active": "orient", "should_close": False}
+        if bb["orient_asked"] < limits["orient_questions"]:
+            return {"phase": "orient", "beat": None, "should_close": False}
         bb["orient_done"] = True
+        if not bb.get("role_areas"):
+            _seed_areas_from_profile(bb)
 
-    # Phase B — branch (needs areas)
-    areas = bb.get("role_areas") or []
-    if not areas:
-        return None  # safety: fall back to specialist routing
+    if not bb.get("role_areas"):
+        # Orientation genuinely produced nothing nameable and the profile was empty
+        # too. Rather than loop, end — there is nothing to ask about.
+        return _close("dossier_complete" if past_floor else "stalled")
 
-    idx = bb.get("current_area_idx", 0) % len(areas)
-    streak = bb.get("area_streak", 0)
-    cur = areas[idx]
-    undone = [b for b in AREA_BEATS if b not in (cur.get("beats_done") or [])]
+    # Phase B — branch on whatever the dossier still wants.
+    beat = dossier.next_beat(bb, threshold, limits["switch_after"])
+    if beat is None:
+        return _close("dossier_complete")
 
-    # Force-switch after a couple of questions in one area, or when it's exhausted.
-    if streak >= al["switch_after"] or not undone:
-        order = sorted(range(len(areas)), key=lambda i: (len(areas[i].get("beats_done") or []), i))
-        nxt = next((i for i in order if len(areas[i].get("beats_done") or []) < len(AREA_BEATS)), None)
-        if nxt is None:
-            return {"phase": "close", "active": None, "should_close": True}  # every area fully explored
-        idx, streak = nxt, 0
-        cur = areas[idx]
-        undone = [b for b in AREA_BEATS if b not in (cur.get("beats_done") or [])]
-
-    bb["current_area_idx"] = idx
-    bb["area_streak"] = streak
-    return {
-        "phase": "branch",
-        "active": "area",
-        "should_close": False,
-        "current_area": cur.get("name", ""),
-        "current_beat": undone[0],
-        "beat_intent": BEAT_INTENT.get(undone[0], ""),
-    }
+    return {"phase": "branch", "beat": beat, "should_close": False}
 
 
-def finalize(state: dict[str, Any], bb: dict[str, Any], llm_output: dict[str, Any], decision: dict[str, Any]) -> None:
+def finalize(
+    bb: dict[str, Any],
+    llm_output: dict[str, Any],
+    phase: str | None,
+    beat: dict[str, Any] | None,
+) -> None:
     ensure_area_state(bb)
-    phase = decision.get("phase")
+    # `beat` here is the topic of the question just asked THIS turn -- the employee's
+    # NEXT reply answers it. Stashed so next turn's prompt can grade that reply
+    # against the slot it actually addresses, instead of whatever comes next.
+    bb["last_beat"] = beat
     if phase == "orient":
         bb["orient_asked"] = bb.get("orient_asked", 0) + 1
         _merge_role_areas(bb, llm_output.get("role_areas"))
-        al = area_limits(state.get("limits") or {})
-        if bb["orient_asked"] >= al["orient_questions"]:
+        # Areas named early means orientation is done early.
+        if bb.get("role_areas") and bb["orient_asked"] >= 2:
             bb["orient_done"] = True
-            if not bb.get("role_areas"):
-                _seed_areas_from_profile(bb)
     elif phase == "branch":
-        idx = bb.get("current_area_idx", 0)
-        areas = bb.get("role_areas") or []
-        if 0 <= idx < len(areas):
-            done = areas[idx].setdefault("beats_done", [])
-            beat = decision.get("current_beat")
-            if beat and beat not in done:
-                done.append(beat)
-        bb["area_streak"] = bb.get("area_streak", 0) + 1
+        bb["area_streak"] = bb.get("area_streak", 0) + 1 if beat and beat.get("area") else 0
+        # A named area can still surface during branching.
+        _merge_role_areas(bb, llm_output.get("role_areas"))
 
 
-def routing_decision(decision: dict[str, Any], previous_active: str) -> dict[str, Any]:
-    active = decision.get("active")
+def routing_decision(decision: dict[str, Any], previous_agent: str | None) -> dict[str, Any]:
+    phase = decision.get("phase")
+    beat = decision.get("beat") or {}
+    agent = phase or "close"
+
     if decision.get("should_close"):
         action = "close"
-    elif active != previous_active:
+    elif agent != previous_agent:
         action = "handoff"
     else:
         action = "continue"
+
     reason = {
         "orient": "mapping the person's main role areas",
-        "branch": f"exploring '{decision.get('current_area')}' ({decision.get('current_beat')})",
-        "close": "interview complete",
-    }.get(decision.get("phase"), "")
-    return {"action": action, "agent": active, "reason": reason,
-            "area": decision.get("current_area"), "beat": decision.get("current_beat")}
+        "branch": f"asking for '{beat.get('slot')}'"
+        + (f" on '{beat.get('area')}'" if beat.get("area") else ""),
+        "close": f"interview complete ({decision.get('close_reason')})",
+    }.get(phase or "close", "")
+
+    return {
+        "action": action,
+        "agent": agent,
+        "reason": reason,
+        "slot": beat.get("slot"),
+        "area": beat.get("area"),
+        "close_reason": decision.get("close_reason"),
+    }
+
+
+def _close(reason: str) -> dict[str, Any]:
+    return {"phase": "close", "beat": None, "should_close": True, "close_reason": reason}
 
 
 def _merge_role_areas(bb: dict[str, Any], raw: Any) -> None:
@@ -143,17 +133,18 @@ def _merge_role_areas(bb: dict[str, Any], raw: Any) -> None:
     for name in raw:
         n = str(name).strip()
         if n and n.lower() not in existing and len(bb["role_areas"]) < MAX_AREAS:
-            bb["role_areas"].append({"name": n[:60], "beats_done": []})
+            bb["role_areas"].append({"name": n[:60]})
             existing.add(n.lower())
 
 
 def _seed_areas_from_profile(bb: dict[str, Any]) -> None:
-    """Fallback so branching always has something to explore even if orient
-    failed to name areas — split responsibilities, else use the role title."""
+    """So branching always has something to explore even if orient named nothing —
+    split the responsibilities the profiling step already captured, else fall back
+    to the role title."""
     profile = bb.get("profile") or {}
     resp = profile.get("responsibilities") or ""
     parts = [p.strip() for p in re.split(r"[,;/]|\band\b", resp) if p.strip()]
     for p in parts[:MAX_AREAS]:
-        bb["role_areas"].append({"name": p[:60], "beats_done": []})
-    if not bb["role_areas"]:
-        bb["role_areas"].append({"name": profile.get("role_title") or "their main work", "beats_done": []})
+        bb["role_areas"].append({"name": p[:60]})
+    if not bb["role_areas"] and profile.get("role_title"):
+        bb["role_areas"].append({"name": str(profile["role_title"])[:60]})

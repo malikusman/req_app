@@ -17,7 +17,7 @@ RSpec.describe Documents::StartAnalysisRunService do
       status: status,
       document_type: "sop",
       sensitivity: "internal",
-      reviewer_visible: true
+      consultant_visible: true
     )
   end
 

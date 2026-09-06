@@ -16,7 +16,7 @@ export function PlatformLogin() {
       forgotPasswordTo="/auth/forgot-password?portal=platform"
       footer={
         <>
-          Company admin? <Link to="/company/login">Company portal</Link> · <Link to="/reviewer/login">Reviewer</Link>
+          Company admin? <Link to="/company/login">Company portal</Link> · <Link to="/consultant/login">Consultant</Link>
         </>
       }
       onSubmit={async (email, password) => {

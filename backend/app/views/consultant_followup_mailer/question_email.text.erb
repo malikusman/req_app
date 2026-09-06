@@ -1,0 +1,11 @@
+Hi <%= @employee.display_name || "there" %>,
+
+Following up on the questions you answered for <%= @company.display_name || @company.name %>,
+one of the specialists reviewing them would like to ask you one more thing:
+
+<%= @body %>
+
+You can answer here — it takes a moment, and no login is needed:
+<%= @reply_url %>
+
+If you would rather not answer, you can ignore this email.

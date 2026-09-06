@@ -5,7 +5,7 @@ class AgenticIdea < ApplicationRecord
   belongs_to :solution_catalog_entry, optional: true, class_name: "SolutionCatalogEntry"
 
   STATUSES = %w[draft published archived].freeze
-  SOURCES = %w[generated platform reviewer].freeze
+  SOURCES = %w[generated platform consultant].freeze
 
   validates :title, presence: true
   validates :status, inclusion: { in: STATUSES }

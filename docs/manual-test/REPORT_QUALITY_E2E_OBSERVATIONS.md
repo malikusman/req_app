@@ -22,9 +22,9 @@
 - ✅ stored snapshot carries LLM narrative
 - ✅ hidden section removed from body
 - ✅ hidden section removed from contents
-- ✅ reviewer edit-note rendered
-- ✅ custom reviewer section rendered
-- ✅ reviewer endorsement reflected on owned solution
+- ✅ consultant edit-note rendered
+- ✅ custom consultant section rendered
+- ✅ consultant endorsement reflected on owned solution
 - ✅ RegenerateWithReviewService ran without error
 - ✅ narrative nil when disabled
 - ✅ deterministic report still renders

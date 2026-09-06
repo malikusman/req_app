@@ -24,19 +24,52 @@ def _use_json_mode(requested: bool) -> bool:
     return host in ("api.openai.com",) or host.endswith(".openai.com")
 
 
+def truncated(response) -> bool:
+    """True when the provider stopped generation at the token cap.
+
+    Reasoning models spend their token budget thinking BEFORE emitting content, so a
+    cap that looks generous can still be exhausted with nothing written. The reply
+    then cannot be parsed, and re-asking at the same cap truncates identically —
+    which is why every call site needs to detect this rather than treat it as
+    malformed JSON to retry.
+    """
+    meta = getattr(response, "response_metadata", None) or {}
+    return meta.get("finish_reason") == "length"
+
+
 def build_chat_openai(
     *,
     model: str | None = None,
     temperature: float = 0.4,
     json_mode: bool = False,
+    max_tokens: int | None = None,
 ) -> ChatOpenAI:
+    """max_tokens defaults to settings.openai_max_tokens (OPENAI_MAX_TOKENS).
+
+    This parameter was missing while companion.py already passed it, so every
+    companion reply raised TypeError, was swallowed by a bare `except Exception`,
+    and returned the canned fallback — while also recording a circuit-breaker
+    failure. The companion never once used the model.
+    """
     kwargs: dict = {
         "model": model or settings.openai_model,
         "api_key": settings.openai_api_key.strip() or "lm-studio",
         "temperature": temperature,
+        "max_tokens": max_tokens or settings.openai_max_tokens,
     }
     if settings.openai_base_url.strip():
         kwargs["base_url"] = settings.openai_base_url.rstrip("/")
+    model_kwargs: dict = {}
     if _use_json_mode(json_mode):
-        kwargs["model_kwargs"] = {"response_format": {"type": "json_object"}}
+        model_kwargs["response_format"] = {"type": "json_object"}
+
+    if model_kwargs:
+        kwargs["model_kwargs"] = model_kwargs
+
+    effort = settings.openai_reasoning_effort.strip()
+    if effort:
+        # A first-class ChatOpenAI parameter — passing it through model_kwargs works
+        # but warns. Only sent when configured: a non-reasoning model rejects it.
+        kwargs["reasoning_effort"] = effort
+
     return ChatOpenAI(**kwargs)

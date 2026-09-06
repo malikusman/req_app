@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, type AgenticIdea } from '../../lib/api';
 import { Badge, Button, Card, EmptyState, Input, Skeleton, Textarea } from '../../components/ui';
 
-type Mode = 'platform' | 'reviewer';
+type Mode = 'platform' | 'consultant';
 
 type Notice = { kind: 'success' | 'error'; text: string };
 
@@ -34,7 +34,7 @@ export function AgenticIdeasPanel({
     const req =
       mode === 'platform'
         ? api.platformAgenticIdeas(token, companyId)
-        : api.reviewerAgenticIdeas(token, companyId);
+        : api.consultantAgenticIdeas(token, companyId);
     req
       .then((d) => setIdeas(d.agentic_ideas))
       .catch((err) =>
@@ -61,7 +61,7 @@ export function AgenticIdeasPanel({
         status: 'draft',
       };
       if (mode === 'platform') await api.createPlatformAgenticIdea(token, companyId, payload);
-      else await api.createReviewerAgenticIdea(token, companyId, payload);
+      else await api.createConsultantAgenticIdea(token, companyId, payload);
       setTitle('');
       setSummary('');
       setSystemFit('');
@@ -79,7 +79,7 @@ export function AgenticIdeasPanel({
     setBusyId(id);
     try {
       if (mode === 'platform') await api.publishPlatformAgenticIdea(token, companyId, id);
-      else await api.publishReviewerAgenticIdea(token, companyId, id);
+      else await api.publishConsultantAgenticIdea(token, companyId, id);
       load();
     } catch (err) {
       setNotice({ kind: 'error', text: err instanceof Error ? err.message : 'Publish failed' });
@@ -120,7 +120,7 @@ export function AgenticIdeasPanel({
     setBusyId(id);
     try {
       if (mode === 'platform') await api.updatePlatformAgenticIdea(token, companyId, id, editDraft);
-      else await api.updateReviewerAgenticIdea(token, companyId, id, editDraft);
+      else await api.updateConsultantAgenticIdea(token, companyId, id, editDraft);
       setEditingId(null);
       setEditDraft({});
       load();

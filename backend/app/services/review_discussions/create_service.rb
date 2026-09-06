@@ -2,12 +2,12 @@
 
 module ReviewDiscussions
   class CreateService
-    def self.call(reviewer:, report:, params:)
-      new(reviewer: reviewer, report: report, params: params).call
+    def self.call(consultant:, report:, params:)
+      new(consultant: consultant, report: report, params: params).call
     end
 
-    def initialize(reviewer:, report:, params:)
-      @reviewer = reviewer
+    def initialize(consultant:, report:, params:)
+      @consultant = consultant
       @report = report
       @company = report.company
       @params = params
@@ -17,9 +17,9 @@ module ReviewDiscussions
       discussion = ReviewDiscussion.create!(
         report: @report,
         company: @company,
-        author_reviewer_user: @reviewer,
+        author_consultant_user: @consultant,
         target_type: @params.fetch(:target_type),
-        target_reviewer_user_id: @params[:target_reviewer_user_id],
+        target_consultant_user_id: @params[:target_consultant_user_id],
         employee_id: @params[:employee_id],
         conversation_id: @params[:conversation_id],
         anchor_type: @params.fetch(:anchor_type),
@@ -31,13 +31,13 @@ module ReviewDiscussions
 
       if discussion.target_type == "employee"
         # Consent gate: only WhatsApp the employee directly when the company allows
-        # reviewer→employee contact (default on). When off, the reviewer's question
+        # consultant→employee contact (default on). When off, the consultant's question
         # is still recorded, but must go through the admin-approved outreach path
         # instead of reaching the employee ungated.
-        if @company.merged_settings["reviewer_can_contact_employees"] != false
+        if @company.merged_settings["consultant_can_contact_employees"] != false
           employee = @company.employees.find(discussion.employee_id)
-          result = ReviewerFollowup::SendService.call(
-            reviewer: @reviewer,
+          result = ConsultantFollowup::SendService.call(
+            consultant: @consultant,
             employee: employee,
             body: discussion.body,
             report: @report
@@ -47,13 +47,13 @@ module ReviewDiscussions
             review_discussion: discussion
           )
         end
-      elsif discussion.target_type == "reviewer" && discussion.target_reviewer_user_id.present?
-        recipient = ReviewerUser.find(discussion.target_reviewer_user_id)
+      elsif discussion.target_type == "consultant" && discussion.target_consultant_user_id.present?
+        recipient = ConsultantUser.find(discussion.target_consultant_user_id)
         NotificationService.notify_discussion_mention(
           recipient: recipient,
           company: @company,
           report: @report,
-          author: @reviewer,
+          author: @consultant,
           discussion: discussion
         )
       end

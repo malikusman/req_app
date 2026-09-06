@@ -54,7 +54,7 @@ class ScenarioCycleRunner
     upload_documents!
     run_discovery!
     run_intelligence_and_report!
-    run_reviewer_eta!
+    run_consultant_eta!
     @results["finished_at"] = Time.current.iso8601
     @results["passed"] = @checks.all? { |(_, ok)| ok }
     print_report
@@ -67,8 +67,8 @@ class ScenarioCycleRunner
     banner "Scenario Corp review appendix verify"
     provision!
     load_ready_report!
-    # Full reviewer ETA against the existing ready report (no rediscovery).
-    run_reviewer_eta!(appendix_only: false)
+    # Full consultant ETA against the existing ready report (no rediscovery).
+    run_consultant_eta!(appendix_only: false)
     @results["finished_at"] = Time.current.iso8601
     @results["passed"] = @checks.all? { |(_, ok)| ok }
     @results["mode"] = "verify_appendix"
@@ -83,13 +83,13 @@ class ScenarioCycleRunner
   def provision!
     stage "Provision scenario-corp"
     @platform = PlatformUser.find_by!(email: "admin@reqapp.local")
-    @reviewer_a = ReviewerUser.find_or_create_by!(email: "reviewer@reqapp.local") do |u|
-      u.name = "Expert Reviewer"
+    @consultant_a = ConsultantUser.find_or_create_by!(email: "consultant@reqapp.local") do |u|
+      u.name = "Expert Consultant"
       u.password = "password123"
       u.status = "active"
       u.jti = SecureRandom.uuid
     end
-    @reviewer_b = ReviewerUser.find_or_create_by!(email: "reviewer2@reqapp.local") do |u|
+    @consultant_b = ConsultantUser.find_or_create_by!(email: "consultant2@reqapp.local") do |u|
       u.name = "Finance Specialist"
       u.password = "password123"
       u.status = "active"
@@ -130,22 +130,22 @@ class ScenarioCycleRunner
       u.jti = SecureRandom.uuid
     end
 
-    [@reviewer_a, @reviewer_b].each do |reviewer|
-      ReviewerAssignment.find_or_create_by!(company: @company, reviewer_user: reviewer, status: "active") do |a|
+    [@consultant_a, @consultant_b].each do |consultant|
+      ConsultantAssignment.find_or_create_by!(company: @company, consultant_user: consultant, status: "active") do |a|
         a.assigned_by_platform_user = @platform
         a.assigned_at = Time.current
       end
     end
 
-    active = @company.reviewer_assignments.active.count
+    active = @company.consultant_assignments.active.count
     check "Company provisioned", @company.persisted?
     check "Admin provisioned", @admin.persisted?
-    check "Two active reviewers assigned (#{active})", active == 2
+    check "Two active consultants assigned (#{active})", active == 2
 
     @results["phases"]["provision"] = {
       "company_id" => @company.id,
       "admin_email" => @admin.email,
-      "reviewer_ids" => [@reviewer_a.id, @reviewer_b.id],
+      "consultant_ids" => [@consultant_a.id, @consultant_b.id],
       "openai_present" => @results["openai_present"]
     }
   end
@@ -201,8 +201,8 @@ class ScenarioCycleRunner
     prior = Employee.find_by(phone_e164: phone)
     if prior
       # Clear ETA FKs that block conversation/employee purge
-      ReviewerOutreach.where(employee_id: prior.id).or(ReviewerOutreach.where(conversation_id: prior.conversation_ids)).find_each do |o|
-        o.reviewer_outreach_replies.delete_all
+      ConsultantOutreach.where(employee_id: prior.id).or(ConsultantOutreach.where(conversation_id: prior.conversation_ids)).find_each do |o|
+        o.consultant_outreach_replies.delete_all
         o.delete
       end
       DiscoverySimulator.purge_employee!(prior, company: @company)
@@ -287,7 +287,7 @@ class ScenarioCycleRunner
     check "Report ready", @report.status == "ready"
     check "Report snapshot present", snapshot.present?
     check "Supporting documents in snapshot (#{supporting_docs.size})", supporting_docs.any?
-    check "Reviewer reviews bootstrapped (#{@report.report_reviews.count})", @report.report_reviews.count >= 2
+    check "Consultant reviews bootstrapped (#{@report.report_reviews.count})", @report.report_reviews.count >= 2
 
     @results["phases"]["intelligence_report"] = {
       "signals" => result[:signals],
@@ -312,8 +312,8 @@ class ScenarioCycleRunner
 
     if @report.report_reviews.count < 2
       # Bootstrap empty reviews the same way report generation does.
-      [@reviewer_a, @reviewer_b].each do |reviewer|
-        review = @report.report_reviews.find_or_create_by!(reviewer_user: reviewer) do |r|
+      [@consultant_a, @consultant_b].each do |consultant|
+        review = @report.report_reviews.find_or_create_by!(consultant_user: consultant) do |r|
           r.company = @company
           r.status = "pending"
         end
@@ -331,12 +331,12 @@ class ScenarioCycleRunner
     check "Employee available for outreach path", @employee.present?
   end
 
-  def run_reviewer_eta!(appendix_only: false)
-    stage appendix_only ? "Reviewer appendix verify" : "Reviewer ETA (findings, outreach)"
+  def run_consultant_eta!(appendix_only: false)
+    stage appendix_only ? "Consultant appendix verify" : "Consultant ETA (findings, outreach)"
     return check("Report available for ETA", false) unless @report
 
-    review_a = @report.report_reviews.find_by!(reviewer_user: @reviewer_a)
-    review_b = @report.report_reviews.find_by!(reviewer_user: @reviewer_b)
+    review_a = @report.report_reviews.find_by!(consultant_user: @consultant_a)
+    review_b = @report.report_reviews.find_by!(consultant_user: @consultant_b)
 
     blocked = ensure_review_a_submitted!(review_a)
     outreach = nil
@@ -348,9 +348,9 @@ class ScenarioCycleRunner
 
     unless review_b.submitted?
       ReportReviews::SubmitService.call(report_review: review_b)
-      check "Reviewer B submitted needs_info review", review_b.reload.submitted?
+      check "Consultant B submitted needs_info review", review_b.reload.submitted?
     else
-      check "Reviewer B already submitted", true
+      check "Consultant B already submitted", true
     end
 
     overlay = Reports::ReviewNotesCollector.new(report: @report.reload).overlay
@@ -361,7 +361,7 @@ class ScenarioCycleRunner
 
     appendix = assert_regenerated_appendix!(overlay)
 
-    @results["phases"]["reviewer_eta"] = {
+    @results["phases"]["consultant_eta"] = {
       "review_a_id" => review_a.id,
       "review_b_id" => review_b.id,
       "outreach_id" => outreach&.id,
@@ -372,14 +372,14 @@ class ScenarioCycleRunner
       "appendix_only" => appendix_only
     }
   rescue StandardError => e
-    check "Reviewer ETA stage succeeded", false
-    @results["phases"]["reviewer_eta"] = { "error" => "#{e.class}: #{e.message}", "backtrace" => e.backtrace.first(5) }
+    check "Consultant ETA stage succeeded", false
+    @results["phases"]["consultant_eta"] = { "error" => "#{e.class}: #{e.message}", "backtrace" => e.backtrace.first(5) }
   end
 
   def ensure_review_a_submitted!(review_a)
     if review_a.submitted?
       seed_review_a_findings!(review_a)
-      check "Reviewer A already submitted", true
+      check "Consultant A already submitted", true
       return true
     end
 
@@ -400,7 +400,7 @@ class ScenarioCycleRunner
 
     seed_review_a_findings!(review_a)
     ReportReviews::SubmitService.call(report_review: review_a)
-    check "Reviewer A submitted after findings", review_a.reload.submitted?
+    check "Consultant A submitted after findings", review_a.reload.submitted?
     blocked
   end
 
@@ -432,7 +432,7 @@ class ScenarioCycleRunner
     end
     unless review_b.report_review_comments.where(section_key: "signals").exists?
       review_b.report_review_comments.create!(
-        reviewer_user: @reviewer_b,
+        consultant_user: @consultant_b,
         section_key: "signals",
         body: "Need a concrete example of the freeze window from Jordan."
       )
@@ -455,7 +455,7 @@ class ScenarioCycleRunner
   def deliver_review_b_outreach!
     raise ArgumentError, "Employee required for outreach path" unless @employee
 
-    existing = ReviewerOutreach.where(company: @company, reviewer_user: @reviewer_b, report_id: @report.id)
+    existing = ConsultantOutreach.where(company: @company, consultant_user: @consultant_b, report_id: @report.id)
       .order(created_at: :desc).first
     if existing&.status == "replied"
       check "Outreach already replied", true
@@ -463,7 +463,7 @@ class ScenarioCycleRunner
     end
 
     outreach = Outreaches::CreateService.call(
-      reviewer: @reviewer_b,
+      consultant: @consultant_b,
       company: @company,
       employee_id: @employee.id,
       body: "Can you share one concrete example of SCENARIO_GOLDEN_PHRASE_MONTH_END_FREEZE from last close?",
@@ -503,7 +503,7 @@ class ScenarioCycleRunner
 
   def ensure_publishable_finding!(review, finding_type:, severity:, body:, disposition:, evidence_refs:)
     finding = review.report_review_findings.find_or_initialize_by(
-      reviewer_user: review.reviewer_user,
+      consultant_user: review.consultant_user,
       finding_type: finding_type
     )
     finding.assign_attributes(
@@ -645,7 +645,7 @@ class ScenarioCycleRunner
       department: "finance",
       document_type: "sop",
       sensitivity: "internal",
-      reviewer_visible: true,
+      consultant_visible: true,
       filename: filename,
       content_type: content_type,
       byte_size: body.bytesize,
@@ -711,7 +711,7 @@ class ScenarioCycleRunner
     puts "OpenAI key present: #{@results['openai_present']}"
     puts "Company id: #{@company&.id} slug=#{SLUG}"
     puts "Admin: admin@scenario.local / password123"
-    puts "Reviewers: reviewer@reqapp.local , reviewer2@reqapp.local / password123"
+    puts "Consultants: consultant@reqapp.local , consultant2@reqapp.local / password123"
     puts "=" * 60
   end
 

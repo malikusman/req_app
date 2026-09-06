@@ -99,7 +99,10 @@ module Whatsapp
         external_id: external_id,
         is_discovery_question: is_discovery_question,
         agent_id: agent_id,
-        routing_decision: routing_decision.presence || {}
+        routing_decision: routing_decision.presence || {},
+        # Explicit: an inbound message on a completed conversation is a companion
+        # turn, and nothing else on the row would say so.
+        track: @conversation.completed? ? "companion" : "discovery"
       )
     end
   end

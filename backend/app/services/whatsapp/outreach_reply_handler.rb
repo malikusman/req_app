@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 module Whatsapp
-  # Routes inbound WhatsApp text to an open ReviewerOutreach (sent clarification),
-  # before falling back to legacy ReviewerInfoRequest follow-ups.
+  # Routes inbound WhatsApp text to an open ConsultantOutreach (sent clarification),
+  # before falling back to legacy ConsultantInfoRequest follow-ups.
   class OutreachReplyHandler
     def initialize(employee:, conversation:, text:, external_id:, client:)
       @employee = employee
@@ -13,7 +13,7 @@ module Whatsapp
     end
 
     def handle
-      outreach = ReviewerOutreach.open_whatsapp_for_employee(@employee.id)
+      outreach = ConsultantOutreach.open_whatsapp_for_employee(@employee.id)
       return false unless outreach
 
       message = @conversation.messages.create!(
@@ -21,8 +21,10 @@ module Whatsapp
         message_type: "text",
         body: @text,
         external_id: @external_id,
-        reviewer_followup: true,
-        raw_payload: { "reviewer_outreach_id" => outreach.id }
+        consultant_followup: true,
+        track: "consultant_followup",
+        track_ref: outreach,
+        raw_payload: { "consultant_outreach_id" => outreach.id }
       )
 
       Outreaches::RecordReplyService.call(

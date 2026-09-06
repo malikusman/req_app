@@ -22,7 +22,7 @@ They match product behaviour (`report_kind`, methodology, executive summary).
 **When:** At least one completed interview; readiness uses the blended score.
 
 **What leadership hears:**
-> Frontline interviews on WhatsApp/web (plus your document baseline) produced an evidence graph of how work actually happens. Findings link to employee answers where interviews ran; documents still reinforce coverage. Expert reviewers annotate before platform share.
+> Frontline interviews on WhatsApp/web (plus your document baseline) produced an evidence graph of how work actually happens. Findings link to employee answers where interviews ran; documents still reinforce coverage. Expert consultants annotate before platform share.
 
 **UI labels:** `report_kind: discovery` (or equivalent non-baseline), methodology = interviews + docs, divider “What the interviews revealed”.
 

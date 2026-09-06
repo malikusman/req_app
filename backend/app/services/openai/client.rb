@@ -119,41 +119,6 @@ module Openai
     end
 
     # Post-discovery companion: short WhatsApp reply. No interview questions.
-    def companion_chat(user_message:, intent:, context:, language: "en")
-      ensure_configured_or_mock!("OpenAI")
-      return mock_companion_chat(intent) unless configured?
-
-      body = {
-        model: ENV.fetch("DOCS_MODEL_FAST", ENV.fetch("OPENAI_MODEL", "gpt-4o-mini")),
-        messages: [
-          {
-            role: "system",
-            content: <<~SYS
-              You are Worktruth's WhatsApp companion for an employee whose discovery interview is already complete.
-              Be brief (2-5 short sentences), helpful, and warm. Do NOT run a new interview or ask a long list of discovery questions.
-              Do NOT invent company systems or claim tools are officially recommended unless they appear in context.
-              If they share work details, acknowledge them. Mention they can say "add this to my interview" to include it in the company report.
-              Language: #{language}. Intent hint: #{intent}.
-            SYS
-          },
-          {
-            role: "user",
-            content: <<~PROMPT
-              Employee message: #{user_message}
-              Context JSON:
-              #{context.to_json.truncate(4000)}
-              Respond as JSON: {"reply":"..."}
-            PROMPT
-          }
-        ],
-        max_tokens: chat_max_tokens(400)
-      }
-      parsed = parse_model_json(chat_json_content(body))
-      { "reply" => parsed["reply"].to_s.strip }
-    rescue JSON::ParserError
-      { "reply" => "" }
-    end
-
     def classify_companion_intent(text:, recent_messages: [])
       ensure_configured_or_mock!("OpenAI")
       return mock_classify_companion_intent(text) unless configured?
@@ -722,13 +687,6 @@ module Openai
       else
         { "answer" => "", "confidence" => 0.2, "grounded" => false }
       end
-    end
-
-    def mock_companion_chat(intent)
-      {
-        "reply" => "Happy to help as your post-discovery companion (#{intent}). " \
-                   "Share updates anytime, or say \"add this to my interview\" for the company report."
-      }
     end
 
     def mock_classify_companion_intent(text)

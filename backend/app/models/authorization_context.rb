@@ -9,12 +9,12 @@ AuthorizationContext = Struct.new(:actor, :audience, keyword_init: true) do
     audience == :company
   end
 
-  def reviewer?
-    audience == :reviewer
+  def consultant?
+    audience == :consultant
   end
 
   def assigned_company_ids
-    return [] unless reviewer? && actor.respond_to?(:active_company_ids)
+    return [] unless consultant? && actor.respond_to?(:active_company_ids)
 
     actor.active_company_ids
   end

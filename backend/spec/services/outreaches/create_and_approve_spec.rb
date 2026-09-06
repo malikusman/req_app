@@ -4,16 +4,16 @@ require "rails_helper"
 
 RSpec.describe Outreaches::CreateService do
   let(:company) { create(:company) }
-  let(:reviewer) { create(:reviewer_user) }
+  let(:consultant) { create(:consultant_user) }
   let(:employee) { create(:employee, company: company) }
 
   before do
-    create(:reviewer_assignment, company: company, reviewer_user: reviewer)
+    create(:consultant_assignment, company: company, consultant_user: consultant)
   end
 
   it "creates an outreach pending admin approval without sending" do
     outreach = described_class.call(
-      reviewer: reviewer,
+      consultant: consultant,
       company: company,
       employee_id: employee.id,
       body: "Can you clarify the SAP handoff?",
@@ -30,7 +30,7 @@ RSpec.describe Outreaches::CreateService do
     admin = create(:company_user, company: company, role: "company_admin", status: "active")
 
     outreach = described_class.call(
-      reviewer: reviewer,
+      consultant: consultant,
       company: company,
       recipient_type: "company_admin",
       recipient_id: admin.id,
@@ -51,7 +51,7 @@ RSpec.describe Outreaches::CreateService do
     admin = create(:company_user, company: company, role: "company_admin", status: "active")
 
     outreach = described_class.call(
-      reviewer: reviewer,
+      consultant: consultant,
       company: company,
       recipient_type: "company_admin",
       body: "Question for the company admin",
@@ -65,7 +65,7 @@ RSpec.describe Outreaches::CreateService do
   it "records an admin answer closing the company_admin clarification" do
     admin = create(:company_user, company: company, role: "company_admin", status: "active")
     outreach = described_class.call(
-      reviewer: reviewer,
+      consultant: consultant,
       company: company,
       recipient_type: "company_admin",
       body: "Confirm Excel exception tab usage.",
@@ -82,19 +82,19 @@ RSpec.describe Outreaches::CreateService do
 
     expect(reply.body).to include("Excel")
     expect(outreach.reload.status).to eq("closed")
-    expect(outreach.reviewer_outreach_replies.count).to eq(1)
+    expect(outreach.consultant_outreach_replies.count).to eq(1)
   end
 end
 
 RSpec.describe Outreaches::ApproveService do
   let(:company) { create(:company) }
-  let(:reviewer) { create(:reviewer_user) }
+  let(:consultant) { create(:consultant_user) }
   let(:admin) { create(:company_user, company: company, role: "company_admin") }
   let(:employee) { create(:employee, company: company) }
   let(:outreach) do
-    ReviewerOutreach.create!(
+    ConsultantOutreach.create!(
       company: company,
-      reviewer_user: reviewer,
+      consultant_user: consultant,
       employee: employee,
       recipient_type: "employee",
       recipient_id: employee.id,

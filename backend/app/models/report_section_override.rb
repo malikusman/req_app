@@ -1,13 +1,13 @@
 # frozen_string_literal: true
 
-# A reviewer's editorial change to a generated report: hide a built-in section,
+# A consultant's editorial change to a generated report: hide a built-in section,
 # add an editorial note to one, or add a whole new custom section. Applied to the
 # snapshot at regeneration time (the stored snapshot itself is never mutated), so
 # the AI-generated body and expert edits stay distinguishable and auditable.
 class ReportSectionOverride < ApplicationRecord
   ACTIONS = %w[hide edit add].freeze
 
-  # Built-in sections a reviewer may hide or annotate. Keep in sync with the
+  # Built-in sections a consultant may hide or annotate. Keep in sync with the
   # section render order in views/reports/document.html.erb.
   BUILT_IN_SECTIONS = %w[
     executive_summary readiness company_context participation delta
@@ -16,7 +16,7 @@ class ReportSectionOverride < ApplicationRecord
   ].freeze
 
   belongs_to :report
-  belongs_to :reviewer_user
+  belongs_to :consultant_user
 
   validates :action, inclusion: { in: ACTIONS }
   validates :section_key, presence: true, if: -> { action.in?(%w[hide edit]) }

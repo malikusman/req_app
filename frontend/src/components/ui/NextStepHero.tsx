@@ -13,7 +13,7 @@ export type HeroAction = {
 
 /**
  * Elevated, state-aware "do this next" card — the single primary action on a
- * guided dashboard. Generic + prop-driven so reviewer/admin homes can reuse it.
+ * guided dashboard. Generic + prop-driven so consultant/admin homes can reuse it.
  */
 export function NextStepHero({
   eyebrow = 'Do this next',

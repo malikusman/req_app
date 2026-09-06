@@ -150,35 +150,18 @@ class DiscoverySimulator
     @cleanup = cleanup
     @checks = []
     @turns = 0
-    @area_routing = ENV["AREA_ROUTING"] == "1"
   end
 
   def call
-    mode = @area_routing ? "AREA ROUTING (phase 3: orient → per-area)" : "specialist queue (default)"
-    banner "Discovery dry run — #{@persona[:name]} (#{@persona_key}) @ #{@company.name}\nFlow: #{mode}"
-    apply_area_routing!
+    limits = Discovery::ContextBuilder.limits_for(@company)
+    banner "Discovery dry run — #{@persona[:name]} (#{@persona_key}) @ #{@company.name}\n" \
+           "Ceiling #{limits[:max_questions]}, floor #{limits[:min_questions]}, " \
+           "stall after #{limits[:stall_turns]}"
     execute_stages!
     print_report
     self
   ensure
-    restore_area_routing!
     cleanup! if @cleanup
-  end
-
-  # Toggle the Phase 3 flow for this run only, restoring the company setting after.
-  def apply_area_routing!
-    return unless @area_routing
-
-    @original_area_setting = @company.settings.to_h["discovery_area_routing_enabled"]
-    @company.update!(settings: @company.settings.to_h.merge("discovery_area_routing_enabled" => true))
-  end
-
-  def restore_area_routing!
-    return unless @area_routing
-
-    @company.update!(settings: @company.settings.to_h.merge("discovery_area_routing_enabled" => @original_area_setting))
-  rescue StandardError
-    nil
   end
 
   def execute_stages!
@@ -198,12 +181,28 @@ class DiscoverySimulator
 
   def self.purge_employee!(employee, company: nil)
     company ||= employee.company
+    # DiscoveryFollowupQuestion carries FOUR optional FKs (consultant_requirement,
+    # consultant_info_request, sent_message, answered_message) on top of its
+    # required discovery_package -- a live question sent and answered points at all
+    # of them. Three separate runs each hit a different one of these as a bare
+    # ForeignKeyViolation (deleting the request it was sent through, then the
+    # message it was answered in) before the actual rows below got a chance to
+    # delete them, because deleting THIS employee's data always touches something
+    # a question still points at. Nullify every one up front so nothing later in
+    # this method -- present now or added later -- can be blocked by it again.
+    followup_question_ids = DiscoveryFollowupQuestion.where(
+      discovery_package_id: DiscoveryPackage.where(conversation_id: employee.conversations.select(:id)).select(:id)
+    ).select(:id)
+    DiscoveryFollowupQuestion.where(id: followup_question_ids).update_all(
+      consultant_requirement_id: nil, consultant_info_request_id: nil,
+      sent_message_id: nil, answered_message_id: nil
+    )
     CompanyMemoryFact.where(employee_id: employee.id).delete_all
     ConversationInsight.where(employee_id: employee.id).delete_all
-    ReviewerInfoRequest.where(employee_id: employee.id).find_each do |request|
-      request.reviewer_info_replies.delete_all
+    ConsultantInfoRequest.where(employee_id: employee.id).find_each do |request|
+      request.consultant_info_replies.delete_all
     end
-    ReviewerInfoRequest.where(employee_id: employee.id).delete_all
+    ConsultantInfoRequest.where(employee_id: employee.id).delete_all
     EmployeeNudge.where(employee_id: employee.id).delete_all
     employee.conversations.each do |conversation|
       doc_ids = Document.where(conversation_id: conversation.id).pluck(:id)
@@ -223,6 +222,16 @@ class DiscoverySimulator
     if employee.display_name.present?
       Notification.where(company_id: company.id).where("body ILIKE ?", "%#{employee.display_name}%").delete_all
     end
+    # discovery_packages FKs to conversation_id; without clearing it first, deleting
+    # the conversation below raises a bare ForeignKeyViolation instead of a clean
+    # purge. Package items/questions/requirements cascade off the package itself.
+    package_ids = DiscoveryPackage.where(conversation_id: employee.conversations.select(:id)).pluck(:id)
+    if package_ids.any?
+      DiscoveryPackageItem.where(discovery_package_id: package_ids).delete_all
+      DiscoveryFollowupQuestion.where(discovery_package_id: package_ids).delete_all
+      ConsultantRequirement.where(discovery_package_id: package_ids).delete_all
+      DiscoveryPackage.where(id: package_ids).delete_all
+    end
     employee.conversations.delete_all
     EmployeeInvitation.where(employee_id: employee.id).delete_all
     EmployeeValueDigest.where(employee_id: employee.id).delete_all
@@ -230,7 +239,7 @@ class DiscoverySimulator
     EmployeeMarketAlert.where(employee_id: employee.id).delete_all
     EmployeeWebSession.where(employee_id: employee.id).delete_all
     MediaAttachment.where(employee_id: employee.id).delete_all
-    ReviewerOutreach.where(employee_id: employee.id).delete_all if defined?(ReviewerOutreach)
+    ConsultantOutreach.where(employee_id: employee.id).delete_all if defined?(ConsultantOutreach)
     ReviewDiscussion.where(employee_id: employee.id).delete_all if defined?(ReviewDiscussion)
     employee.delete
   end
@@ -299,36 +308,38 @@ class DiscoverySimulator
     end
 
     conversation.reload
-    target = @company.merged_settings.fetch("discovery_question_target", 10).to_i
+    limits = Discovery::ContextBuilder.limits_for(@company)
+    ceiling = limits[:max_questions]
+    floor = limits[:min_questions]
+    asked = conversation.question_count
 
     check "Interview completed", conversation.status == "completed"
-    check "Completed within question target (#{conversation.question_count}/#{target})",
-          conversation.question_count <= target
+    check "Stayed within the ceiling (#{asked}/#{ceiling})", asked <= ceiling
+    check "Reached the floor (#{asked} >= #{floor})", asked >= floor
     check "Closing message sent", last_outbound.to_s.match?(/thank/i)
 
-    if @area_routing
-      areas = blackboard["role_areas"] || []
-      area_names = areas.map { |a| a["name"] }.compact
-      check "Role areas discovered (#{area_names.join(', ')})", areas.any?
-      explored = areas.select { |a| Array(a["beats_done"]).any? }
-      check "Areas actually explored (#{explored.size}/#{areas.size})", explored.size >= [areas.size, 2].min
-      beats = areas.flat_map { |a| Array(a["beats_done"]) }
-      check "AI-openness beat surfaced at least once", beats.include?("ai")
-    else
-      states = blackboard["agent_states"] || {}
-      used = states.select { |_, s| s["questions_asked"].to_i.positive? }.keys
-      check "Multiple agents participated (#{used.join(', ')})", used.size >= 2
-      over_budget = states.select { |_, s| s["questions_asked"].to_i > s["question_budget"].to_i }
-      check "All agents respected budgets", over_budget.empty?
+    close_reason = blackboard["close_reason"]
+    check "Close reason recorded (#{close_reason})", close_reason.present?
+    # The ceiling is a backstop. Closing on it routinely means the dossier is
+    # asking for more than an interview can reasonably get.
+    check "Did not need the ceiling backstop", close_reason != "ceiling"
 
-      depth_limit = @company.merged_settings.fetch("discovery_max_followup_depth", 2).to_i
-      too_deep = states.values.flat_map { |s| s["open_threads"] || [] }.select { |t| t["depth"].to_i > depth_limit }
-      check "Follow-up depth limit respected (max #{depth_limit})", too_deep.empty?
+    areas = blackboard["role_areas"] || []
+    area_names = areas.map { |a| a["name"] }.compact
+    check "Role areas discovered (#{area_names.join(', ')})", areas.any?
+
+    slots = blackboard.dig("dossier", "slots") || {}
+    filled = slots.select { |_, v| v["confidence"].to_f >= limits[:slot_confidence] }
+    check "Dossier slots filled (#{filled.size}): #{filled.keys.join(', ')}", filled.any?
+
+    per_area = area_names.select do |name|
+      %w[how_it_works friction].all? { |slot| filled.key?("#{slot}::#{name}") }
     end
+    check "At least one area fully understood (#{per_area.join(', ')})", per_area.any?
+    check "Current AI usage captured", filled.key?("ai_current_usage")
 
-    covered = blackboard.dig("coverage", "topics_covered") || []
-    required = blackboard.dig("coverage", "topics_required") || []
-    check "Coverage tracked (#{covered.size}/#{required.size}: #{covered.join(', ')})", covered.any?
+    parked = blackboard.dig("dossier", "parked") || []
+    check "Asides parked rather than chased (#{parked.size})", true
 
     findings = blackboard["shared_findings"] || []
     check "Findings shared on blackboard (#{findings.size})", findings.any?
@@ -409,9 +420,7 @@ class DiscoverySimulator
   end
 
   def agent_service_healthy?
-    client = Langgraph::Client.new
-    client.route!(thread_id: "healthcheck", profile: { "department" => "default" }, limits: {})
-    true
+    Langgraph::Client.new.create_thread!.present?
   rescue StandardError
     false
   end

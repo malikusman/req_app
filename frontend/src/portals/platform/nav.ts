@@ -13,7 +13,7 @@ import {
 import type { SidebarItem } from '../../components/layout/Sidebar';
 
 export interface PlatformNavCounts {
-  /** Pending company signups + reviewer applications awaiting approval. */
+  /** Pending company signups + consultant applications awaiting approval. */
   registrations?: number;
   /** Catalog candidates awaiting review. */
   candidates?: number;
@@ -24,7 +24,7 @@ export interface PlatformNavCounts {
 /**
  * Grouped platform nav with live attention badges. Pass counts from the layout
  * (which fetches the lightest pending-work endpoints) to light up the badges.
- * Mirrors companyNavItems / reviewerNavItems.
+ * Mirrors companyNavItems / consultantNavItems.
  */
 export function platformNavItems(counts: PlatformNavCounts = {}): SidebarItem[] {
   const { registrations, candidates, approvals } = counts;
@@ -35,7 +35,7 @@ export function platformNavItems(counts: PlatformNavCounts = {}): SidebarItem[] 
     { to: '/platform/approvals', label: 'Approvals', icon: FileCheck2, section: 'Operate' },
     { to: '/platform/registrations', label: 'Registrations', icon: UserPlus, section: 'Operate' },
     { to: '/platform/companies', label: 'Companies', icon: Building2, section: 'Operate' },
-    { to: '/platform/reviewers', label: 'Reviewers', icon: Users, section: 'Operate' },
+    { to: '/platform/consultants', label: 'Consultants', icon: Users, section: 'Operate' },
 
     { to: '/platform/playbooks', label: 'Playbooks', icon: BookOpen, section: 'Catalog' },
     { to: '/platform/solutions', label: 'Solutions', icon: Package, section: 'Catalog' },

@@ -32,8 +32,8 @@ RSpec.describe Companies::AgentContext do
     expect(pack["known_systems"]).to include("SAP")
   end
 
-  it "exposes reviewer profile json" do
-    json = described_class.reviewer_profile_json(company)
+  it "exposes consultant profile json" do
+    json = described_class.consultant_profile_json(company)
     expect(json["company_systems"].first["name"]).to eq("SAP")
     expect(json["website_url"]).to eq("https://example.com")
   end

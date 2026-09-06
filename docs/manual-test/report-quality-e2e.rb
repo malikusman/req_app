@@ -101,7 +101,7 @@ version = (company.reports.maximum(:version) || 0) + 1
 report = company.reports.create!(
   version: version, status: "queued", visibility: "internal_only",
   triggered_by_type: "CompanyUser", triggered_by_id: admin&.id,
-  report_snapshot: {}, review_workflow_status: "awaiting_reviewers"
+  report_snapshot: {}, review_workflow_status: "awaiting_consultants"
 )
 begin
   Reports::GenerateReportService.call(report: report)
@@ -115,37 +115,37 @@ rescue StandardError => e
   observe("generate error", "#{e.class}: #{e.message}")
 end
 
-puts "\n--- PHASE 3: reviewer editorial control ---"
-reviewer = ReviewerUser.find_by(email: "reviewer@reqapp.local") || ReviewerUser.first
-raise "no reviewer" unless reviewer
+puts "\n--- PHASE 3: consultant editorial control ---"
+consultant = ConsultantUser.find_by(email: "consultant@reqapp.local") || ConsultantUser.first
+raise "no consultant" unless consultant
 
 report.report_section_overrides.destroy_all
-report.report_section_overrides.create!(reviewer_user: reviewer, action: "hide", section_key: "methodology")
+report.report_section_overrides.create!(consultant_user: consultant, action: "hide", section_key: "methodology")
 report.report_section_overrides.create!(
-  reviewer_user: reviewer, action: "edit", section_key: "recommendations",
-  title: "Reviewer caveat", body: "Sequence the finance automation before HR — higher volume."
+  consultant_user: consultant, action: "edit", section_key: "recommendations",
+  title: "Consultant caveat", body: "Sequence the finance automation before HR — higher volume."
 )
 report.report_section_overrides.create!(
-  reviewer_user: reviewer, action: "add", title: "Risk register",
+  consultant_user: consultant, action: "add", title: "Risk register",
   body: "Demurrage exposure at Jebel Ali if customs clearance slips.",
   anchor_section: "recommendations"
 )
 
-# Reviewer adds catalog product attribution
-match.update!(added_by_reviewer_id: reviewer.id, why_it_fits: "Reviewer-confirmed fit for AP exceptions.")
+# Consultant adds catalog product attribution
+match.update!(added_by_consultant_id: consultant.id, why_it_fits: "Consultant-confirmed fit for AP exceptions.")
 
 applied = Reports::SectionOverridesApplier.call(snapshot: report.report_snapshot, report: report)
 html2 = Reports::HtmlBuilder.call(snapshot: applied, report_version: report.version)
 check("hidden section removed from body", !html2.include?("How we measured"))
 check("hidden section removed from contents", !html2.include?(">Methodology<"))
-check("reviewer edit-note rendered", html2.include?("Reviewer caveat") || html2.include?("Sequence the finance automation"))
-check("custom reviewer section rendered", html2.include?("Risk register") && html2.include?("Demurrage exposure at Jebel Ali"))
+check("consultant edit-note rendered", html2.include?("Consultant caveat") || html2.include?("Sequence the finance automation"))
+check("custom consultant section rendered", html2.include?("Risk register") && html2.include?("Demurrage exposure at Jebel Ali"))
 
 snap3 = Reports::SnapshotBuilder.call(company: company, delta: {})
 tools3_root = snap3["tools_catalog"]
 tools3 = tools3_root.is_a?(Hash) ? Array(tools3_root["curated_matches"]) : Array(tools3_root)
 tool3 = tools3.find { |t| t.is_a?(Hash) && t["name"] == entry.name }
-check("reviewer-added catalog match flagged", tool3 && tool3["reviewer_added"] == true)
+check("consultant-added catalog match flagged", tool3 && tool3["consultant_added"] == true)
 
 begin
   Reports::RegenerateWithReviewService.call(report: report.reload)

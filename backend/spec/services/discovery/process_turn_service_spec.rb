@@ -56,7 +56,10 @@ RSpec.describe Discovery::ProcessTurnService do
       inbound = create(:message, conversation: conversation, direction: "inbound", message_type: "text")
       expect(client).to receive(:run_turn!) do |args|
         expect(args[:multi_agent]).to include(:profile, :blackboard, :limits, :media_context, :media_snippets)
-        expect(args[:multi_agent][:limits][:max_followup_depth]).to eq(2)
+        # The ceiling is the per-conversation value, so a reopened conversation's
+        # raised ceiling reaches the agent rather than the company default.
+        expect(args[:multi_agent][:limits][:max_questions]).to eq(conversation.max_questions)
+        expect(args[:multi_agent][:limits][:slot_confidence]).to eq(0.6)
         {
           "assistant_message" => "Walk me through month-end close.",
           "insight" => { "summary" => "Insight", "topics" => ["daily_workflow"] },
@@ -170,6 +173,22 @@ RSpec.describe Discovery::ProcessTurnService do
       )
 
       expect(result["delayed"]).to eq(true)
+    end
+  end
+  describe "#build_history" do
+    it "excludes delay-notice placeholders so they are never fed back to the model" do
+      conversation = create(:conversation, employee: employee, company: company,
+                                            status: "discovery", langgraph_thread_id: SecureRandom.uuid)
+      create(:message, conversation: conversation, direction: "inbound", body: "real answer one")
+      create(:message, conversation: conversation, direction: "outbound",
+                        body: "We're experiencing a brief delay — we'll pick up right where we left off shortly.",
+                        raw_payload: { "kind" => "delay_notice" })
+      create(:message, conversation: conversation, direction: "inbound", body: "real answer two")
+
+      service = described_class.new(conversation: conversation, employee: employee, user_message: "next")
+      history = service.send(:build_history)
+
+      expect(history.map { |h| h[:content] }).to contain_exactly("real answer one", "real answer two")
     end
   end
 end

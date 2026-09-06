@@ -6,8 +6,11 @@ module Auth
 
     PORTALS = {
       "company" => CompanyUser,
-      "reviewer" => ReviewerUser,
-      "platform" => PlatformUser
+      "consultant" => ConsultantUser,
+      "platform" => PlatformUser,
+      # Password-reset and set-password emails sent before the rename carry
+      # portal=reviewer in their link, and those links must keep working.
+      "reviewer" => ConsultantUser
     }.freeze
 
     def self.call(portal:, email:)
@@ -44,8 +47,8 @@ module Auth
         return nil unless user.company.approval_status == "approved"
 
         user
-      when "ReviewerUser"
-        ReviewerUser.find_by(email: @email, status: %w[pending active])
+      when "ConsultantUser"
+        ConsultantUser.find_by(email: @email, status: %w[pending active])
       when "PlatformUser"
         PlatformUser.find_by(email: @email)
       end

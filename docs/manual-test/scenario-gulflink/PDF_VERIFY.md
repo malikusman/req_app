@@ -9,7 +9,7 @@
 - [company10_report_v1.html](./company10_report_v1.html)
 - [company10_report_preview.html](./company10_report_preview.html) (pre-generate HtmlBuilder preview)
 
-**Accounts used:** `salman@mailinator.com` / `Password1!` (company); `rev1@gamil.com` / `Password1!` (reviewer)
+**Accounts used:** `salman@mailinator.com` / `Password1!` (company); `rev1@gamil.com` / `Password1!` (consultant)
 
 ---
 
@@ -18,7 +18,7 @@
 | Check | Result | Notes |
 |-------|--------|-------|
 | `AgentContext.for_agents` | **PASS** | website + 11 systems |
-| `reviewer_profile_json` | **PASS** | profile, systems, web_research keys |
+| `consultant_profile_json` | **PASS** | profile, systems, web_research keys |
 | `WebResearchService` (force) | **PASS** | KB entry id 60 for `https://example.com` |
 | Snapshot website / stack / KB / dept key | **PASS** | web_research present in KB snapshot |
 | HTML: Company context / Applications / Who this org is | **PASS** | |
@@ -34,8 +34,8 @@
 |-------|--------|-------|
 | `GET settings/organization` website_url | **PASS** | `https://example.com`, 11 known_systems |
 | `POST settings/organization/web_research` | **PASS** | `{ ok: true, queued: true }` |
-| `GET reviewer/companies/10` profile pack | **PASS** | company_profile, 11 systems, 1 web_research |
-| `GET reviewer/companies/10/catalog` | **PASS** | `note` present; `last_matched_at=2026-07-26T07:52:45Z`; 5 matches |
+| `GET consultant/companies/10` profile pack | **PASS** | company_profile, 11 systems, 1 web_research |
+| `GET consultant/companies/10/catalog` | **PASS** | `note` present; `last_matched_at=2026-07-26T07:52:45Z`; 5 matches |
 
 **UI smoke:** not walked in browser this pass (API proves payload for Profile + Catalog).
 
@@ -70,8 +70,8 @@
 
 ### Download visibility (expected product behavior)
 
-- Company `GET/DOWNLOAD /api/v1/company/reports/36` → **403** `Report not available` because `visibility=internal_only` (active reviewer assignment).
-- Reviewer download → **200** PDF (290,586 bytes).
+- Company `GET/DOWNLOAD /api/v1/company/reports/36` → **403** `Report not available` because `visibility=internal_only` (active consultant assignment).
+- Consultant download → **200** PDF (290,586 bytes).
 
 ---
 
@@ -92,13 +92,13 @@
 | Severity | Finding |
 |----------|---------|
 | **Medium** | `Companies::WebResearchService` calls `Openai::Client#chat`, which **does not exist** (`chat_completion` / `chat_json_content` do). Sidekiq logs: `undefined method 'chat'`. Research still stores a truncated page extract fallback — summary quality is degraded until the client method is wired. |
-| Low | Company portal cannot open/download report while `internal_only` (by design with reviewers assigned). Index lists the report; show/download forbidden until shared. |
+| Low | Company portal cannot open/download report while `internal_only` (by design with consultants assigned). Index lists the report; show/download forbidden until shared. |
 | Info | `example.com` is a placeholder site — research content is generic; use a real company URL for richer KB/PDF copy. |
 
 ---
 
 ## Verdict
 
-**New stack verified end-to-end for company 10.** Agent context, reviewer Profile API, web research KB persistence, catalog clarity fields, and the new PDF **Company context** slide all pass. Generated report **#36** is a real PDF with enriched TOC and tools catalog.
+**New stack verified end-to-end for company 10.** Agent context, consultant Profile API, web research KB persistence, catalog clarity fields, and the new PDF **Company context** slide all pass. Generated report **#36** is a real PDF with enriched TOC and tools catalog.
 
 **Recommended follow-up:** fix `WebResearchService` to use the real OpenAI client method so website summaries are LLM-quality, then re-queue research + regenerate report if you want richer Company context copy.

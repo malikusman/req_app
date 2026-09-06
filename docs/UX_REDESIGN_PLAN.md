@@ -3,7 +3,7 @@
 **Branch:** `polishing-ux`. **Problem (from client feedback):** the portals are
 cumbersome; users don't know what action to take next; there's no guidance.
 **Goal:** simple, slick, elegant, professional dashboards that *guide* a
-time-poor CEO / reviewer / admin to the next best action — mobile-friendly, in
+time-poor CEO / consultant / admin to the next best action — mobile-friendly, in
 the existing Pulse design system.
 
 North-star mockup (client home, real Pulse + real GulfLink data): published as an
@@ -53,16 +53,16 @@ it's just displayed flat. New endpoints are optional polish (see each section).
 
 **Home redesign** (`CompanyDashboard.tsx`) → the mockup:
 - `NextStepHero` chosen by `nextBestAction(companyDashboard payload)`. Ranking, e.g.:
-  report-ready → *Review report* · reviewer questions → *Answer N* · stalled
+  report-ready → *Review report* · consultant questions → *Answer N* · stalled
   employees → *Nudge* · profile incomplete → *Add profile* · no docs/team → *Set up*.
 - `JourneySteps`: Profile (optional) · Documents · Team invited · Interviews · Report.
 - `ReadinessGauge` shown as the hero ring (it's computed today and thrown away).
 - 3 `OutcomeTile`s (People engaged / Frictions surfaced / Cross-team themes) — retire the 4 jargon KPIs and the 8-tile grid.
 - Two focused panels: **Top of what we found** (top-3 pain points, plain language)
-  + **Your reviewer** (Nadia card, "N questions need you", primary CTA).
+  + **Your consultant** (Nadia card, "N questions need you", primary CTA).
 - Slim recent-activity timeline.
 - **Nav** → grouped: *Home* · Set up (Profile 0%, Documents, Your team) · Insights
-  (Conversations, What we found, Reports v21) · Working with you (Reviewer questions ·2, Your reviewer) · Settings. Relabel "Intelligence"→"What we found", "Outreaches"→"Reviewer questions".
+  (Conversations, What we found, Reports v21) · Working with you (Consultant questions ·2, Your consultant) · Settings. Relabel "Intelligence"→"What we found", "Outreaches"→"Consultant questions".
 - **Data:** all present in `CompanyDashboardPayload` (readiness score+breakdown,
   questionnaire %, employees_summary, intel_counts, latest_report, unanswered
   questions). Collapse the 4 parallel fetches into fewer / handle partial failure
@@ -70,18 +70,18 @@ it's just displayed flat. New endpoints are optional polish (see each section).
 - **Onboarding**: keep the wizard, but tie completion to value ("unlocks sharper
   insights") and surface the % in the hero, not just inside the page.
 
-## Reviewer portal (priority 2 — the nav is broken)
+## Consultant portal (priority 2 — the nav is broken)
 
 - **Nav lists assigned companies** (the #1 complaint; today it's a static
   Dashboard / Profile / Inbox). New sections: *Needs you* (badge = pending
   reviews + questions) · *Your companies* (each assigned company with a status
-  dot + `my_review_status`) · Profile. Data already in `reviewerDashboard`
+  dot + `my_review_status`) · Profile. Data already in `consultantDashboard`
   (`companies[]`, `attention_items[]`) — just thread it into `nav.ts` via a
   layout-level fetch.
 - **Home** = a persistent "Needs you" queue (reviews to do, questions to answer),
   then the companies grid. Give the mixed action-queue real group headers.
 - **Company overview**: lead with the one action ("Review report v3"); demote the 6 tabs.
-- **Workspace** (`ReviewerReportWorkspace`): clarify the edit model (status/comments
+- **Workspace** (`ConsultantReportWorkspace`): clarify the edit model (status/comments
   vs hide/note/add overrides live in two places today); make section-status +
   comment controls **work below `lg`** (currently desktop-only, yet required to submit).
 
@@ -100,8 +100,8 @@ it's just displayed flat. New endpoints are optional polish (see each section).
 
 1. **Shared foundation** — `Sidebar` sections/badges + the 5 new primitives + `nextBestAction` scaffolding.
 2. **Client home + nav** (the north-star mockup) — highest visible impact.
-3. **Reviewer nav + "Needs you" home** — fixes the confirmed nav complaint.
-4. **Reviewer workspace** clarity + mobile section controls.
+3. **Consultant nav + "Needs you" home** — fixes the confirmed nav complaint.
+4. **Consultant workspace** clarity + mobile section controls.
 5. **Platform triage home + badges.**
 6. **Polish pass**: empty states that teach, motion restraint, dark theme, a11y focus states.
 

@@ -12,7 +12,7 @@ class OutreachMailer < ApplicationMailer
 
     mail(
       to: recipient_email(outreach),
-      subject: "Clarification request from reviewer — #{@company.display_name || @company.name}"
+      subject: "Clarification request from consultant — #{@company.display_name || @company.name}"
     )
   end
 

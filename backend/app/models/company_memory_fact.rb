@@ -1,13 +1,13 @@
 # frozen_string_literal: true
 
 # Company long-term memory: structured facts promoted from completed discovery
-# conversations (and later reviewer Q&A), embedded for cross-employee retrieval.
+# conversations (and later consultant Q&A), embedded for cross-employee retrieval.
 class CompanyMemoryFact < ApplicationRecord
   belongs_to :company
   belongs_to :employee, optional: true
   belongs_to :conversation, optional: true
 
-  FACT_TYPES = %w[finding tool process_step pain_point reviewer_learning].freeze
+  FACT_TYPES = %w[finding tool process_step pain_point consultant_learning].freeze
 
   has_neighbors :embedding
 

@@ -73,14 +73,14 @@ OVERRIDE = """
 """
 
 APPENDIX_CSS = """
-/* ===== REVIEWER-NOTES APPENDIX ===== */
+/* ===== CONSULTANT-NOTES APPENDIX ===== */
 .status{ display:inline-block; font-size:7.5pt; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:1mm 3mm; border-radius:20px; color:#fff; white-space:nowrap; }
 .status.reviewed{ background:var(--teal); }
 .status.clarify{ background:#E8862A; }
-.reviewer-note{ border-left:3px solid var(--blue); padding-left:5mm; }
-.reviewer-note .who{ font-family:var(--sans); font-weight:700; font-size:10.5pt; }
-.reviewer-note .role{ font-size:8pt; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin:1mm 0 3mm; }
-.reviewer-note p{ font-size:9pt; }
+.consultant-note{ border-left:3px solid var(--blue); padding-left:5mm; }
+.consultant-note .who{ font-family:var(--sans); font-weight:700; font-size:10.5pt; }
+.consultant-note .role{ font-size:8pt; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin:1mm 0 3mm; }
+.consultant-note p{ font-size:9pt; }
 .review-list{ margin-top:4mm; }
 .review-row{ display:grid; grid-template-columns:46mm 34mm 1fr; gap:6mm; align-items:start; padding:3mm 0; border-top:1px solid var(--hair); font-size:8.8pt; break-inside:avoid; }
 .review-row.head{ border-top:none; color:var(--muted); font-size:7.5pt; text-transform:uppercase; letter-spacing:.06em; }
@@ -88,10 +88,10 @@ APPENDIX_CSS = """
 .review-row .cmt{ color:#20303c; }
 """
 
-reviewers = [
+consultants = [
  ("Dr. Elena Ruiz", "External expert · Operations",
   "A strong, well-evidenced discovery overall. The manual-work findings are convincing and well supported by the voice notes. Before I'd rank the metric-definition signal above the approval bottleneck, I'd like clarification on how its strength was scored."),
- ("Marcus Blake", "Co-reviewer · Finance transformation",
+ ("Marcus Blake", "Co-consultant · Finance transformation",
   "Agree with the recommendations and their priority order — month-end automation is the clear first move. Minor: the Sales non-participation should be flagged more prominently in the readiness narrative."),
 ]
 section_reviews = [
@@ -104,9 +104,9 @@ section_reviews = [
  ("Recommendations","reviewed","Priority order endorsed; catalog matches are appropriate."),
 ]
 
-def reviewer_notes():
-    return "".join(f'<div class="reviewer-note"><div class="who">{w}</div><div class="role">{r}</div><p>{n}</p></div>'
-                    for w,r,n in reviewers)
+def consultant_notes():
+    return "".join(f'<div class="consultant-note"><div class="who">{w}</div><div class="role">{r}</div><p>{n}</p></div>'
+                    for w,r,n in consultants)
 
 def section_review_rows():
     lab={"reviewed":"Reviewed","clarify":"Needs clarification"}
@@ -298,20 +298,20 @@ Add, remove, or reorder sections to fit each company's snapshot. (This bar does 
     </div>
     <div class="method" style="align-self:center;">
       <dl><dt>Readiness weighting</dt><dd style="font-size:9pt;color:var(--muted);">Employee coverage (30%), department spread (25%), pattern confidence (25%), multimodal evidence (20%).</dd>
-      <dt>Review</dt><dd style="font-size:9pt;color:var(--muted);">Reviewed by one external expert and approved by the Req platform team before delivery. Reviewer notes appear in the appendix on approved reports.</dd></dl>
+      <dt>Review</dt><dd style="font-size:9pt;color:var(--muted);">Reviewed by one external expert and approved by the Req platform team before delivery. Consultant notes appear in the appendix on approved reports.</dd></dl>
     </div>
   </div>{footer(11)}
 </section>
 
-<!-- APPENDIX DIVIDER: reviewer notes (approval regenerate path only) -->
+<!-- APPENDIX DIVIDER: consultant notes (approval regenerate path only) -->
 <section class="page bleed divider">
   <div class="hero"><div class="cat" style="background:var(--blue);">Appendix</div>{hero_tall(BLUE,23)}</div>
   <div class="body">
     <div class="eyebrow">Appendix — included on platform-approved reports only</div>
-    <h1 style="margin-top:4mm;">Reviewer notes</h1>
+    <h1 style="margin-top:4mm;">Consultant notes</h1>
     <p class="lead">Overall notes and section-level comments from expert review, gathered at platform approval. Live discussions and interview follow-up threads are collaboration tooling and are intentionally excluded from this deliverable.</p>
     <div class="highlight-box">
-      <div class="highlight"><p><strong>2 reviewers</strong> completed review before approval.</p></div>
+      <div class="highlight"><p><strong>2 consultants</strong> completed review before approval.</p></div>
       <div class="highlight"><p><strong>5 of 7</strong> sections marked reviewed; 2 flagged for clarification.</p></div>
     </div>
   </div>
@@ -319,9 +319,9 @@ Add, remove, or reorder sections to fit each company's snapshot. (This bar does 
 
 <!-- APPENDIX CONTENT: overall notes + section-by-section review -->
 <section class="page">
-  <div class="eyebrow">Appendix · Reviewer notes</div>
+  <div class="eyebrow">Appendix · Consultant notes</div>
   <h1 style="font-size:26pt;margin:4mm 0 5mm;">Overall notes</h1>
-  <div class="split" style="grid-template-columns:1fr 1fr;">{reviewer_notes()}</div>
+  <div class="split" style="grid-template-columns:1fr 1fr;">{consultant_notes()}</div>
   <div class="eyebrow" style="margin-top:9mm;">Section-by-section review</div>
   <div class="review-list">
     <div class="review-row head"><span class="sec">Section</span><span>Status</span><span>Comment</span></div>

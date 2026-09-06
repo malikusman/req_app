@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_21_000000) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_28_100000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -79,7 +79,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_21_000000) do
   create_table "catalog_endorsements", force: :cascade do |t|
     t.bigint "company_id", null: false
     t.bigint "report_id"
-    t.bigint "reviewer_user_id", null: false
+    t.bigint "consultant_user_id", null: false
     t.bigint "solution_catalog_entry_id"
     t.string "disposition", null: false
     t.text "rationale"
@@ -88,8 +88,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_21_000000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["company_id"], name: "index_catalog_endorsements_on_company_id"
+    t.index ["consultant_user_id"], name: "index_catalog_endorsements_on_consultant_user_id"
     t.index ["report_id"], name: "index_catalog_endorsements_on_report_id"
-    t.index ["reviewer_user_id"], name: "index_catalog_endorsements_on_reviewer_user_id"
     t.index ["solution_catalog_entry_id"], name: "index_catalog_endorsements_on_solution_catalog_entry_id"
   end
 
@@ -212,8 +212,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_21_000000) do
     t.datetime "matched_at", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.bigint "added_by_reviewer_id"
-    t.index ["added_by_reviewer_id"], name: "index_company_catalog_matches_on_added_by_reviewer_id"
+    t.bigint "added_by_consultant_id"
+    t.index ["added_by_consultant_id"], name: "index_company_catalog_matches_on_added_by_consultant_id"
     t.index ["company_id", "solution_catalog_entry_id"], name: "idx_company_catalog_matches_unique", unique: true
     t.index ["company_id"], name: "index_company_catalog_matches_on_company_id"
     t.index ["recommendation_id"], name: "index_company_catalog_matches_on_recommendation_id"
@@ -229,7 +229,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_21_000000) do
     t.string "answer_source"
     t.jsonb "citations", default: [], null: false
     t.bigint "answered_by_company_user_id"
-    t.bigint "dismissed_by_reviewer_user_id"
+    t.bigint "dismissed_by_consultant_user_id"
     t.datetime "answered_at"
     t.datetime "dismissed_at"
     t.jsonb "metadata", default: {}, null: false
@@ -373,6 +373,193 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_21_000000) do
     t.index ["locale", "active"], name: "index_consent_text_versions_on_locale_and_active"
   end
 
+  create_table "consultant_assignments", force: :cascade do |t|
+    t.bigint "consultant_user_id", null: false
+    t.bigint "company_id", null: false
+    t.bigint "assigned_by_platform_user_id", null: false
+    t.string "status", default: "active", null: false
+    t.datetime "assigned_at", null: false
+    t.datetime "removed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["assigned_by_platform_user_id"], name: "index_consultant_assignments_on_assigned_by_platform_user_id"
+    t.index ["company_id", "consultant_user_id"], name: "index_consultant_assignments_active_unique", unique: true, where: "((status)::text = 'active'::text)"
+    t.index ["company_id"], name: "index_consultant_assignments_on_company_id"
+    t.index ["consultant_user_id"], name: "index_consultant_assignments_on_consultant_user_id"
+  end
+
+  create_table "consultant_chat_messages", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "sender_consultant_user_id", null: false
+    t.text "body", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id", "created_at"], name: "index_consultant_chat_messages_on_company_id_and_created_at"
+    t.index ["company_id"], name: "index_consultant_chat_messages_on_company_id"
+    t.index ["sender_consultant_user_id"], name: "index_consultant_chat_messages_on_sender_consultant_user_id"
+  end
+
+  create_table "consultant_experiences", force: :cascade do |t|
+    t.bigint "consultant_user_id", null: false
+    t.string "organization", null: false
+    t.string "title", null: false
+    t.integer "start_year", null: false
+    t.integer "end_year"
+    t.string "summary", limit: 200
+    t.integer "sort_order", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["consultant_user_id", "sort_order"], name: "idx_on_consultant_user_id_sort_order_631171add7"
+    t.index ["consultant_user_id"], name: "index_consultant_experiences_on_consultant_user_id"
+  end
+
+  create_table "consultant_info_replies", force: :cascade do |t|
+    t.bigint "consultant_info_request_id", null: false
+    t.bigint "message_id", null: false
+    t.text "body", null: false
+    t.datetime "received_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["consultant_info_request_id"], name: "index_consultant_info_replies_on_consultant_info_request_id"
+    t.index ["message_id"], name: "index_consultant_info_replies_on_message_id"
+  end
+
+  create_table "consultant_info_requests", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "report_id"
+    t.bigint "consultant_user_id", null: false
+    t.bigint "employee_id", null: false
+    t.bigint "conversation_id", null: false
+    t.text "body", null: false
+    t.string "status", default: "draft", null: false
+    t.string "meta_message_id"
+    t.datetime "sent_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "message_id"
+    t.bigint "review_discussion_id"
+    t.string "channel", default: "whatsapp", null: false
+    t.string "reply_token_digest"
+    t.datetime "email_sent_at"
+    t.index ["company_id"], name: "index_consultant_info_requests_on_company_id"
+    t.index ["consultant_user_id"], name: "index_consultant_info_requests_on_consultant_user_id"
+    t.index ["conversation_id"], name: "index_consultant_info_requests_on_conversation_id"
+    t.index ["employee_id", "status"], name: "index_consultant_info_requests_awaiting_reply", where: "((status)::text = 'awaiting_reply'::text)"
+    t.index ["employee_id"], name: "index_consultant_info_requests_on_employee_id"
+    t.index ["message_id"], name: "index_consultant_info_requests_on_message_id"
+    t.index ["reply_token_digest"], name: "index_consultant_info_requests_on_reply_token_digest", unique: true, where: "(reply_token_digest IS NOT NULL)"
+    t.index ["report_id"], name: "index_consultant_info_requests_on_report_id"
+    t.index ["review_discussion_id"], name: "index_consultant_info_requests_on_review_discussion_id"
+  end
+
+  create_table "consultant_outreach_replies", force: :cascade do |t|
+    t.bigint "consultant_outreach_id", null: false
+    t.string "channel", null: false
+    t.text "body", null: false
+    t.bigint "message_id"
+    t.bigint "company_user_id"
+    t.datetime "received_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["consultant_outreach_id"], name: "index_consultant_outreach_replies_on_consultant_outreach_id"
+  end
+
+  create_table "consultant_outreaches", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "report_id"
+    t.bigint "consultant_user_id", null: false
+    t.string "recipient_type", null: false
+    t.bigint "recipient_id"
+    t.bigint "employee_id"
+    t.bigint "conversation_id"
+    t.string "purpose", default: "clarification", null: false
+    t.string "channel", default: "whatsapp", null: false
+    t.string "status", default: "draft", null: false
+    t.text "body", null: false
+    t.text "reason"
+    t.string "section_key"
+    t.string "anchor_type"
+    t.string "anchor_id"
+    t.datetime "requested_deadline_at"
+    t.bigint "approved_by_company_user_id"
+    t.datetime "approved_at"
+    t.datetime "declined_at"
+    t.text "admin_note"
+    t.text "edited_body"
+    t.string "reply_token_digest"
+    t.datetime "sent_at"
+    t.string "meta_message_id"
+    t.bigint "message_id"
+    t.bigint "consultant_info_request_id"
+    t.jsonb "audit_trail", default: [], null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_consultant_outreaches_on_company_id"
+    t.index ["consultant_user_id"], name: "index_consultant_outreaches_on_consultant_user_id"
+    t.index ["conversation_id"], name: "index_consultant_outreaches_on_conversation_id"
+    t.index ["employee_id"], name: "index_consultant_outreaches_on_employee_id"
+    t.index ["reply_token_digest"], name: "index_consultant_outreaches_on_reply_token_digest", unique: true, where: "(reply_token_digest IS NOT NULL)"
+    t.index ["report_id"], name: "index_consultant_outreaches_on_report_id"
+    t.index ["status"], name: "index_consultant_outreaches_on_status"
+  end
+
+  create_table "consultant_requirements", force: :cascade do |t|
+    t.bigint "consultant_user_id", null: false
+    t.bigint "discovery_package_id", null: false
+    t.bigint "employee_id", null: false
+    t.bigint "company_id", null: false
+    t.text "statement", null: false
+    t.string "status", default: "open", null: false
+    t.integer "max_questions", default: 3, null: false
+    t.string "satisfaction_basis"
+    t.datetime "satisfied_at"
+    t.jsonb "missing_aspects", default: [], null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_consultant_requirements_on_company_id"
+    t.index ["consultant_user_id"], name: "index_consultant_requirements_on_consultant_user_id"
+    t.index ["discovery_package_id", "status"], name: "idx_on_discovery_package_id_status_6dfae56fd4"
+    t.index ["discovery_package_id"], name: "index_consultant_requirements_on_discovery_package_id"
+    t.index ["employee_id", "status"], name: "index_consultant_requirements_on_employee_id_and_status"
+    t.index ["employee_id"], name: "index_consultant_requirements_on_employee_id"
+  end
+
+  create_table "consultant_users", force: :cascade do |t|
+    t.string "email", null: false
+    t.string "password_digest", null: false
+    t.string "name", null: false
+    t.string "status", default: "active", null: false
+    t.string "jti", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "avatar_storage_key"
+    t.string "headline", limit: 120
+    t.text "bio"
+    t.string "linkedin_url"
+    t.string "website_url"
+    t.string "location"
+    t.string "timezone"
+    t.string "languages", default: [], null: false, array: true
+    t.string "expertise_tags", default: [], null: false, array: true
+    t.string "industries", default: [], null: false, array: true
+    t.integer "years_experience"
+    t.jsonb "credentials", default: [], null: false
+    t.string "profile_status", default: "draft", null: false
+    t.datetime "profile_completed_at"
+    t.datetime "platform_verified_at"
+    t.datetime "approved_at"
+    t.datetime "rejected_at"
+    t.text "application_notes"
+    t.text "expertise_summary"
+    t.jsonb "questionnaire_answers", default: {}, null: false
+    t.integer "questionnaire_step", default: 1, null: false
+    t.datetime "questionnaire_completed_at"
+    t.string "cv_storage_key"
+    t.index ["email"], name: "index_consultant_users_on_email", unique: true
+    t.index ["jti"], name: "index_consultant_users_on_jti", unique: true
+    t.index ["profile_status"], name: "index_consultant_users_on_profile_status"
+  end
+
   create_table "conversation_insights", force: :cascade do |t|
     t.bigint "conversation_id", null: false
     t.bigint "employee_id", null: false
@@ -421,6 +608,70 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_21_000000) do
     t.datetime "updated_at", null: false
     t.index ["email"], name: "index_demo_requests_on_email"
     t.index ["status"], name: "index_demo_requests_on_status"
+  end
+
+  create_table "discovery_followup_questions", force: :cascade do |t|
+    t.bigint "discovery_package_id", null: false
+    t.text "body", null: false
+    t.text "rationale"
+    t.string "status", default: "drafted", null: false
+    t.integer "queue_position", default: 0, null: false
+    t.bigint "sent_message_id"
+    t.bigint "answered_message_id"
+    t.jsonb "source_parked_ref", default: {}, null: false
+    t.datetime "sent_at"
+    t.datetime "answered_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "consultant_requirement_id"
+    t.bigint "consultant_info_request_id"
+    t.index ["answered_message_id"], name: "index_discovery_followup_questions_on_answered_message_id"
+    t.index ["consultant_info_request_id"], name: "idx_on_consultant_info_request_id_a0460ab2ae"
+    t.index ["consultant_requirement_id"], name: "idx_on_consultant_requirement_id_05b81c72b1"
+    t.index ["discovery_package_id", "queue_position"], name: "index_followup_questions_on_package_position"
+    t.index ["discovery_package_id"], name: "index_discovery_followup_questions_on_discovery_package_id"
+    t.index ["sent_message_id"], name: "index_discovery_followup_questions_on_sent_message_id"
+    t.index ["status"], name: "index_discovery_followup_questions_on_status"
+  end
+
+  create_table "discovery_package_items", force: :cascade do |t|
+    t.bigint "discovery_package_id", null: false
+    t.string "kind", null: false
+    t.string "title"
+    t.text "body"
+    t.string "impact"
+    t.jsonb "evidence_refs", default: [], null: false
+    t.string "origin", default: "agent", null: false
+    t.string "status", default: "proposed", null: false
+    t.bigint "linked_item_id"
+    t.integer "ordinal", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["discovery_package_id", "kind", "ordinal"], name: "index_package_items_on_package_kind_ordinal"
+    t.index ["discovery_package_id"], name: "index_discovery_package_items_on_discovery_package_id"
+    t.index ["linked_item_id"], name: "index_discovery_package_items_on_linked_item_id", where: "(linked_item_id IS NOT NULL)"
+  end
+
+  create_table "discovery_packages", force: :cascade do |t|
+    t.bigint "conversation_id", null: false
+    t.bigint "employee_id", null: false
+    t.bigint "company_id", null: false
+    t.integer "version", default: 1, null: false
+    t.string "status", default: "generating", null: false
+    t.text "recommendation"
+    t.text "recommendation_rationale"
+    t.float "confidence"
+    t.jsonb "agent_payload", default: {}, null: false
+    t.string "generated_by"
+    t.text "error_message"
+    t.datetime "generated_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id", "status"], name: "index_discovery_packages_on_company_id_and_status"
+    t.index ["company_id"], name: "index_discovery_packages_on_company_id"
+    t.index ["conversation_id", "version"], name: "index_discovery_packages_on_conversation_id_and_version", unique: true
+    t.index ["conversation_id"], name: "index_discovery_packages_on_conversation_id"
+    t.index ["employee_id"], name: "index_discovery_packages_on_employee_id"
   end
 
   create_table "discovery_playbooks", force: :cascade do |t|
@@ -519,7 +770,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_21_000000) do
     t.datetime "updated_at", null: false
     t.string "document_type"
     t.string "sensitivity", default: "internal"
-    t.boolean "reviewer_visible", default: true, null: false
+    t.boolean "consultant_visible", default: true, null: false
     t.date "effective_date"
     t.integer "version_number", default: 1, null: false
     t.datetime "retained_until"
@@ -741,13 +992,18 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_21_000000) do
     t.boolean "is_discovery_question", default: false, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.boolean "reviewer_followup", default: false, null: false
+    t.boolean "consultant_followup", default: false, null: false
     t.string "agent_id"
     t.jsonb "routing_decision", default: {}, null: false
+    t.string "track", null: false
+    t.string "track_ref_type"
+    t.bigint "track_ref_id"
     t.index ["agent_id"], name: "index_messages_on_agent_id", where: "(agent_id IS NOT NULL)"
-    t.index ["conversation_id", "reviewer_followup", "created_at"], name: "index_messages_on_conversation_followup"
+    t.index ["conversation_id", "consultant_followup", "created_at"], name: "index_messages_on_conversation_followup"
+    t.index ["conversation_id", "track", "created_at"], name: "index_messages_on_conversation_track"
     t.index ["conversation_id"], name: "index_messages_on_conversation_id"
     t.index ["external_id"], name: "index_messages_on_external_id", unique: true, where: "(external_id IS NOT NULL)"
+    t.index ["track_ref_type", "track_ref_id"], name: "index_messages_on_track_ref", where: "(track_ref_type IS NOT NULL)"
   end
 
   create_table "notifications", force: :cascade do |t|
@@ -844,20 +1100,20 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_21_000000) do
 
   create_table "report_review_comments", force: :cascade do |t|
     t.bigint "report_review_id", null: false
-    t.bigint "reviewer_user_id", null: false
+    t.bigint "consultant_user_id", null: false
     t.string "section_key", null: false
     t.text "body", null: false
     t.boolean "resolved", default: false, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.index ["consultant_user_id"], name: "index_report_review_comments_on_consultant_user_id"
     t.index ["report_review_id", "section_key"], name: "index_report_review_comments_on_review_and_section"
     t.index ["report_review_id"], name: "index_report_review_comments_on_report_review_id"
-    t.index ["reviewer_user_id"], name: "index_report_review_comments_on_reviewer_user_id"
   end
 
   create_table "report_review_findings", force: :cascade do |t|
     t.bigint "report_review_id", null: false
-    t.bigint "reviewer_user_id", null: false
+    t.bigint "consultant_user_id", null: false
     t.string "finding_type", null: false
     t.string "section_key"
     t.string "target_type"
@@ -870,9 +1126,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_21_000000) do
     t.string "resolution_status", default: "open", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.index ["consultant_user_id"], name: "index_report_review_findings_on_consultant_user_id"
     t.index ["report_review_id", "finding_type"], name: "idx_on_report_review_id_finding_type_37d951f5e0"
     t.index ["report_review_id"], name: "index_report_review_findings_on_report_review_id"
-    t.index ["reviewer_user_id"], name: "index_report_review_findings_on_reviewer_user_id"
   end
 
   create_table "report_review_section_states", force: :cascade do |t|
@@ -887,7 +1143,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_21_000000) do
 
   create_table "report_reviews", force: :cascade do |t|
     t.bigint "report_id", null: false
-    t.bigint "reviewer_user_id", null: false
+    t.bigint "consultant_user_id", null: false
     t.bigint "company_id", null: false
     t.string "status", default: "pending", null: false
     t.text "overall_note"
@@ -898,14 +1154,14 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_21_000000) do
     t.string "opportunity_unit"
     t.text "opportunity_basis"
     t.index ["company_id"], name: "index_report_reviews_on_company_id"
-    t.index ["report_id", "reviewer_user_id"], name: "index_report_reviews_on_report_id_and_reviewer_user_id", unique: true
+    t.index ["consultant_user_id"], name: "index_report_reviews_on_consultant_user_id"
+    t.index ["report_id", "consultant_user_id"], name: "index_report_reviews_on_report_id_and_consultant_user_id", unique: true
     t.index ["report_id"], name: "index_report_reviews_on_report_id"
-    t.index ["reviewer_user_id"], name: "index_report_reviews_on_reviewer_user_id"
   end
 
   create_table "report_section_overrides", force: :cascade do |t|
     t.bigint "report_id", null: false
-    t.bigint "reviewer_user_id", null: false
+    t.bigint "consultant_user_id", null: false
     t.string "action", null: false
     t.string "section_key"
     t.string "anchor_section"
@@ -915,10 +1171,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_21_000000) do
     t.boolean "published", default: true, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.index ["consultant_user_id"], name: "index_report_section_overrides_on_consultant_user_id"
     t.index ["report_id", "action"], name: "index_report_section_overrides_on_report_id_and_action"
     t.index ["report_id", "section_key"], name: "index_report_section_overrides_on_report_id_and_section_key"
     t.index ["report_id"], name: "index_report_section_overrides_on_report_id"
-    t.index ["reviewer_user_id"], name: "index_report_section_overrides_on_reviewer_user_id"
   end
 
   create_table "report_share_accesses", force: :cascade do |t|
@@ -964,8 +1220,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_21_000000) do
   create_table "review_discussions", force: :cascade do |t|
     t.bigint "report_id", null: false
     t.bigint "company_id", null: false
-    t.bigint "author_reviewer_user_id", null: false
-    t.bigint "target_reviewer_user_id"
+    t.bigint "author_consultant_user_id", null: false
+    t.bigint "target_consultant_user_id"
     t.bigint "employee_id"
     t.bigint "conversation_id"
     t.bigint "parent_id"
@@ -976,7 +1232,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_21_000000) do
     t.string "status", default: "open", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["author_reviewer_user_id"], name: "index_review_discussions_on_author_reviewer_user_id"
+    t.index ["author_consultant_user_id"], name: "index_review_discussions_on_author_consultant_user_id"
     t.index ["company_id"], name: "index_review_discussions_on_company_id"
     t.index ["conversation_id"], name: "index_review_discussions_on_conversation_id"
     t.index ["employee_id"], name: "index_review_discussions_on_employee_id"
@@ -984,169 +1240,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_21_000000) do
     t.index ["report_id", "anchor_type", "anchor_id"], name: "idx_review_discussions_report_anchor"
     t.index ["report_id", "parent_id"], name: "idx_review_discussions_report_parent"
     t.index ["report_id"], name: "index_review_discussions_on_report_id"
-    t.index ["target_reviewer_user_id"], name: "index_review_discussions_on_target_reviewer_user_id"
-  end
-
-  create_table "reviewer_assignments", force: :cascade do |t|
-    t.bigint "reviewer_user_id", null: false
-    t.bigint "company_id", null: false
-    t.bigint "assigned_by_platform_user_id", null: false
-    t.string "status", default: "active", null: false
-    t.datetime "assigned_at", null: false
-    t.datetime "removed_at"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["assigned_by_platform_user_id"], name: "index_reviewer_assignments_on_assigned_by_platform_user_id"
-    t.index ["company_id", "reviewer_user_id"], name: "index_reviewer_assignments_active_unique", unique: true, where: "((status)::text = 'active'::text)"
-    t.index ["company_id"], name: "index_reviewer_assignments_on_company_id"
-    t.index ["reviewer_user_id"], name: "index_reviewer_assignments_on_reviewer_user_id"
-  end
-
-  create_table "reviewer_chat_messages", force: :cascade do |t|
-    t.bigint "company_id", null: false
-    t.bigint "sender_reviewer_user_id", null: false
-    t.text "body", null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["company_id", "created_at"], name: "index_reviewer_chat_messages_on_company_id_and_created_at"
-    t.index ["company_id"], name: "index_reviewer_chat_messages_on_company_id"
-    t.index ["sender_reviewer_user_id"], name: "index_reviewer_chat_messages_on_sender_reviewer_user_id"
-  end
-
-  create_table "reviewer_experiences", force: :cascade do |t|
-    t.bigint "reviewer_user_id", null: false
-    t.string "organization", null: false
-    t.string "title", null: false
-    t.integer "start_year", null: false
-    t.integer "end_year"
-    t.string "summary", limit: 200
-    t.integer "sort_order", default: 0, null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["reviewer_user_id", "sort_order"], name: "index_reviewer_experiences_on_reviewer_user_id_and_sort_order"
-    t.index ["reviewer_user_id"], name: "index_reviewer_experiences_on_reviewer_user_id"
-  end
-
-  create_table "reviewer_info_replies", force: :cascade do |t|
-    t.bigint "reviewer_info_request_id", null: false
-    t.bigint "message_id", null: false
-    t.text "body", null: false
-    t.datetime "received_at", null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["message_id"], name: "index_reviewer_info_replies_on_message_id"
-    t.index ["reviewer_info_request_id"], name: "index_reviewer_info_replies_on_reviewer_info_request_id"
-  end
-
-  create_table "reviewer_info_requests", force: :cascade do |t|
-    t.bigint "company_id", null: false
-    t.bigint "report_id"
-    t.bigint "reviewer_user_id", null: false
-    t.bigint "employee_id", null: false
-    t.bigint "conversation_id", null: false
-    t.text "body", null: false
-    t.string "status", default: "draft", null: false
-    t.string "meta_message_id"
-    t.datetime "sent_at"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.bigint "message_id"
-    t.bigint "review_discussion_id"
-    t.index ["company_id"], name: "index_reviewer_info_requests_on_company_id"
-    t.index ["conversation_id"], name: "index_reviewer_info_requests_on_conversation_id"
-    t.index ["employee_id", "status"], name: "index_reviewer_info_requests_awaiting_reply", where: "((status)::text = 'awaiting_reply'::text)"
-    t.index ["employee_id"], name: "index_reviewer_info_requests_on_employee_id"
-    t.index ["message_id"], name: "index_reviewer_info_requests_on_message_id"
-    t.index ["report_id"], name: "index_reviewer_info_requests_on_report_id"
-    t.index ["review_discussion_id"], name: "index_reviewer_info_requests_on_review_discussion_id"
-    t.index ["reviewer_user_id"], name: "index_reviewer_info_requests_on_reviewer_user_id"
-  end
-
-  create_table "reviewer_outreach_replies", force: :cascade do |t|
-    t.bigint "reviewer_outreach_id", null: false
-    t.string "channel", null: false
-    t.text "body", null: false
-    t.bigint "message_id"
-    t.bigint "company_user_id"
-    t.datetime "received_at", null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["reviewer_outreach_id"], name: "index_reviewer_outreach_replies_on_reviewer_outreach_id"
-  end
-
-  create_table "reviewer_outreaches", force: :cascade do |t|
-    t.bigint "company_id", null: false
-    t.bigint "report_id"
-    t.bigint "reviewer_user_id", null: false
-    t.string "recipient_type", null: false
-    t.bigint "recipient_id"
-    t.bigint "employee_id"
-    t.bigint "conversation_id"
-    t.string "purpose", default: "clarification", null: false
-    t.string "channel", default: "whatsapp", null: false
-    t.string "status", default: "draft", null: false
-    t.text "body", null: false
-    t.text "reason"
-    t.string "section_key"
-    t.string "anchor_type"
-    t.string "anchor_id"
-    t.datetime "requested_deadline_at"
-    t.bigint "approved_by_company_user_id"
-    t.datetime "approved_at"
-    t.datetime "declined_at"
-    t.text "admin_note"
-    t.text "edited_body"
-    t.string "reply_token_digest"
-    t.datetime "sent_at"
-    t.string "meta_message_id"
-    t.bigint "message_id"
-    t.bigint "reviewer_info_request_id"
-    t.jsonb "audit_trail", default: [], null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["company_id"], name: "index_reviewer_outreaches_on_company_id"
-    t.index ["conversation_id"], name: "index_reviewer_outreaches_on_conversation_id"
-    t.index ["employee_id"], name: "index_reviewer_outreaches_on_employee_id"
-    t.index ["reply_token_digest"], name: "index_reviewer_outreaches_on_reply_token_digest", unique: true, where: "(reply_token_digest IS NOT NULL)"
-    t.index ["report_id"], name: "index_reviewer_outreaches_on_report_id"
-    t.index ["reviewer_user_id"], name: "index_reviewer_outreaches_on_reviewer_user_id"
-    t.index ["status"], name: "index_reviewer_outreaches_on_status"
-  end
-
-  create_table "reviewer_users", force: :cascade do |t|
-    t.string "email", null: false
-    t.string "password_digest", null: false
-    t.string "name", null: false
-    t.string "status", default: "active", null: false
-    t.string "jti", null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.string "avatar_storage_key"
-    t.string "headline", limit: 120
-    t.text "bio"
-    t.string "linkedin_url"
-    t.string "website_url"
-    t.string "location"
-    t.string "timezone"
-    t.string "languages", default: [], null: false, array: true
-    t.string "expertise_tags", default: [], null: false, array: true
-    t.string "industries", default: [], null: false, array: true
-    t.integer "years_experience"
-    t.jsonb "credentials", default: [], null: false
-    t.string "profile_status", default: "draft", null: false
-    t.datetime "profile_completed_at"
-    t.datetime "platform_verified_at"
-    t.datetime "approved_at"
-    t.datetime "rejected_at"
-    t.text "application_notes"
-    t.text "expertise_summary"
-    t.jsonb "questionnaire_answers", default: {}, null: false
-    t.integer "questionnaire_step", default: 1, null: false
-    t.datetime "questionnaire_completed_at"
-    t.string "cv_storage_key"
-    t.index ["email"], name: "index_reviewer_users_on_email", unique: true
-    t.index ["jti"], name: "index_reviewer_users_on_jti", unique: true
-    t.index ["profile_status"], name: "index_reviewer_users_on_profile_status"
+    t.index ["target_consultant_user_id"], name: "index_review_discussions_on_target_consultant_user_id"
   end
 
   create_table "solution_catalog", force: :cascade do |t|
@@ -1227,8 +1321,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_21_000000) do
   add_foreign_key "catalog_candidates", "catalog_source_records"
   add_foreign_key "catalog_candidates", "solution_catalog", column: "suggested_catalog_entry_id"
   add_foreign_key "catalog_endorsements", "companies"
+  add_foreign_key "catalog_endorsements", "consultant_users"
   add_foreign_key "catalog_endorsements", "reports"
-  add_foreign_key "catalog_endorsements", "reviewer_users"
   add_foreign_key "catalog_endorsements", "solution_catalog", column: "solution_catalog_entry_id"
   add_foreign_key "catalog_entry_aliases", "solution_catalog", column: "solution_catalog_entry_id"
   add_foreign_key "catalog_pricing_snapshots", "solution_catalog", column: "solution_catalog_entry_id"
@@ -1236,13 +1330,13 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_21_000000) do
   add_foreign_key "catalog_source_records", "catalog_sync_runs"
   add_foreign_key "catalog_sync_runs", "catalog_sources"
   add_foreign_key "company_catalog_matches", "companies"
+  add_foreign_key "company_catalog_matches", "consultant_users", column: "added_by_consultant_id"
   add_foreign_key "company_catalog_matches", "recommendations"
-  add_foreign_key "company_catalog_matches", "reviewer_users", column: "added_by_reviewer_id"
   add_foreign_key "company_catalog_matches", "solution_catalog", column: "solution_catalog_entry_id"
   add_foreign_key "company_clarification_questions", "companies"
   add_foreign_key "company_clarification_questions", "company_users", column: "answered_by_company_user_id"
+  add_foreign_key "company_clarification_questions", "consultant_users", column: "dismissed_by_consultant_user_id"
   add_foreign_key "company_clarification_questions", "document_analysis_runs"
-  add_foreign_key "company_clarification_questions", "reviewer_users", column: "dismissed_by_reviewer_user_id"
   add_foreign_key "company_knowledge_entries", "companies"
   add_foreign_key "company_knowledge_entries", "document_analysis_runs"
   add_foreign_key "company_memory_facts", "companies"
@@ -1255,12 +1349,48 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_21_000000) do
   add_foreign_key "company_systems", "companies"
   add_foreign_key "company_users", "companies"
   add_foreign_key "company_users", "company_users", column: "invited_by_id"
+  add_foreign_key "consultant_assignments", "companies"
+  add_foreign_key "consultant_assignments", "consultant_users"
+  add_foreign_key "consultant_assignments", "platform_users", column: "assigned_by_platform_user_id"
+  add_foreign_key "consultant_chat_messages", "companies"
+  add_foreign_key "consultant_chat_messages", "consultant_users", column: "sender_consultant_user_id"
+  add_foreign_key "consultant_experiences", "consultant_users"
+  add_foreign_key "consultant_info_replies", "consultant_info_requests"
+  add_foreign_key "consultant_info_replies", "messages"
+  add_foreign_key "consultant_info_requests", "companies"
+  add_foreign_key "consultant_info_requests", "consultant_users"
+  add_foreign_key "consultant_info_requests", "conversations"
+  add_foreign_key "consultant_info_requests", "employees"
+  add_foreign_key "consultant_info_requests", "messages"
+  add_foreign_key "consultant_info_requests", "reports"
+  add_foreign_key "consultant_info_requests", "review_discussions"
+  add_foreign_key "consultant_outreach_replies", "consultant_outreaches"
+  add_foreign_key "consultant_outreaches", "companies"
+  add_foreign_key "consultant_outreaches", "company_users", column: "approved_by_company_user_id"
+  add_foreign_key "consultant_outreaches", "consultant_users"
+  add_foreign_key "consultant_outreaches", "conversations"
+  add_foreign_key "consultant_outreaches", "employees"
+  add_foreign_key "consultant_outreaches", "reports"
+  add_foreign_key "consultant_requirements", "companies"
+  add_foreign_key "consultant_requirements", "consultant_users"
+  add_foreign_key "consultant_requirements", "discovery_packages"
+  add_foreign_key "consultant_requirements", "employees"
   add_foreign_key "conversation_insights", "companies"
   add_foreign_key "conversation_insights", "conversations"
   add_foreign_key "conversation_insights", "employees"
   add_foreign_key "conversation_insights", "messages"
   add_foreign_key "conversations", "companies"
   add_foreign_key "conversations", "employees"
+  add_foreign_key "discovery_followup_questions", "consultant_info_requests"
+  add_foreign_key "discovery_followup_questions", "consultant_requirements"
+  add_foreign_key "discovery_followup_questions", "discovery_packages"
+  add_foreign_key "discovery_followup_questions", "messages", column: "answered_message_id"
+  add_foreign_key "discovery_followup_questions", "messages", column: "sent_message_id"
+  add_foreign_key "discovery_package_items", "discovery_package_items", column: "linked_item_id"
+  add_foreign_key "discovery_package_items", "discovery_packages"
+  add_foreign_key "discovery_packages", "companies"
+  add_foreign_key "discovery_packages", "conversations"
+  add_foreign_key "discovery_packages", "employees"
   add_foreign_key "discovery_playbooks", "platform_users", column: "created_by_platform_user_id"
   add_foreign_key "discovery_question_feedbacks", "companies"
   add_foreign_key "discovery_question_feedbacks", "company_users"
@@ -1307,48 +1437,26 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_21_000000) do
   add_foreign_key "recommendation_feedbacks", "recommendations"
   add_foreign_key "recommendations", "companies"
   add_foreign_key "recommendations", "company_users", column: "company_feedback_by_id"
+  add_foreign_key "report_review_comments", "consultant_users"
   add_foreign_key "report_review_comments", "report_reviews"
-  add_foreign_key "report_review_comments", "reviewer_users"
+  add_foreign_key "report_review_findings", "consultant_users"
   add_foreign_key "report_review_findings", "report_reviews"
-  add_foreign_key "report_review_findings", "reviewer_users"
   add_foreign_key "report_review_section_states", "report_reviews"
   add_foreign_key "report_reviews", "companies"
+  add_foreign_key "report_reviews", "consultant_users"
   add_foreign_key "report_reviews", "reports"
-  add_foreign_key "report_reviews", "reviewer_users"
+  add_foreign_key "report_section_overrides", "consultant_users"
   add_foreign_key "report_section_overrides", "reports"
-  add_foreign_key "report_section_overrides", "reviewer_users"
   add_foreign_key "report_share_accesses", "reports"
   add_foreign_key "reports", "companies"
   add_foreign_key "reports", "platform_users", column: "reviewed_by_platform_user_id"
   add_foreign_key "reports", "reports", column: "previous_report_id"
   add_foreign_key "review_discussions", "companies"
+  add_foreign_key "review_discussions", "consultant_users", column: "author_consultant_user_id"
+  add_foreign_key "review_discussions", "consultant_users", column: "target_consultant_user_id"
   add_foreign_key "review_discussions", "conversations"
   add_foreign_key "review_discussions", "employees"
   add_foreign_key "review_discussions", "reports"
   add_foreign_key "review_discussions", "review_discussions", column: "parent_id"
-  add_foreign_key "review_discussions", "reviewer_users", column: "author_reviewer_user_id"
-  add_foreign_key "review_discussions", "reviewer_users", column: "target_reviewer_user_id"
-  add_foreign_key "reviewer_assignments", "companies"
-  add_foreign_key "reviewer_assignments", "platform_users", column: "assigned_by_platform_user_id"
-  add_foreign_key "reviewer_assignments", "reviewer_users"
-  add_foreign_key "reviewer_chat_messages", "companies"
-  add_foreign_key "reviewer_chat_messages", "reviewer_users", column: "sender_reviewer_user_id"
-  add_foreign_key "reviewer_experiences", "reviewer_users"
-  add_foreign_key "reviewer_info_replies", "messages"
-  add_foreign_key "reviewer_info_replies", "reviewer_info_requests"
-  add_foreign_key "reviewer_info_requests", "companies"
-  add_foreign_key "reviewer_info_requests", "conversations"
-  add_foreign_key "reviewer_info_requests", "employees"
-  add_foreign_key "reviewer_info_requests", "messages"
-  add_foreign_key "reviewer_info_requests", "reports"
-  add_foreign_key "reviewer_info_requests", "review_discussions"
-  add_foreign_key "reviewer_info_requests", "reviewer_users"
-  add_foreign_key "reviewer_outreach_replies", "reviewer_outreaches"
-  add_foreign_key "reviewer_outreaches", "companies"
-  add_foreign_key "reviewer_outreaches", "company_users", column: "approved_by_company_user_id"
-  add_foreign_key "reviewer_outreaches", "conversations"
-  add_foreign_key "reviewer_outreaches", "employees"
-  add_foreign_key "reviewer_outreaches", "reports"
-  add_foreign_key "reviewer_outreaches", "reviewer_users"
   add_foreign_key "subscriptions", "companies"
 end

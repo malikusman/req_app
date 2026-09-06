@@ -1,14 +1,14 @@
 # frozen_string_literal: true
 
 module Reports
-  # Re-renders and uploads the report artifact, merging submitted reviewer notes into the PDF appendix.
+  # Re-renders and uploads the report artifact, merging submitted consultant notes into the PDF appendix.
   class RegenerateWithReviewService
     def self.call(report:)
       new(report: report).call
     end
 
-    # Live render of the deliverable WITH pending reviewer edits + findings,
-    # without storing anything — powers the WYSIWYG preview for reviewer/platform.
+    # Live render of the deliverable WITH pending consultant edits + findings,
+    # without storing anything — powers the WYSIWYG preview for consultant/platform.
     def self.render_html(report:)
       new(report: report).render_html
     end
@@ -34,7 +34,7 @@ module Reports
       overlay = collector.respond_to?(:overlay) ? collector.overlay : nil
       review_notes = overlay ? overlay["notes"] : collector.call
 
-      # Apply reviewer editorial overrides (hide / edit / add sections) to a copy
+      # Apply consultant editorial overrides (hide / edit / add sections) to a copy
       # of the stored snapshot — the persisted snapshot is untouched.
       snapshot = SectionOverridesApplier.call(snapshot: @report.report_snapshot, report: @report)
 

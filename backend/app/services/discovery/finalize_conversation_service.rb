@@ -44,6 +44,10 @@ module Discovery
       # Company-scoped so obsolete signals can be pruned as the employee cohort grows.
       AggregateIntelligenceJob.perform_later(@company.id)
       MemoryPromotionJob.perform_later(@conversation.id)
+      # The consultant handover. Async because it makes an LLM call, and the
+      # employee's final message must not wait on it. Re-runs after an addendum so
+      # the package reflects the extra evidence, minting a new version.
+      BuildDiscoveryPackageJob.perform_later(@conversation.id)
     end
   end
 end

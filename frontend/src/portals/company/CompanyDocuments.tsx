@@ -12,7 +12,7 @@ export function CompanyDocuments() {
   const { toast } = useToast();
   const [documents, setDocuments] = useState<CompanyDocument[]>([]);
   const [department, setDepartment] = useState('');
-  const [reviewerVisible, setReviewerVisible] = useState(true);
+  const [consultantVisible, setConsultantVisible] = useState(true);
   const [error, setError] = useState('');
   const [loadError, setLoadError] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -132,7 +132,7 @@ export function CompanyDocuments() {
       try {
         await api.uploadDocument(token, file, {
           department: department.trim() || undefined,
-          reviewer_visible: reviewerVisible,
+          consultant_visible: consultantVisible,
         });
         ok += 1;
       } catch {
@@ -181,13 +181,13 @@ export function CompanyDocuments() {
     }
   };
 
-  const toggleReviewerVisible = async (doc: CompanyDocument) => {
+  const toggleConsultantVisible = async (doc: CompanyDocument) => {
     if (!token) return;
     setError('');
     setTogglingId(doc.id);
-    const next = doc.reviewer_visible === false;
+    const next = doc.consultant_visible === false;
     try {
-      const { document } = await api.updateCompanyDocument(token, doc.id, { reviewer_visible: next });
+      const { document } = await api.updateCompanyDocument(token, doc.id, { consultant_visible: next });
       setDocuments((prev) => prev.map((d) => (d.id === doc.id ? document : d)));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Update failed');
@@ -422,10 +422,10 @@ export function CompanyDocuments() {
             <input
               type="checkbox"
               className="h-4 w-4 rounded border-border"
-              checked={reviewerVisible}
-              onChange={(e) => setReviewerVisible(e.target.checked)}
+              checked={consultantVisible}
+              onChange={(e) => setConsultantVisible(e.target.checked)}
             />
-            Visible to reviewers
+            Visible to consultants
           </label>
         </div>
         <FileDropzone
@@ -467,20 +467,20 @@ export function CompanyDocuments() {
             ),
           },
           {
-            key: 'reviewer_visible',
-            header: 'Reviewers',
+            key: 'consultant_visible',
+            header: 'Consultants',
             render: (d) => (
               <div className="flex items-center gap-2">
-                <Badge variant={d.reviewer_visible === false ? 'warning' : 'success'}>
-                  {d.reviewer_visible === false ? 'Hidden' : 'Visible'}
+                <Badge variant={d.consultant_visible === false ? 'warning' : 'success'}>
+                  {d.consultant_visible === false ? 'Hidden' : 'Visible'}
                 </Badge>
                 <Button
                   size="sm"
                   variant="ghost"
                   loading={togglingId === d.id}
-                  onClick={() => toggleReviewerVisible(d)}
+                  onClick={() => toggleConsultantVisible(d)}
                 >
-                  {d.reviewer_visible === false ? 'Show' : 'Hide'}
+                  {d.consultant_visible === false ? 'Show' : 'Hide'}
                 </Button>
               </div>
             ),

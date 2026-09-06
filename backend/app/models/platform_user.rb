@@ -3,7 +3,7 @@
 class PlatformUser < ApplicationRecord
   has_secure_password
   has_many :platform_audit_logs, dependent: :destroy
-  has_many :reviewer_assignments, foreign_key: :assigned_by_platform_user_id, dependent: :nullify
+  has_many :consultant_assignments, foreign_key: :assigned_by_platform_user_id, dependent: :nullify
   has_many :notifications, as: :recipient, dependent: :destroy
 
   ROLES = %w[super_admin support analyst].freeze

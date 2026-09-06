@@ -398,7 +398,7 @@ class DocsOnlyScenarioRunner
       department: spec[:department],
       document_type: spec[:document_type],
       sensitivity: "internal",
-      reviewer_visible: true,
+      consultant_visible: true,
       filename: filename,
       content_type: content_type,
       byte_size: body.bytesize,

@@ -31,7 +31,11 @@ module Discovery
       raise Langgraph::UnavailableError.new("no_playbook", retryable: false) unless playbook
 
       if OpenaiCircuitBreaker.open?
-        return handle_unavailable!(playbook: playbook, trip_breaker: true)
+        # Do NOT re-trip: trip! is a setex, so tripping an already-open breaker
+        # refreshes its TTL. Under continuous traffic that turns a 300s cool-off
+        # into a permanent block — the breaker can never expire because every
+        # request it rejects extends it.
+        return handle_unavailable!(playbook: playbook, trip_breaker: false)
       end
 
       result = @client.run_turn!(
@@ -92,6 +96,12 @@ module Discovery
       @conversation.messages.order(:created_at).last(window).filter_map do |msg|
         next if msg.body.blank?
         next if msg.message_type == "system"
+        # A "brief delay" apology is not something the interviewer said — it is a
+        # retry placeholder. Feeding it back as history poisoned every subsequent
+        # attempt: the anti-repeat guard told the model not to repeat a non-question,
+        # and each further failure added another one, compounding into a spiral a
+        # single transient hiccup could never recover from.
+        next if msg.raw_payload.is_a?(Hash) && msg.raw_payload["kind"] == "delay_notice"
 
         role = msg.direction == "outbound" ? "assistant" : "user"
         { role: role, content: msg.body }
@@ -111,17 +121,19 @@ module Discovery
         user_message: @user_message,
         inbound_message: @inbound_message
       )
+      # A reopened conversation carries a raised ceiling, so the per-conversation
+      # value wins over the company/ENV default the ContextBuilder resolved.
+      limits = context[:limits].merge(max_questions: @conversation.max_questions)
       {
         profile: context[:profile],
         blackboard: context[:blackboard],
-        limits: context[:limits],
+        limits: limits,
         memory_facts: context[:memory_facts],
         document_snippets: context[:document_snippets],
         knowledge_snippets: context[:knowledge_snippets],
         media_context: context[:media_context],
         media_snippets: context[:media_snippets],
         company_profile: context[:company_profile],
-        area_routing: @company.merged_settings["discovery_area_routing_enabled"] == true
       }
     end
 
@@ -167,7 +179,9 @@ module Discovery
     end
 
     def handle_unavailable!(playbook: nil, trip_breaker: true, defer: nil)
-      OpenaiCircuitBreaker.trip! if trip_breaker
+      # Only trip a CLOSED breaker. trip! is a setex, so calling it while open
+      # refreshes the cool-off window and the breaker never reopens under load.
+      OpenaiCircuitBreaker.trip! if trip_breaker && !OpenaiCircuitBreaker.open?
       lang = @employee.preferred_language.presence || @company.locale
       defer = @defer_on_failure if defer.nil?
 

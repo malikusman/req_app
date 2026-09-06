@@ -8,16 +8,25 @@ import {
   discoverApi,
   getStoredDiscoverToken,
   type DiscoverState,
+  type DiscoverMessage,
 } from './discoverApi';
 
 const ACCEPTED_TYPES = 'image/jpeg,image/png,image/webp,application/pdf';
 
-function mapMessages(messages: { id: number; direction: 'inbound' | 'outbound'; body: string; created_at: string }[]): ChatMessageItem[] {
+// A question from a named human expert should not read as the assistant's own
+// voice, so consultant follow-ups carry a label above the message body.
+const CONSULTANT_LABEL = 'Question from the expert reviewing your company';
+
+function mapMessages(messages: DiscoverMessage[]): ChatMessageItem[] {
   return messages.map((m) => ({
     id: m.id,
     direction: m.direction,
     body: m.body,
     timestamp: m.created_at,
+    meta:
+      m.track === 'consultant_followup' && m.direction === 'outbound' ? (
+        <span className="text-xs font-semibold text-primary">{CONSULTANT_LABEL}</span>
+      ) : undefined,
   }));
 }
 

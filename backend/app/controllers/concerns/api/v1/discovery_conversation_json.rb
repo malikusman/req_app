@@ -7,18 +7,23 @@ module Api
 
       private
 
+      # What the interview learned and what it still wanted, for the provenance view.
+      # Replaces the specialist queue's agent_queue / agent_states / topic coverage,
+      # which described an engine that no longer exists.
       def discovery_state_json(conversation, employee)
         blackboard = conversation.blackboard
+        dossier = blackboard["dossier"] || {}
         {
           profile: blackboard["profile"] || employee.profile_card,
-          agent_queue: blackboard["agent_queue"] || [],
-          skipped_agents: blackboard["skipped_agents"] || [],
-          agent_states: blackboard["agent_states"] || {},
-          active_agent_id: blackboard["active_agent_id"],
-          coverage: blackboard["coverage"] || {},
+          role_areas: blackboard["role_areas"] || [],
+          slots: dossier["slots"] || {},
+          parked: dossier["parked"] || [],
+          close_reason: blackboard["close_reason"],
+          stall_turns: blackboard["stall_turns"].to_i,
           shared_findings: blackboard["shared_findings"] || [],
           conversation_summary: blackboard["conversation_summary"],
-          last_routing_decision: conversation.state_snapshot["last_routing_decision"]
+          last_routing_decision: blackboard["last_routing_decision"] ||
+            conversation.state_snapshot["last_routing_decision"]
         }
       end
 

@@ -60,7 +60,7 @@ module Api
             company = target&.company
             company_name = company&.display_name || company&.name || "Company"
             "Report v#{target&.version} — #{company_name}"
-          when "PlatformUser", "ReviewerUser", "CompanyUser"
+          when "PlatformUser", "ConsultantUser", "CompanyUser"
             target&.email || "#{log.target_type} ##{log.target_id}"
           when "DiscoveryPlaybook"
             target ? "Playbook #{target.department} v#{target.version}" : "Playbook ##{log.target_id}"

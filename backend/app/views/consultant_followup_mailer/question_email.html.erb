@@ -1,0 +1,19 @@
+<p>Hi <%= @employee.display_name || "there" %>,</p>
+
+<p>
+  Following up on the questions you answered for
+  <strong><%= @company.display_name || @company.name %></strong>, one of the specialists
+  reviewing them would like to ask you one more thing:
+</p>
+
+<blockquote style="margin:16px 0;padding:12px 16px;border-left:3px solid #0E9F6E;background:#F6FAF7;">
+  <%= @body %>
+</blockquote>
+
+<p>
+  <a href="<%= @reply_url %>">Answer this question</a> — it takes a moment, and no login is needed.
+</p>
+
+<p style="color:#5C6B62;font-size:13px;">
+  If you would rather not answer, you can ignore this email.
+</p>

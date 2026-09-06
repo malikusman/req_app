@@ -73,7 +73,7 @@ export function PlatformDashboard() {
   const [error, setError] = useState('');
   const [extendingId, setExtendingId] = useState<number | null>(null);
   const [pendingCompanies, setPendingCompanies] = useState<number | null>(null);
-  const [pendingReviewers, setPendingReviewers] = useState<number | null>(null);
+  const [pendingConsultants, setPendingConsultants] = useState<number | null>(null);
   const [pendingCandidates, setPendingCandidates] = useState<number | null>(null);
 
   const load = () => {
@@ -99,7 +99,7 @@ export function PlatformDashboard() {
       .platformRegistrations(token, 'pending')
       .then((d) => {
         setPendingCompanies(d.company_registrations.filter((r) => r.status === 'pending').length);
-        setPendingReviewers(d.reviewer_applications.filter((r) => r.status === 'pending').length);
+        setPendingConsultants(d.consultant_applications.filter((r) => r.status === 'pending').length);
       })
       .catch(() => undefined);
     api
@@ -155,11 +155,11 @@ export function PlatformDashboard() {
       action: { label: 'Review', to: '/platform/registrations' },
     });
   }
-  if (pendingReviewers && pendingReviewers > 0) {
+  if (pendingConsultants && pendingConsultants > 0) {
     attentionItems.push({
       tone: 'attention',
       icon: <UserPlus className="h-[18px] w-[18px]" />,
-      title: `${pendingReviewers} reviewer application${pendingReviewers === 1 ? '' : 's'}`,
+      title: `${pendingConsultants} consultant application${pendingConsultants === 1 ? '' : 's'}`,
       detail: 'Awaiting your approval',
       action: { label: 'Review', to: '/platform/registrations' },
     });

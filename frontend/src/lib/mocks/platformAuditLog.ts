@@ -10,8 +10,8 @@ export const mockAuditLogs = [
   {
     id: 2,
     actor: 'admin@reqapp.local',
-    action: 'reviewer_assigned',
-    target: 'reviewer@reqapp.local → Acme Corp',
+    action: 'consultant_assigned',
+    target: 'consultant@reqapp.local → Acme Corp',
     created_at: '2026-05-17T10:00:00Z',
     ip: '192.168.1.1',
   },

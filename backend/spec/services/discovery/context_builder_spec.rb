@@ -12,20 +12,46 @@ RSpec.describe Discovery::ContextBuilder do
   let(:conversation) { create(:conversation, employee: employee, status: "discovery") }
 
   describe ".limits_for" do
-    it "reads limits from merged settings with defaults" do
-      limits = described_class.limits_for(company)
-      expect(limits).to eq(
-        max_followup_depth: 2,
-        max_questions_per_agent: 5,
-        max_active_agents: 4,
+    it "falls back to the code defaults" do
+      expect(described_class.limits_for(company)).to eq(
+        max_questions: 8,
+        min_questions: 4,
+        stall_turns: 2,
+        slot_confidence: 0.6,
         orient_questions: 3,
         switch_after: 3
       )
     end
 
-    it "honours company overrides" do
-      company.update!(settings: company.settings.merge("discovery_max_followup_depth" => 1))
-      expect(described_class.limits_for(company.reload)[:max_followup_depth]).to eq(1)
+    it "reads an ENV override when the company has not set one" do
+      # The precedence only works because these keys are absent from
+      # Company::DEFAULT_SETTINGS — merged_settings would otherwise make every key
+      # look operator-set and ENV could never win.
+      ClimateControl.modify(DISCOVERY_MAX_QUESTIONS: "6") do
+        expect(described_class.limits_for(company)[:max_questions]).to eq(6)
+      end
+    rescue NameError
+      # No ClimateControl in this suite — set and restore by hand.
+      original = ENV["DISCOVERY_MAX_QUESTIONS"]
+      ENV["DISCOVERY_MAX_QUESTIONS"] = "6"
+      expect(described_class.limits_for(company)[:max_questions]).to eq(6)
+    ensure
+      ENV["DISCOVERY_MAX_QUESTIONS"] = original if defined?(original)
+    end
+
+    it "lets a company setting beat the ENV value" do
+      original = ENV["DISCOVERY_MAX_QUESTIONS"]
+      ENV["DISCOVERY_MAX_QUESTIONS"] = "6"
+      company.update!(settings: company.settings.merge("discovery_max_questions" => 12))
+
+      expect(described_class.limits_for(company.reload)[:max_questions]).to eq(12)
+    ensure
+      ENV["DISCOVERY_MAX_QUESTIONS"] = original
+    end
+
+    it "casts the confidence threshold as a float" do
+      company.update!(settings: company.settings.merge("discovery_slot_confidence" => "0.75"))
+      expect(described_class.limits_for(company.reload)[:slot_confidence]).to eq(0.75)
     end
   end
 

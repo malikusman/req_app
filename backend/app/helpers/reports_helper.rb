@@ -36,7 +36,7 @@ module ReportsHelper
     "document_departments" => { label: "Document departments", cat: "cat-tooling", target: 1 }
   }.freeze
 
-  # --- Reviewer section overrides (applied at regenerate time) ---
+  # --- Consultant section overrides (applied at regenerate time) ---
   def report_section_hidden?(snapshot, key)
     Array(snapshot.dig("section_overrides", "hidden")).include?(key.to_s)
   end
@@ -46,7 +46,7 @@ module ReportsHelper
     edits.is_a?(Hash) ? edits[key.to_s] : nil
   end
 
-  # Custom sections a reviewer added, anchored after a given built-in section
+  # Custom sections a consultant added, anchored after a given built-in section
   # (or, when anchor is blank, only when `anchor` itself is nil — i.e. trailing).
   def report_custom_sections(snapshot, after: nil)
     Array(snapshot.dig("section_overrides", "custom")).select do |c|
@@ -272,7 +272,7 @@ module ReportsHelper
     end
   end
 
-  # Maps a TOC title to the section_key a reviewer can hide, so a hidden section
+  # Maps a TOC title to the section_key a consultant can hide, so a hidden section
   # drops out of the contents page too.
   TOC_TITLE_TO_KEY = {
     "Executive summary" => "executive_summary", "Readiness" => "readiness",

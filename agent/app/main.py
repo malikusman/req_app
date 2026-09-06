@@ -9,7 +9,6 @@ from app.circuit_breaker import is_open
 from app.config import configure_langsmith, settings
 from app.graph import execute_turn
 from app.multi_agent_graph import execute_multi_agent_turn
-from app.router import build_agent_queue
 
 app = FastAPI(title="Req Discovery Agent", version="1.0.0")
 
@@ -34,6 +33,8 @@ class TurnContext(BaseModel):
     employee_name: str = ""
     department: str = "default"
     question_count: int = 0
+    # Legacy single-agent path only (multi_agent=false). The interview engine takes
+    # its ceiling from limits["max_questions"] instead.
     question_target: int = 10
     industry: str | None = None
     size_band: str | None = None
@@ -57,15 +58,13 @@ class TurnRequest(BaseModel):
     multi_agent: bool = False
     profile: dict[str, Any] | None = None
     blackboard: dict[str, Any] | None = None
-    limits: dict[str, int] | None = None
+    limits: dict[str, Any] | None = None
     memory_facts: list[dict[str, Any]] = Field(default_factory=list)
     document_snippets: list[str] = Field(default_factory=list)
     knowledge_snippets: list[str] = Field(default_factory=list)
     media_context: dict[str, Any] | None = None
     company_profile: dict[str, Any] | None = None
     media_snippets: list[str] = Field(default_factory=list)
-    # Phase 3: map-then-branch flow (orient -> per-area rotation)
-    area_routing: bool = False
 
 
 class TurnResponse(BaseModel):
@@ -79,18 +78,6 @@ class TurnResponse(BaseModel):
     blackboard: dict[str, Any] | None = None
     active_agent_id: str | None = None
     routing_decision: dict[str, Any] | None = None
-
-
-class RouteRequest(BaseModel):
-    profile: dict[str, Any]
-    limits: dict[str, int] | None = None
-    question_target: int = 12
-
-
-class RouteResponse(BaseModel):
-    agents: list[dict[str, Any]]
-    skipped: list[dict[str, Any]]
-    total_budget: int
 
 
 @app.get("/health")
@@ -136,7 +123,6 @@ def run_turn(thread_id: str, body: TurnRequest):
                 "media_context": body.media_context,
                 "media_snippets": body.media_snippets,
                 "company_profile": body.company_profile or body.context.company_profile or {},
-                "area_routing": body.area_routing,
             }
         )
         result = execute_multi_agent_turn(state)
@@ -146,7 +132,12 @@ def run_turn(thread_id: str, body: TurnRequest):
     if result.get("error") == "openai_unavailable":
         raise HTTPException(
             status_code=503,
-            detail={"error": "openai_unavailable", "retryable": True},
+            detail={
+                "error": "openai_unavailable",
+                "retryable": True,
+                # Why, not just that. Rails logs this verbatim.
+                "reason": result.get("error_detail"),
+            },
         )
 
     return TurnResponse(
@@ -162,12 +153,6 @@ def run_turn(thread_id: str, body: TurnRequest):
     )
 
 
-@app.post("/v1/threads/{thread_id}/route", response_model=RouteResponse)
-def route_agents(thread_id: str, body: RouteRequest):
-    result = build_agent_queue(body.profile, body.limits, body.question_target)
-    return RouteResponse(**result)
-
-
 class CompanionTurnRequest(BaseModel):
     user_message: str
     intent: str = "casual"
@@ -179,6 +164,9 @@ class CompanionTurnResponse(BaseModel):
     assistant_message: str
     intent: str
     mode: str = "companion"
+    # So Rails can tell a real reply from the canned one and log why.
+    generated_by: str = "llm"
+    fallback_reason: str | None = None
 
 
 @app.post("/v1/companion/turn", response_model=CompanionTurnResponse)
@@ -192,17 +180,80 @@ def companion_turn(body: CompanionTurnRequest):
 
     from app.companion import generate_companion_reply
 
-    reply = generate_companion_reply(
+    result = generate_companion_reply(
         user_message=body.user_message,
         intent=body.intent,
         language=body.language,
         context=body.context or {},
     )
     return CompanionTurnResponse(
-        assistant_message=reply,
+        assistant_message=result["reply"],
         intent=body.intent,
         mode="companion",
+        generated_by=result["generated_by"],
+        fallback_reason=result.get("fallback_reason"),
     )
+
+
+class DiscoveryPackageRequest(BaseModel):
+    blackboard: dict[str, Any] = Field(default_factory=dict)
+    profile: dict[str, Any] = Field(default_factory=dict)
+    company_name: str = ""
+    language: str = "en"
+    insights: list[str] = Field(default_factory=list)
+
+
+@app.post("/v1/discovery/package")
+def build_discovery_package(body: DiscoveryPackageRequest):
+    """Synthesise the consultant handover from a finished interview.
+
+    Deliberately does NOT raise on a tripped circuit or a model failure: the caller
+    runs this after the employee's interview has already completed, and a consultant
+    with a deterministic package is better served than one with none.
+    """
+    from app.package import build_package
+
+    return build_package(body.model_dump())
+
+
+class DraftQuestionsRequest(BaseModel):
+    statement: str
+    max_questions: int = 1
+    already_asked: list[str] = Field(default_factory=list)
+    package: dict[str, Any] = Field(default_factory=dict)
+    profile: dict[str, Any] = Field(default_factory=dict)
+    language: str = "en"
+
+
+@app.post("/v1/consultant/requirements/draft")
+def draft_requirement_questions(body: DraftQuestionsRequest):
+    """Turn a consultant's stated need into questions for the employee.
+
+    Never raises: a consultant who stated a need and got nothing back would have to
+    state it again, so this falls back to a plainly-worded question built from their
+    own words.
+    """
+    from app.requirements import draft_questions
+
+    return draft_questions(body.model_dump())
+
+
+class EvaluateRequirementRequest(BaseModel):
+    statement: str
+    answers: list[dict[str, Any]] = Field(default_factory=list)
+    language: str = "en"
+
+
+@app.post("/v1/consultant/requirements/evaluate")
+def evaluate_requirement_satisfaction(body: EvaluateRequirementRequest):
+    """Judge whether the answers so far settle the consultant's need.
+
+    Never raises, and fails to NOT satisfied — wrongly closing a requirement loses
+    the consultant's question silently.
+    """
+    from app.requirements import evaluate_requirement
+
+    return evaluate_requirement(body.model_dump())
 
 
 @app.post("/v1/threads", response_model=dict)

@@ -1,12 +1,13 @@
-"""Multi-agent supervisor graph.
+"""Discovery interview graph.
 
-prepare (deterministic orchestration) -> interview (one LLM call as the active
-specialist) -> finalize (deterministic blackboard update), with a conditional
-edge to close when the interview is done before asking another question.
+prepare (deterministic: what to ask, or whether to stop) -> interview (one LLM
+call) -> finalize (deterministic blackboard update), with a conditional edge to
+close when the dossier is full, the conversation has stalled, or the ceiling is hit.
 
 The graph is stateless across turns: the blackboard travels in/out via Rails.
 """
 
+import logging
 from typing import Any
 
 from langgraph.graph import END, StateGraph
@@ -32,6 +33,9 @@ def _close(state: MultiTurnState) -> MultiTurnState:
         state.get("employee_name", ""),
     )
     bb = state.get("blackboard") or {}
+    # Why the interview ended is worth keeping: a high rate of "ceiling" means the
+    # dossier is asking for more than an interview can reasonably get.
+    bb["close_reason"] = state.get("close_reason") or bb.get("close_reason") or "dossier_complete"
     return {
         **state,
         "assistant_message": message,
@@ -63,5 +67,10 @@ multi_agent_graph = build_multi_agent_graph()
 def execute_multi_agent_turn(state: dict[str, Any]) -> dict[str, Any]:
     try:
         return multi_agent_graph.invoke(state)
-    except OpenAIUnavailable:
-        return {**state, "error": "openai_unavailable", "assistant_message": ""}
+    except OpenAIUnavailable as exc:
+        # Rails only ever saw a bare 503 "openai_unavailable", so every failure mode
+        # — truncated JSON, a refused request, a real outage — looked identical from
+        # the outside. Log the reason; it is the difference between a five-minute
+        # diagnosis and an afternoon of guessing.
+        logging.getLogger("uvicorn.error").warning("discovery turn failed: %s", exc)
+        return {**state, "error": "openai_unavailable", "assistant_message": "", "error_detail": str(exc)}

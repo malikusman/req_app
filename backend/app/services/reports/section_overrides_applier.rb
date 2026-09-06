@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module Reports
-  # Applies reviewer section overrides to a COPY of the stored snapshot at
+  # Applies consultant section overrides to a COPY of the stored snapshot at
   # regenerate time. The persisted snapshot is never mutated, so the AI body and
   # the expert edits remain separable and auditable.
   class SectionOverridesApplier
@@ -27,7 +27,7 @@ module Reports
       }
 
       # The executive summary also feeds the cover subtitle / contents teaser, so
-      # when a reviewer rewrites it, propagate the edit to the base field too — the
+      # when a consultant rewrites it, propagate the edit to the base field too — the
       # whole deliverable should reflect the expert's version, not the AI's.
       exec_body = applied_edits.dig("executive_summary", "body")
       snap["executive_summary"] = exec_body if exec_body.to_s.strip.present?
@@ -40,7 +40,7 @@ module Reports
     def load_overrides
       return [] unless ReportSectionOverride.table_exists?
 
-      @report.report_section_overrides.published.order(:position, :created_at).includes(:reviewer_user).to_a
+      @report.report_section_overrides.published.order(:position, :created_at).includes(:consultant_user).to_a
     rescue ActiveRecord::StatementInvalid
       []
     end
@@ -54,7 +54,7 @@ module Reports
         h[o.section_key] = {
           "title" => o.title.presence,
           "body" => o.body,
-          "reviewer" => o.reviewer_user&.name
+          "consultant" => o.consultant_user&.name
         }
       end
     end
@@ -67,7 +67,7 @@ module Reports
           "body" => o.body,
           "anchor_section" => o.anchor_section.presence,
           "position" => o.position,
-          "reviewer" => o.reviewer_user&.name
+          "consultant" => o.consultant_user&.name
         }
       end
     end

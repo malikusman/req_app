@@ -71,13 +71,13 @@ class NotificationService
       company: company,
       recipients: admins,
       title: "Report in expert review",
-      body: "Your discovery report v#{report.version} is with your expert reviewer. We'll let you know as soon as it's approved and ready to download.",
+      body: "Your discovery report v#{report.version} is with your expert consultant. We'll let you know as soon as it's approved and ready to download.",
       action_url: "#{app_host}/company/reports",
       metadata: { report_id: report.id, version: report.version }
     )
   end
 
-  # A report with no reviewer still needs platform approval before it ships.
+  # A report with no consultant still needs platform approval before it ships.
   def self.notify_platform_report_awaiting_approval(company:, report:)
     recipients = PlatformUser.respond_to?(:active) ? PlatformUser.active : PlatformUser.all
     notify(
@@ -85,7 +85,7 @@ class NotificationService
       company: company,
       recipients: recipients,
       title: "Report awaiting approval",
-      body: "#{company.name} — report v#{report.version} is ready for your review and approval (no reviewer assigned).",
+      body: "#{company.name} — report v#{report.version} is ready for your review and approval (no consultant assigned).",
       action_url: "#{app_host}/platform/companies/#{company.id}",
       metadata: { report_id: report.id, version: report.version, company_id: company.id }
     )
@@ -126,62 +126,62 @@ class NotificationService
     ENV.fetch("APP_HOST", "http://localhost:5173")
   end
 
-  def self.notify_reviewer_assigned(reviewer:, company:)
+  def self.notify_consultant_assigned(consultant:, company:)
     notify(
-      type: :reviewer_assigned,
+      type: :consultant_assigned,
       company: company,
-      recipients: reviewer,
+      recipients: consultant,
       title: "New company assignment",
       body: "You have been assigned to review #{company.display_name || company.name}.",
-      action_url: "#{app_host}/reviewer/companies/#{company.id}",
+      action_url: "#{app_host}/consultant/companies/#{company.id}",
       metadata: { company_id: company.id }
     )
   end
 
-  def self.notify_reviewer_report_ready(reviewer:, company:, report:)
+  def self.notify_consultant_report_ready(consultant:, company:, report:)
     notify(
-      type: :reviewer_report_ready,
+      type: :consultant_report_ready,
       company: company,
-      recipients: reviewer,
+      recipients: consultant,
       title: "Report ready for review",
       body: "#{company.display_name || company.name} report v#{report.version} is ready.",
-      action_url: "#{app_host}/reviewer/companies/#{company.id}/reports/#{report.id}",
+      action_url: "#{app_host}/consultant/companies/#{company.id}/reports/#{report.id}",
       metadata: { report_id: report.id, company_id: company.id }
     )
   end
 
-  def self.notify_co_reviewer_commented(reviewer:, company:, report:)
+  def self.notify_co_consultant_commented(consultant:, company:, report:)
     notify(
-      type: :co_reviewer_commented,
+      type: :co_consultant_commented,
       company: company,
-      recipients: reviewer,
-      title: "Co-reviewer updated report",
-      body: "Your co-reviewer added feedback on #{company.display_name || company.name} report v#{report.version}.",
-      action_url: "#{app_host}/reviewer/companies/#{company.id}/reports/#{report.id}",
+      recipients: consultant,
+      title: "Co-consultant updated report",
+      body: "Your co-consultant added feedback on #{company.display_name || company.name} report v#{report.version}.",
+      action_url: "#{app_host}/consultant/companies/#{company.id}/reports/#{report.id}",
       metadata: { report_id: report.id }
     )
   end
 
-  def self.notify_info_reply_received(reviewer:, request:, employee:)
+  def self.notify_info_reply_received(consultant:, request:, employee:)
     notify(
       type: :info_reply_received,
       company: request.company,
-      recipients: reviewer,
+      recipients: consultant,
       title: "Employee replied to follow-up",
       body: "#{employee.display_name || employee.phone_e164} replied to your clarification request.",
-      action_url: "#{app_host}/reviewer/companies/#{request.company_id}/employees/#{employee.id}/followup",
+      action_url: "#{app_host}/consultant/companies/#{request.company_id}/employees/#{employee.id}/followup",
       metadata: { request_id: request.id, employee_id: employee.id }
     )
   end
 
-  def self.notify_review_submitted(report:, reviewer:)
+  def self.notify_review_submitted(report:, consultant:)
     notify_platform_admins(
       type: :review_submitted,
       company: report.company,
-      title: "Reviewer submitted report",
-      body: "#{reviewer.name} submitted their review for report v#{report.version}.",
+      title: "Consultant submitted report",
+      body: "#{consultant.name} submitted their review for report v#{report.version}.",
       action_url: "#{app_host}/platform/companies/#{report.company_id}/reports",
-      metadata: { report_id: report.id, reviewer_user_id: reviewer.id }
+      metadata: { report_id: report.id, consultant_user_id: consultant.id }
     )
   end
 
@@ -190,20 +190,20 @@ class NotificationService
       type: :all_reviews_submitted,
       company: company,
       title: "All reviews submitted",
-      body: "All assigned reviewers have submitted for report v#{report.version}. Ready for platform approval.",
+      body: "All assigned consultants have submitted for report v#{report.version}. Ready for platform approval.",
       action_url: "#{app_host}/platform/companies/#{company.id}/reports",
       metadata: { report_id: report.id }
     )
   end
 
-  def self.notify_reviewer_chat_message(recipient:, company:, sender:)
+  def self.notify_consultant_chat_message(recipient:, company:, sender:)
     notify(
-      type: :reviewer_chat_message,
+      type: :consultant_chat_message,
       company: company,
       recipients: recipient,
-      title: "Message from co-reviewer",
+      title: "Message from co-consultant",
       body: "#{sender.name} sent a message on #{company.display_name || company.name}.",
-      action_url: "#{app_host}/reviewer/companies/#{company.id}/chat",
+      action_url: "#{app_host}/consultant/companies/#{company.id}/chat",
       metadata: { company_id: company.id }
     )
   end
@@ -214,9 +214,9 @@ class NotificationService
       type: :discussion_mention,
       company: company,
       recipients: recipient,
-      title: "Question from co-reviewer",
+      title: "Question from co-consultant",
       body: "#{author.name} asked about #{discussion.anchor_type} on #{company.display_name || company.name} report v#{report.version}.",
-      action_url: "#{app_host}/reviewer/companies/#{company.id}/reports/#{report.id}/review?step=evidence&anchor=#{anchor}",
+      action_url: "#{app_host}/consultant/companies/#{company.id}/reports/#{report.id}/review?step=evidence&anchor=#{anchor}",
       metadata: {
         report_id: report.id,
         discussion_id: discussion.id,
@@ -228,17 +228,17 @@ class NotificationService
 
   def self.notify_outreach_pending_admin(outreach:)
     admins = outreach.company.company_users.where(role: "company_admin", status: "active")
-    reviewer_name = outreach.reviewer_user.name
+    consultant_name = outreach.consultant_user.name
     notify(
       type: :outreach_pending_admin,
       company: outreach.company,
       recipients: admins,
-      title: "Reviewer outreach awaiting approval",
-      body: "#{reviewer_name} requested to contact a #{outreach.recipient_type.tr('_', ' ')} via #{outreach.channel}.",
+      title: "Consultant outreach awaiting approval",
+      body: "#{consultant_name} requested to contact a #{outreach.recipient_type.tr('_', ' ')} via #{outreach.channel}.",
       action_url: "#{app_host}/company/outreaches/#{outreach.id}",
       metadata: {
         outreach_id: outreach.id,
-        reviewer_user_id: outreach.reviewer_user_id,
+        consultant_user_id: outreach.consultant_user_id,
         purpose: outreach.purpose,
         channel: outreach.channel
       }
@@ -246,17 +246,17 @@ class NotificationService
   end
 
   def self.notify_outreach_received(outreach:, recipient:)
-    reviewer_name = outreach.reviewer_user.name
+    consultant_name = outreach.consultant_user.name
     notify(
       type: :outreach_received,
       company: outreach.company,
       recipients: recipient,
-      title: "Reviewer question for your company",
-      body: "#{reviewer_name}: #{outreach.body.to_s.truncate(160)}",
+      title: "Consultant question for your company",
+      body: "#{consultant_name}: #{outreach.body.to_s.truncate(160)}",
       action_url: "#{app_host}/company/outreaches/#{outreach.id}",
       metadata: {
         outreach_id: outreach.id,
-        reviewer_user_id: outreach.reviewer_user_id,
+        consultant_user_id: outreach.consultant_user_id,
         purpose: outreach.purpose,
         channel: outreach.channel,
         recipient_type: outreach.recipient_type
@@ -268,10 +268,10 @@ class NotificationService
     notify(
       type: :outreach_reply,
       company: outreach.company,
-      recipients: outreach.reviewer_user,
+      recipients: outreach.consultant_user,
       title: "Reply to your outreach",
       body: reply.body.to_s.truncate(200),
-      action_url: "#{app_host}/reviewer/companies/#{outreach.company_id}/outreaches/#{outreach.id}",
+      action_url: "#{app_host}/consultant/companies/#{outreach.company_id}/outreaches/#{outreach.id}",
       metadata: {
         outreach_id: outreach.id,
         reply_id: reply.id,

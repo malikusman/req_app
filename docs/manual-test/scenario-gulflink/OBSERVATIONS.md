@@ -11,7 +11,7 @@ Checks: **28/28 passed** (final run)
 |------|--------|
 | 5 fixtures (pdf/xlsx/docx/txt/png) | 4 ready, 1 failed (PNG) |
 | Intelligence | 6 signals, 6 patterns, 4 recommendations, readiness ~88 |
-| Reviewer | Nadia Al-Rashid (ex-McKinsey logistics EM + Aramex) published & assigned |
+| Consultant | Nadia Al-Rashid (ex-McKinsey logistics EM + Aramex) published & assigned |
 | Report | v3 ready, review bootstrapped, PDF ~350KB with appendix |
 | Q&A | Outreach replied + discussion thread/reply |
 | Findings | executive endorse + risk needs_more_evidence submitted |
@@ -20,7 +20,7 @@ Checks: **28/28 passed** (final run)
 
 - Company CEO: `ceo@gulflink.ae` / `password123`
 - Finance Controller (seeded for Q&A): `controller@gulflink.ae` (employee channel)
-- Reviewer: `nadia.mckinsey@reviewers.worktruth.local` / `password123`
+- Consultant: `nadia.mckinsey@consultants.worktruth.local` / `password123`
 - Platform: `admin@reqapp.local` (seed password)
 - Report id: 29 (version 3)
 
@@ -36,10 +36,10 @@ None for the happy path with 4 text-capable docs.
 
 1. **[ingest] Image / POD scans do not become evidence**  
    `pod-scan-sample.png` failed with `invalid byte sequence in UTF-8`. `DocumentTextExtractor` has no image/OCR branch for portal uploads (only PDF OCR fallback). Handwritten POD exceptions—the exact artifact logistics teams upload—never enter signals.  
-   **Impact:** Reviewer finding correctly flagged weak POD evidence; product still cannot use the image.  
+   **Impact:** Consultant finding correctly flagged weak POD evidence; product still cannot use the image.  
    **Fix direction:** Route `image/*` through `OcrFallback` (or multimodal vision) before `insufficient_text` / binary `File.read`.
 
-2. **[communication] CEO-only docs demo cannot receive reviewer questions**  
+2. **[communication] CEO-only docs demo cannot receive consultant questions**  
    Outreaches and employee-targeted discussions require an `Employee`. We had to seed Finance Controller Layla Hassan. A CEO exploring “docs only” has no native channel to answer Nadia without inventing staff.  
    **Impact:** Breaks the sales story “upload docs → expert asks you questions.”  
    **Fix direction:** Allow outreaches to company admins / named contacts, or a “CEO reply” portal inbox not tied to discovery employees.
@@ -54,18 +54,18 @@ None for the happy path with 4 text-capable docs.
 
 ### Minor
 
-4. **[communication] Discussion UX is reviewer-monologue unless WhatsApp follow-up fires**  
-   Creating an employee-targeted `ReviewDiscussion` also triggers `ReviewerFollowup::SendService`, but the “reply” we created in-thread was still authored by the reviewer. There is no clear company-portal surface for Layla to answer the discussion itself.  
+4. **[communication] Discussion UX is consultant-monologue unless WhatsApp follow-up fires**  
+   Creating an employee-targeted `ReviewDiscussion` also triggers `ConsultantFollowup::SendService`, but the “reply” we created in-thread was still authored by the consultant. There is no clear company-portal surface for Layla to answer the discussion itself.  
    **Impact:** Dual channels (discussion + info-request/WhatsApp) without a single conversation UI.  
-   **Fix direction:** One inbox for clarification requests with status visible to CEO and reviewer.
+   **Fix direction:** One inbox for clarification requests with status visible to CEO and consultant.
 
 5. **[intelligence] Signal taxonomy is domain-agnostic**  
    Labels matched keyword friction patterns (`Manual data entry and spreadsheets`, `Approval bottlenecks`) rather than named logistics workflows. Content *triggered* the right buckets (good), but titles would look identical for a bank or a factory.  
    **Impact:** Expert and CEO cannot scan for “demurrage” / “freight billing” in the signal list.  
    **Fix direction:** Domain-aware labeling from document entities or LLM titles grounded in chunk text.
 
-6. **[reviewer_profile] McKinsey experience is not first-class in the PDF**  
-   Profile + experiences are rich in portal data; appendix relies on finding body text mentioning McKinsey. No structured “Expert credentials” block pulled from `reviewer_experiences`.  
+6. **[consultant_profile] McKinsey experience is not first-class in the PDF**  
+   Profile + experiences are rich in portal data; appendix relies on finding body text mentioning McKinsey. No structured “Expert credentials” block pulled from `consultant_experiences`.  
    **Impact:** Credibility signal underused in the deliverable the CEO downloads.
 
 7. **[dubai_locale] AED / Dubai timezone are fixture-only**  
@@ -95,7 +95,7 @@ None for the happy path with 4 text-capable docs.
 | Discussion → employee | Weak | No employee-authored discussion reply path exercised |
 | Exec summary | Poor | Generic + “1 of 0 employees” |
 | Signal labels | Fair | Right themes, wrong specificity |
-| Reviewer finding prose | Good | McKinsey voice + logistics substance |
+| Consultant finding prose | Good | McKinsey voice + logistics substance |
 | Methodology honesty | Mixed | Docs counted; still discovery-flavored kind/summary |
 
 ---
@@ -108,7 +108,7 @@ None for the happy path with 4 text-capable docs.
 - PASS: CEO admin  
 - PASS: Documents uploaded (5); ≥4 ready; multi-dept  
 - PASS: Intelligence + readiness  
-- PASS: McKinsey reviewer + assignment  
+- PASS: McKinsey consultant + assignment  
 - PASS: Finance Controller seeded  
 - PASS: Report + review bootstrap  
 - PASS: Outreach + discussion Q&A  

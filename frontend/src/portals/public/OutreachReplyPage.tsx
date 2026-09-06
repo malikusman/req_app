@@ -69,7 +69,7 @@ export function OutreachReplyPage() {
         <Card className="w-full max-w-lg space-y-3 p-6 text-center">
           <h1 className="text-xl font-semibold text-foreground">Reply received</h1>
           <p className="text-sm text-muted-foreground">
-            Thanks — your clarification was sent to the reviewer team for {outreach?.company_name || 'your company'}.
+            Thanks — your clarification was sent to the consultant team for {outreach?.company_name || 'your company'}.
           </p>
         </Card>
       </div>
@@ -83,7 +83,7 @@ export function OutreachReplyPage() {
           <p className="text-sm uppercase tracking-wide text-muted-foreground">Clarification reply</p>
           <h1 className="text-2xl font-semibold text-foreground">{outreach?.company_name || 'Worktruth'}</h1>
           <p className="text-sm text-muted-foreground">
-            A reviewer asked for more detail. Your reply is recorded securely via this link.
+            A consultant asked for more detail. Your reply is recorded securely via this link.
           </p>
         </div>
 
@@ -105,7 +105,7 @@ export function OutreachReplyPage() {
               rows={6}
               value={body}
               onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setBody(e.target.value)}
-              placeholder="Share the details the reviewer asked for…"
+              placeholder="Share the details the consultant asked for…"
               required
             />
             <Button type="submit" loading={submitting} disabled={!body.trim()}>

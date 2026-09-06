@@ -10,7 +10,7 @@ import {
   Users,
   Zap,
 } from 'lucide-react';
-import { api, type CompanyDashboardPayload, type ReviewerPublicCard } from '../../lib/api';
+import { api, type CompanyDashboardPayload, type ConsultantPublicCard } from '../../lib/api';
 import { useAuth, useCompanyToken } from '../../lib/auth';
 import {
   DashboardShell,
@@ -88,7 +88,7 @@ export function CompanyDashboard() {
   const [data, setData] = useState<CompanyDashboardPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [reviewers, setReviewers] = useState<ReviewerPublicCard[]>([]);
+  const [consultants, setConsultants] = useState<ConsultantPublicCard[]>([]);
   const [unansweredQuestions, setUnansweredQuestions] = useState(0);
 
   useEffect(() => {
@@ -107,9 +107,9 @@ export function CompanyDashboard() {
       .catch(() => setError('Could not load discovery dashboard.'))
       .finally(() => setLoading(false));
     api
-      .companyExpertReviewers(token)
-      .then((d) => setReviewers(d.expert_reviewers || []))
-      .catch(() => setReviewers([]));
+      .companyExpertConsultants(token)
+      .then((d) => setConsultants(d.expert_consultants || []))
+      .catch(() => setConsultants([]));
     api
       .discoveryQuestions(token)
       .then((d) => {
@@ -152,7 +152,7 @@ export function CompanyDashboard() {
 
   const invited = data.company.invited_count ?? 0;
   const completed = data.company.completed_count ?? 0;
-  const reviewer = reviewers[0];
+  const consultant = consultants[0];
   const report = data.latest_report;
   const reportReady = Boolean(report && (report.status === 'ready' || report.status === 'shared'));
 
@@ -167,7 +167,7 @@ export function CompanyDashboard() {
       : { tone: 'setup', label: 'Setting up' };
 
   const { hero: rankedHero, also } = nextBestAction(data, {
-    reviewerName: reviewer?.name ?? null,
+    consultantName: consultant?.name ?? null,
     unansweredQuestions,
     signalCount,
     patternCount,
@@ -257,7 +257,7 @@ export function CompanyDashboard() {
       {/* Also waiting */}
       <AttentionList items={attentionItems} />
 
-      {/* Opportunity headline — the reviewer's estimate of what acting is worth */}
+      {/* Opportunity headline — the consultant's estimate of what acting is worth */}
       {data.opportunity_estimate && (
         <div className="rounded-card border border-accent/40 bg-accent-muted p-5 shadow-hero-mockup sm:p-6">
           <p className="text-label-caps uppercase text-accent-hover">Opportunity identified</p>
@@ -271,7 +271,7 @@ export function CompanyDashboard() {
             <p className="mt-2 max-w-2xl text-sm text-foreground/80">{data.opportunity_estimate.basis}</p>
           )}
           <p className="mt-2 text-xs text-muted-foreground">
-            Estimated by {data.opportunity_estimate.reviewer_name ?? 'your reviewer'} · report v
+            Estimated by {data.opportunity_estimate.consultant_name ?? 'your consultant'} · report v
             {data.opportunity_estimate.report_version}
           </p>
         </div>
@@ -357,21 +357,21 @@ export function CompanyDashboard() {
           )}
         </Card>
 
-        <Card title="Your reviewer" className="min-w-0">
-          {reviewer ? (
+        <Card title="Your consultant" className="min-w-0">
+          {consultant ? (
             <div className="space-y-4">
               <div className="flex items-center gap-3">
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-foreground font-display text-base font-semibold text-background">
-                  {reviewer.name.charAt(0).toUpperCase()}
+                  {consultant.name.charAt(0).toUpperCase()}
                 </span>
                 <div className="min-w-0">
-                  <p className="m-0 font-display text-sm font-semibold text-foreground">{reviewer.name}</p>
-                  {reviewer.headline && (
-                    <p className="m-0 truncate text-xs text-muted-foreground">{reviewer.headline}</p>
+                  <p className="m-0 font-display text-sm font-semibold text-foreground">{consultant.name}</p>
+                  {consultant.headline && (
+                    <p className="m-0 truncate text-xs text-muted-foreground">{consultant.headline}</p>
                   )}
-                  {reviewer.expertise_tags?.length > 0 && (
+                  {consultant.expertise_tags?.length > 0 && (
                     <div className="mt-1.5 flex flex-wrap gap-1.5">
-                      {reviewer.expertise_tags.slice(0, 3).map((tag) => (
+                      {consultant.expertise_tags.slice(0, 3).map((tag) => (
                         <span
                           key={tag}
                           className="rounded-badge border border-border bg-background px-2 py-0.5 text-[11px] text-muted-foreground"
@@ -412,7 +412,7 @@ export function CompanyDashboard() {
           ) : (
             <EmptyState
               icon={UserCircle}
-              title="No reviewer assigned yet"
+              title="No consultant assigned yet"
               description="A Worktruth expert appears here once they’re assigned to your company."
               className="py-8"
             />

@@ -8,6 +8,10 @@ class Conversation < ApplicationRecord
   has_many :media_attachments, dependent: :destroy
   has_many :documents, dependent: :nullify
   has_many :employee_nudges, dependent: :nullify
+  # Never declared when discovery_packages was added -- the FK on
+  # discovery_packages.conversation_id had nothing telling Rails to clean these up,
+  # so deleting a conversation with a package raised a bare ForeignKeyViolation.
+  has_many :discovery_packages, dependent: :destroy
 
   STATUSES = %w[onboarding profiling discovery completed abandoned].freeze
 
@@ -29,11 +33,30 @@ class Conversation < ApplicationRecord
     status == "completed"
   end
 
+  # The interview ceiling for THIS conversation. A reopen (addendum) raises it,
+  # otherwise it comes from Discovery::ContextBuilder's resolution chain
+  # (company setting -> ENV -> default).
+  def max_questions
+    stored = state_snapshot["max_questions"]
+    return stored.to_i if stored.present?
+
+    Discovery::ContextBuilder.limits_for(company)[:max_questions]
+  end
+
+  # Legacy single-agent path (multi_agent disabled) still runs on a fixed target.
   def effective_question_target
     stored = state_snapshot["question_target"]
     return stored.to_i if stored.present?
 
     company.merged_settings.fetch("discovery_question_target", 10).to_i
+  end
+
+  def close_reason
+    blackboard["close_reason"]
+  end
+
+  def dossier
+    state_snapshot.dig("blackboard", "dossier") || { "slots" => {}, "parked" => [] }
   end
 
   def blackboard

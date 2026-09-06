@@ -26,7 +26,7 @@ export interface DashboardAction {
 }
 
 export interface NextBestExtras {
-  reviewerName?: string | null;
+  consultantName?: string | null;
   unansweredQuestions: number;
   signalCount: number;
   patternCount: number;
@@ -42,7 +42,7 @@ export function nextBestAction(
   payload: CompanyDashboardPayload,
   extras: NextBestExtras
 ): { hero: DashboardAction; also: DashboardAction[] } {
-  const { reviewerName, unansweredQuestions, signalCount, patternCount, recommendationCount, readinessScore } =
+  const { consultantName, unansweredQuestions, signalCount, patternCount, recommendationCount, readinessScore } =
     extras;
   const invited = payload.company.invited_count ?? 0;
   const completed = payload.company.completed_count ?? 0;
@@ -51,7 +51,7 @@ export function nextBestAction(
   const qPercent = Math.round(payload.questionnaire_completion_percent ?? 0);
   const report = payload.latest_report;
   const reportReady = Boolean(report && (report.status === 'ready' || report.status === 'shared'));
-  const reviewer = reviewerName || 'your reviewer';
+  const consultant = consultantName || 'your consultant';
 
   const candidates: DashboardAction[] = [];
 
@@ -81,10 +81,10 @@ export function nextBestAction(
       parts.push(`${recommendationCount} tailored recommendation${recommendationCount === 1 ? '' : 's'}`);
     const summary = parts.length
       ? `Version ${report.version} pulls together ${joinList(parts)}${
-          reviewerName ? ` — reviewed by your expert, ${reviewerName}.` : '.'
+          consultantName ? ` — reviewed by your expert, ${consultantName}.` : '.'
         }`
       : `Version ${report.version} of your discovery report is ready${
-          reviewerName ? ` — reviewed by your expert, ${reviewerName}.` : '.'
+          consultantName ? ` — reviewed by your expert, ${consultantName}.` : '.'
         }`;
     candidates.push({
       id: 'review-report',
@@ -101,12 +101,12 @@ export function nextBestAction(
     });
   }
 
-  // (c) Reviewer questions waiting
+  // (c) Consultant questions waiting
   if (unansweredQuestions > 0) {
     candidates.push({
       id: 'answer-questions',
       eyebrow: 'Do this next',
-      title: `Answer ${unansweredQuestions} question${unansweredQuestions === 1 ? '' : 's'} from ${reviewer}`,
+      title: `Answer ${unansweredQuestions} question${unansweredQuestions === 1 ? '' : 's'} from ${consultant}`,
       description: `A few details will sharpen your report. It takes about ${Math.max(
         1,
         unansweredQuestions * 2
@@ -114,7 +114,7 @@ export function nextBestAction(
       primaryLabel: 'Answer questions',
       to: '/company/outreaches',
       tone: 'attention',
-      attnTitle: `Answer ${unansweredQuestions} question${unansweredQuestions === 1 ? '' : 's'} from ${reviewer}`,
+      attnTitle: `Answer ${unansweredQuestions} question${unansweredQuestions === 1 ? '' : 's'} from ${consultant}`,
       attnDetail: 'A few details will sharpen your report',
       attnActionLabel: 'Answer',
     });

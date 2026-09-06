@@ -21,10 +21,10 @@ RSpec.describe "Auth gates for pending signup", type: :request do
     expect(JSON.parse(response.body)["error"]).to match(/pending approval/i)
   end
 
-  it "blocks pending reviewers from logging in" do
-    create(:reviewer_user, status: "pending", email: "pending@rev.test", password: "password123")
+  it "blocks pending consultants from logging in" do
+    create(:consultant_user, status: "pending", email: "pending@rev.test", password: "password123")
 
-    post "/api/v1/auth/reviewer/login", params: { email: "pending@rev.test", password: "password123" }
+    post "/api/v1/auth/consultant/login", params: { email: "pending@rev.test", password: "password123" }
     expect(response).to have_http_status(:unauthorized)
   end
 end

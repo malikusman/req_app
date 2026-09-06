@@ -17,11 +17,17 @@ RSpec.describe Companion::PostDiscoveryRouter do
       instance_double(
         Openai::Client,
         configured?: true,
-        companion_chat: { "reply" => "Happy to help." },
         classify_companion_intent: { "intent" => "casual", "confidence" => 0.2 },
         companion_general_tools: {
           "suggestions" => [{ "name" => "Notion", "why" => "SOPs" }]
         }
+      )
+    )
+    # The companion reply now comes from the agent, not from Openai::Client.
+    allow(Langgraph::Client).to receive(:new).and_return(
+      instance_double(
+        Langgraph::Client,
+        companion_turn!: { "assistant_message" => "Happy to help.", "generated_by" => "llm" }
       )
     )
   end

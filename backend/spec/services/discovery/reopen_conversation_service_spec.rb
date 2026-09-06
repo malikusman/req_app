@@ -41,20 +41,29 @@ RSpec.describe Discovery::ReopenConversationService do
     end.not_to change { conversation.reload.state_snapshot["addendum_count"] }
   end
 
-  it "reopens discovery with a bounded question-target top-up and agent budget" do
+  it "reopens discovery with a bounded ceiling top-up" do
     result = described_class.call(conversation: conversation, employee: employee)
 
     expect(result.status).to eq("discovery")
-    expect(result.effective_question_target).to eq(13)
+    expect(result.max_questions).to eq(13) # 10 asked + 3 addendum budget
     expect(result.state_snapshot["addendum_count"]).to eq(1)
     expect(result.blackboard["conversation_summary"]).to include(
       "Employee volunteered additional info after completion."
     )
+  end
 
-    agent = result.blackboard.dig("agent_states", "domain_finance")
-    expect(agent["status"]).to eq("active")
-    expect(agent["question_budget"]).to eq(8) # 5 asked + 3 budget
-    expect(result.blackboard["active_agent_id"]).to eq("domain_finance")
+  it "clears the stall counter and close reason so the addendum can run" do
+    conversation.update!(
+      state_snapshot: conversation.state_snapshot.deep_merge(
+        "blackboard" => { "stall_turns" => 3, "close_reason" => "stalled" }
+      )
+    )
+
+    result = described_class.call(conversation: conversation, employee: employee)
+
+    # Starting an addendum already stalled would end it on the first turn.
+    expect(result.blackboard["stall_turns"]).to eq(0)
+    expect(result.blackboard).not_to have_key("close_reason")
   end
 
   it "records a conversation_reopened timeline event" do
@@ -71,6 +80,6 @@ RSpec.describe Discovery::ReopenConversationService do
   it "respects a custom discovery_addendum_budget" do
     company.update!(settings: company.settings.merge("discovery_addendum_budget" => 5))
     described_class.call(conversation: conversation, employee: employee)
-    expect(conversation.reload.effective_question_target).to eq(15)
+    expect(conversation.reload.max_questions).to eq(15)
   end
 end

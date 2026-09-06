@@ -76,8 +76,8 @@ Send **text only** unless noted. Discovery answers can be your own words or copy
 | 4 | Intelligence | Signals on invoices/SAP; multimodal evidence present |
 | 5 | Reports → Generate | Report generates (early report allowed on Acme) |
 | 6 | Download PDF | Supporting media section lists 2 attachments |
-| 7 | `reviewer@reqapp.local` / `password123` | Report review → supporting media in sidebar |
-| 8 | *(Optional)* Reviewer follow-up | Reviewer sends question → you reply on WhatsApp |
+| 7 | `consultant@reqapp.local` / `password123` | Report review → supporting media in sidebar |
+| 8 | *(Optional)* Consultant follow-up | Consultant sends question → you reply on WhatsApp |
 
 Platform admin: `admin@reqapp.local` / `password123`
 

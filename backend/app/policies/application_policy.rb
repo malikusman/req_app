@@ -50,8 +50,8 @@ class ApplicationPolicy
       context.company?
     end
 
-    def reviewer?
-      context.reviewer?
+    def consultant?
+      context.consultant?
     end
 
     def company_id
@@ -73,8 +73,8 @@ class ApplicationPolicy
     context.company?
   end
 
-  def reviewer?
-    context.reviewer?
+  def consultant?
+    context.consultant?
   end
 
   def company_id

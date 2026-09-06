@@ -41,16 +41,16 @@ RSpec.describe "Dashboard APIs", type: :request do
     end
   end
 
-  describe "GET /api/v1/reviewer/dashboard" do
+  describe "GET /api/v1/consultant/dashboard" do
     let(:company) { create(:company, :onboarded) }
-    let(:reviewer) { create(:reviewer_user) }
+    let(:consultant) { create(:consultant_user) }
 
     before do
-      create(:reviewer_assignment, company: company, reviewer_user: reviewer)
+      create(:consultant_assignment, company: company, consultant_user: consultant)
     end
 
-    it "returns reviewer dashboard payload in one response" do
-      get "/api/v1/reviewer/dashboard", headers: auth_headers_for(reviewer)
+    it "returns consultant dashboard payload in one response" do
+      get "/api/v1/consultant/dashboard", headers: auth_headers_for(consultant)
 
       expect(response).to have_http_status(:ok)
       body = JSON.parse(response.body)

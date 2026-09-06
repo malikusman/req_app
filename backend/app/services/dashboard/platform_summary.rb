@@ -38,7 +38,7 @@ module Dashboard
         {
           report: { id: report.id, version: report.version, generated_at: report.generated_at },
           company: { id: company.id, name: company.display_name || company.name },
-          has_reviewer: company.reviewer_assignments.active.exists?,
+          has_consultant: company.consultant_assignments.active.exists?,
           blocked_needs_info: report.report_reviews.where(status: "needs_info").exists?
         }
       end

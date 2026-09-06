@@ -4,7 +4,7 @@ import { Check } from 'lucide-react';
 import { cn } from '../../lib/cn';
 import { fadeUp, slideInRight, staggerContainer, transition } from '../../lib/motion';
 
-export type AuthPortal = 'platform' | 'company' | 'reviewer';
+export type AuthPortal = 'platform' | 'company' | 'consultant';
 
 const portalFeatures: Record<AuthPortal, string[]> = {
   platform: [
@@ -17,10 +17,10 @@ const portalFeatures: Record<AuthPortal, string[]> = {
     'View signals, patterns, and recommendations',
     'Generate governed transformation reports',
   ],
-  reviewer: [
+  consultant: [
     'Annotate and review reports',
     'Request employee follow-ups',
-    'Collaborate with co-reviewers',
+    'Collaborate with co-consultants',
   ],
 };
 
