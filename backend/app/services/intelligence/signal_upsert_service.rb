@@ -87,9 +87,26 @@ module Intelligence
     # department-scoped run only sees a slice, so it merges.
     def departments_for(signal, attrs)
       derived = Array(attrs[:departments]) + Array(@department)
-      return canonical_departments(derived) if @reconcile_stale
+      return canonical_departments(signal.departments + derived) unless @reconcile_stale
 
-      canonical_departments(signal.departments + derived)
+      replacement = canonical_departments(derived)
+
+      # Going from "we knew which teams" to "we know nothing" is the one case
+      # where replacing is indistinguishable from losing data. It is still the
+      # right answer — no attributable evidence means no attribution — but it
+      # also happens when employee.department is blank across the board, which
+      # is a data-entry problem upstream rather than a finding. Worth being able
+      # to see, since the symptom (patterns quietly disappearing) is otherwise
+      # hard to trace back to here.
+      if replacement.empty? && signal.departments.present?
+        Rails.logger.info(
+          "[SignalUpsert] company=#{@company.id} signal=#{signal.id || 'new'} " \
+          "#{signal.signal_type} cleared departments #{signal.departments.inspect} — " \
+          "no attributable evidence in this pass"
+        )
+      end
+
+      replacement
     end
 
     # Dedupe departments case-insensitively (keeping first-seen casing) so

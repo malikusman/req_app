@@ -25,13 +25,19 @@ type Section = { title: string; pageIndex: number };
 type FitMode = 'width' | 'page';
 
 // Injected into the reader iframe. Strips the inter-page gap that the report
-// stylesheet uses for screen preview so one page fills the frame exactly, and
-// suppresses the page's own scrollbar (the reader owns navigation).
+// stylesheet uses for screen preview, so one page fills the frame exactly.
+//
+// Scrolling must stay ENABLED: `body { overflow: hidden }` looked right (the
+// reader owns navigation, so why show a scrollbar) but it disabled the very
+// scrolling that scrollIntoView and the IntersectionObserver depend on --
+// every jump, every arrow key and the page indicator silently stopped working.
+// The scrollbar is hidden cosmetically instead.
 const READER_CSS = `
   html, body { margin: 0 !important; padding: 0 !important; background: transparent !important; }
-  body { overflow: hidden !important; }
   .page { margin: 0 auto !important; box-shadow: none !important; }
   .refbar { display: none !important; }
+  html { scrollbar-width: none; }
+  html::-webkit-scrollbar { width: 0; height: 0; }
 `;
 
 export function CompanyReportReader() {
@@ -143,6 +149,12 @@ export function CompanyReportReader() {
     setSections(found);
 
     // Keep the indicator honest when the reader is scrolled by hand.
+    //
+    // root MUST be null (the frame's own viewport). Setting it to
+    // doc.documentElement measures intersection against the whole scrolled
+    // document, so every page counts as "intersecting" at all times, no
+    // threshold is ever crossed, and the indicator freezes on page 1 -- which
+    // the button navigation hides completely, because goTo sets the page itself.
     const observer = new IntersectionObserver(
       (entries) => {
         if (programmaticScroll.current) return;
@@ -153,7 +165,7 @@ export function CompanyReportReader() {
         const index = pages.indexOf(visible.target as HTMLElement);
         if (index >= 0) setCurrent(index);
       },
-      { root: doc.documentElement, threshold: [0.25, 0.5, 0.75] }
+      { root: null, threshold: [0.1, 0.25, 0.5, 0.75] }
     );
     pages.forEach((page) => observer.observe(page));
   }, []);

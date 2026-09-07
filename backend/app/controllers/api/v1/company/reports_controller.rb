@@ -169,7 +169,18 @@ module Api
             shares: report_shares_json(report)
           }
 
-          json[:report_snapshot] = report.report_snapshot if detailed
+          if detailed
+            # The stored snapshot is the untouched machine analysis; the expert
+            # layer (the consultant's verdict, the opportunity figure they sized,
+            # who validated it) is applied at RENDER time, so it is in the PDF
+            # and was missing from every API response. The portal hero reads
+            # exactly these fields, so without this it could never show the one
+            # number an owner most wants.
+            #
+            # Merged into the response, never into the stored column.
+            expert = Reports::ExpertLayer.call(report: report)
+            json[:report_snapshot] = expert.present? ? report.report_snapshot.merge("expert" => expert) : report.report_snapshot
+          end
           json[:share_url] = "#{ENV.fetch('API_PUBLIC_HOST', 'http://localhost:3000')}/api/v1/public/reports/#{report.share_token}" if report.share_token.present?
           json
         end

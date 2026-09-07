@@ -725,13 +725,25 @@ on a department-scoped run (it sees only a slice). `AggregateCompanyIntelligence
 `department:` scalar is now advisory.
 
 `PatternDetector` gained two things to make this usable: a lower floor for the
-cross-department rule (`CROSS_DEPARTMENT_MIN_STRENGTH = 0.2`, because that rule
-reports its own signal's strength as its confidence rather than asserting a
-fixed high one), and a cap (`MAX_CROSS_DEPARTMENT = 3`, ranked by spread then
-strength, because once attribution works *most* signals span two teams and an
-uncapped rule emits one near-identical pattern per signal type).
+cross-department rule (default 0.2, because that rule reports its own signal's
+strength as its confidence rather than asserting a fixed high one), and a cap
+(default 3, ranked by spread then strength, because once attribution works
+*most* signals span two teams and an uncapped rule emits one near-identical
+pattern per signal type).
+
+**Those numbers are a company setting, not a constant.** How readily a pattern
+should form is a product-judgement call about false positives on small samples,
+so `merged_settings["pattern_thresholds"]` overrides `min_strength`,
+`anchor_strength`, `cross_department_min_strength` and `max_cross_department`,
+the same way `report_thresholds` overrides readiness. The constants in
+`PatternDetector` are the shipped defaults.
+
 `PatternUpsertService` also gained `reconcile_stale`, which it never had — a
-pattern detected once lived forever at its historical peak confidence.
+pattern detected once lived forever at its historical peak confidence, because
+confidence was `[stored, fresh].max` and status was forced to `confirmed` on
+every pass. It now takes the fresh value and records material moves in
+`patterns.confidence_history` (mirroring `company_signals.strength_history`), so
+a pattern that has weakened can still be seen to have been stronger.
 
 Full analysis, the measured before/after, and the reasoning for each judgement
 call: `docs/SIGNAL_DEPARTMENT_ATTRIBUTION.md`.
@@ -776,3 +788,41 @@ beats a broken deliverable.
 
 The frame is `sandbox="allow-same-origin"`: the markup is ours, but it carries
 consultant-authored text, so it gets no script execution.
+
+### Tested in a real browser
+
+The reader's correctness is browser behaviour, not a pure function — it drives a
+same-origin iframe, scales it to fit, and tracks which page is in view. A request
+spec can prove the endpoint serves the right HTML; it cannot prove any of that
+works. So there is a Playwright suite (`frontend/e2e/report-reader.spec.ts`, 16
+tests) covering the jump rail's labels and collapsing, click-to-jump, active
+section marking, prev/next, boundary disabling, arrow keys, manual-scroll
+tracking, both fit modes, variant switching (including that the brief comes back
+portrait), direct-link entry and Escape.
+
+```
+docker compose up
+docker compose exec rails bundle exec rake e2e:seed_report_reader
+cd frontend && npm run e2e
+```
+
+The seed task provisions a company whose evidence is strong enough for the real
+pipeline to produce a recommendation and a cross-department pattern, plus a
+library-authored consultant section and a submitted review with a sized
+opportunity — so the reader is tested against a report shaped like a real one.
+
+It earned its place immediately, catching three bugs no unit test would have:
+
+- **`body { overflow: hidden }` in the reader CSS disabled scrolling.** It looked
+  right — the reader owns navigation, so why show a scrollbar — but it broke
+  `scrollIntoView`, so every jump and every arrow key silently did nothing.
+- **The IntersectionObserver used `root: doc.documentElement`.** That measures
+  against the whole scrolled document, so every page counted as intersecting at
+  all times, no threshold was ever crossed, and the indicator froze on page 1.
+  Completely hidden by the buttons, which set the page themselves.
+- **The expert layer never reached the portal.** The hero renders
+  `snapshot.expert.opportunity`, but the expert layer is applied at render time
+  and lives only on the render-time copy — it reached the PDF and no API
+  response, so the one number an owner most wants could never appear in the
+  portal. `Api::V1::Company::ReportsController#report_json` now merges it into
+  the response (never into the stored column).

@@ -73,6 +73,19 @@ class Company < ApplicationRecord
       "min_ready_documents" => 3,
       "min_document_departments" => 1
     },
+    # How readily a pattern forms. Defaults are the shipped judgement, not a
+    # law: cross_department_min_strength is deliberately lower than min_strength
+    # because that rule reports its own signal's strength as its confidence
+    # (so a thin one reads as low-confidence rather than as a confident claim),
+    # and max_cross_department caps what is otherwise one near-identical
+    # "<signal> across departments" pattern per signal type. See
+    # Intelligence::PatternDetector and docs/SIGNAL_DEPARTMENT_ATTRIBUTION.md.
+    "pattern_thresholds" => {
+      "min_strength" => 0.35,
+      "anchor_strength" => 0.65,
+      "cross_department_min_strength" => 0.2,
+      "max_cross_department" => 3
+    },
     "department_targets" => {},
     "custom_departments" => []
   }.freeze

@@ -143,6 +143,13 @@ the evidence, so its derived set replaces what is stored — otherwise a
 department whose evidence has since gone sticks to the signal forever. A
 department-scoped run sees only a slice and merges.
 
+The one case where replacing is indistinguishable from losing data is going from
+"we knew which teams" to "we know nothing". It is still the right answer — no
+attributable evidence means no attribution — but it also happens when
+`employee.department` is blank across the board, which is a data-entry problem
+upstream rather than a finding. `SignalUpsertService` logs it, because the
+symptom (patterns quietly disappearing) is otherwise hard to trace back here.
+
 ### 2. The cross-department rule needed its own strength floor
 
 Attribution alone was not enough. Two employees in different departments
@@ -150,8 +157,11 @@ describing the same friction produce `evidence_count = 2`, hence
 `strength = 1 - exp(-2/6) = 0.28` — below `MIN_STRENGTH` (0.35), so the signal
 was filtered out before rule 3 ever saw it.
 
-`PatternDetector::CROSS_DEPARTMENT_MIN_STRENGTH = 0.2` now applies to rule 3
-only. The asymmetry is deliberate:
+`CROSS_DEPARTMENT_MIN_STRENGTH = 0.2` now applies to rule 3 only, and is
+overridable per company via `merged_settings["pattern_thresholds"]` — how
+readily a pattern should form is a product-judgement call, so the constant is a
+default rather than a decision baked into the code. The asymmetry is
+deliberate:
 
 - a **combo** pattern asserts a fixed, high confidence (0.82 / 0.78) that two
   signal *types* reinforce each other; on thin evidence that claim is unearned,
@@ -177,7 +187,11 @@ ever increased (`[pattern.confidence, attrs[:confidence]].max`), and its status
 was forced to `confirmed` on every pass. That would have quietly defeated the
 new cap, and more generally kept reporting a pattern whose evidence had gone. It
 now prunes on full runs, takes the fresh confidence, and lets a pattern fall
-back to `emerging`. Nothing holds a foreign key to `patterns` —
+back to `emerging`. Nothing is lost by dropping `max`: material moves in either
+direction are recorded in `patterns.confidence_history`, capped at 40 entries
+and ignoring sub-0.05 recomputation noise — the same 0.05 band
+`SignalUpsertService` uses for `strength_history`. Nothing holds a foreign key
+to `patterns` —
 `recommendations` and `agentic_ideas` reference them by id in jsonb arrays that
 are read defensively, and `RecommendationSynthesizer` re-runs immediately after
 in the same aggregation pass.
@@ -212,3 +226,5 @@ The scenario runners were not given a shared-department fixture. The dedicated
 spec above exercises the multi-department path directly, which is a better test
 than a scenario assertion, but `rake scenario:nimbus` still checks
 `Patterns detected` against whatever its fixture happens to produce.
+`rake e2e:seed_report_reader` does provision a two-department company whose
+evidence produces a cross-department pattern, if a fixture is wanted.

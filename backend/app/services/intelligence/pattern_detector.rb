@@ -41,11 +41,32 @@ module Intelligence
 
     def initialize(company:)
       @company = company
+      # Company-overridable, same mechanism as report_thresholds. The constants
+      # above are the shipped defaults; how readily a pattern should form is a
+      # product-judgement call about false positives on small samples, so it is
+      # a setting rather than a decision baked into the code.
+      @thresholds = company.merged_settings.fetch("pattern_thresholds", {})
+    end
+
+    def min_strength
+      threshold("min_strength", MIN_STRENGTH)
+    end
+
+    def anchor_strength
+      threshold("anchor_strength", ANCHOR_STRENGTH)
+    end
+
+    def cross_department_min_strength
+      threshold("cross_department_min_strength", CROSS_DEPARTMENT_MIN_STRENGTH)
+    end
+
+    def max_cross_department
+      threshold("max_cross_department", MAX_CROSS_DEPARTMENT).to_i
     end
 
     def call
       all_signals = @company.company_signals.order(strength: :desc).to_a
-      signals = all_signals.select { |s| s.strength.to_f >= MIN_STRENGTH }
+      signals = all_signals.select { |s| s.strength.to_f >= min_strength }
       patterns = []
 
       patterns.concat(cross_department_patterns(all_signals))
@@ -80,12 +101,12 @@ module Intelligence
     # coverage is an array on that row, not multiple rows of the same type.
     def cross_department_patterns(signals)
       signals
-        .select { |s| s.strength.to_f >= CROSS_DEPARTMENT_MIN_STRENGTH }
+        .select { |s| s.strength.to_f >= cross_department_min_strength }
         .select { |s| Array(s.departments).uniq.size >= 2 }
         # Widest spread first, then strongest — a friction in three departments
         # is a bigger finding than a slightly stronger one in two.
         .sort_by { |s| [-Array(s.departments).uniq.size, -s.strength.to_f] }
-        .first(MAX_CROSS_DEPARTMENT)
+        .first(max_cross_department)
         .map do |signal|
           depts = Array(signal.departments).uniq
           build_pattern(
@@ -100,10 +121,15 @@ module Intelligence
         end
     end
 
+    def threshold(name, default)
+      value = @thresholds[name]
+      value.nil? ? default : value.to_f
+    end
+
     def combo_signal_ids(signals, types)
       typed = types.map { |t| signals.find { |s| s.signal_type == t } }
       return nil if typed.any?(&:nil?)
-      return nil unless typed.any? { |s| s.strength >= ANCHOR_STRENGTH }
+      return nil unless typed.any? { |s| s.strength >= anchor_strength }
 
       typed.map(&:id)
     end
