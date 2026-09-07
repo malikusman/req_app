@@ -328,8 +328,12 @@ module Reports
           "signal_labels" => linked.map(&:label),
           "evidence_count" => evidence,
           "confidence" => pattern.confidence,
+          # The title often already names the spread ("Manual data entry across
+          # departments"), which made the old phrasing say it twice: "... across
+          # departments continues to compound across finance, operations".
           "statement" =>
-            "Left unaddressed, #{pattern.title} continues to compound across #{dept_phrase}" \
+            "Left unaddressed, #{pattern.title} continues to compound" \
+            "#{pattern.title.to_s.match?(/\bacross\b/i) ? '' : " across #{dept_phrase}"}" \
             "#{evidence.positive? ? ", with #{evidence} supporting evidence items already on record" : ""}."
         }
       end

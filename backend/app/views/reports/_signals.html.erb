@@ -30,7 +30,7 @@
   <%= render "reports/page_footer", company_name: company_name %>
 </section>
 
-<% report_paginate(ranked, 6).each_with_index do |group, page_index| %>
+<% report_paginate(ranked, 9).each_with_index do |group, page_index| %>
   <section class="page">
     <div class="eyebrow">Signals<%= " · continued" if page_index.positive? %></div>
     <h1 class="page-title">Where the friction sits</h1>

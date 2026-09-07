@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_09_06_090000) do
+ActiveRecord::Schema[7.1].define(version: 2026_09_06_100000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -1199,8 +1199,22 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_06_090000) do
     t.datetime "accessed_at", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "variant"
     t.index ["report_id", "accessed_at"], name: "index_report_share_accesses_on_report_id_and_accessed_at"
     t.index ["report_id"], name: "index_report_share_accesses_on_report_id"
+  end
+
+  create_table "report_shares", force: :cascade do |t|
+    t.bigint "report_id", null: false
+    t.string "variant", null: false
+    t.string "token", null: false
+    t.datetime "expires_at", null: false
+    t.datetime "revoked_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["report_id", "variant"], name: "index_report_shares_on_report_id_and_variant"
+    t.index ["report_id"], name: "index_report_shares_on_report_id"
+    t.index ["token"], name: "index_report_shares_on_token", unique: true
   end
 
   create_table "reports", force: :cascade do |t|
@@ -1463,6 +1477,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_06_090000) do
   add_foreign_key "report_section_overrides", "consultant_users"
   add_foreign_key "report_section_overrides", "reports"
   add_foreign_key "report_share_accesses", "reports"
+  add_foreign_key "report_shares", "reports"
   add_foreign_key "reports", "companies"
   add_foreign_key "reports", "platform_users", column: "reviewed_by_platform_user_id"
   add_foreign_key "reports", "reports", column: "previous_report_id"

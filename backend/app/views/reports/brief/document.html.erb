@@ -38,20 +38,27 @@
   <%# The governing thought is already answer-first, already carries a grounded
       number and already survived the hallucination filter. It does not need to
       be written again for the brief. %>
+  <div class="fill">
   <% headline = narrative["governing_thought"].presence ||
                 snapshot.dig("situation", "headline").presence ||
                 snapshot["executive_summary"].to_s.split(/(?<=\.)\s+/).first %>
   <div class="answer"><%= h headline %></div>
 
+  <%# Without a model there are no narrative supporting points, which left this
+      page with a headline and nothing under it. The deterministic stand-in is
+      built from the real signals, so the page is honest either way. %>
   <% support = Array(narrative["supporting_points"]).reject(&:blank?).first(3) %>
+  <% support = report_deterministic_support(snapshot) if support.empty? %>
   <% if support.any? %>
     <ul class="support">
       <% support.each do |point| %><li><%= h point %></li><% end %>
     </ul>
   <% end %>
 
-  <% if narrative["stakes"].present? %>
-    <div class="stakes"><strong>What's at stake.</strong> <%= h narrative["stakes"] %></div>
+  <% stakes = narrative["stakes"].presence ||
+              Array(snapshot["implications"]).max_by { |i| i["confidence"].to_f }&.dig("statement") %>
+  <% if stakes.present? %>
+    <div class="stakes"><strong>What's at stake.</strong> <%= h stakes %></div>
   <% end %>
 
   <% metrics = Array(snapshot["key_metrics"]).first(3) %>
@@ -67,10 +74,14 @@
     </div>
   <% end %>
 
+  </div><%# /.fill — the slack lives here, so the value block sits on the footer %>
+
   <% if opportunity %>
+    <% amount = report_amount_parts(opportunity["amount"], opportunity["unit"]) %>
     <div class="value">
       <div class="exlabel">Identified opportunity · expert validated</div>
-      <div class="value-amount"><%= h report_amount(opportunity["amount"], opportunity["unit"]) %></div>
+      <div class="value-amount"><%= h amount[:figure] %></div>
+      <% if amount[:period] %><div class="value-period">per <%= h amount[:period] %></div><% end %>
       <% if opportunity["basis"].present? %>
         <p class="value-basis"><%= h opportunity["basis"] %></p>
       <% end %>
@@ -182,6 +193,7 @@
   <div class="eyebrow">How we know</div>
   <h1 style="font-size:20pt;margin:3mm 0 6mm;">Method, and independent validation</h1>
 
+  <div class="fill">
   <% evidence_sentence = report_evidence_base_sentence(snapshot) %>
   <% if evidence_sentence %>
     <div class="method-line" style="margin-top:0;">
@@ -210,6 +222,8 @@
       <p style="margin-top:2mm;"><%= h verdict["overall_note"].to_s.truncate(560) %></p>
     </div>
   <% end %>
+
+  </div><%# /.fill %>
 
   <div class="ask">
     <h3>Next step</h3>

@@ -817,12 +817,47 @@ export const api = {
   previewConsultantReport: (token: string, companyId: number, reportId: number) =>
     fetchPreviewBlob(token, `/api/v1/consultant/companies/${companyId}/reports/${reportId}/download`),
 
-  // Live HTML render WITH the consultant's pending section edits + findings applied.
-  previewConsultantReportDraft: (token: string, companyId: number, reportId: number) =>
-    fetchPreviewBlob(token, `/api/v1/consultant/companies/${companyId}/reports/${reportId}/preview`),
+  // Live HTML render WITH the consultant's pending section edits + findings
+  // applied. The variant matters here: four pages is where a weak governing
+  // thought does maximum damage, so a reviewer must be able to see the brief
+  // before they submit.
+  previewConsultantReportDraft: (
+    token: string,
+    companyId: number,
+    reportId: number,
+    variant: ReportVariant = 'full'
+  ) =>
+    fetchPreviewBlob(
+      token,
+      `/api/v1/consultant/companies/${companyId}/reports/${reportId}/preview?variant=${variant}`
+    ),
 
-  previewPlatformReportDraft: (token: string, companyId: number, reportId: number) =>
-    fetchPreviewBlob(token, `/api/v1/platform/companies/${companyId}/reports/${reportId}/preview`),
+  previewPlatformReportDraft: (
+    token: string,
+    companyId: number,
+    reportId: number,
+    variant: ReportVariant = 'full'
+  ) =>
+    fetchPreviewBlob(
+      token,
+      `/api/v1/platform/companies/${companyId}/reports/${reportId}/preview?variant=${variant}`
+    ),
+
+  // The section library a consultant adds sections from. "Add a section" always
+  // worked; what it lacked was any structure to work from.
+  consultantSectionTemplates: (token: string) =>
+    request<{
+      templates: ReportSectionTemplate[];
+      anchors: { key: string; label: string }[];
+    }>('/api/v1/consultant/section_templates', {}, token),
+
+  // Mint the next version when new evidence has landed since this one.
+  refreshConsultantReport: (token: string, companyId: number, reportId: number) =>
+    request<{ report: { id: number; version: number }; stale: boolean }>(
+      `/api/v1/consultant/companies/${companyId}/reports/${reportId}/refresh`,
+      { method: 'POST' },
+      token
+    ),
 
   discoveryQuestions: (token: string) =>
     request<{ questions: DiscoveryQuestion[] }>('/api/v1/company/discovery_questions', {}, token),
@@ -980,22 +1015,39 @@ export const api = {
   generateReport: (token: string) =>
     request<{ report: Report }>('/api/v1/company/reports', { method: 'POST' }, token),
 
-  // Inline blob → object URL for an in-portal report viewer.
-  previewCompanyReport: (token: string, id: number) =>
-    fetchPreviewBlob(token, `/api/v1/company/reports/${id}/download`),
+  // Detail view carries report_snapshot, so the portal can render the governing
+  // thought and the expert-validated opportunity as real selectable text rather
+  // than making the reader open a PDF to find out what was found.
+  companyReport: (token: string, id: number) =>
+    request<{ report: Report }>(`/api/v1/company/reports/${id}`, {}, token),
 
-  shareReport: (token: string, id: number, days: number) =>
-    request<{ share_token: string; share_url: string; expires_at: string }>(
+  // Inline blob → object URL for an in-portal report viewer.
+  previewCompanyReport: (token: string, id: number, variant: ReportVariant = 'full') =>
+    fetchPreviewBlob(token, `/api/v1/company/reports/${id}/download?variant=${variant}`),
+
+  shareReport: (token: string, id: number, days: number, variant: ReportVariant = 'full') =>
+    request<{
+      share_token: string;
+      share_url: string;
+      expires_at: string;
+      variant: ReportVariant;
+      variant_label: string;
+    }>(
       `/api/v1/company/reports/${id}/share`,
-      { method: 'POST', body: JSON.stringify({ days }) },
+      { method: 'POST', body: JSON.stringify({ days, variant }) },
       token
     ),
 
-  revokeReportShare: (token: string, id: number) =>
-    request<Report>(`/api/v1/company/reports/${id}/revoke_share`, { method: 'POST' }, token),
+  // No variant revokes every link for the report.
+  revokeReportShare: (token: string, id: number, variant?: ReportVariant) =>
+    request<Report>(
+      `/api/v1/company/reports/${id}/revoke_share`,
+      { method: 'POST', body: JSON.stringify(variant ? { variant } : {}) },
+      token
+    ),
 
-  downloadReport: async (token: string, id: number) => {
-    const res = await fetch(`${API_URL}/api/v1/company/reports/${id}/download`, {
+  downloadReport: async (token: string, id: number, variant: ReportVariant = 'full') => {
+    const res = await fetch(`${API_URL}/api/v1/company/reports/${id}/download?variant=${variant}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) throw new Error('Download failed');
@@ -1003,7 +1055,8 @@ export const api = {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `discovery-report-${id}.pdf`;
+    const name = variant === 'exec_brief' ? 'executive-brief' : 'discovery-report';
+    a.download = `${name}-${id}.pdf`;
     a.click();
     URL.revokeObjectURL(url);
   },
@@ -2032,6 +2085,42 @@ export interface PlatformTrialRow {
   };
 }
 
+export type ReportVariant = 'full' | 'exec_brief';
+
+// A section a real strategy deliverable carries and that an evidence-driven
+// generator structurally cannot produce, because it needs judgement not data.
+export interface ReportSectionTemplate {
+  key: string;
+  title: string;
+  purpose: string;
+  anchor: string;
+  recommended: boolean;
+  scaffold: string;
+}
+
+// One rendering of a reviewed report. The full report and the executive brief
+// project the same analysis, so they can never disagree about a number.
+export interface ReportArtifact {
+  variant: 'full' | 'exec_brief';
+  label: string;
+  description: string;
+  orientation: 'landscape' | 'portrait';
+  page_count: number | null;
+  content_type: string;
+  is_pdf: boolean;
+}
+
+// Share links are per-variant: "send the board the brief" and "share everything"
+// are different acts, so the UI has to say which a link opens.
+export interface ReportShare {
+  id: number;
+  variant: 'full' | 'exec_brief';
+  variant_label: string;
+  expires_at: string;
+  share_url: string;
+  access_count: number;
+}
+
 export interface Report {
   id: number;
   version: number;
@@ -2046,6 +2135,35 @@ export interface Report {
   delta_summary: string | null;
   share_url?: string;
   error_message: string | null;
+  artifacts?: ReportArtifact[];
+  shares?: ReportShare[];
+  report_snapshot?: ReportSnapshot;
+}
+
+// Only the parts of the snapshot the portal renders as text. The report itself
+// is the PDF; this is what lets the page answer the question before anything is
+// downloaded.
+export interface ReportSnapshot {
+  narrative?: {
+    governing_thought?: string | null;
+    supporting_points?: string[];
+    stakes?: string | null;
+  } | null;
+  executive_summary?: string | null;
+  situation?: { headline?: string | null } | null;
+  expert?: {
+    opportunity?: {
+      amount: number;
+      unit: string;
+      basis?: string | null;
+      consultant: string;
+      consultant_credential?: string | null;
+      corroborated_by?: number;
+    } | null;
+    validators?: { name: string; credential: string }[];
+  } | null;
+  key_metrics?: { headline: string; label: string; comparison?: string | null }[];
+  evidence_base?: { interviews?: number; documents?: number; media?: number; departments?: number } | null;
 }
 
 export interface PlatformSystemHealth {

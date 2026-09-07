@@ -559,12 +559,50 @@ module ReportsHelper
 
   # "AED 450,000" / "450,000 hours" — the unit carries the period ("AED / year").
   def report_amount(amount, unit)
+    parts = report_amount_parts(amount, unit)
+    parts[:period].present? ? "#{parts[:figure]} / #{parts[:period]}" : parts[:figure]
+  end
+
+  # The figure and its period, separately. Set as one string at display size the
+  # period wrapped onto its own line mid-figure ("AED 450,000 /" then "year"),
+  # which reads as a typesetting accident; splitting it is deliberate.
+  def report_amount_parts(amount, unit)
     number = amount.to_i.to_s.reverse.scan(/\d{1,3}/).join(",").reverse
     currency, _, period = unit.to_s.partition("/")
     currency = currency.strip
-    period = period.strip
-    lead = currency.match?(/\A[A-Z]{2,4}\z/) ? "#{currency} #{number}" : "#{number} #{currency}".strip
-    period.present? ? "#{lead} / #{period}" : lead
+    figure = currency.match?(/\A[A-Z]{2,4}\z/) ? "#{currency} #{number}" : "#{number} #{currency}".strip
+    { figure: figure, period: period.strip.presence }
+  end
+
+  # A validator row that is just the person who already sized the opportunity is
+  # the same credential printed twice on one page.
+  def report_other_validators(snapshot)
+    expert = report_expert(snapshot)
+    return [] unless expert
+
+    sizer = expert.dig("opportunity", "consultant")
+    Array(expert["validators"]).reject { |v| v["name"] == sizer }
+  end
+
+  # Deterministic stand-in for the LLM narrative's supporting points, so the
+  # brief's first page is honest rather than sparse when no model is configured.
+  def report_deterministic_support(snapshot, limit: 3)
+    Array(snapshot["signals"]).sort_by { |s| -s["strength"].to_f }.first(limit).filter_map do |signal|
+      label = signal["label"].to_s.strip
+      next if label.blank?
+
+      depts = Array(signal["departments"]).reject(&:blank?)
+      count = signal["evidence_count"].to_i
+      # Terse and varied enough to read as findings rather than three runs of the
+      # same sentence. Strength is downcased: report_strength_label capitalises
+      # for use as a standalone label, which reads wrong mid-sentence.
+      parts = ["#{report_strength_label(signal['strength']).to_s.downcase} strength"]
+      parts << depts.join(", ") if depts.any?
+      parts << "#{count} evidence point#{'s' unless count == 1}" if count.positive?
+      # Deliberately not the evidence source: it is identical on every bullet,
+      # and page 4 states the evidence base once.
+      "#{label} — #{parts.compact.join(' · ')}"
+    end
   end
 
   def report_evidence_base(snapshot)

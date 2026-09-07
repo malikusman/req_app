@@ -5,6 +5,9 @@ class Report < ApplicationRecord
   belongs_to :previous_report, class_name: "Report", optional: true
   belongs_to :reviewed_by_platform_user, class_name: "PlatformUser", optional: true
   has_many :report_share_accesses, dependent: :destroy
+  # Per-variant share links. reports.share_token still backs the full variant so
+  # links already in a client's inbox keep resolving.
+  has_many :report_shares, dependent: :destroy
   has_many :report_reviews, dependent: :destroy
   # The renderings of this one reviewed analysis — see Reports::VariantSpec.
   has_many :report_artifacts, dependent: :destroy

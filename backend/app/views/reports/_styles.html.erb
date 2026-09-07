@@ -62,10 +62,10 @@ strong{font-weight:600;}
 /* contents */
 .toc{display:grid;grid-template-columns:1fr 1fr;gap:0 14mm;margin-top:8mm;}
 .toc h2{font-size:34pt;grid-column:1/-1;margin-bottom:6mm;}
-.toc-item{display:grid;grid-template-columns:auto 1fr;gap:5mm;align-items:baseline;padding:4mm 0;border-top:2px solid var(--ink);}
+.toc-item{display:grid;grid-template-columns:auto 1fr;gap:5mm;align-items:baseline;padding:3mm 0;border-top:2px solid var(--ink);}
 .toc-item .n{font-family:var(--serif);font-weight:700;font-size:14pt;}
 .toc-item .t{font-family:var(--sans);font-weight:600;font-size:10.5pt;}
-.toc-item .d{grid-column:2;font-size:8.5pt;color:var(--muted);margin-top:1mm;}
+.toc-item .d{grid-column:2;font-size:8pt;line-height:1.35;color:var(--muted);margin-top:0.8mm;}
 .toc-item.rule-blue{border-top-color:var(--blue);}.toc-item.rule-teal{border-top-color:var(--teal);}.toc-item.rule-magenta{border-top-color:var(--magenta);}
 /* divider */
 .divider{display:grid;grid-template-rows:1fr auto;height:var(--ph);overflow:hidden;}
@@ -175,7 +175,10 @@ table.data td{padding:2mm;border-bottom:1px solid var(--hair);}
 .cover .sub{ color:rgba(255,255,255,.8); }
 
 /* Contents: big title left, two TOC columns right */
-.contents-land{ display:grid; grid-template-columns:0.7fr 1.5fr; gap:0 14mm; align-items:start; margin-top:6mm; }
+/* Adding the Expert assessment entry took the contents to 14 rows, which
+   overran the sheet at the old 4mm row padding. Tightened rather than capped —
+   a contents page that hides sections is worse than a dense one. */
+.contents-land{ display:grid; grid-template-columns:0.62fr 1.5fr; gap:0 12mm; align-items:start; margin-top:4mm; }
 .contents-land h2{ font-size:42pt; }
 .contents-land .cols{ display:grid; grid-template-columns:1fr 1fr; gap:0 12mm; }
 
@@ -279,8 +282,12 @@ ul.plain li::before{content:"";position:absolute;left:0;top:2.6mm;width:1.6mm;he
 .verdict-rec{margin-top:6mm;padding:5mm 6mm;background:var(--paper-soft);border-left:3px solid var(--blue);}
 .verdict-rec .exlabel{border-left:none;padding-left:0;margin-bottom:2mm;}
 .verdict-side{border-left:1px solid var(--hair);padding-left:12mm;}
-.opportunity{padding-bottom:6mm;border-bottom:2px solid var(--ink);}
-.opportunity-amount{font-family:var(--serif);font-weight:800;font-size:33pt;line-height:1.02;letter-spacing:-0.015em;color:var(--blue);margin:3mm 0;}
+.opportunity{padding-bottom:6mm;}
+.opportunity.is-divided{border-bottom:2px solid var(--ink);}
+/* 33pt overflowed the side column and broke "AED 450,000 / year" across two
+   lines mid-figure. The period is now its own line by design. */
+.opportunity-amount{font-family:var(--serif);font-weight:800;font-size:27pt;line-height:1.02;letter-spacing:-0.015em;color:var(--blue);margin:3mm 0 1mm;}
+.opportunity-period{font-family:var(--sans);font-weight:600;font-size:8pt;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:3mm;}
 .opportunity-basis{font-size:8.5pt;line-height:1.5;color:#20303c;margin:0 0 3mm;}
 .opportunity-by{font-size:7.5pt;line-height:1.45;color:var(--muted);}
 .validators{margin-top:6mm;}
@@ -310,5 +317,17 @@ ul.plain li::before{content:"";position:absolute;left:0;top:2.6mm;width:1.6mm;he
    commit). 68mm measured as the largest that fits; width:auto keeps the ratio, and a fixed height also means
    exhibits line up with each other across pages. */
 .exhibit svg{display:block;height:68mm;width:auto;max-width:100%;margin:0 auto;}
+
+/* The reviewer's overall conclusion, promoted out of the appendix onto the
+   expert assessment page — a reader decides whether to trust the analysis long
+   before they reach page 30. */
+.verdict-quote{margin:7mm 0 0;padding:5mm 0 0;border-top:1px solid var(--hair);
+               font-family:var(--serif);font-weight:600;font-size:13pt;line-height:1.35;
+               color:var(--ink);max-width:150mm;}
+.verdict-quote cite{display:block;font-family:var(--sans);font-style:normal;font-weight:600;
+                    font-size:7.5pt;letter-spacing:.06em;text-transform:uppercase;
+                    color:var(--muted);margin-top:4mm;}
+.endorsed{margin-top:6mm;padding-top:4mm;border-top:1px solid var(--hair);}
+.endorsed p{font-size:8pt;line-height:1.45;color:var(--muted);margin:2mm 0 0;}
 
 </style>

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Check, ChevronRight, Circle, FileText, MessageSquare } from 'lucide-react';
-import { api, type ConsultantReportWorkspacePayload } from '../../../lib/api';
+import { api, type ConsultantReportWorkspacePayload, type ReportVariant } from '../../../lib/api';
 import { useAuth, useConsultantToken } from '../../../lib/auth';
 import { Badge, Button, Card, ConfirmDialog, EmptyState, Input, PageHeader, Select, Skeleton, StatCard, Textarea } from '../../../components/ui';
 import { label } from '../../../lib/labels';
@@ -88,6 +88,9 @@ export function ConsultantReportWorkspace() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [draftUrl, setDraftUrl] = useState<string | null>(null);
   const [pdfMode, setPdfMode] = useState<'stored' | 'draft'>('draft');
+  // Which rendering the reviewer is looking at. Both come from the same snapshot
+  // and the same pending edits, so switching is a re-render, not a re-analysis.
+  const [pdfVariant, setPdfVariant] = useState<ReportVariant>('full');
   const [sendingFollowup, setSendingFollowup] = useState(false);
   const [confirmSubmitOpen, setConfirmSubmitOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -267,7 +270,7 @@ export function ConsultantReportWorkspace() {
     }
     let objectUrl: string | null = null;
     api
-      .previewConsultantReportDraft(token, Number(companyId), Number(reportId))
+      .previewConsultantReportDraft(token, Number(companyId), Number(reportId), pdfVariant)
       .then((url) => {
         objectUrl = url;
         setDraftUrl(url);
@@ -277,7 +280,7 @@ export function ConsultantReportWorkspace() {
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pdfOpen, token, companyId, reportId]);
+  }, [pdfOpen, token, companyId, reportId, pdfVariant]);
 
   const activeConversation = workspace?.conversations[activeConversationIndex] ?? null;
   const submitted = Boolean(workspace?.review.submitted_at);
@@ -1189,6 +1192,8 @@ export function ConsultantReportWorkspace() {
         downloadUrl={previewUrl}
         mode={pdfMode}
         onModeChange={setPdfMode}
+        variant={pdfVariant}
+        onVariantChange={setPdfVariant}
       />
 
       <ConsultantChatDrawer

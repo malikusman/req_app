@@ -67,15 +67,23 @@ module Api
         def share
           report = policy_scope(Report).find(params[:id])
           authorize report, :share?
+          variant = normalize_variant(nil)
+          return if performed?
+
           days = params[:days].to_i
-          result = Reports::ShareLinkService.create!(report: report, days: days.positive? ? days : 30)
+          result = Reports::ShareLinkService.create!(
+            report: report, days: days.positive? ? days : 30, variant: variant
+          )
           render json: result
+        rescue ArgumentError => e
+          render json: { error: e.message }, status: :unprocessable_entity
         end
 
         def revoke_share
           report = policy_scope(Report).find(params[:id])
           authorize report, :share?
-          Reports::ShareLinkService.revoke!(report: report)
+          # No variant revokes every link for this report.
+          Reports::ShareLinkService.revoke!(report: report, variant: params[:variant].presence)
           render json: report_json(report.reload, detailed: true)
         end
 
@@ -87,6 +95,22 @@ module Api
             .map(&:consultant_user)
             .select(&:published_profile?)
             .map { |r| Consultants::ProfileSerializer.public_card(r, request: request) }
+        end
+
+        # One row per live link so the UI can label what each one opens, rather
+        # than showing a single anonymous "Shared" pill.
+        def report_shares_json(report)
+          report.report_shares.live.order(:created_at).map do |share|
+            spec = Reports::VariantSpec.for(share.variant)
+            {
+              id: share.id,
+              variant: share.variant,
+              variant_label: spec[:label],
+              expires_at: share.expires_at,
+              share_url: "#{ENV.fetch('API_PUBLIC_HOST', 'http://localhost:3000')}/api/v1/public/reports/#{share.token}",
+              access_count: report.report_share_accesses.where(share_token: share.token).count
+            }
+          end
         end
 
         def report_json(report, detailed: false)
@@ -106,7 +130,8 @@ module Api
             last_accessed_at: last_access,
             delta_summary: report.report_snapshot.dig("delta_from_previous", "summary"),
             error_message: report.error_message,
-            artifacts: report_artifacts_json(report)
+            artifacts: report_artifacts_json(report),
+            shares: report_shares_json(report)
           }
 
           json[:report_snapshot] = report.report_snapshot if detailed

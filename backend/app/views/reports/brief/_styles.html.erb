@@ -50,11 +50,22 @@ p{font-size:9.5pt;line-height:1.55;margin:0 0 3mm;color:#20303c;}
 .stakes{padding:5mm 6mm;background:var(--paper-soft);border-left:3px solid var(--magenta);
         font-size:9.5pt;line-height:1.5;}
 .stakes strong{font-weight:700;}
-/* The opportunity value. Largest thing in the document by design — it is the
-   number an owner most wants, and until now it appeared in no PDF at all. */
-.value{margin-top:auto;padding-top:7mm;border-top:2px solid var(--ink);}
-.value-amount{font-family:var(--serif);font-weight:800;font-size:38pt;line-height:1;
-              letter-spacing:-0.02em;color:var(--blue);margin:3mm 0;}
+/* Free space collects in ONE place per page.
+   .value and .ask both used to carry margin-top:auto alongside .foot, and flexbox
+   splits the leftover space equally between every auto margin — which put a gap
+   ABOVE the block and another one BELOW it. A .fill wrapper takes the slack
+   instead, so the bottom block sits directly above the footer. */
+.fill{flex:1 1 auto;}
+/* Bottom-anchored blocks need clearance from the footer rule they now sit on. */
+.value,.ask{padding-bottom:6mm;}
+.value{padding-top:7mm;border-top:2px solid var(--ink);}
+.value-amount{font-family:var(--serif);font-weight:800;font-size:36pt;line-height:1;
+              letter-spacing:-0.02em;color:var(--blue);margin:3mm 0 1mm;}
+/* The period was wrapping onto its own line mid-figure ("AED 450,000 /" then
+   "year"). Setting it as a separate line deliberately reads better than hoping
+   the measure fits. */
+.value-period{font-family:var(--sans);font-weight:600;font-size:9pt;letter-spacing:.08em;
+              text-transform:uppercase;color:var(--muted);margin-bottom:3mm;}
 .value-basis{font-size:9pt;line-height:1.5;max-width:130mm;margin:0 0 3mm;}
 .value-by{font-size:7.5pt;color:var(--muted);line-height:1.45;}
 .metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:5mm;margin-top:6mm;}
@@ -109,7 +120,7 @@ p{font-size:9.5pt;line-height:1.55;margin:0 0 3mm;color:#20303c;}
 .who .cr{font-size:8pt;color:var(--muted);line-height:1.45;margin-top:1mm;}
 .method-line{font-size:9pt;line-height:1.55;color:#20303c;padding:5mm 6mm;
              background:var(--paper-soft);margin-top:6mm;}
-.ask{margin-top:auto;padding-top:7mm;border-top:2px solid var(--ink);}
+.ask{padding-top:7mm;border-top:2px solid var(--ink);}
 .ask h3{font-family:var(--serif);font-size:16pt;margin-bottom:3mm;}
 .ask p{font-size:9.5pt;max-width:140mm;}
 .pointer{font-size:8pt;color:var(--muted);margin-top:5mm;font-style:italic;}

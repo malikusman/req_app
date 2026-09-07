@@ -14,6 +14,7 @@ import {
   type PlatformAuditLogEntry,
   type PlatformReport,
   type Recommendation,
+  type ReportVariant,
   type TimelineEvent,
 } from '../../lib/api';
 import { usePlatformToken } from '../../lib/auth';
@@ -176,6 +177,8 @@ export function PlatformCompanyDetail() {
   const [selectedReportId, setSelectedReportId] = useState<number | null>(null);
   const [reportPreviewUrl, setReportPreviewUrl] = useState<string | null>(null);
   const [reportDraftUrl, setReportDraftUrl] = useState<string | null>(null);
+  // Approval ships BOTH renderings, so both have to be previewable at the gate.
+  const [reportPreviewVariant, setReportPreviewVariant] = useState<ReportVariant>('full');
   const [reportPreviewMode, setReportPreviewMode] = useState<'draft' | 'stored'>('draft');
   const [actionError, setActionError] = useState('');
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
@@ -379,7 +382,7 @@ export function PlatformCompanyDetail() {
     }
     let objectUrl: string | null = null;
     api
-      .previewPlatformReportDraft(token, companyId, selectedReport.id)
+      .previewPlatformReportDraft(token, companyId, selectedReport.id, reportPreviewVariant)
       .then((url) => {
         objectUrl = url;
         setReportDraftUrl(url);
@@ -388,7 +391,7 @@ export function PlatformCompanyDetail() {
     return () => {
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [token, companyId, selectedReport?.id, selectedReport?.status]);
+  }, [token, companyId, selectedReport?.id, selectedReport?.status, reportPreviewVariant]);
 
   const auditTotalPages = Math.max(1, Math.ceil(auditTotal / 50));
 
@@ -844,6 +847,24 @@ export function PlatformCompanyDetail() {
                     >
                       Current artifact
                     </button>
+                    <span className="mx-1 h-4 w-px bg-border" aria-hidden />
+                    {/* One approval ships two documents. Approving a brief nobody
+                        looked at is exactly the failure mode to avoid. */}
+                    <button
+                      type="button"
+                      onClick={() => setReportPreviewVariant('full')}
+                      className={`rounded-full px-3 py-1 text-xs font-medium transition ${reportPreviewVariant === 'full' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}
+                    >
+                      Full report
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setReportPreviewVariant('exec_brief')}
+                      disabled={reportPreviewMode === 'stored'}
+                      className={`rounded-full px-3 py-1 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-40 ${reportPreviewVariant === 'exec_brief' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}
+                    >
+                      Executive brief
+                    </button>
                     <span className="text-xs text-muted-foreground">
                       {reportPreviewMode === 'draft' ? 'Exactly what the client gets on approval.' : 'The last generated file.'}
                     </span>
@@ -851,7 +872,7 @@ export function PlatformCompanyDetail() {
                   <iframe
                     src={(reportPreviewMode === 'draft' ? reportDraftUrl : reportPreviewUrl) ?? undefined}
                     title="Report preview"
-                    className="h-[520px] w-full rounded-lg border border-border bg-muted/30"
+                    className={`w-full rounded-lg border border-border bg-muted/30 ${reportPreviewVariant === 'exec_brief' ? 'h-[760px]' : 'h-[520px]'}`}
                   />
                 </Card>
               )}
