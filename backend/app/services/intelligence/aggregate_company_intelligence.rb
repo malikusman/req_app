@@ -13,7 +13,11 @@ module Intelligence
 
     def call
       signals = SignalExtractor.call(company: @company)
-      # Full-company runs reconcile (replace counts, drop stale). Department-scoped jobs only upsert.
+      # Full-company runs reconcile (replace counts, drop stale, and replace the
+      # derived department set). Department-scoped jobs only upsert and merge.
+      # `department:` is advisory: each signal now carries the departments its
+      # own evidence came from, so FinalizeConversationService passing none is
+      # correct rather than a gap.
       SignalUpsertService.call(
         company: @company,
         signals: signals,
@@ -22,7 +26,9 @@ module Intelligence
       )
 
       patterns = PatternDetector.call(company: @company)
-      PatternUpsertService.call(company: @company, patterns: patterns)
+      # Full-company runs prune patterns whose evidence has gone; a
+      # department-scoped run sees only a slice and must not.
+      PatternUpsertService.call(company: @company, patterns: patterns, reconcile_stale: @department.blank?)
 
       recommendations = RecommendationSynthesizer.call(company: @company)
       RecommendationUpsertService.call(company: @company, recommendations: recommendations)

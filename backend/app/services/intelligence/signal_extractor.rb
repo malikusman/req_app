@@ -32,7 +32,8 @@ module Intelligence
 
       detected = []
       RULES.each do |rule|
-        docs_matched = document_sources.count { |d| d[:blobs].any? { |b| b.match?(rule[:pattern]) } }
+        matched_documents = document_sources.select { |d| d[:blobs].any? { |b| b.match?(rule[:pattern]) } }
+        docs_matched = matched_documents.size
         derived_hits = derived_texts.count { |t| t.match?(rule[:pattern]) }
         source_excerpts = message_evidence_for(rule, message_sources) # distinct messages, capped
         evidence = multimodal_evidence_for(rule, multimodal)
@@ -56,7 +57,12 @@ module Intelligence
           strength: strength,
           evidence_count: [evidence_count, 1].max,
           multimodal_evidence: evidence,
-          source_excerpts: source_excerpts
+          source_excerpts: source_excerpts,
+          # Derived from the evidence that actually produced THIS signal, rather
+          # than a single scalar the caller applies to the whole batch. Without
+          # this, PatternDetector's cross-department rule could never fire from
+          # interview evidence — see docs/SIGNAL_DEPARTMENT_ATTRIBUTION.md.
+          departments: departments_for(matched_documents, source_excerpts, evidence, multimodal)
         }
       end
 
@@ -91,7 +97,7 @@ module Intelligence
         blobs = document_text_blobs(document)
         next if blobs.blank?
 
-        { document_id: document.id, blobs: blobs }
+        { document_id: document.id, department: document.department, blobs: blobs }
       end
     end
 
@@ -196,6 +202,7 @@ module Intelligence
 
         {
           attachment: attachment,
+          department: attachment.employee&.department,
           excerpts: excerpts,
           matching_types: matching_types
         }
@@ -233,11 +240,46 @@ module Intelligence
       end
     end
 
+    # The departments behind one signal: the documents whose text matched, the
+    # employees whose interview answers were kept as evidence, and the employees
+    # whose media exhibits matched. Only PRIMARY evidence attributes a
+    # department — corroborating derived text (facts, knowledge entries, insight
+    # summaries) is not traceable to a single team.
+    def departments_for(matched_documents, source_excerpts, media_evidence, multimodal)
+      from_documents = matched_documents.map { |d| d[:department] }
+      from_messages = Array(source_excerpts).map { |e| employee_department(e[:employee_id]) }
+      media_departments = multimodal.each_with_object({}) do |source, acc|
+        acc[source[:attachment].id] = source[:department]
+      end
+      from_media = Array(media_evidence).map { |e| media_departments[e[:id]] }
+
+      canonical_departments(from_documents + from_messages + from_media)
+    end
+
+    def employee_department(employee_id)
+      return nil if employee_id.blank?
+
+      @employee_departments ||= @company.employees.pluck(:id, :department).to_h
+      @employee_departments[employee_id]
+    end
+
+    # Case-insensitive dedupe keeping first-seen casing, so "Finance" and
+    # "finance" do not both reach the report. SignalUpsertService applies the
+    # same rule when it merges; doing it here keeps the extractor's output
+    # already clean for callers that read it directly (the scenario runners do).
+    def canonical_departments(list)
+      Array(list).map { |d| d.to_s.strip }.reject(&:blank?).each_with_object({}) do |dept, acc|
+        acc[dept.downcase] ||= dept
+      end.values
+    end
+
     def infer_from_topic(topic)
       RULES.find { |r| topic.match?(r[:pattern]) }&.then do |rule|
         # Topic-only inference is a single weak mention — keep it honestly Low so
         # it never outranks a signal backed by documents, interviews or media.
-        { label: rule[:label], signal_type: rule[:type], strength: 0.3, evidence_count: 1, multimodal_evidence: [], source_excerpts: [] }
+        # A topic string carries no provenance, so it can attribute no department.
+        { label: rule[:label], signal_type: rule[:type], strength: 0.3, evidence_count: 1,
+          multimodal_evidence: [], source_excerpts: [], departments: [] }
       end
     end
   end

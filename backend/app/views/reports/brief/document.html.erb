@@ -39,10 +39,13 @@
       number and already survived the hallucination filter. It does not need to
       be written again for the brief. %>
   <div class="fill">
+  <%# Labels the page like the other three, and gives the in-portal reader
+      something to name it in the section rail. %>
+  <div class="eyebrow" style="margin-bottom:5mm;">The answer</div>
   <% headline = narrative["governing_thought"].presence ||
                 snapshot.dig("situation", "headline").presence ||
                 snapshot["executive_summary"].to_s.split(/(?<=\.)\s+/).first %>
-  <div class="answer"><%= h headline %></div>
+  <h1 class="answer"><%= h headline %></h1>
 
   <%# Without a model there are no narrative supporting points, which left this
       page with a headline and nothing under it. The deterministic stand-in is

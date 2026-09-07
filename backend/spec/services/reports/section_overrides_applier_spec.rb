@@ -4,53 +4,89 @@ require "rails_helper"
 
 RSpec.describe Reports::SectionOverridesApplier do
   let(:company) { create(:company) }
-  let(:consultant) { create(:consultant_user, name: "Dr. Jane Expert") }
+  let(:consultant) { create(:consultant_user, name: "Nadia Al-Rashid", headline: "14 yrs ops") }
+  let(:snapshot) { { "executive_summary" => "Machine-written summary.", "signals" => [] } }
   let(:report) do
-    create(:report, :ready, company: company).tap do |r|
-      r.report_snapshot["executive_summary"] = "Original summary."
+    company.reports.create!(
+      version: 2, status: "ready", visibility: "internal_only",
+      triggered_by_type: "CompanyUser", triggered_by_id: 1,
+      report_snapshot: snapshot, generated_at: Time.current
+    )
+  end
+
+  def override!(action:, section_key: nil, title: nil, body: nil, anchor: nil)
+    report.report_section_overrides.create!(
+      consultant_user: consultant, action: action, section_key: section_key,
+      title: title, body: body, anchor_section: anchor, published: true
+    )
+  end
+
+  it "leaves the stored snapshot untouched" do
+    override!(action: "hide", section_key: "readiness")
+
+    described_class.call(snapshot: report.report_snapshot, report: report)
+
+    expect(report.reload.report_snapshot).to eq(snapshot)
+  end
+
+  it "carries the consultant's credential onto an added section" do
+    override!(action: "add", section_key: "risks", title: "Risks and mitigations",
+              body: "## Execution risks", anchor: "recommendations")
+
+    custom = described_class.call(snapshot: report.report_snapshot, report: report)
+      .dig("section_overrides", "custom")
+
+    expect(custom.first["consultant"]).to eq("Nadia Al-Rashid")
+    expect(custom.first["consultant_credential"]).to include("14 yrs ops")
+  end
+
+  # A section added from the library carries the library's statement of what the
+  # section is for, so the rendered page explains itself.
+  it "attaches the library template's purpose to a section added from it" do
+    override!(action: "add", section_key: "assumptions_limitations",
+              title: "Assumptions and limitations", body: "## What we assumed", anchor: "methodology")
+
+    custom = described_class.call(snapshot: report.report_snapshot, report: report)
+      .dig("section_overrides", "custom")
+
+    expect(custom.first["purpose"]).to eq(ReportSectionTemplates.find("assumptions_limitations")["purpose"])
+  end
+
+  # A consultant re-adding a section that was already carried forward from the
+  # previous version leaves two identical rows, and the deliverable printed the
+  # page once per row.
+  it "prints an identical added section only once" do
+    3.times do
+      override!(action: "add", section_key: "risks", title: "Risks and mitigations",
+                body: "## Execution risks", anchor: "recommendations")
     end
-  end
-  let(:snapshot) { report.report_snapshot }
 
-  it "returns the snapshot unchanged when there are no overrides" do
-    result = described_class.call(snapshot: snapshot, report: report)
-    expect(result["section_overrides"]).to be_nil
-  end
+    custom = described_class.call(snapshot: report.report_snapshot, report: report)
+      .dig("section_overrides", "custom")
 
-  it "collects hide, edit, and custom-add overrides without mutating the stored snapshot" do
-    report.report_section_overrides.create!(consultant_user: consultant, action: "hide", section_key: "readiness")
-    report.report_section_overrides.create!(consultant_user: consultant, action: "edit", section_key: "executive_summary",
-                                            title: "Revised", body: "Consultant revision.")
-    report.report_section_overrides.create!(consultant_user: consultant, action: "add", title: "Risk Register",
-                                            body: "Key risks.", anchor_section: "recommendations", position: 1)
-
-    result = described_class.call(snapshot: snapshot, report: report)
-
-    expect(result["section_overrides"]["hidden"]).to include("readiness")
-    expect(result.dig("section_overrides", "edits", "executive_summary", "body")).to eq("Consultant revision.")
-    custom = result.dig("section_overrides", "custom").first
-    expect(custom["title"]).to eq("Risk Register")
-    expect(custom["anchor_section"]).to eq("recommendations")
-    expect(custom["consultant"]).to eq("Dr. Jane Expert")
-    # Stored snapshot object is a copy — original untouched.
-    expect(snapshot["section_overrides"]).to be_nil
+    expect(custom.size).to eq(1)
   end
 
-  it "excludes unpublished overrides" do
-    report.report_section_overrides.create!(consultant_user: consultant, action: "hide", section_key: "methodology", published: false)
-    result = described_class.call(snapshot: snapshot, report: report)
-    expect(result["section_overrides"]).to be_nil
+  it "keeps two genuinely different sections that share a template key" do
+    override!(action: "add", section_key: "risks", title: "Delivery risks",
+              body: "## Execution risks", anchor: "recommendations")
+    override!(action: "add", section_key: "risks", title: "Commercial risks",
+              body: "## Contract exposure", anchor: "recommendations")
+
+    custom = described_class.call(snapshot: report.report_snapshot, report: report)
+      .dig("section_overrides", "custom")
+
+    expect(custom.map { |c| c["title"] }).to contain_exactly("Delivery risks", "Commercial risks")
   end
 
-  it "renders hides, edit notes and custom sections through the document template" do
-    report.report_section_overrides.create!(consultant_user: consultant, action: "hide", section_key: "methodology")
-    report.report_section_overrides.create!(consultant_user: consultant, action: "add", title: "Risk Register",
-                                            body: "Demurrage exposure at Jebel Ali.", anchor_section: "recommendations")
-    applied = described_class.call(snapshot: snapshot, report: report)
-    html = Reports::HtmlBuilder.call(snapshot: applied, report_version: report.version)
+  # The executive summary also feeds the cover subtitle and the contents teaser,
+  # so a rewrite has to reach the base field or the cover quotes the AI while
+  # page three quotes the expert.
+  it "propagates an executive summary rewrite onto the base field" do
+    override!(action: "edit", section_key: "executive_summary", body: "The expert's version.")
 
-    expect(html).to include("Risk Register")
-    expect(html).to include("Demurrage exposure at Jebel Ali")
-    expect(html).not_to include("How we measured") # methodology section hidden
+    result = described_class.call(snapshot: report.report_snapshot, report: report)
+
+    expect(result["executive_summary"]).to eq("The expert's version.")
   end
 end

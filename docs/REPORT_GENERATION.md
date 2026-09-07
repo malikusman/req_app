@@ -528,22 +528,15 @@ what the client will get.
 
 ## 9. Known gaps
 
-- **Signals carry no department.** `PatternDetector`'s cross-department rule can
-  therefore never fire from interview evidence. Documented in full in
-  `docs/SIGNAL_DEPARTMENT_ATTRIBUTION.md`; still not fixed.
-- **The company portal still presents the deliverable as a table row.**
-  `frontend/src/portals/company/CompanyReports.tsx` renders the report as row one
-  of a `DataTable` and reads it in a 75vh modal `iframe`. The API now returns an
-  `artifacts` array per report (variant, label, page count, orientation), so the
-  frontend has everything it needs for a hero card with two labelled downloads —
-  but the UI has not been rebuilt.
-- **Share links are not per-variant.** `Reports::ShareLinkService` mints one
-  token for the report; `?variant=exec_brief` on the download selects a
-  rendering, but a share link cannot yet be scoped to one. "Send the board the
-  brief, not the evidence" needs a `variant` column on the share record.
 - **`ReportSections::KEYS` is 7; `BUILT_IN_SECTIONS` is 15.** Consultants can
   override 15 sections but only formally review 7. Not a bug, but the asymmetry
   is easy to trip over: a section can be edited without ever being approved.
+- **The scenario runners have no shared-department fixture.** Department
+  attribution is covered by a dedicated spec, but `rake scenario:nimbus` still
+  asserts `Patterns detected` against whatever its fixture happens to produce.
+- **The reader is company-only.** Consultants and platform operators still
+  preview in an iframe drawer. They are reviewing rather than reading, so the
+  page-at-a-time reader matters less there, but the code is reusable if it does.
 
 ### Closed since the first read of this document
 
@@ -555,6 +548,14 @@ what the client will get.
   moved to the back matter.
 - ~~Verbatim interview excerpts, media cards and the document index ship to the
   client.~~ Cut at the snapshot, not just the view.
+- ~~Signals carry no department, so the cross-department pattern rule can never
+  fire.~~ Fixed — see `docs/SIGNAL_DEPARTMENT_ATTRIBUTION.md` and
+  [§13](#13-department-attribution).
+- ~~The company portal presents the deliverable as a table row read in a modal
+  iframe.~~ The latest report is the page, and reading happens in a real reader
+  route — [§14](#14-the-reader).
+- ~~Share links are not per-variant.~~ `report_shares` scopes a link to one
+  rendering; `reports.share_token` still resolves for links already issued.
 
 ---
 
@@ -707,3 +708,71 @@ end
 
 To find *which* section overflows, render each one alone against the same `<head>`
 and check for a page count above 1.
+
+---
+
+## 13. Department attribution
+
+Each signal carries the departments of the evidence that produced it —
+`document.department` for matched documents, the interviewee's department for
+each kept `source_excerpt`, the exhibit owner's department for matched media.
+Corroborating derived text and topic-only inference attribute nothing, because
+neither is traceable to one team.
+
+`SignalUpsertService` replaces the stored set on a full-company run (it has seen
+all the evidence, so a department whose evidence has gone should drop) and merges
+on a department-scoped run (it sees only a slice). `AggregateCompanyIntelligence`'s
+`department:` scalar is now advisory.
+
+`PatternDetector` gained two things to make this usable: a lower floor for the
+cross-department rule (`CROSS_DEPARTMENT_MIN_STRENGTH = 0.2`, because that rule
+reports its own signal's strength as its confidence rather than asserting a
+fixed high one), and a cap (`MAX_CROSS_DEPARTMENT = 3`, ranked by spread then
+strength, because once attribution works *most* signals span two teams and an
+uncapped rule emits one near-identical pattern per signal type).
+`PatternUpsertService` also gained `reconcile_stale`, which it never had — a
+pattern detected once lived forever at its historical peak confidence.
+
+Full analysis, the measured before/after, and the reasoning for each judgement
+call: `docs/SIGNAL_DEPARTMENT_ATTRIBUTION.md`.
+
+---
+
+## 14. The reader
+
+`GET /api/v1/company/reports/:id/read?variant=` serves the report's **HTML**,
+and `/company/reports/:id/read` in the portal is a real reader route:
+page-at-a-time navigation, a section jump rail, fit-page / fit-width, and
+arrow-key paging.
+
+**Why HTML and not the PDF.** We already render HTML, so this is a viewer rather
+than a converter — and the section rail is only possible because the reader can
+read the document's own structure. It parses `section.page` elements out of the
+loaded frame and labels each jump target from the markup:
+
+- `.eyebrow` is the section name (`Signals`, `Recommendations`), so it is the label;
+- except on `.expert-page`, where every eyebrow reads "Expert consultant" and
+  four distinct consultant sections would collapse into one target — there the
+  `<h1>` is the real section name;
+- `<h1>` elsewhere is an *action title* (a McKinsey-style assertion like "Core
+  system dependency is the deepest recurring friction, cited across 9 pieces of
+  evidence"), which is right for the page and unreadable in a nav rail;
+- consecutive pages sharing a label (`Signals`, `Signals · continued`) collapse
+  to one target.
+
+On a 29-page report that yields 21 jump targets that read like a table of contents.
+
+**Why the HTML is stored, not re-rendered.** `ArtifactWriter` uploads the exact
+markup behind each shipped PDF to `<key>.reader.html` and records it as
+`report_artifacts.reader_storage_key`. Re-rendering live would drift the moment
+a consultant touched a section override after approval, and could show the client
+an edit that was never approved. Storing it is also why the reader shows what the
+downloaded PDF shows.
+
+If the reader HTML is missing (a report generated before this existed), the
+endpoint 404s with a message pointing at the PDF rather than failing opaquely,
+and a failure to store it never fails the report generation — a degraded reader
+beats a broken deliverable.
+
+The frame is `sandbox="allow-same-origin"`: the markup is ours, but it carries
+consultant-authored text, so it gets no script execution.

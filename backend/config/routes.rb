@@ -228,6 +228,8 @@ Rails.application.routes.draw do
         resources :reports, only: %i[index show create] do
           member do
             get :download
+            # HTML for the in-portal document reader (page nav + section jumps).
+            get :read
             post :share
             post :revoke_share
           end

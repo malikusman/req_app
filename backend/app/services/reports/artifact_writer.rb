@@ -23,12 +23,15 @@ module Reports
       content_type = html_fallback ? "text/html" : "application/pdf"
       storage_key = storage_key_for(content_type)
 
-      Storage::MinioClient.new.upload(key: storage_key, body: pdf_bytes, content_type: content_type)
+      client = Storage::MinioClient.new
+      client.upload(key: storage_key, body: pdf_bytes, content_type: content_type)
+      reader_key = upload_reader_html!(client, html_fallback ? nil : storage_key)
 
       artifact = @report.report_artifacts.find_or_initialize_by(variant: @spec[:variant])
       artifact.update!(
         storage_key: storage_key,
         content_type: content_type,
+        reader_storage_key: reader_key,
         page_count: page_count,
         generated_at: Time.current,
         error_message: html_fallback ? FALLBACK_MESSAGE : nil
@@ -51,6 +54,23 @@ module Reports
     FALLBACK_MESSAGE = "PDF service unavailable — stored as HTML (not a PDF)."
 
     private
+
+    # The exact HTML behind the shipped PDF, kept so the in-portal reader shows
+    # what was approved rather than a live re-render that could drift (or
+    # surface a consultant edit made after approval). Skipped when the PDF
+    # itself fell back to HTML — that key already holds this content.
+    def upload_reader_html!(client, pdf_key)
+      return nil if pdf_key.blank?
+
+      key = "#{pdf_key.sub(/\.pdf\z/, "")}.reader.html"
+      client.upload(key: key, body: @html, content_type: "text/html")
+      key
+    rescue StandardError => e
+      # A reader that is unavailable is a degraded surface; a report that failed
+      # to generate is a broken deliverable. Never trade the second for the first.
+      Rails.logger.warn("[Reports::ArtifactWriter] reader HTML not stored: #{e.class}: #{e.message}")
+      nil
+    end
 
     def storage_key_for(content_type)
       ext = content_type == "application/pdf" ? "pdf" : "html"

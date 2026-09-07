@@ -1,9 +1,9 @@
 # Signals never carry the department their evidence came from
 
-**Status:** open, not yet fixed. Deliberately left out of the
-`discovery-consultant-rebuild` branch — this is intelligence aggregation, not
-Discovery/Consultant, and wants its own PR with a multi-department scenario to
-test against.
+**Status: FIXED**, 6 September 2026, on `report-redesign`. Kept as the record of
+what the bug was and why the fix is shaped the way it is. What actually shipped
+is in ["What was done"](#what-was-done) at the end; the analysis above it is the
+original write-up and still describes the code as it was.
 
 **Found:** 2026-09-04, investigating the single failing check (`Patterns
 detected (0)`) in an otherwise 59/60 `scenario:nimbus` run against
@@ -111,3 +111,104 @@ Company.find_by(slug: "nimbus-trading").company_signals
        .order(strength: :desc)
        .pluck(:signal_type, :strength, :departments)
 ```
+
+
+---
+
+## What was done
+
+Two independent causes had to be fixed, because fixing either alone leaves
+`Patterns detected (0)` on the screen.
+
+### 1. Departments are derived per signal, from its own evidence
+
+`SignalExtractor` now returns a `departments:` key on every signal, collected
+from the evidence that actually produced it:
+
+| Evidence | Department source |
+|---|---|
+| documents whose text matched the rule | `document.department` |
+| interview messages kept as `source_excerpts` | that message's employee's department |
+| media exhibits that matched | that attachment's employee's department |
+| corroborating derived text (facts, knowledge, insight summaries) | **none, deliberately** — not traceable to one team |
+| topic-only inference | **none** — a topic string carries no provenance |
+
+`SignalUpsertService` reads that per-signal set and treats the caller's
+`department:` scalar as advisory. `AggregateCompanyIntelligence`'s parameter
+stays for the document/media paths that legitimately know one department; the
+interview path passing none is now correct rather than a gap.
+
+**Replace vs merge.** A full-company run (`reconcile_stale: true`) has seen all
+the evidence, so its derived set replaces what is stored — otherwise a
+department whose evidence has since gone sticks to the signal forever. A
+department-scoped run sees only a slice and merges.
+
+### 2. The cross-department rule needed its own strength floor
+
+Attribution alone was not enough. Two employees in different departments
+describing the same friction produce `evidence_count = 2`, hence
+`strength = 1 - exp(-2/6) = 0.28` — below `MIN_STRENGTH` (0.35), so the signal
+was filtered out before rule 3 ever saw it.
+
+`PatternDetector::CROSS_DEPARTMENT_MIN_STRENGTH = 0.2` now applies to rule 3
+only. The asymmetry is deliberate:
+
+- a **combo** pattern asserts a fixed, high confidence (0.82 / 0.78) that two
+  signal *types* reinforce each other; on thin evidence that claim is unearned,
+  so `MIN_STRENGTH` guards it;
+- a **cross-department** pattern reports its own signal's strength as its
+  confidence, so a thinly-evidenced one surfaces as a *low-confidence* pattern
+  — the report states the uncertainty instead of hiding it. And the spread is
+  itself corroboration: two teams independently describing the same friction is
+  the finding, whatever the keyword-hit count.
+
+### 3. Two things that only became visible once it worked
+
+**Pattern spam.** Once departments were attributed properly, *most* signals in
+a multi-department company span two teams, so an uncapped rule 3 emitted one
+near-identical "<signal> across departments" pattern per signal type — seven on
+one company, which says less than the signal list already does.
+`MAX_CROSS_DEPARTMENT = 3`, ranked by spread then strength: a friction in three
+departments is a bigger finding than a slightly stronger one in two.
+
+**Patterns were never reconciled.** `PatternUpsertService` had no
+`reconcile_stale`, so a pattern detected once lived forever, its confidence only
+ever increased (`[pattern.confidence, attrs[:confidence]].max`), and its status
+was forced to `confirmed` on every pass. That would have quietly defeated the
+new cap, and more generally kept reporting a pattern whose evidence had gone. It
+now prunes on full runs, takes the fresh confidence, and lets a pattern fall
+back to `emerging`. Nothing holds a foreign key to `patterns` —
+`recommendations` and `agentic_ideas` reference them by id in jsonb arrays that
+are read defensively, and `RecommendationSynthesizer` re-runs immediately after
+in the same aggregation pass.
+
+## Measured result
+
+Against the two scenario companies that produced the original write-up:
+
+| | patterns before | patterns after | departments before | departments after |
+|---|---|---|---|---|
+| Nimbus Trading | **0** | **3** | `[]` on every signal | procurement / finance / sales |
+| GulfLink Logistics | 7 | 4 | `["operations"]` on 5 of 6 | finance + operations |
+
+Nimbus is the case the write-up was about. GulfLink's count *fell* because the
+stale patterns it had accumulated were pruned and its confidences are now the
+current ones rather than historical maxima — `0.74 emerging` where it had
+previously been stuck at `confirmed`.
+
+## Tests
+
+`spec/services/intelligence/signal_department_attribution_spec.rb` covers
+interview-only, document-only, combined, multi-department, no-department, and
+derived-text-only attribution, plus two end-to-end cases through
+`AggregateCompanyIntelligence` — including the one that reproduces the original
+bug (the interview path passing no department scalar).
+`signal_upsert_service_spec.rb` covers replace-vs-merge and the case-insensitive
+dedupe.
+
+## Still open
+
+The scenario runners were not given a shared-department fixture. The dedicated
+spec above exercises the multi-department path directly, which is a better test
+than a scenario assertion, but `rake scenario:nimbus` still checks
+`Patterns detected` against whatever its fixture happens to produce.

@@ -91,8 +91,10 @@ RSpec.describe "Report variants" do
   end
 
   describe "artifacts" do
+    let(:storage) { instance_double(Storage::MinioClient, upload: true) }
+
     before do
-      allow(Storage::MinioClient).to receive(:new).and_return(instance_double(Storage::MinioClient, upload: true))
+      allow(Storage::MinioClient).to receive(:new).and_return(storage)
       allow(Reports::PdfGenerator).to receive(:call).and_return("%PDF-1.4")
     end
 
@@ -113,6 +115,31 @@ RSpec.describe "Report variants" do
 
       expect(report.reload.storage_key).to include("v2/report.pdf")
       expect(report.content_type).to eq("application/pdf")
+    end
+
+    # The in-portal reader renders HTML so it can offer real section jump links.
+    # It must show what was APPROVED, so the exact markup behind the shipped PDF
+    # is stored beside it rather than re-rendered live on request.
+    it "stores the HTML behind each PDF for the reader" do
+      html = html_for("exec_brief")
+
+      artifact = Reports::ArtifactWriter.call(report: report, variant: "exec_brief", html: html)
+
+      expect(artifact.reader_storage_key).to eq("reports/#{company.id}/v2/exec_brief.reader.html")
+      expect(storage).to have_received(:upload)
+        .with(hash_including(key: artifact.reader_storage_key, content_type: "text/html"))
+    end
+
+    # A reader that is unavailable is a degraded surface; a report that failed to
+    # generate is a broken deliverable. Never trade the second for the first.
+    it "still produces the report when the reader HTML cannot be stored" do
+      allow(storage).to receive(:upload).with(hash_including(content_type: "application/pdf")).and_return(true)
+      allow(storage).to receive(:upload).with(hash_including(content_type: "text/html")).and_raise("minio down")
+
+      artifact = Reports::ArtifactWriter.call(report: report, variant: "full", html: html_for("full"))
+
+      expect(artifact.storage_key).to be_present
+      expect(artifact.reader_storage_key).to be_nil
     end
 
     it "records the HTML fallback on the artifact when the PDF service is down" do

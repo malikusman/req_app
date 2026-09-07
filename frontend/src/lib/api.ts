@@ -23,6 +23,25 @@ async function request<T>(
   return data as T;
 }
 
+// The report reader needs the markup itself, not a blob URL: it drives the
+// document (page navigation, section jumps) by reading its DOM.
+async function fetchHtml(token: string, path: string) {
+  const res = await fetch(`${API_URL}${path}`, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) {
+    // The endpoint answers with JSON on failure, so surface its reason rather
+    // than a generic message -- "no readable version, download the PDF" is
+    // actionable and a bare failure is not.
+    let reason = '';
+    try {
+      reason = ((await res.json()) as { error?: string }).error ?? '';
+    } catch {
+      /* non-JSON body */
+    }
+    throw new Error(reason || 'Could not open the reader');
+  }
+  return res.text();
+}
+
 async function fetchPreviewBlob(token: string, path: string) {
   const res = await fetch(`${API_URL}${path}${path.includes('?') ? '&' : '?'}inline=1`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -1020,6 +1039,10 @@ export const api = {
   // than making the reader open a PDF to find out what was found.
   companyReport: (token: string, id: number) =>
     request<{ report: Report }>(`/api/v1/company/reports/${id}`, {}, token),
+
+  // The stored HTML behind the approved PDF, for the in-portal document reader.
+  readCompanyReport: (token: string, id: number, variant: ReportVariant = 'full') =>
+    fetchHtml(token, `/api/v1/company/reports/${id}/read?variant=${variant}`),
 
   // Inline blob → object URL for an in-portal report viewer.
   previewCompanyReport: (token: string, id: number, variant: ReportVariant = 'full') =>

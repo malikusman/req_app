@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, type Report, type ReportArtifact, type ReportVariant } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
-import { BadgeCheck, Copy, Download, FileText, Link2, Ban } from 'lucide-react';
-import { PageHeader, Button, Badge, EmptyState, Modal, Select, Card, Skeleton } from '../../components/ui';
+import { BadgeCheck, BookOpen, Copy, Download, FileText, Link2, Ban } from 'lucide-react';
+import { PageHeader, Button, Badge, EmptyState, Select, Card, Skeleton } from '../../components/ui';
 import { label } from '../../lib/labels';
 import { useToast } from '../../components/ui/ToastProvider';
 
@@ -40,7 +40,6 @@ export function CompanyReports() {
   const [loadError, setLoadError] = useState('');
   const [loading, setLoading] = useState(true);
 
-  const [viewer, setViewer] = useState<{ report: Report; variant: ReportVariant; url: string | null } | null>(null);
   // Chosen expiry for new share links (backend defaults to 30 if unset).
   const [shareDays, setShareDays] = useState('30');
 
@@ -91,21 +90,11 @@ export function CompanyReports() {
     };
   }, [token, latestReady, detail?.id]);
 
-  const openViewer = async (report: Report, variant: ReportVariant) => {
-    if (!token) return;
-    setViewer({ report, variant, url: null });
-    try {
-      const url = await api.previewCompanyReport(token, report.id, variant);
-      setViewer({ report, variant, url });
-    } catch {
-      setViewer({ report, variant, url: null });
-    }
-  };
-
-  const closeViewer = () => {
-    if (viewer?.url) URL.revokeObjectURL(viewer.url);
-    setViewer(null);
-  };
+  // A real reader route, not a modal iframe. A landscape A4 page scaled into a
+  // 75vh box was close to unreadable, and a modal can carry neither page
+  // navigation nor section jump links.
+  const openReader = (report: Report, variant: ReportVariant) =>
+    navigate(`/company/reports/${report.id}/read?variant=${variant}`);
 
   const share = async (id: number, variant: ReportVariant) => {
     if (!token) return;
@@ -344,8 +333,9 @@ export function CompanyReports() {
                 {artifacts.map((artifact) => (
                   <div key={artifact.variant} className="space-y-1.5">
                     <div className="flex flex-wrap items-center gap-2">
-                      <Button size="sm" onClick={() => openViewer(hero, artifact.variant)}>
-                        {artifact.label} · {pageLabel(artifact)}
+                      <Button size="sm" onClick={() => openReader(hero, artifact.variant)}>
+                        <BookOpen className="mr-1.5 h-3.5 w-3.5" />
+                        Read {artifact.label.toLowerCase()} · {pageLabel(artifact)}
                       </Button>
                       <Button
                         variant="secondary"
@@ -444,7 +434,7 @@ export function CompanyReports() {
                         key={a.variant}
                         variant="secondary"
                         size="sm"
-                        onClick={() => openViewer(r, a.variant)}
+                        onClick={() => openReader(r, a.variant)}
                       >
                         {a.label}
                       </Button>
@@ -457,41 +447,6 @@ export function CompanyReports() {
         </div>
       )}
 
-      <Modal
-        open={viewer !== null}
-        onClose={closeViewer}
-        title={
-          viewer
-            ? `${viewer.variant === 'exec_brief' ? 'Executive brief' : 'Full report'} · v${viewer.report.version}`
-            : 'Report'
-        }
-        className="sm:max-w-[95vw]"
-        footer={
-          viewer && (
-            <>
-              <Button variant="secondary" onClick={() => download(viewer.report.id, viewer.variant)}>
-                Download
-              </Button>
-              <Button variant="secondary" onClick={() => share(viewer.report.id, viewer.variant)}>
-                Copy link
-              </Button>
-              <Button onClick={closeViewer}>Close</Button>
-            </>
-          )
-        }
-      >
-        {viewer?.url ? (
-          // A landscape A4 page in a 75vh box was close to unreadable. The
-          // viewport now takes the height it needs, and the brief is portrait.
-          <iframe
-            src={viewer.url}
-            title="Report"
-            className="h-[85vh] w-full rounded-lg border border-border bg-white"
-          />
-        ) : (
-          <p className="py-10 text-center text-sm text-text-secondary">Loading report…</p>
-        )}
-      </Modal>
     </div>
   );
 }

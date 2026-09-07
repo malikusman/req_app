@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_09_06_100000) do
+ActiveRecord::Schema[7.1].define(version: 2026_09_06_110000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -1108,6 +1108,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_06_100000) do
     t.text "error_message"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "reader_storage_key"
     t.index ["report_id", "variant"], name: "index_report_artifacts_on_report_id_and_variant", unique: true
     t.index ["report_id"], name: "index_report_artifacts_on_report_id"
   end

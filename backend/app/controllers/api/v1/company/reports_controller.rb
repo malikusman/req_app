@@ -64,6 +64,29 @@ module Api
           send_report_download(report, disposition: params[:inline].present? ? "inline" : "attachment")
         end
 
+        # The in-portal reader renders the report's own HTML so it can offer real
+        # section jump links, which a scaled page image cannot. It serves the
+        # STORED html behind the approved PDF, not a live re-render: a live one
+        # would drift the moment a consultant touched an override after
+        # approval, and could show the client an un-approved edit.
+        def read
+          report = policy_scope(Report).find(params[:id])
+          authorize report, :download?
+          return render json: { error: "Report not ready" }, status: :not_found unless report.status == "ready"
+          return render json: { error: "Report not available" }, status: :forbidden if report.visibility != "shared_with_company"
+
+          variant = normalize_variant(nil)
+          return if performed?
+
+          key = reader_key_for(report, variant)
+          return render json: { error: "This report has no readable version — download the PDF instead." }, status: :not_found if key.blank?
+
+          html = Storage::MinioClient.new.download(key)
+          # Rendered in a sandboxed iframe by the portal. Served as a document
+          # rather than JSON so the report's own stylesheet applies unchanged.
+          render html: html.to_s.html_safe, layout: false
+        end
+
         def share
           report = policy_scope(Report).find(params[:id])
           authorize report, :share?
@@ -88,6 +111,18 @@ module Api
         end
 
         private
+
+        # Older reports predate stored reader HTML; the full variant can still
+        # fall back to reports.storage_key when Gotenberg was down and the
+        # artifact IS the HTML.
+        def reader_key_for(report, variant)
+          artifact = report.artifact_for(variant)
+          return artifact.reader_storage_key if artifact&.reader_storage_key.present?
+          return artifact.storage_key if artifact&.content_type == "text/html"
+          return report.storage_key if variant == Reports::VariantSpec::FULL && report.content_type == "text/html"
+
+          nil
+        end
 
         def expert_consultants_for_company
           current_company.consultant_assignments.active

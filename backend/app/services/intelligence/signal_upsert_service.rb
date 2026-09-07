@@ -23,7 +23,7 @@ module Intelligence
           label: attrs[:label]
         )
 
-        departments = canonical_departments(signal.departments + Array(@department))
+        departments = departments_for(signal, attrs)
         now = Time.current
         new_strength = attrs[:strength].to_f
         new_evidence = attrs[:evidence_count].to_i
@@ -73,6 +73,24 @@ module Intelligence
     end
 
     private
+
+    # Departments now arrive PER SIGNAL from SignalExtractor, derived from the
+    # evidence that produced it. The caller's `department:` scalar is advisory
+    # only — it used to be the sole source, applied to every signal in the batch,
+    # which meant a signal built entirely from one team's interview got tagged
+    # with whatever department the triggering document belonged to (and the
+    # interview path passed none at all, so nothing was ever tagged).
+    #
+    # A full-company run has seen all the evidence, so its derived set is
+    # authoritative and REPLACES what is stored — otherwise a department that
+    # no longer has any matching evidence sticks to the signal forever. A
+    # department-scoped run only sees a slice, so it merges.
+    def departments_for(signal, attrs)
+      derived = Array(attrs[:departments]) + Array(@department)
+      return canonical_departments(derived) if @reconcile_stale
+
+      canonical_departments(signal.departments + derived)
+    end
 
     # Dedupe departments case-insensitively (keeping first-seen casing) so
     # "Finance" and "finance" don't both surface in the report.

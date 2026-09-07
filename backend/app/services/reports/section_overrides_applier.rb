@@ -67,7 +67,14 @@ module Reports
     end
 
     def custom_sections(overrides)
-      overrides.select { |o| o.action == "add" }.map do |o|
+      # Deduped at render time, not just on creation. A consultant re-adding a
+      # section that was already carried forward from the previous version -- or
+      # any other route to two identical rows -- would otherwise print the same
+      # page twice in the deliverable. Keyed on what a reader would actually see.
+      overrides
+        .select { |o| o.action == "add" }
+        .uniq { |o| [o.section_key, o.title.to_s.strip, o.body.to_s.strip] }
+        .map do |o|
         template = ReportSectionTemplates.find(o.section_key)
         {
           "slug" => o.custom_slug,

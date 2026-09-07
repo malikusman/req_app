@@ -65,7 +65,14 @@ module Reports
       return unless defined?(ReportSectionOverride) && ReportSectionOverride.table_exists?
       return if @report.report_section_overrides.exists?
 
+      # Deduped: without this, a section the consultant re-added after it had
+      # already been carried forward accumulates a fresh copy on every version,
+      # and the report prints the page once per copy.
+      seen = Set.new
       previous.report_section_overrides.published.find_each do |ov|
+        signature = [ov.action, ov.section_key, ov.title.to_s.strip, ov.body.to_s.strip]
+        next unless seen.add?(signature)
+
         @report.report_section_overrides.create!(
           consultant_user_id: ov.consultant_user_id,
           action: ov.action,
