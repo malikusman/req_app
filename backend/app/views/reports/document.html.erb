@@ -12,9 +12,15 @@
 <% signals = Array(snapshot["signals"]) %>
 <% patterns = Array(snapshot["patterns"]) %>
 <% recommendations = Array(snapshot["recommendations"]) %>
-<% supporting_media = Array(snapshot["supporting_media"]) %>
 <% delta = snapshot["delta_from_previous"] || {} %>
 <% toc_entries = report_toc_entries(snapshot) %>
+
+<%# Section order follows the pyramid: the answer, the expert's verdict, the
+    findings, the actions — then the method and the context that support them.
+    Readiness (our internal go/no-go gate) and Participation (our delivery KPI)
+    sit in the back matter with Methodology, where a reader who wants to audit
+    the work will look for them. They used to be pages 4 and 6, ahead of the
+    findings. %>
 
 <%= render "reports/cover", snapshot: snapshot, generated_label: generated_label, report_version: report_version %>
 <%= render "reports/contents", snapshot: snapshot, toc_entries: toc_entries %>
@@ -22,11 +28,12 @@
 <%# Consultant overrides: an "edit" REPLACES the AI section with the expert's text
     (not a note beside it); "hide" drops it; "add" injects a custom section after
     its anchor. ai_or_edit picks the expert's body when present, else the AI render. %>
-<% custom_after = ->(key) { report_custom_sections(snapshot, after: key).map { |cs| render("reports/custom_section", snapshot: snapshot, section: cs) }.join.html_safe } %>
+<% custom_after = ->(key) { report_custom_sections(snapshot, after: key).map { |cs| render("reports/consultant_section", snapshot: snapshot, section: cs, kind: "added") }.join.html_safe } %>
 <% section_edited = ->(key) { (ed = report_section_edit(snapshot, key)) && ed["body"].to_s.strip.present? } %>
 <% ai_or_edit = ->(key, present, ai) {
      if section_edited.call(key)
-       render("reports/edited_section", key: key, edit: report_section_edit(snapshot, key), snapshot: snapshot)
+       render("reports/consultant_section", snapshot: snapshot,
+              section: report_section_edit(snapshot, key).merge("section_key" => key), kind: "revised")
      elsif present
        ai.call
      else
@@ -39,29 +46,22 @@
 <% end %>
 <%= custom_after.call("executive_summary") %>
 
-<% unless report_section_hidden?(snapshot, "readiness") %>
-  <%= ai_or_edit.call("readiness", snapshot.dig("readiness", "score").present?, -> { render "reports/readiness", snapshot: snapshot, report_version: report_version }) %>
+<%# The expert's own answer and the value they put on it — immediately after the
+    summary, because it is the most credible page in the document. %>
+<% unless report_section_hidden?(snapshot, "expert_verdict") %>
+  <%= render "reports/expert_verdict", snapshot: snapshot, report_version: report_version %>
 <% end %>
-<%= custom_after.call("readiness") %>
+<%= custom_after.call("expert_verdict") %>
 
 <% unless report_section_hidden?(snapshot, "company_context") %>
   <%= ai_or_edit.call("company_context", true, -> { render "reports/company_context", snapshot: snapshot, report_version: report_version }) %>
 <% end %>
 <%= custom_after.call("company_context") %>
 
-<% participation = snapshot["participation"] || {} %>
-<% docs_only_report = snapshot["report_kind"].to_s == "baseline" || snapshot["docs_first_phase"] == true %>
-<% unless report_section_hidden?(snapshot, "participation") %>
-  <%# Show the interview funnel only when interviews have actually happened, or a
-      hybrid engagement is mid-flight — never on a pure document baseline. %>
-  <% show_participation = participation["completed"].to_i.positive? || (participation["invited"].to_i.positive? && !docs_only_report) %>
-  <%= ai_or_edit.call("participation", show_participation, -> { render "reports/participation", snapshot: snapshot, report_version: report_version }) %>
-<% end %>
-<%= custom_after.call("participation") %>
-
 <% if report_has_delta?(delta) && recommendations.empty? && !report_section_hidden?(snapshot, "delta") %>
   <%= render "reports/delta", snapshot: snapshot, report_version: report_version %>
 <% end %>
+<%= custom_after.call("delta") %>
 
 <% docs_first = snapshot["docs_first_phase"] == true || snapshot["report_kind"].to_s == "baseline" %>
 <% if signals.any? && !report_section_hidden?(snapshot, "signals") %>
@@ -72,7 +72,7 @@
         title: docs_first ? "What the documents revealed" : "What the interviews revealed",
         lead: docs_first ?
           "Signals are recurring friction themes drawn from internal documents. Patterns connect those themes across departments and file types." :
-          "Signals are recurring pain points drawn directly from employee interviews. Patterns are the themes that connect them across departments.",
+          "Signals are recurring pain points drawn from employee interviews. Patterns are the themes that connect them across departments. Findings are reported with the weight of evidence behind them; the source material stays in the working papers.",
         highlights: [
           docs_first ?
             "<strong>#{signals.size}</strong> signal#{'s' unless signals.size == 1} surfaced from document analysis.".html_safe :
@@ -80,13 +80,10 @@
           "<strong>#{patterns.size}</strong> cross-team pattern#{'s' unless patterns.size == 1} identified.".html_safe
         ] %>
   <% if section_edited.call("signals") %>
-    <%= render "reports/edited_section", key: "signals", edit: report_section_edit(snapshot, "signals"), snapshot: snapshot %>
+    <%= render "reports/consultant_section", snapshot: snapshot,
+          section: report_section_edit(snapshot, "signals").merge("section_key" => "signals"), kind: "revised" %>
   <% else %>
     <%= render "reports/signals", snapshot: snapshot, signals: signals, report_version: report_version %>
-    <% top = signals.max_by { |s| s["strength"].to_f } %>
-    <% excerpt = top && report_signal_excerpt(top) %>
-    <% quote = excerpt.presence || "The strongest recurring theme is #{top&.dig('label') || 'operational friction'} across teams." %>
-    <%= render "reports/pull_quote", snapshot: snapshot, quote: quote, accent_phrase: top&.dig("label") %>
   <% end %>
 <% end %>
 <%= custom_after.call("signals") %>
@@ -111,15 +108,40 @@
 <% end %>
 <%= custom_after.call("opportunities") %>
 
-<% if (Array(snapshot.dig("tools_catalog", "curated_matches")).any? || Array(snapshot.dig("tools_catalog", "endorsements")).any? || Array(snapshot["supporting_documents"]).any?) && !report_section_hidden?(snapshot, "tools_catalog") %>
+<% if (Array(snapshot.dig("tools_catalog", "curated_matches")).any? || Array(snapshot.dig("tools_catalog", "endorsements")).any?) && !report_section_hidden?(snapshot, "tools_catalog") %>
   <%= ai_or_edit.call("tools_catalog", true, -> { render "reports/tools_catalog", snapshot: snapshot, report_version: report_version }) %>
 <% end %>
 <%= custom_after.call("tools_catalog") %>
 
-<% if supporting_media.any? && !report_section_hidden?(snapshot, "supporting_media") %>
-  <%= render "reports/supporting_media", snapshot: snapshot, supporting_media: supporting_media, report_version: report_version %>
+<%# ---- Back matter: how the work was done, for a reader who wants to audit it ---- %>
+<% participation = snapshot["participation"] || {} %>
+<% docs_only_report = snapshot["report_kind"].to_s == "baseline" || snapshot["docs_first_phase"] == true %>
+<% show_participation = participation["completed"].to_i.positive? || (participation["invited"].to_i.positive? && !docs_only_report) %>
+<% back_matter = !report_section_hidden?(snapshot, "readiness") || show_participation || !report_section_hidden?(snapshot, "methodology") %>
+<% if back_matter %>
+  <%= render "reports/divider",
+        accent_label: "How we know",
+        accent_bg: "var(--teal)",
+        eyebrow: "Method & coverage",
+        title: "How this was measured",
+        lead: "The pages that follow document coverage, weighting and method so the findings above can be audited rather than taken on trust.",
+        highlights: [
+          report_evidence_base_sentence(snapshot).to_s.upcase_first.presence,
+          "Independent expert review is recorded in the appendix.".html_safe
+        ].compact %>
 <% end %>
-<%= custom_after.call("supporting_media") %>
+
+<% unless report_section_hidden?(snapshot, "readiness") %>
+  <%= ai_or_edit.call("readiness", snapshot.dig("readiness", "score").present?, -> { render "reports/readiness", snapshot: snapshot, report_version: report_version }) %>
+<% end %>
+<%= custom_after.call("readiness") %>
+
+<% unless report_section_hidden?(snapshot, "participation") %>
+  <%# The interview funnel only when interviews actually happened, or a hybrid
+      engagement is mid-flight — never on a pure document baseline. %>
+  <%= ai_or_edit.call("participation", show_participation, -> { render "reports/participation", snapshot: snapshot, report_version: report_version }) %>
+<% end %>
+<%= custom_after.call("participation") %>
 
 <% unless report_section_hidden?(snapshot, "methodology") %>
   <%= render "reports/methodology", snapshot: snapshot, report_version: report_version %>

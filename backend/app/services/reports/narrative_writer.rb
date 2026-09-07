@@ -61,7 +61,7 @@ module Reports
         end,
         "recommendations" => Array(@snapshot["recommendations"]).map { |r| r.slice("title", "description", "priority") },
         "client_stack" => Array(@snapshot["client_stack"]).map { |s| s["name"] }.compact,
-        "document_count" => Array(@snapshot["supporting_documents"]).size
+        "document_count" => @snapshot.dig("evidence_base", "documents").to_i
       }
     end
 

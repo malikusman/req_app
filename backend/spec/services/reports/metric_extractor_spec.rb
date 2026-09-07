@@ -21,7 +21,10 @@ RSpec.describe Reports::MetricExtractor do
     expect(ap["headline"]).to match(/11-14 days/)
     expect(ap["comparison"]).to match(/target 8 days/)
     expect(ap["direction"]).to eq("negative")
-    expect(ap["source"]).to eq("Document: kpis.txt")
+    # Provenance is a CATEGORY, never the filename. A client deliverable citing
+    # "2026-Q2-AP-aging-FINAL-v3.xlsx" leaks more than it proves.
+    expect(ap["source"]).to eq("Internal document")
+    expect(metrics.map { |m| m["source"] }).to all(satisfy { |src| !src.to_s.include?("kpis.txt") })
   end
 
   it "extracts ratios from interview answers and attributes them to Interview" do

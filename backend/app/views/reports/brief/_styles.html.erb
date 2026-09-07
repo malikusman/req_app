@@ -1,0 +1,116 @@
+<%= render 'reports/font_faces' %>
+<style>
+/* The executive brief. A4 PORTRAIT — an owner reads this on a phone and
+   forwards it, which the 297mm-wide full report was never shaped for.
+
+   Same palette and typefaces as the full report, because the two documents are
+   one deliverable. The type scale is NOT the same: the landscape sheet's sizes
+   were set for a 297mm measure and do not survive rotation. */
+:root{
+ --ink:#051C2C;--blue:#1F40FF;--cyan:#00A9F4;--teal:#14B8A6;--magenta:#E6338A;
+ --paper:#FFFFFF;--paper-soft:#F5F7FA;--hair:#D6DEE6;--muted:#5A6B78;--negative:#C0362C;
+ --cat-process:var(--blue);--cat-tooling:var(--cyan);--cat-people:var(--magenta);--cat-data:var(--teal);
+ --serif:"Playfair Display",Georgia,serif;--sans:"Inter","Helvetica Neue",Arial,sans-serif;
+ --pw:210mm;--ph:297mm;}
+@page{size:A4 portrait;margin:0;}
+*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+html,body{margin:0;padding:0;background:#fff;color:var(--ink);font-family:var(--sans);}
+
+/* Same flex-column page as the full report, for the same reason: the footer must
+   belong to the page it sits on. */
+.page{position:relative;display:flex;flex-direction:column;width:var(--pw);min-height:var(--ph);
+      padding:18mm 18mm 14mm;margin:0 auto 10mm;background:var(--paper);
+      page-break-after:always;break-after:page;}
+.page:last-child{page-break-after:auto;}
+@media print{.page{margin:0;}}
+.foot{margin-top:auto;padding-top:5mm;display:flex;justify-content:space-between;align-items:baseline;
+      border-top:1px solid var(--hair);font-size:7pt;letter-spacing:.05em;color:var(--muted);}
+.foot .brand{font-weight:600;color:var(--ink);}
+
+h1,h2,h3,h4{font-family:var(--serif);font-weight:700;line-height:1.04;letter-spacing:-0.01em;margin:0;}
+p{font-size:9.5pt;line-height:1.55;margin:0 0 3mm;color:#20303c;}
+.eyebrow{font-family:var(--sans);font-weight:600;font-size:7.5pt;letter-spacing:.16em;
+         text-transform:uppercase;color:var(--muted);}
+.exlabel{font-family:var(--sans);font-weight:600;font-size:7pt;letter-spacing:.1em;
+         text-transform:uppercase;color:var(--muted);}
+.muted{color:var(--muted);}
+.accent{color:var(--blue);}
+.rule{height:2px;background:var(--ink);margin:5mm 0;}
+
+/* ---- p1: the answer -------------------------------------------------- */
+.masthead{display:flex;justify-content:space-between;align-items:baseline;
+          padding-bottom:4mm;border-bottom:2px solid var(--ink);}
+.masthead .logo{font-family:var(--serif);font-weight:700;font-size:12pt;}
+.masthead .meta{font-size:7.5pt;color:var(--muted);text-align:right;line-height:1.4;}
+.answer{font-family:var(--serif);font-weight:700;font-size:23pt;line-height:1.14;
+        letter-spacing:-0.015em;margin:9mm 0 6mm;}
+.support{list-style:none;padding:0;margin:0 0 7mm;}
+.support li{font-size:10pt;line-height:1.5;color:#20303c;padding-left:7mm;margin:0 0 3.5mm;position:relative;}
+.support li::before{content:"";position:absolute;left:0;top:2.4mm;width:4mm;height:2px;background:var(--blue);}
+.stakes{padding:5mm 6mm;background:var(--paper-soft);border-left:3px solid var(--magenta);
+        font-size:9.5pt;line-height:1.5;}
+.stakes strong{font-weight:700;}
+/* The opportunity value. Largest thing in the document by design — it is the
+   number an owner most wants, and until now it appeared in no PDF at all. */
+.value{margin-top:auto;padding-top:7mm;border-top:2px solid var(--ink);}
+.value-amount{font-family:var(--serif);font-weight:800;font-size:38pt;line-height:1;
+              letter-spacing:-0.02em;color:var(--blue);margin:3mm 0;}
+.value-basis{font-size:9pt;line-height:1.5;max-width:130mm;margin:0 0 3mm;}
+.value-by{font-size:7.5pt;color:var(--muted);line-height:1.45;}
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:5mm;margin-top:6mm;}
+.metric{border-top:2px solid var(--hair);padding-top:2.5mm;}
+.metric .n{font-family:var(--serif);font-weight:800;font-size:15pt;line-height:1;}
+.metric .c{font-size:7pt;font-weight:600;color:var(--negative);margin-top:1mm;}
+.metric .l{font-size:7.5pt;line-height:1.35;margin-top:1mm;}
+
+/* ---- p2: where it hurts ---------------------------------------------- */
+.sig{display:grid;grid-template-columns:1fr 26mm;gap:5mm;align-items:baseline;
+     padding:4mm 0;border-top:1px solid var(--hair);break-inside:avoid;}
+.sig:first-of-type{border-top:2px solid var(--ink);}
+.sig .name{font-family:var(--sans);font-weight:700;font-size:11pt;}
+.sig .where{font-size:7.5pt;color:var(--muted);text-transform:uppercase;
+            letter-spacing:.07em;margin-top:1mm;}
+.sig .ev{font-size:8pt;color:var(--muted);margin-top:1.5mm;}
+.sig .band{text-align:right;}
+.sig .bar{height:3mm;background:var(--paper-soft);margin-bottom:1.5mm;}
+.sig .bar>i{display:block;height:100%;background:var(--cat-process);}
+.sig.cat-tooling .bar>i{background:var(--cat-tooling);}
+.sig.cat-people .bar>i{background:var(--cat-people);}
+.sig.cat-data .bar>i{background:var(--cat-data);}
+.sig .lvl{font-size:7pt;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);}
+.heat{margin-top:7mm;}
+.heat svg{width:100%;height:auto;}
+.pattern{margin-top:6mm;padding-top:4mm;border-top:1px solid var(--hair);}
+.pattern .t{font-family:var(--sans);font-weight:700;font-size:9.5pt;}
+.pattern p{font-size:8.5pt;margin:1.5mm 0 0;}
+
+/* ---- p3: what to do -------------------------------------------------- */
+.rec{padding:5mm 0;border-top:1px solid var(--hair);break-inside:avoid;}
+.rec:first-of-type{border-top:2px solid var(--ink);}
+.rec .top{display:flex;justify-content:space-between;align-items:baseline;gap:4mm;}
+.rec h3{font-family:var(--sans);font-weight:700;font-size:11.5pt;line-height:1.3;}
+.pill{display:inline-block;font-size:6.5pt;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+      padding:1mm 2.5mm;border-radius:20px;color:#fff;white-space:nowrap;}
+.pill.high{background:var(--magenta);}.pill.med{background:var(--cyan);}.pill.low{background:var(--muted);}
+.rec p{font-size:9pt;margin:2mm 0 0;}
+.rec .fit{font-size:7.5pt;color:var(--blue);font-weight:600;margin-top:2mm;}
+.phases{display:grid;grid-template-columns:repeat(3,1fr);gap:6mm;margin-top:7mm;}
+.phase h4{font-family:var(--sans);font-weight:700;font-size:9pt;letter-spacing:.06em;
+          text-transform:uppercase;padding-bottom:2mm;border-bottom:2px solid var(--ink);}
+.phase.next h4{border-color:var(--cyan);}.phase.later h4{border-color:var(--muted);}
+.phase ul{list-style:none;padding:0;margin:3mm 0 0;}
+.phase li{font-size:8.5pt;line-height:1.4;margin:0 0 2.5mm;}
+
+/* ---- p4: who checked ------------------------------------------------- */
+.who{margin-top:6mm;}
+.who .card{padding:5mm 0;border-top:1px solid var(--hair);}
+.who .card:first-of-type{border-top:2px solid var(--ink);}
+.who .nm{font-family:var(--serif);font-weight:700;font-size:13pt;}
+.who .cr{font-size:8pt;color:var(--muted);line-height:1.45;margin-top:1mm;}
+.method-line{font-size:9pt;line-height:1.55;color:#20303c;padding:5mm 6mm;
+             background:var(--paper-soft);margin-top:6mm;}
+.ask{margin-top:auto;padding-top:7mm;border-top:2px solid var(--ink);}
+.ask h3{font-family:var(--serif);font-size:16pt;margin-bottom:3mm;}
+.ask p{font-size:9.5pt;max-width:140mm;}
+.pointer{font-size:8pt;color:var(--muted);margin-top:5mm;font-style:italic;}
+</style>

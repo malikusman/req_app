@@ -7,12 +7,16 @@ module Reports
   class PdfGenerator
     class Error < StandardError; end
 
-    def self.call(html:)
-      new(html: html).call
+    def self.call(html:, paper: nil)
+      new(html: html, paper: paper).call
     end
 
-    def initialize(html:)
+    def initialize(html:, paper: nil)
       @html = html
+      # A variant is a section allowlist plus a paper size. Portrait for the
+      # executive brief (read on a phone, forwarded), landscape for the full
+      # report (read in a room, projected).
+      @paper = paper || VariantSpec::LANDSCAPE
     end
 
     def call
@@ -53,10 +57,10 @@ module Reports
       parts << "Content-Type: text/html\r\n\r\n"
       parts << @html
       parts << "\r\n"
-      # A4 landscape in inches (297mm × 210mm). Pages own their margins via .page padding.
+      # Inches. Pages own their margins via .page padding.
       {
-        "paperWidth" => "11.69",
-        "paperHeight" => "8.27",
+        "paperWidth" => @paper[:width],
+        "paperHeight" => @paper[:height],
         "marginTop" => "0",
         "marginBottom" => "0",
         "marginLeft" => "0",

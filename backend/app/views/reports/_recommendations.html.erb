@@ -1,10 +1,13 @@
 <% company_name = snapshot.dig("company", "name") %>
+<% report_paginate(Array(recommendations), 3).each_with_index do |group, page_index| %>
 <section class="page">
-  <div class="eyebrow">Recommendations</div>
-  <h1 style="font-size:26pt;margin:4mm 0 3mm;"><%= h report_action_title(snapshot, :recommendations, "What to do") %></h1>
-  <p class="lead" style="max-width:200mm;margin-bottom:5mm;">Prioritized actions drawn from the findings above. Each names a matched tool where one fits — the full product view follows in Capabilities.</p>
+  <div class="eyebrow">Recommendations<%= " · continued" if page_index.positive? %></div>
+  <h1 class="page-title"><%= h report_action_title(snapshot, :recommendations, "What to do") %></h1>
+  <% if page_index.zero? %>
+    <p class="lead" style="margin-bottom:5mm;">Prioritized actions drawn from the findings above. Each names a matched tool where one fits — the full product view follows in Capabilities.</p>
+  <% end %>
   <div class="card-grid-3">
-    <% Array(recommendations).each do |rec| %>
+    <% group.each do |rec| %>
       <% pill = report_priority_pill(rec["priority"]) %>
       <% matches = report_catalog_matches(rec) %>
       <div class="rec-card">
@@ -25,11 +28,12 @@
   </div>
   <%= render "reports/page_footer", company_name: company_name %>
 </section>
+<% end %>
 
 <% if Array(recommendations).any? %>
 <section class="page">
   <div class="eyebrow">Prioritization<% if report_has_delta?(snapshot["delta_from_previous"]) %> · What changed<% end %></div>
-  <h1 style="font-size:26pt;margin:4mm 0 4mm;">Where to start<% if report_has_delta?(snapshot["delta_from_previous"]) %>, and what moved<% end %></h1>
+  <h1 class="page-title">Where to start<% if report_has_delta?(snapshot["delta_from_previous"]) %>, and what moved<% end %></h1>
   <div class="split">
     <% matrix_svg = report_priority_matrix_svg(recommendations) %>
     <% if matrix_svg.present? %>

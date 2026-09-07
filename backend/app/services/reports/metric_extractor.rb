@@ -52,7 +52,10 @@ module Reports
     def gather_evidence
       evidence = []
       @company.documents.where(status: "ready").includes(:document_chunks).find_each do |doc|
-        label = "Document: #{doc.filename}"
+        # Not the filename. A metric's provenance in a client deliverable is
+        # "an internal document", not "2026-Q2-AP-aging-FINAL-v3.xlsx" — the
+        # filename is working-paper detail and often reveals more than intended.
+        label = "Internal document"
         doc.document_chunks.order(:chunk_index).limit(12).each do |chunk|
           evidence << { text: chunk.content.to_s, source: label }
         end

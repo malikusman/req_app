@@ -203,7 +203,7 @@ class DocsOnlyScenarioRunner
     @report.reload
 
     snapshot = @report.report_snapshot || {}
-    supporting_docs = Array(snapshot["supporting_documents"])
+    supporting_docs = Array.new(snapshot.dig("evidence_base", "documents").to_i)
     summary = snapshot["executive_summary"].to_s
 
     check "Report ready (phase #{phase})", @report.status == "ready"

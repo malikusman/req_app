@@ -275,12 +275,13 @@ module ReportsHelper
   # Maps a TOC title to the section_key a consultant can hide, so a hidden section
   # drops out of the contents page too.
   TOC_TITLE_TO_KEY = {
-    "Executive summary" => "executive_summary", "Readiness" => "readiness",
+    "Executive summary" => "executive_summary", "Expert assessment" => "expert_verdict",
+    "Readiness" => "readiness",
     "Company context" => "company_context", "Participation" => "participation",
     "What changed" => "delta", "Signals" => "signals", "Patterns" => "patterns",
     "Implications" => "patterns", "Recommendations" => "recommendations",
     "Roadmap" => "roadmap", "Opportunities" => "opportunities",
-    "Capabilities & evidence" => "tools_catalog", "Supporting media" => "supporting_media",
+    "Capabilities" => "tools_catalog",
     "Methodology" => "methodology"
   }.freeze
 
@@ -296,64 +297,38 @@ module ReportsHelper
     end
 
     add.call("Executive summary", "The headline story in one read", "rule-blue") if snapshot["executive_summary"].present?
-    if snapshot.dig("readiness", "score").present?
-      add.call("Readiness", "Score and its weighted breakdown", "rule-blue")
+    expert = report_expert(snapshot)
+    if expert && (expert["verdict"] || expert["opportunity"])
+      add.call("Expert assessment", "An independent expert's conclusion and sizing", "rule-blue")
     end
     profile = snapshot.dig("company", "profile") || {}
     stack = Array(snapshot["client_stack"])
-    kb = Array(snapshot["knowledge_base"])
     website = snapshot.dig("company", "website_url").presence || profile["website_url"].presence
-    if profile.present? || stack.any? || kb.any? || website.present?
-      add.call("Company context", "Firmographics, systems, and research", "rule-blue")
-    end
-    participation = snapshot["participation"] || {}
-    if participation["invited"].to_i.positive? || participation["completed"].to_i.positive?
-      add.call("Participation", "Invited, started, completed, by department", "rule-teal")
+    if profile.present? || stack.any? || website.present?
+      add.call("Company context", "Firmographics, systems, and public research", "rule-blue")
     end
     add.call("What changed", "Delta versus the previous version", "rule-teal") if report_has_delta?(snapshot["delta_from_previous"])
-    add.call("Signals", "Recurring pain points with evidence", "rule-magenta") if Array(snapshot["signals"]).any?
+    add.call("Signals", "Recurring pain points, ranked by weight of evidence", "rule-magenta") if Array(snapshot["signals"]).any?
     add.call("Patterns", "Cross-team themes and confidence", "rule-magenta") if Array(snapshot["patterns"]).any?
     add.call("Implications", "What the findings mean if left unaddressed", "rule-magenta") if Array(snapshot["implications"]).any?
     add.call("Recommendations", "Prioritized actions, catalog-matched", "rule-blue") if Array(snapshot["recommendations"]).any?
     add.call("Roadmap", "Sequenced now / next / later", "rule-blue") if snapshot["roadmap"].present?
     add.call("Opportunities", "Published agentic ideas for this company", "rule-blue") if Array(snapshot["agentic_ideas"]).any?
-    if Array(snapshot.dig("tools_catalog", "curated_matches")).any? || Array(snapshot["supporting_documents"]).any?
-      add.call("Capabilities & evidence", "Catalog matches and supporting documents", "rule-teal")
+    if Array(snapshot.dig("tools_catalog", "curated_matches")).any?
+      add.call("Capabilities", "Catalog matches assessed for fit", "rule-teal")
     end
-    add.call("Supporting media", "Multimodal evidence from discovery", "rule-teal") if Array(snapshot["supporting_media"]).any?
+    # Back matter, matching the render order in document.html.erb.
+    if snapshot.dig("readiness", "score").present?
+      add.call("Readiness", "Score and its weighted breakdown", "rule-teal")
+    end
+    participation = snapshot["participation"] || {}
+    if participation["invited"].to_i.positive? || participation["completed"].to_i.positive?
+      add.call("Participation", "Invited, started, completed, by department", "rule-teal")
+    end
     add.call("Methodology", "How readiness and findings were measured", "rule-teal")
     entries
   end
 
-  def report_signal_excerpt(signal)
-    report_signal_excerpts(signal, limit: 1).first
-  end
-
-  def report_signal_excerpts(signal, limit: 3)
-    Array(signal["source_excerpts"]).filter_map do |item|
-      if item.is_a?(Hash)
-        (item["excerpt"] || item["text"] || item["body"]).to_s.presence
-      else
-        item.to_s.presence
-      end
-    end.first(limit)
-  end
-
-  # Human-readable, de-duplicated media-evidence labels. Prefer the attachment's
-  # semantic type ("screen_recording") over the internal source enum
-  # ("media_attachment") that used to leak into the client PDF.
-  def report_multimodal_labels(signal)
-    Array(signal["multimodal_evidence"]).filter_map do |item|
-      raw = if item.is_a?(Hash)
-        item["attachment_type"] || item["type"] || item["label"] || item["kind"] || item["source"]
-      else
-        item
-      end
-      report_media_type_label(raw)
-    end.uniq.first(4)
-  end
-
-  MEDIA_SOURCE_FALLBACK = { "media_attachment" => "Media attachment" }.freeze
   def report_media_type_label(raw)
     v = raw.to_s.strip
     return nil if v.blank?
@@ -399,7 +374,6 @@ module ReportsHelper
     "signals" => "Signals",
     "patterns" => "Patterns",
     "recommendations" => "Recommendations",
-    "supporting_media" => "Supporting media",
     "methodology" => "Methodology",
     "tools_catalog" => "Recommended capabilities"
   }.freeze
@@ -494,5 +468,128 @@ module ReportsHelper
         #{points.join}
       </svg>
     SVG
+  end
+
+  # --- Consultant prose ---------------------------------------------------
+  # Consultant sections used to render as `white-space: pre-wrap` plain text on a
+  # bare page: the expert's contribution — the part of the deliverable we sell —
+  # looked worse than the AI's. This renders the light markup the section
+  # scaffolds use (## headings, - bullets, **bold**, *italic*) as real typography.
+  #
+  # Escape first, then introduce markup, so consultant input can never inject HTML.
+  def report_rich_text(body)
+    text = body.to_s.gsub("\r\n", "\n").strip
+    return "".html_safe if text.blank?
+
+    blocks = text.split(/\n{2,}/).map { |block| report_rich_block(block) }
+    safe_join(blocks)
+  end
+
+  def report_rich_block(block)
+    lines = block.split("\n").map(&:strip).reject(&:blank?)
+    return "".html_safe if lines.empty?
+
+    if lines.all? { |l| l.start_with?("- ", "* ") }
+      items = lines.map { |l| tag.li(report_rich_inline(l.sub(/\A[-*]\s+/, ""))) }
+      return tag.ul(safe_join(items), class: "rt-list")
+    end
+
+    first = lines.first
+    if (m = first.match(/\A(#{'#'}{2,4})\s+(.+)\z/))
+      level = m[1].length
+      heading = tag.h4(report_rich_inline(m[2]), class: "rt-h rt-h#{level}")
+      rest = lines[1..].presence
+      return heading if rest.nil?
+
+      return safe_join([heading, tag.p(report_rich_inline(rest.join(" ")), class: "rt-p")])
+    end
+
+    tag.p(report_rich_inline(lines.join(" ")), class: "rt-p")
+  end
+
+  # **bold** and *italic* over escaped text. Bold runs first so *italic* inside a
+  # bold run is not consumed by the single-asterisk pass.
+  def report_rich_inline(fragment)
+    escaped = ERB::Util.html_escape(fragment.to_s)
+    escaped = escaped.gsub(/\*\*(.+?)\*\*/) { "<strong>#{Regexp.last_match(1)}</strong>" }
+    escaped = escaped.gsub(/(?<!\*)\*(?!\s)([^*]+?)(?<!\s)\*(?!\*)/) { "<em>#{Regexp.last_match(1)}</em>" }
+    escaped.html_safe
+  end
+
+  # --- Evidence attribution (no verbatim quotes) ---------------------------
+  # Replaces the raw interview excerpts that used to sit on every signal card.
+  # A client deliverable does not quote what an employee said — but it must stay
+  # falsifiable, so the aggregate weight behind a finding is stated instead.
+  def report_evidence_line(signal, docs_first: false)
+    count = signal["evidence_count"].to_i
+    depts = Array(signal["departments"]).reject(&:blank?)
+    return nil if count.zero? && depts.empty?
+
+    parts = []
+    parts << "#{count} evidence point#{'s' unless count == 1}" if count.positive?
+    if depts.size > 1
+      parts << "#{depts.size} departments"
+    elsif depts.one?
+      parts << depts.first
+    end
+    return nil if parts.empty?
+
+    source = docs_first ? "internal documents" : "interviews and documents"
+    "Seen in #{parts.join(' across ')} · #{source}"
+  end
+
+  # --- Page budgeting -----------------------------------------------------
+  # The whitespace bug: .page is min-height 210mm with a footer pinned to the
+  # bottom, so a section whose content overran one sheet split across two — the
+  # footer landing at the bottom of the SECOND sheet with a hole above it.
+  # Long lists are chunked into page-sized groups instead of trusting the
+  # browser to break them somewhere sensible.
+  def report_paginate(list, per_page)
+    Array(list).each_slice([per_page.to_i, 1].max).to_a
+  end
+
+  # --- Expert layer -------------------------------------------------------
+  def report_expert(snapshot)
+    snapshot["expert"].is_a?(Hash) ? snapshot["expert"] : nil
+  end
+
+  def report_opportunity(snapshot)
+    report_expert(snapshot)&.dig("opportunity")
+  end
+
+  # "AED 450,000" / "450,000 hours" — the unit carries the period ("AED / year").
+  def report_amount(amount, unit)
+    number = amount.to_i.to_s.reverse.scan(/\d{1,3}/).join(",").reverse
+    currency, _, period = unit.to_s.partition("/")
+    currency = currency.strip
+    period = period.strip
+    lead = currency.match?(/\A[A-Z]{2,4}\z/) ? "#{currency} #{number}" : "#{number} #{currency}".strip
+    period.present? ? "#{lead} / #{period}" : lead
+  end
+
+  def report_evidence_base(snapshot)
+    base = snapshot["evidence_base"]
+    base.is_a?(Hash) ? base : {}
+  end
+
+  # "24 interviews across 5 departments and 12 internal documents" — method, not
+  # content. This is what survives cutting the document index and the media cards.
+  def report_evidence_base_sentence(snapshot)
+    base = report_evidence_base(snapshot)
+    parts = []
+    if base["interviews"].to_i.positive?
+      parts << "#{base['interviews']} discovery interview#{'s' unless base['interviews'].to_i == 1}"
+    end
+    if base["documents"].to_i.positive?
+      parts << "#{base['documents']} internal document#{'s' unless base['documents'].to_i == 1}"
+    end
+    if base["media"].to_i.positive?
+      parts << "#{base['media']} media exhibit#{'s' unless base['media'].to_i == 1}"
+    end
+    return nil if parts.empty?
+
+    sentence = parts.to_sentence
+    depts = base["departments"].to_i
+    depts.positive? ? "#{sentence}, spanning #{depts} department#{'s' unless depts == 1}" : sentence
   end
 end

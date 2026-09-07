@@ -1,11 +1,10 @@
 <% company_name = snapshot.dig("company", "name") %>
 <% tools = Array(snapshot.dig("tools_catalog", "curated_matches")) %>
 <% endorsements = Array(snapshot.dig("tools_catalog", "endorsements")) %>
-<% docs = Array(snapshot["supporting_documents"]) %>
-<% if tools.any? || docs.any? || endorsements.any? %>
+<% if tools.any? || endorsements.any? %>
 <section class="page">
-  <div class="eyebrow">Capabilities & evidence</div>
-  <h1 style="font-size:28pt;margin:4mm 0 3mm;">Products that already fit</h1>
+  <div class="eyebrow">Capabilities</div>
+  <h1 class="page-title">Products that already fit</h1>
   <% if tools.any? %>
     <p class="lead" style="max-width:210mm;margin-bottom:5mm;">Existing solutions — our own products and partner tools — matched to the frictions above. "Worktruth product" is built by us; others are curated partners. Consultant-endorsed picks are flagged.</p>
   <% end %>
@@ -52,18 +51,6 @@
     </div>
   <% end %>
 
-  <% if docs.any? %>
-    <div class="eyebrow" style="margin-top:8mm;">Internal documents cited</div>
-    <div class="card-grid-3">
-      <% docs.each do |doc| %>
-        <div class="media-card">
-          <div class="k"><%= h doc["filename"] %></div>
-          <div class="c"><%= h [doc["document_type"], doc["department"]].compact.join(" · ") %></div>
-          <% if doc["summary"].present? %><p><%= h doc["summary"].to_s.truncate(180) %></p><% end %>
-        </div>
-      <% end %>
-    </div>
-  <% end %>
   <%= render "reports/page_footer", company_name: company_name %>
 </section>
 <% end %>

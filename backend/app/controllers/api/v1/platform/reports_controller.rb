@@ -32,7 +32,10 @@ module Api
           authorize report, :download?
           return head :unprocessable_entity if report.report_snapshot.blank?
 
-          html = Reports::RegenerateWithReviewService.render_html(report: report)
+          variant = normalize_variant(nil)
+          return if performed?
+
+          html = Reports::RegenerateWithReviewService.render_html(report: report, variant: variant)
           send_data html, type: "text/html", disposition: "inline"
         end
 
@@ -112,6 +115,7 @@ module Api
             reviews_completed_at: report.reviews_completed_at,
             generated_at: report.generated_at,
             company_id: report.company_id,
+            artifacts: report_artifacts_json(report),
             consultant_progress: reviews.map do |rv|
               {
                 consultant_user_id: rv.consultant_user_id,

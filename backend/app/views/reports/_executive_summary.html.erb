@@ -6,7 +6,7 @@
 <% patterns_count = Array(snapshot["patterns"]).size %>
 <% recs_count = Array(snapshot["recommendations"]).size %>
 <% docs_first = snapshot["docs_first_phase"] == true || snapshot["report_kind"].to_s == "baseline" %>
-<% doc_count = Array(snapshot["supporting_documents"]).size %>
+<% doc_count = report_evidence_base(snapshot)["documents"].to_i %>
 <% situation = snapshot["situation"].is_a?(Hash) ? snapshot["situation"] : {} %>
 <% narrative = snapshot["narrative"].is_a?(Hash) ? snapshot["narrative"] : {} %>
 <% summary = snapshot["executive_summary"].to_s %>
@@ -15,7 +15,7 @@
 <% support = Array(narrative["supporting_points"]).reject(&:blank?) %>
 <section class="page">
   <div class="eyebrow">Executive summary</div>
-  <h1 style="font-size:32pt;margin:4mm 0 6mm;">The story <span class="serif-accent">in one read</span></h1>
+  <h1 class="page-title">The story <span class="serif-accent">in one read</span></h1>
   <% if narrative["governing_thought"].present? %>
     <%# Pyramid: answer-first governing thought, then evidence-backed support. %>
     <p class="lead" style="max-width:220mm;margin-bottom:4mm;"><strong><%= h narrative["governing_thought"] %></strong></p>

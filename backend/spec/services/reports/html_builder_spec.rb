@@ -22,9 +22,7 @@ RSpec.describe Reports::HtmlBuilder do
         { "title" => "Automate invoice intake", "description" => "Reduce manual entry.", "priority" => "high",
           "implementation_outline" => "Pilot OCR.", "catalog_matches" => [{ "name" => "DocFlow" }] }
       ],
-      "supporting_media" => [
-        { "attachment_type" => "image", "summary" => "Screenshot of SAP screen", "employee_department" => "finance" }
-      ],
+      "evidence_base" => { "interviews" => 4, "documents" => 3, "media" => 1, "departments" => 2 },
       "delta_from_previous" => { "summary" => "Initial discovery report" }
     }
   end
@@ -39,8 +37,31 @@ RSpec.describe Reports::HtmlBuilder do
     expect(html).to include("Approval bottlenecks")
     expect(html).to include("Automate invoice intake")
     expect(html).to include("high")
-    expect(html).to include("Screenshot of SAP screen")
     expect(html).to include("@page")
+    # The evidence base is stated as method, not reproduced as content.
+    expect(html).to include("3 internal documents")
+  end
+
+  it "reproduces no interview excerpt, media caption or document filename" do
+    with_evidence = snapshot.deep_dup
+    with_evidence["signals"].first["source_excerpts"] = [
+      { "excerpt" => "I literally re-key every line by hand, it takes me all Friday" }
+    ]
+
+    html = described_class.call(snapshot: with_evidence)
+
+    # Even when a stale snapshot still carries excerpts, the deliverable must not
+    # render them: an employee spoke candidly to an interviewer, and quoting them
+    # back to their employer is a confidentiality problem, not a design choice.
+    expect(html).not_to include("re-key every line by hand")
+  end
+
+  it "renders the executive brief variant as four portrait pages" do
+    html = described_class.call(snapshot: snapshot, variant: Reports::VariantSpec::EXEC_BRIEF)
+
+    expect(html).to include("A4 portrait")
+    expect(html).to include("Executive brief")
+    expect(html.scan(/<section[^>]*class="[^"]*\bpage\b/).size).to be <= 4
   end
 
   it "includes the expert review appendix when notes are provided" do

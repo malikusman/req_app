@@ -32,8 +32,34 @@ module Api
           authorize report, :download?
           return head :unprocessable_entity if report.report_snapshot.blank?
 
-          html = Reports::RegenerateWithReviewService.render_html(report: report)
+          # The consultant must be able to SEE the brief before submitting. Four
+          # pages is where a weak governing thought does maximum damage — there
+          # is no surrounding detail to soften it.
+          variant = normalize_variant(nil)
+          return if performed?
+
+          html = Reports::RegenerateWithReviewService.render_html(report: report, variant: variant)
           send_data html, type: "text/html", disposition: "inline"
+        end
+
+        # New evidence keeps arriving after a report is reviewed — more interviews
+        # complete, more documents land, signals strengthen. The consultant is the
+        # one who knows whether that changes the advice, so they can mint the next
+        # version themselves rather than waiting on the company to click Generate.
+        #
+        # A new VERSION, not a silent re-render: the delta section then states what
+        # changed, and their section overrides carry forward so re-review starts
+        # from their existing work rather than from scratch.
+        def refresh
+          report = policy_scope(::Report).find(params[:id])
+          authorize report, :download?
+
+          result = Reports::ConsultantRefreshService.call(
+            report: report, consultant_user: current_consultant_user
+          )
+          render json: { report: report_json(result[:report]), stale: result[:stale] }, status: :accepted
+        rescue Reports::ConsultantRefreshService::NotStale => e
+          render json: { error: e.message }, status: :unprocessable_entity
         end
 
         private

@@ -135,10 +135,15 @@ Rails.application.routes.draw do
           get "patterns", to: "intelligence#patterns"
           get "recommendations", to: "intelligence#recommendations"
           get "review_sync", to: "review_sync#show"
+          # The McKinsey-style section library a consultant adds sections from.
+          get "section_templates", to: "section_templates#index"
           resources :reports, only: %i[index show], controller: "reports" do
             member do
               get :download
               get :preview
+              # Mint the next version when new evidence has landed. See
+              # Reports::ConsultantRefreshService for why it is a new version.
+              post :refresh
               get :workspace, to: "review_workspace#show"
             end
             resources :section_overrides, only: %i[index create update destroy], controller: "report_section_overrides"

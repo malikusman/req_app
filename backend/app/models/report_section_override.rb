@@ -10,9 +10,9 @@ class ReportSectionOverride < ApplicationRecord
   # Built-in sections a consultant may hide or annotate. Keep in sync with the
   # section render order in views/reports/document.html.erb.
   BUILT_IN_SECTIONS = %w[
-    executive_summary readiness company_context participation delta
+    executive_summary expert_verdict readiness company_context participation delta
     signals patterns implications recommendations roadmap opportunities
-    tools_catalog supporting_media methodology
+    tools_catalog methodology
   ].freeze
 
   belongs_to :report

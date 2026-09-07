@@ -1,29 +1,49 @@
 <% company_name = snapshot.dig("company", "name") %>
-<% ideas = Array(snapshot["agentic_ideas"]) %>
-<% if ideas.any? %>
+<%# Capped at six: this is our pitch, and pages of it in a client deliverable is
+    the wrong dose. Ranked by confidence upstream.
+
+    Was a 3-column grid of dense cards — twelve of them, which overran the sheet
+    by three pages, and six of which still overran it by one. Six rows fit one
+    page with room, and a ranked list scans better than six card blocks whose
+    height depends on how much prose the model happened to produce. %>
+<% ideas = Array(snapshot["agentic_ideas"]).first(6) %>
+<%# Measured, not guessed: three of these rows fill the sheet. Four overflows it.
+    See tmp probe in the commit message — the summaries are long enough that a
+    row is ~42mm tall. %>
+<% report_paginate(ideas, 3).each_with_index do |group, page_index| %>
 <section class="page">
-  <div class="eyebrow">Opportunities</div>
-  <h1 style="font-size:28pt;margin:4mm 0 3mm;">Agentic AI we'd build for you</h1>
-  <p class="lead" style="max-width:210mm;">Tailored automation and AI-agent concepts shaped from this company's evidence — <strong>things we would design and build</strong>, not off-the-shelf tools. Each includes system fit, value, and an approximate delivery window. Published by platform or consultant after review.</p>
-  <div class="card-grid-3">
-    <% ideas.each do |idea| %>
-      <% conf = report_pct(idea["confidence"]) %>
-      <div class="rec-card">
-        <span class="pill med"><%= conf %>% confidence</span>
-        <h4><%= h idea["title"] %></h4>
-        <% if idea["summary"].present? %><p><%= h idea["summary"].to_s.truncate(180) %></p><% end %>
-        <% if idea["system_fit"].present? %>
-          <p style="margin-top:2mm;font-size:8.5pt;"><strong>System fit:</strong> <%= h idea["system_fit"].to_s.truncate(160) %></p>
-        <% end %>
-        <ul style="margin:2mm 0 0;padding-left:4mm;font-size:8pt;">
-          <% if idea["value_time"].present? %><li><strong>Time:</strong> <%= h idea["value_time"].to_s.truncate(120) %></li><% end %>
-          <% if idea["value_efficiency"].present? %><li><strong>Efficiency:</strong> <%= h idea["value_efficiency"].to_s.truncate(120) %></li><% end %>
-          <% if idea["value_cost"].present? %><li><strong>Cost:</strong> <%= h idea["value_cost"].to_s.truncate(120) %></li><% end %>
-        </ul>
-        <div class="match" style="margin-top:2mm;">
-          <% if idea["approx_timeline"].present? %><%= h idea["approx_timeline"] %><% end %>
-          <% if idea["estimated_cost"].present? %><% if idea["approx_timeline"].present? %> · <% end %><%= h idea["estimated_cost"] %><% end %>
-          <% if idea["catalog_name"].present? %><% if idea["approx_timeline"].present? || idea["estimated_cost"].present? %> · <% end %><%= h idea["catalog_name"] %><% end %>
+  <div class="eyebrow">Opportunities<%= " · continued" if page_index.positive? %></div>
+  <h1 class="page-title">Agentic AI we'd build for you</h1>
+  <% if page_index.zero? %>
+    <p class="lead" style="margin-bottom:6mm;">Concepts we would design and build from this company's evidence — not off-the-shelf tools. Each is published only after platform or consultant review.</p>
+  <% end %>
+  <div class="idea-list">
+    <% group.each do |idea| %>
+      <% values = [
+           idea["value_time"].present? ? "Time: #{idea['value_time'].to_s.truncate(70)}" : nil,
+           idea["value_efficiency"].present? ? "Efficiency: #{idea['value_efficiency'].to_s.truncate(70)}" : nil,
+           idea["value_cost"].present? ? "Cost: #{idea['value_cost'].to_s.truncate(70)}" : nil
+         ].compact %>
+      <% terms = [idea["approx_timeline"], idea["estimated_cost"], idea["catalog_name"]].map(&:presence).compact %>
+      <div class="idea">
+        <div class="idea-main">
+          <div class="idea-title"><%= h idea["title"] %></div>
+          <% if idea["summary"].present? %>
+            <p class="idea-summary"><%= h idea["summary"].to_s.truncate(190) %></p>
+          <% end %>
+          <% if idea["system_fit"].present? %>
+            <div class="idea-fit"><strong>Fits:</strong> <%= h idea["system_fit"].to_s.truncate(120) %></div>
+          <% end %>
+          <% if values.any? %>
+            <div class="idea-values"><%= h values.join("  ·  ") %></div>
+          <% end %>
+        </div>
+        <div class="idea-side">
+          <div class="idea-conf"><%= report_pct(idea["confidence"]) %>%</div>
+          <div class="idea-conf-lab">confidence</div>
+          <% if terms.any? %>
+            <div class="idea-terms"><%= h terms.join(" · ") %></div>
+          <% end %>
         </div>
       </div>
     <% end %>

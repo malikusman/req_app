@@ -397,7 +397,7 @@ class GulflinkScenarioRunner
 
     check "Report ready", @report.status == "ready"
     check "Review bootstrapped for Nadia", review.present?
-    check "Supporting documents in snapshot", Array(snapshot["supporting_documents"]).any?
+    check "Documents counted in snapshot evidence base", snapshot.dig("evidence_base", "documents").to_i.positive?
 
     if summary.present?
       logistics_words = summary.match?(/freight|logistics|customs|demurrage|Dubai|TMS|warehouse/i)

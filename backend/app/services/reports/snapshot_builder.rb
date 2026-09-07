@@ -55,9 +55,15 @@ module Reports
         "delta_from_previous" => @delta,
         "executive_summary" => executive_summary(docs_first),
         "sections" => ReportSections::DEFINITIONS,
-        "supporting_media" => supporting_media_json,
-        "supporting_documents" => supporting_documents_json,
-        "knowledge_base" => knowledge_base_json,
+        # Aggregate only. The per-document index, the per-employee media cards and
+        # the knowledge-base extracts were all evidence CONTENT — they belong to
+        # the working papers, not the client deliverable. What survives is the
+        # method: how much was looked at, and how widely.
+        "evidence_base" => evidence_base_json,
+        # Public research on the company's own website survives the cut: it is
+        # neither an internal document nor anything an employee said, and it is
+        # the one context block a client can independently verify.
+        "web_research" => web_research_json,
         "client_stack" => client_stack_json,
         "tools_catalog" => tools_catalog_json,
         "agentic_ideas" => agentic_ideas_json,
@@ -184,8 +190,11 @@ module Reports
           "departments" => s.departments,
           "signal_type" => s.signal_type,
           "evidence_count" => s.evidence_count,
-          "multimodal_evidence" => Array(s.metadata.fetch("multimodal_evidence", [])).first(5),
-          "source_excerpts" => normalize_excerpts(s.metadata.fetch("source_excerpts", [])).first(3)
+          # No verbatim excerpts. An employee spoke candidly to an interviewer;
+          # quoting them back to their employer is a confidentiality problem, and
+          # the snapshot is served to the company over the API as well as rendered
+          # into the PDF. The aggregate weight below keeps findings falsifiable.
+          "department_count" => Array(s.departments).reject(&:blank?).size
         }
       end
     end
@@ -447,21 +456,6 @@ module Reports
       "Departments in scope: #{depts.join(', ')}."
     end
 
-    def normalize_excerpts(raw)
-      Array(raw).filter_map do |item|
-        if item.is_a?(Hash)
-          text = (item["excerpt"] || item["text"] || item["body"] || item[:excerpt] || item[:text]).to_s.strip
-          next if text.blank?
-
-          { "excerpt" => text.truncate(280), "source" => item["source"] || item[:source] }
-        else
-          text = item.to_s.strip
-          next if text.blank?
-
-          { "excerpt" => text.truncate(280) }
-        end
-      end
-    end
 
     def client_stack_json
       return [] unless defined?(CompanySystem) && CompanySystem.table_exists?
@@ -534,54 +528,36 @@ module Reports
       end
     end
 
-    def supporting_media_json
-      MediaAttachment.where(company_id: @company.id, status: "ready")
-                     .includes(:employee)
-                     .order(created_at: :desc)
-                     .limit(20)
-                     .map do |attachment|
-        insights = attachment.structured_insights.presence || {}
-        {
-          "id" => attachment.id,
-          "attachment_type" => attachment.attachment_type,
-          "caption" => attachment.caption,
-          "summary" => insights["summary"].presence || attachment.extracted_text.to_s.truncate(200),
-          "conversation_id" => attachment.conversation_id,
-          "employee_department" => attachment.employee.department,
-          "confidence" => attachment.confidence
-        }
+    # Counts, not contents. Deliberately cheap: four COUNT queries replacing
+    # three collection serializers that pulled document summaries, media captions
+    # and knowledge-base extracts into a jsonb column on every generate.
+    def web_research_json
+      @company.company_knowledge_entries.active
+              .where("metadata->>'source' = ?", "web_research")
+              .order(updated_at: :desc).limit(3)
+              .map do |e|
+        { "title" => e.title, "content" => e.content.to_s.truncate(300), "url" => e.metadata["url"] }.compact
       end
+    rescue StandardError => e
+      Rails.logger.warn("[Reports::SnapshotBuilder] web_research skipped: #{e.class}: #{e.message}")
+      []
     end
 
-    def supporting_documents_json
-      @company.documents.ready.order(created_at: :desc).limit(12).map do |doc|
-        {
-          "id" => doc.id,
-          "filename" => doc.filename,
-          "department" => doc.department,
-          "document_type" => doc.try(:document_type),
-          "sensitivity" => doc.try(:sensitivity),
-          "source" => doc.source,
-          "summary" => doc.insights_preview.is_a?(Hash) ? doc.insights_preview["summary"] : nil,
-          "chunk_count" => doc.insights_preview.is_a?(Hash) ? doc.insights_preview["chunk_count"] : nil
-        }
-      end
-    end
+    def evidence_base_json
+      ready_docs = @company.documents.where(status: "ready")
+      doc_departments = ready_docs.where.not(department: [nil, ""]).distinct.pluck(:department).compact
+      interview_departments = @company.employees.where(participation_status: "completed")
+                                      .where.not(department: [nil, ""]).distinct.pluck(:department).compact
 
-    def knowledge_base_json
-      @company.company_knowledge_entries.active.order(updated_at: :desc).limit(40).map do |e|
-        {
-          "id" => e.id,
-          "entry_type" => e.entry_type,
-          "title" => e.title,
-          "content" => e.content.to_s.truncate(500),
-          "confidence" => e.confidence,
-          "department" => e.department,
-          "source_document_ids" => e.source_document_ids,
-          "source" => e.metadata["source"],
-          "url" => e.metadata["url"]
-        }.compact
-      end
+      {
+        "interviews" => @company.employees.where(participation_status: "completed").count,
+        "documents" => ready_docs.count,
+        "media" => MediaAttachment.where(company_id: @company.id, status: "ready").count,
+        "departments" => dedupe_departments(doc_departments + interview_departments).size
+      }
+    rescue StandardError => e
+      Rails.logger.warn("[Reports::SnapshotBuilder] evidence_base skipped: #{e.class}: #{e.message}")
+      {}
     end
 
     def tools_catalog_json

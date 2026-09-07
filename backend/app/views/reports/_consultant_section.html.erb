@@ -1,0 +1,43 @@
+<%# A section authored or rewritten by the expert consultant.
+    These used to render as `white-space: pre-wrap` plain text on an otherwise
+    empty page: the part of the deliverable we actually sell looked worse than the
+    machine-generated pages around it. Now it gets first-class typography, the
+    consultant's credential in the byline, and the light markup from the section
+    scaffolds rendered as real headings and lists.
+
+    kind: "added"   — a section the consultant introduced (ReportSectionOverride "add")
+          "revised" — the consultant's text REPLACING an AI section ("edit")
+%>
+<% company_name = snapshot.dig("company", "name") %>
+<% kind = local_assigns.fetch(:kind, "added") %>
+<% consultant = section["consultant"].presence %>
+<% credential = section["consultant_credential"].presence %>
+<% body = section["body"].to_s %>
+<%# Long sections get two columns so a full page of expert prose stays readable
+    at 9.5pt; short ones stay single-column and measured. %>
+<% dense = body.length > 900 %>
+<section class="page expert-page">
+  <div class="expert-rail"></div>
+  <div class="eyebrow expert-eyebrow">
+    <%= kind == "revised" ? "Revised by the expert" : "Expert consultant" %>
+  </div>
+  <h1 class="page-title"><%= h(section["title"].presence || section_label(section["section_key"].to_s)) %></h1>
+  <% if section["purpose"].present? %>
+    <p class="lead expert-purpose"><%= h section["purpose"] %></p>
+  <% end %>
+  <div class="rich-text <%= "cols-2" if dense %>">
+    <%= report_rich_text(body) %>
+  </div>
+  <% if consultant %>
+    <div class="expert-sign">
+      <div class="expert-sign-name"><%= h consultant %></div>
+      <% if credential %>
+        <div class="expert-sign-cred"><%= h credential %></div>
+      <% end %>
+      <div class="expert-sign-note">
+        <%= kind == "revised" ? "This section replaces the generated analysis." : "Written for this engagement." %>
+      </div>
+    </div>
+  <% end %>
+  <%= render "reports/page_footer", company_name: company_name %>
+</section>
