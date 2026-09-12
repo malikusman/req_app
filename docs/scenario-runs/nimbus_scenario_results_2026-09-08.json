@@ -1,0 +1,309 @@
+{
+  "slug": "nimbus-trading",
+  "checks": [
+    {
+      "label": "Platform admin present",
+      "ok": true
+    },
+    {
+      "label": "Company provisioned (Nimbus Trading Co LLC)",
+      "ok": true
+    },
+    {
+      "label": "Company admin omar@nimbus.ae",
+      "ok": true
+    },
+    {
+      "label": "Consultant assigned",
+      "ok": true
+    },
+    {
+      "label": "Documents ingested (4)",
+      "ok": true
+    },
+    {
+      "label": "Documents ready with text (4)",
+      "ok": true
+    },
+    {
+      "label": "Multiple departments (procurement, finance)",
+      "ok": true
+    },
+    {
+      "label": "Employees interviewed to completion (1/2)",
+      "ok": false
+    },
+    {
+      "label": "WhatsApp channel exercised (1)",
+      "ok": true
+    },
+    {
+      "label": "Web channel exercised (1)",
+      "ok": true
+    },
+    {
+      "label": "Fatima Noor: role areas discovered (LPO management, Invoice processing)",
+      "ok": true
+    },
+    {
+      "label": "Fatima Noor: dossier slots filled (0)",
+      "ok": false
+    },
+    {
+      "label": "Fatima Noor: close reason recorded (stalled)",
+      "ok": true
+    },
+    {
+      "label": "Fatima Noor: asked 4, ceiling 6",
+      "ok": true
+    },
+    {
+      "label": "Fatima Noor: reached the floor (4 >= 4)",
+      "ok": true
+    },
+    {
+      "label": "Fatima Noor: package ready (v1, llm)",
+      "ok": true
+    },
+    {
+      "label": "Fatima Noor: package has a recommendation",
+      "ok": true
+    },
+    {
+      "label": "Fatima Noor: package has issues (2)",
+      "ok": true
+    },
+    {
+      "label": "Fatima Noor: package drafted follow-ups (2)",
+      "ok": true
+    },
+    {
+      "label": "A package exists per interviewed employee (1/2)",
+      "ok": false
+    },
+    {
+      "label": "Signals extracted (6)",
+      "ok": true
+    },
+    {
+      "label": "Patterns detected (3)",
+      "ok": true
+    },
+    {
+      "label": "Recommendations (1)",
+      "ok": true
+    },
+    {
+      "label": "Readiness score (88.3)",
+      "ok": true
+    },
+    {
+      "label": "Report generated to ready",
+      "ok": true
+    },
+    {
+      "label": "Report is GATED internal_only (not shipped)",
+      "ok": true
+    },
+    {
+      "label": "Report awaiting consultants",
+      "ok": true
+    },
+    {
+      "label": "Consultant review bootstrapped",
+      "ok": true
+    },
+    {
+      "label": "Company CANNOT download before approval",
+      "ok": true
+    },
+    {
+      "label": "Section decisions recorded (approved)",
+      "ok": true
+    },
+    {
+      "label": "Prose EDIT override created",
+      "ok": true
+    },
+    {
+      "label": "Custom section ADDED",
+      "ok": true
+    },
+    {
+      "label": "Consultant clarification answered",
+      "ok": true
+    },
+    {
+      "label": "Consultant rewrote the recommendation",
+      "ok": true
+    },
+    {
+      "label": "Agent issue rejected but retained",
+      "ok": true
+    },
+    {
+      "label": "Consultant added their own issue",
+      "ok": true
+    },
+    {
+      "label": "Requirement recorded",
+      "ok": true
+    },
+    {
+      "label": "Agent drafted question(s) from the need (1)",
+      "ok": true
+    },
+    {
+      "label": "Question sent (whatsapp)",
+      "ok": true
+    },
+    {
+      "label": "Employee's answer attributed to the question",
+      "ok": true
+    },
+    {
+      "label": "Requirement re-evaluated (partially_satisfied)",
+      "ok": true
+    },
+    {
+      "label": "Employee follow-up budget decremented (5 left)",
+      "ok": true
+    },
+    {
+      "label": "Approval blocked while a review is needs_info",
+      "ok": true
+    },
+    {
+      "label": "Review submitted (approved)",
+      "ok": true
+    },
+    {
+      "label": "Report reviews_complete",
+      "ok": true
+    },
+    {
+      "label": "Report shared_with_company after approval",
+      "ok": true
+    },
+    {
+      "label": "Company CAN download after approval",
+      "ok": true
+    },
+    {
+      "label": "Final artifact non-empty (437744 bytes)",
+      "ok": true
+    },
+    {
+      "label": "Consultant's edited exec summary in final report",
+      "ok": true
+    },
+    {
+      "label": "Consultant's added Risk register in final report",
+      "ok": true
+    },
+    {
+      "label": "No raw internal score leaked (e.g. '0.74')",
+      "ok": true
+    }
+  ],
+  "observations": [
+    {
+      "area": "dossier",
+      "severity": "info",
+      "title": "Fatima Noor close",
+      "detail": "stalled after 4q"
+    },
+    {
+      "area": "dossier",
+      "severity": "info",
+      "title": "Fatima Noor filled",
+      "detail": ""
+    },
+    {
+      "area": "dossier",
+      "severity": "info",
+      "title": "Fatima Noor parked",
+      "detail": "Price drift from Supplier A"
+    },
+    {
+      "area": "package",
+      "severity": "info",
+      "title": "Fatima Noor recommendation",
+      "detail": "Automate the invoice verification process to eliminate manual line-by-line comparisons and flag price drifts automatically."
+    },
+    {
+      "area": "package",
+      "severity": "info",
+      "title": "Fatima Noor issues",
+      "detail": "[high] Manual Invoice Verification | [medium] Supplier Price Drift"
+    },
+    {
+      "area": "package",
+      "severity": "info",
+      "title": "Fatima Noor solutions",
+      "detail": "Automated Matching | Drift Alerts"
+    },
+    {
+      "area": "package",
+      "severity": "info",
+      "title": "Fatima Noor next question",
+      "detail": "What is the reason provided for the price drift from Supplier A?"
+    },
+    {
+      "area": "intelligence",
+      "severity": "info",
+      "title": "counts",
+      "detail": "signals=6 patterns=3 recs=1 ideas=52"
+    },
+    {
+      "area": "report",
+      "severity": "info",
+      "title": "exec summary",
+      "detail": "1 of 1 employees completed discovery interviews. Findings are reinforced by 4 internal documents. Top friction areas include Manual data entry and spreadsheets, Coordination overhead, Approval bottlenecks. 3 cross-team patterns inform the recommendations below."
+    },
+    {
+      "area": "report",
+      "severity": "info",
+      "title": "narrative source",
+      "detail": "deterministic"
+    },
+    {
+      "area": "requirement",
+      "severity": "info",
+      "title": "consultant stated",
+      "detail": "I need to know who signs off on a PI once a price mismatch is found, and whether they can hold the payment."
+    },
+    {
+      "area": "requirement",
+      "severity": "info",
+      "title": "agent drafted",
+      "detail": "Could you tell me a bit more about who signs off on a PI once a price mismatch is found, and whether they can hold the payment?"
+    },
+    {
+      "area": "requirement",
+      "severity": "info",
+      "title": "outcome",
+      "detail": "partially_satisfied (n/a) missing=[\"Could not be assessed automatically — review the answer yourself.\"]"
+    },
+    {
+      "area": "deliverable",
+      "severity": "info",
+      "title": "content_type",
+      "detail": "application/pdf"
+    },
+    {
+      "area": "deliverable",
+      "severity": "info",
+      "title": "top pain points",
+      "detail": "Manual data entry and spreadsheets | Coordination overhead | Approval bottlenecks"
+    },
+    {
+      "area": "channels",
+      "severity": "info",
+      "title": "employees",
+      "detail": "Fatima Noor, Sara Haddad"
+    }
+  ],
+  "report_id": 81,
+  "report_version": 19
+}

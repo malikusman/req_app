@@ -1,0 +1,208 @@
+========================================================================
+Nimbus Trading Co — full-application scenario
+========================================================================
+
+— Fresh reset (clear queues + circuit breaker) ----------------
+2026-09-08T10:32:02.057Z pid=1718 tid=3qe INFO: Sidekiq 7.3.10 connecting to Redis with options {:size=>10, :pool_name=>"internal", :url=>"redis://redis:6379/0"}
+  ✓ Sidekiq cleared (was queue=0 retry=0 scheduled=0)
+  ✓ Circuit breaker reset (open? false)
+  ✓ Agent read timeout 1800s · memory retrieval OFF
+
+— Provision platform admin, company, admin, consultant --------
+  ✓ Platform admin present
+  ✓ Purged 2 pre-existing employee(s)
+  ✓ Company provisioned (Nimbus Trading Co LLC)
+  ✓ Company admin omar@nimbus.ae
+  ✓ Consultant assigned
+
+— Upload 4 realistic documents --------------------------------
+  ✓ Documents ingested (4)
+  ✓ Documents ready with text (4)
+  ✓ Multiple departments (procurement, finance)
+
+— Discovery — 1 WhatsApp + 1 web (ceiling 6, floor 4, one at a time) -----
+  → interviewing Fatima Noor (whatsapp)…
+  → interviewing Sara Haddad (web)…
+  ✗ FAIL — Employees interviewed to completion (1/2)
+  ✓ WhatsApp channel exercised (1)
+  ✓ Web channel exercised (1)
+
+— Dossier — what each interview learned, and why it stopped [BREAKER OPEN] -----
+  ✓ Fatima Noor: role areas discovered (LPO management, Invoice processing)
+  ✗ FAIL — Fatima Noor: dossier slots filled (0)
+  ✓ Fatima Noor: close reason recorded (stalled)
+  ✓ Fatima Noor: asked 4, ceiling 6
+  ✓ Fatima Noor: reached the floor (4 >= 4)
+  · Fatima Noor: discovery ENDED ITSELF after 4 questions — reason: "stalled"
+
+— Discovery packages — the consultant handover [BREAKER OPEN] ----------------
+  ✓ Fatima Noor: package ready (v1, llm)
+  ✓ Fatima Noor: package has a recommendation
+  ✓ Fatima Noor: package has issues (2)
+  ✓ Fatima Noor: package drafted follow-ups (2)
+
+  ┌─ what the consultant sees for Fatima Noor (package v1, llm) ─
+  │ recommendation: Automate the invoice verification process to eliminate manual line-by-line comparisons and flag price drifts automatically.
+  │ issue [high] Manual Invoice Verification: Fatima performs manual line-by-line comparisons between proforma invoices, LPOs, and emailed quotes, which consumes t...
+  │ issue [medium] Supplier Price Drift: About 25% of proforma invoices from Supplier A show a 5-8% price drift, requiring manual identification and correction.
+  │ solution: Automated Matching: Implement a system that automatically matches proforma invoices against LPOs and quotes in Zoho Inventory.
+  │ solution: Drift Alerts: Set up automated alerts to flag any price variance from Supplier A that exceeds a specific threshold.
+  │ agent's drafted next question: What is the reason provided for the price drift from Supplier A?
+  └───────────────────────────────────────────────────────
+  ✗ FAIL — A package exists per interviewed employee (1/2)
+
+— Intelligence aggregation [BREAKER OPEN] ------------------------------------
+  ✓ Signals extracted (6)
+  ✓ Patterns detected (3)
+  ✓ Recommendations (1)
+  ✓ Readiness score (88.3)
+
+— Report generation (gated) [BREAKER OPEN] -----------------------------------
+  ✓ Report generated to ready
+  ✓ Report is GATED internal_only (not shipped)
+  ✓ Report awaiting consultants
+  ✓ Consultant review bootstrapped
+  ✓ Company CANNOT download before approval
+
+— Consultant contributes (decisions, comment, prose edit, added section, finding, Q&A) -----
+  ✓ Section decisions recorded (approved)
+  ✓ Prose EDIT override created
+  ✓ Custom section ADDED
+  ✓ Consultant clarification answered
+
+— Consultant reviews the handover and raises a need -----------
+  ✓ Consultant rewrote the recommendation
+  ✓ Agent issue rejected but retained
+  ✓ Consultant added their own issue
+  ✓ Requirement recorded
+  ✓ Agent drafted question(s) from the need (1)
+
+  ┌─ consultant → agent → employee, end to end ─
+  │ consultant STATED (their own words, not question text):
+  │   "I need to know who signs off on a PI once a price mismatch is found, and whether they can hold the payment."
+  │ agent DRAFTED (this is what actually gets sent):
+  │   "Could you tell me a bit more about who signs off on a PI once a price mismatch is found, and whether they can hold the payment?"
+  ✓ Question sent (whatsapp)
+  │ SENT on channel: whatsapp (real delivery path, template if outside 24h window)
+  │ EMPLOYEE answers (via whatsapp, real inbound path): "Our finance manager Aisha signs off any PI with a mismatch, and she can hold the payment until it is fixed."
+  ✓ Employee's answer attributed to the question
+  ✓ Requirement re-evaluated (partially_satisfied)
+  │ REQUIREMENT re-evaluated: partially_satisfied (basis: n/a)
+  │   missing_aspects: ["Could not be assessed automatically — review the answer yourself."]
+  └───────────────────────────────────────────────────────
+rake aborted!
+Scenario had 3 failing checks
+/app/lib/nimbus_scenario_runner.rb:747:in `finish!'
+/app/lib/nimbus_scenario_runner.rb:156:in `call'
+/app/lib/nimbus_scenario_runner.rb:129:in `call'
+/app/lib/tasks/scenario.rake:15:in `block (2 levels) in <main>'
+/usr/local/bundle/gems/rake-13.4.2/exe/rake:27:in `<top (required)>'
+/usr/local/bundle/gems/bundler-2.6.9/lib/bundler/cli/exec.rb:59:in `load'
+/usr/local/bundle/gems/bundler-2.6.9/lib/bundler/cli/exec.rb:59:in `kernel_load'
+/usr/local/bundle/gems/bundler-2.6.9/lib/bundler/cli/exec.rb:23:in `run'
+/usr/local/bundle/gems/bundler-2.6.9/lib/bundler/cli.rb:452:in `exec'
+/usr/local/bundle/gems/bundler-2.6.9/lib/bundler/vendor/thor/lib/thor/command.rb:28:in `run'
+/usr/local/bundle/gems/bundler-2.6.9/lib/bundler/vendor/thor/lib/thor/invocation.rb:127:in `invoke_command'
+/usr/local/bundle/gems/bundler-2.6.9/lib/bundler/vendor/thor/lib/thor.rb:538:in `dispatch'
+/usr/local/bundle/gems/bundler-2.6.9/lib/bundler/cli.rb:35:in `dispatch'
+/usr/local/bundle/gems/bundler-2.6.9/lib/bundler/vendor/thor/lib/thor/base.rb:584:in `start'
+/usr/local/bundle/gems/bundler-2.6.9/lib/bundler/cli.rb:29:in `start'
+/usr/local/bundle/gems/bundler-2.6.9/exe/bundle:28:in `block in <top (required)>'
+/usr/local/bundle/gems/bundler-2.6.9/lib/bundler/friendly_errors.rb:117:in `with_friendly_errors'
+/usr/local/bundle/gems/bundler-2.6.9/exe/bundle:20:in `<top (required)>'
+/usr/local/bin/bundle:25:in `load'
+/usr/local/bin/bundle:25:in `<main>'
+Tasks: TOP => scenario:nimbus
+(See full trace by running task with --trace)
+  ✓ Employee follow-up budget decremented (5 left)
+
+— Gate: needs_info blocks approval ----------------------------
+  ✓ Approval blocked while a review is needs_info
+
+— Consultant submits → platform approves ----------------------
+  ✓ Review submitted (approved)
+  ✓ Report reviews_complete
+  ✓ Report shared_with_company after approval
+  ✓ Company CAN download after approval
+
+— Inspect the final deliverable -------------------------------
+  ✓ Final artifact non-empty (437744 bytes)
+  ✓ Consultant's edited exec summary in final report
+  ✓ Consultant's added Risk register in final report
+  ✓ No raw internal score leaked (e.g. '0.74')
+
+  → results: /app/tmp/nimbus_scenario_results.json
+========================================================================
+Done — 48/51 checks passed
+========================================================================
+  ✓ Platform admin present
+  ✓ Company provisioned (Nimbus Trading Co LLC)
+  ✓ Company admin omar@nimbus.ae
+  ✓ Consultant assigned
+  ✓ Documents ingested (4)
+  ✓ Documents ready with text (4)
+  ✓ Multiple departments (procurement, finance)
+  ✗ FAIL — Employees interviewed to completion (1/2)
+  ✓ WhatsApp channel exercised (1)
+  ✓ Web channel exercised (1)
+  ✓ Fatima Noor: role areas discovered (LPO management, Invoice processing)
+  ✗ FAIL — Fatima Noor: dossier slots filled (0)
+  ✓ Fatima Noor: close reason recorded (stalled)
+  ✓ Fatima Noor: asked 4, ceiling 6
+  ✓ Fatima Noor: reached the floor (4 >= 4)
+  ✓ Fatima Noor: package ready (v1, llm)
+  ✓ Fatima Noor: package has a recommendation
+  ✓ Fatima Noor: package has issues (2)
+  ✓ Fatima Noor: package drafted follow-ups (2)
+  ✗ FAIL — A package exists per interviewed employee (1/2)
+  ✓ Signals extracted (6)
+  ✓ Patterns detected (3)
+  ✓ Recommendations (1)
+  ✓ Readiness score (88.3)
+  ✓ Report generated to ready
+  ✓ Report is GATED internal_only (not shipped)
+  ✓ Report awaiting consultants
+  ✓ Consultant review bootstrapped
+  ✓ Company CANNOT download before approval
+  ✓ Section decisions recorded (approved)
+  ✓ Prose EDIT override created
+  ✓ Custom section ADDED
+  ✓ Consultant clarification answered
+  ✓ Consultant rewrote the recommendation
+  ✓ Agent issue rejected but retained
+  ✓ Consultant added their own issue
+  ✓ Requirement recorded
+  ✓ Agent drafted question(s) from the need (1)
+  ✓ Question sent (whatsapp)
+  ✓ Employee's answer attributed to the question
+  ✓ Requirement re-evaluated (partially_satisfied)
+  ✓ Employee follow-up budget decremented (5 left)
+  ✓ Approval blocked while a review is needs_info
+  ✓ Review submitted (approved)
+  ✓ Report reviews_complete
+  ✓ Report shared_with_company after approval
+  ✓ Company CAN download after approval
+  ✓ Final artifact non-empty (437744 bytes)
+  ✓ Consultant's edited exec summary in final report
+  ✓ Consultant's added Risk register in final report
+  ✓ No raw internal score leaked (e.g. '0.74')
+
+Observations:
+  · [dossier] Fatima Noor close: stalled after 4q
+  · [dossier] Fatima Noor filled: 
+  · [dossier] Fatima Noor parked: Price drift from Supplier A
+  · [package] Fatima Noor recommendation: Automate the invoice verification process to eliminate manual line-by-line comparisons and flag price drifts automatically.
+  · [package] Fatima Noor issues: [high] Manual Invoice Verification | [medium] Supplier Price Drift
+  · [package] Fatima Noor solutions: Automated Matching | Drift Alerts
+  · [package] Fatima Noor next question: What is the reason provided for the price drift from Supplier A?
+  · [intelligence] counts: signals=6 patterns=3 recs=1 ideas=52
+  · [report] exec summary: 1 of 1 employees completed discovery interviews. Findings are reinforced by 4 internal documents. Top friction areas include Manual data entry and spreadsheets, Coordination overhead, Approval bottlenecks. 3 cross-team patterns inform the recommendations below.
+  · [report] narrative source: deterministic
+  · [requirement] consultant stated: I need to know who signs off on a PI once a price mismatch is found, and whether they can hold the payment.
+  · [requirement] agent drafted: Could you tell me a bit more about who signs off on a PI once a price mismatch is found, and whether they can hold the payment?
+  · [requirement] outcome: partially_satisfied (n/a) missing=["Could not be assessed automatically — review the answer yourself."]
+  · [deliverable] content_type: application/pdf
+  · [deliverable] top pain points: Manual data entry and spreadsheets | Coordination overhead | Approval bottlenecks
+  · [channels] employees: Fatima Noor, Sara Haddad
+
+(scenario fixture logins redacted — see backend/lib/nimbus_scenario_runner.rb)
