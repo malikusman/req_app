@@ -2,6 +2,21 @@ const API_URL = import.meta.env.VITE_API_URL || '';
 
 export type ApiError = { error?: string; errors?: string[] };
 
+/**
+ * A failed request, carrying the status code. Subclasses Error, so every existing
+ * `catch (err) { err instanceof Error }` and `err.message` keeps working — callers
+ * that need to tell "your session ended" from "the server is down" can now do so.
+ */
+export class ApiRequestError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiRequestError';
+    this.status = status;
+  }
+}
+
 async function request<T>(
   path: string,
   options: RequestInit = {},
@@ -18,7 +33,7 @@ async function request<T>(
 
   if (!res.ok) {
     const err = (data as ApiError).error || (data as ApiError).errors?.join(', ') || res.statusText;
-    throw new Error(err);
+    throw new ApiRequestError(err, res.status);
   }
   return data as T;
 }
@@ -225,7 +240,7 @@ export const api = {
       step: number;
       portal_onboarding_completed_at?: string | null;
       questionnaire_completed_at?: string | null;
-      questionnaire_answers?: Record<string, string | string[]>;
+      questionnaire_answers?: QuestionnaireAnswerMap;
       completion_percent?: number;
       section_status?: Record<string, { touched: boolean; complete: boolean }>;
       company: {
@@ -268,18 +283,30 @@ export const api = {
   updateOnboardingQuestionnaire: (
     token: string,
     payload: {
-      questionnaire_answers: Record<string, string | string[] | undefined>;
+      questionnaire_answers: QuestionnaireAnswerMap;
       questionnaire_step?: number;
     }
   ) =>
     request<{
       ok: boolean;
-      questionnaire_answers: Record<string, string | string[]>;
+      questionnaire_answers: QuestionnaireAnswerMap;
       questionnaire_step: number;
       questionnaire_completed_at?: string | null;
       completion_percent: number;
       section_status?: Record<string, { touched: boolean; complete: boolean }>;
     }>('/api/v1/company/onboarding/questionnaire', { method: 'PATCH', body: JSON.stringify(payload) }, token),
+
+  /**
+   * Autosave. Persists answers and nothing else — no profile sync, no completion
+   * stamping, no step tracking. Those run on step change and on finish, via
+   * updateOnboardingQuestionnaire.
+   */
+  updateQuestionnaireAnswers: (token: string, answers: QuestionnaireAnswerMap) =>
+    request<{ ok: boolean }>(
+      '/api/v1/company/onboarding/questionnaire/answers',
+      { method: 'PATCH', body: JSON.stringify({ questionnaire_answers: answers }) },
+      token
+    ),
 
   completeOnboarding: (token: string, payload?: { mark_questionnaire_complete?: boolean }) =>
     request<{ ok: boolean; redirect_to?: string; completion_percent?: number }>(
@@ -1889,6 +1916,12 @@ export interface DiscoveryFollowupQuestion {
 }
 
 /** A question the agent thinks is worth asking, and why it thinks so. */
+/** A questionnaire answer: a scalar, a list, or a keyed map for the matrix questions. */
+export type QuestionnaireAnswerMap = Record<
+  string,
+  string | string[] | Record<string, string | string[]> | undefined
+>;
+
 export interface DeepDiveSuggestion {
   /** Addressed to the employee. Sent as-is if the consultant accepts it. */
   body: string;

@@ -37,38 +37,22 @@ import {
   DiscoveryProvenancePanel,
 } from '../../components/ui';
 import { label } from '../../lib/labels';
+import { allFields } from '../../lib/questionnaireOptions';
 import { PlatformCompanyConsultants } from './PlatformCompanyConsultants';
 import { ConversationMediaCard, ConversationMediaList } from '../../components/ConversationMediaCard';
 import { CompanyStackPanel } from './CompanyStackPanel';
 import { AgenticIdeasPanel } from '../shared/AgenticIdeasPanel';
 
-const PROFILE_FIELD_LABELS: Record<string, string> = {
-  company_industry: 'Industry',
-  company_size: 'Company size',
-  company_location: 'Location',
-  business_model: 'Business model',
-  annual_revenue: 'Annual revenue',
-  departments_present: 'Departments',
-  operational_structure: 'Operational structure',
-  num_locations: 'Locations',
-  department_pain_point: 'Department pain points',
-  erp_system: 'ERP',
-  crm_system: 'CRM',
-  accounting_software: 'Accounting',
-  hr_software: 'HR software',
-  communication_tools: 'Communication tools',
-  tech_stack_maturity: 'Tech stack maturity',
-  primary_goals: 'Primary goals',
-  timeline: 'Timeline',
-  budget_range: 'Budget range',
-  additional_context: 'Additional context',
-  current_ai_usage: 'Current AI usage',
-  ai_openness: 'AI openness',
-  data_hosting: 'Data hosting',
-  top_bottlenecks: 'Top bottlenecks',
-};
-
-const PROFILE_FIELD_ORDER = Object.keys(PROFILE_FIELD_LABELS);
+/**
+ * Labels come from the questionnaire itself rather than a list kept here. The
+ * previous hardcoded map drifted the moment a question was reworded, and silently
+ * dropped any question added after it was written.
+ */
+const QUESTION_FIELDS = allFields().filter((f) => f.type !== 'static');
+const PROFILE_FIELD_LABELS: Record<string, string> = Object.fromEntries(
+  QUESTION_FIELDS.map((f) => [f.id, f.label])
+);
+const PROFILE_FIELD_ORDER = QUESTION_FIELDS.map((f) => f.id);
 
 function generatePassword() {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
@@ -83,6 +67,19 @@ function formatProfileValue(value: unknown): string | null {
   if (Array.isArray(value)) {
     const parts = value.map((v) => String(v).trim()).filter(Boolean);
     return parts.length ? parts.join(', ') : null;
+  }
+  if (typeof value === 'object') {
+    // The matrix questions (systems by category, parties and their channels,
+    // headcount per department) store a keyed map.
+    const parts = Object.entries(value as Record<string, unknown>)
+      .map(([k, v]) => {
+        const inner = Array.isArray(v)
+          ? v.map((x) => String(x).trim()).filter(Boolean).join(', ')
+          : String(v ?? '').trim();
+        return inner ? `${k}: ${inner}` : null;
+      })
+      .filter(Boolean);
+    return parts.length ? parts.join(' · ') : null;
   }
   return null;
 }

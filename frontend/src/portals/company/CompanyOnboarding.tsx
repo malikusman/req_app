@@ -1,212 +1,22 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { api } from '../../lib/api';
 import { useCompanyToken, useAuth } from '../../lib/auth';
-import { PageHeader, Card, Input, Button, Textarea, Skeleton, ProgressBar } from '../../components/ui';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/shadcn/sheet';
+import { PageHeader, Card, Input, Button, Skeleton, ProgressBar } from '../../components/ui';
 import { useMediaQuery } from '../../lib/useMediaQuery';
 import {
-  QUESTIONNAIRE_SECTIONS,
+  QUESTIONNAIRE_STEPS,
+  STEP_COUNT,
   computeCompletionPercent,
-  fieldIsVisible,
-  sectionTouched,
+  stepComplete,
+  stepTouched,
+  type AnswerValue,
   type QuestionnaireAnswers,
-  type QuestionnaireField,
 } from '../../lib/questionnaireOptions';
+import { FieldRenderer } from './questionnaire/FieldRenderer';
+import { useQuestionnaireAutosave } from './useQuestionnaireAutosave';
 import { cn } from '../../lib/cn';
-
-function ChoiceButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        'min-h-11 w-full rounded-lg border px-3 py-2.5 text-left text-sm transition-colors',
-        active
-          ? 'border-primary bg-primary/10 text-foreground'
-          : 'border-border text-muted-foreground hover:border-primary/40 hover:bg-muted/40'
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
-function SearchableSelectField({
-  field,
-  value,
-  onChange,
-  isNarrow,
-}: {
-  field: QuestionnaireField;
-  value: string;
-  onChange: (v: string) => void;
-  isNarrow: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState('');
-  const options = field.options || [];
-  const filtered = options.filter((o) => o.toLowerCase().includes(query.toLowerCase()));
-
-  const pick = (opt: string) => {
-    onChange(opt);
-    setOpen(false);
-    setQuery('');
-  };
-
-  const list = (
-    <div className="space-y-2">
-      <Input
-        label="Search"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Type to filter…"
-        autoFocus
-      />
-      <ul className="max-h-64 space-y-1 overflow-y-auto">
-        {filtered.map((opt) => (
-          <li key={opt}>
-            <ChoiceButton active={value === opt} onClick={() => pick(opt)}>
-              {opt}
-            </ChoiceButton>
-          </li>
-        ))}
-        {filtered.length === 0 ? <li className="text-sm text-muted-foreground">No matches</li> : null}
-      </ul>
-    </div>
-  );
-
-  if (isNarrow) {
-    return (
-      <div className="space-y-2">
-        <p className="m-0 text-sm font-medium text-foreground">{field.label}</p>
-        <Button type="button" variant="secondary" className="w-full justify-between" onClick={() => setOpen(true)}>
-          <span className="truncate">{value || 'Select…'}</span>
-          <ChevronRight className="h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-        <Sheet open={open} onOpenChange={setOpen}>
-          <SheetContent side="bottom" className="max-h-[85dvh] overflow-y-auto">
-            <SheetHeader>
-              <SheetTitle>{field.label}</SheetTitle>
-            </SheetHeader>
-            <div className="mt-4">{list}</div>
-          </SheetContent>
-        </Sheet>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-2">
-      <p className="m-0 text-sm font-medium text-foreground">{field.label}</p>
-      <Button type="button" variant="secondary" className="w-full justify-between" onClick={() => setOpen(!open)}>
-        <span className="truncate">{value || 'Select…'}</span>
-      </Button>
-      {open ? <Card className="p-3">{list}</Card> : null}
-    </div>
-  );
-}
-
-function FieldEditor({
-  field,
-  answers,
-  setAnswer,
-  isNarrow,
-}: {
-  field: QuestionnaireField;
-  answers: QuestionnaireAnswers;
-  setAnswer: (id: string, value: string | string[] | undefined) => void;
-  isNarrow: boolean;
-}) {
-  if (!fieldIsVisible(field, answers)) return null;
-  const raw = answers[field.id];
-
-  if (field.type === 'text') {
-    return (
-      <Input
-        label={field.label}
-        value={typeof raw === 'string' ? raw : ''}
-        onChange={(e) => setAnswer(field.id, e.target.value)}
-        placeholder={field.placeholder}
-      />
-    );
-  }
-
-  if (field.type === 'textarea') {
-    return (
-      <Textarea
-        label={field.label}
-        rows={4}
-        value={typeof raw === 'string' ? raw : ''}
-        onChange={(e) => setAnswer(field.id, e.target.value)}
-        placeholder={field.placeholder}
-      />
-    );
-  }
-
-  if (field.type === 'searchable_select') {
-    return (
-      <SearchableSelectField
-        field={field}
-        value={typeof raw === 'string' ? raw : ''}
-        onChange={(v) => setAnswer(field.id, v)}
-        isNarrow={isNarrow}
-      />
-    );
-  }
-
-  if (field.type === 'single_select') {
-    const value = typeof raw === 'string' ? raw : '';
-    return (
-      <fieldset className="space-y-2">
-        <legend className="text-sm font-medium text-foreground">{field.label}</legend>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {(field.options || []).map((opt) => (
-            <ChoiceButton key={opt} active={value === opt} onClick={() => setAnswer(field.id, opt)}>
-              {opt}
-            </ChoiceButton>
-          ))}
-        </div>
-      </fieldset>
-    );
-  }
-
-  // multi_select
-  const selected = Array.isArray(raw) ? raw : [];
-  const toggle = (opt: string) => {
-    if (selected.includes(opt)) {
-      setAnswer(
-        field.id,
-        selected.filter((s) => s !== opt)
-      );
-      return;
-    }
-    if (field.maxSelections && selected.length >= field.maxSelections) return;
-    setAnswer(field.id, [...selected, opt]);
-  };
-
-  return (
-    <fieldset className="space-y-2">
-      <legend className="text-sm font-medium text-foreground">{field.label}</legend>
-      <div className="grid gap-2 sm:grid-cols-2">
-        {(field.options || []).map((opt) => (
-          <ChoiceButton key={opt} active={selected.includes(opt)} onClick={() => toggle(opt)}>
-            {opt}
-          </ChoiceButton>
-        ))}
-      </div>
-    </fieldset>
-  );
-}
 
 export function CompanyOnboarding() {
   const token = useCompanyToken();
@@ -252,16 +62,19 @@ export function CompanyOnboarding() {
   }, [token]);
 
   const section = useMemo(
-    () => QUESTIONNAIRE_SECTIONS.find((s) => s.id === sectionId) || QUESTIONNAIRE_SECTIONS[0],
+    () => QUESTIONNAIRE_STEPS.find((s) => s.id === sectionId) || QUESTIONNAIRE_STEPS[0],
     [sectionId]
   );
 
-  const setAnswer = (id: string, value: string | string[] | undefined) => {
+  const autosave = useQuestionnaireAutosave(token, answers, QUESTIONNAIRE_STEPS);
+
+  const setAnswer = (id: string, value: AnswerValue) => {
     setAnswers((prev) => {
       const next = { ...prev, [id]: value };
       setPercent(computeCompletionPercent(next));
       return next;
     });
+    autosave.notifyChange(id);
   };
 
   const persist = async (nextSection?: number, opts?: { markComplete?: boolean }) => {
@@ -269,7 +82,8 @@ export function CompanyOnboarding() {
     setSaving(true);
     setError('');
     try {
-      const cleaned: Record<string, string | string[] | undefined> = {};
+      await autosave.flush();
+      const cleaned: QuestionnaireAnswers = {};
       Object.entries(answers).forEach(([k, v]) => {
         cleaned[k] = v;
       });
@@ -368,9 +182,10 @@ export function CompanyOnboarding() {
   }
 
   const sectionNav = (
-    <nav className={cn(isNarrow ? 'flex gap-2 overflow-x-auto pb-1' : 'space-y-1')} aria-label="Questionnaire sections">
-      {QUESTIONNAIRE_SECTIONS.map((s) => {
-        const touched = sectionTouched(s.id, answers);
+    <nav className={cn(isNarrow ? 'flex gap-2 overflow-x-auto pb-1' : 'space-y-1')} aria-label="Questionnaire steps">
+      {QUESTIONNAIRE_STEPS.map((s) => {
+        const touched = stepTouched(s.id, answers);
+        const done = stepComplete(s.id, answers);
         const active = s.id === sectionId;
         return (
           <button
@@ -388,10 +203,16 @@ export function CompanyOnboarding() {
             <span
               className={cn(
                 'flex h-5 w-5 items-center justify-center rounded-full text-[10px]',
-                active ? 'bg-primary-foreground/20' : touched ? 'bg-primary/15 text-primary' : 'bg-muted'
+                active
+                  ? 'bg-primary-foreground/20'
+                  : done
+                    ? 'bg-primary/15 text-primary'
+                    : touched
+                      ? 'bg-primary/5 text-primary'
+                      : 'bg-muted'
               )}
             >
-              {touched ? <Check className="h-3 w-3" /> : s.id}
+              {done ? <Check className="h-3 w-3" /> : s.id}
             </span>
             {isNarrow ? s.shortTitle : s.title}
           </button>
@@ -405,13 +226,22 @@ export function CompanyOnboarding() {
       <div className="sticky top-0 z-20 -mx-1 space-y-3 bg-background/95 px-1 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <PageHeader
           title="Company profile"
-          description="A sharper profile means sharper insight — fill in what you can, nothing is required."
+          description="Your answers save as you go. The percentage tracks the essential questions only — the rest are worth answering, never required."
         />
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
             <ProgressBar value={percent} />
           </div>
           <span className="shrink-0 text-sm font-semibold tabular-nums text-foreground">{percent}%</span>
+          {/* Reserves its own width so the bar does not jump as the text changes. */}
+          <span
+            aria-live="polite"
+            className="w-16 shrink-0 text-right text-xs text-muted-foreground"
+          >
+            {autosave.status === 'saving' && 'Saving…'}
+            {autosave.status === 'saved' && 'Saved'}
+            {autosave.status === 'error' && <span className="text-status-error">Not saved</span>}
+          </span>
         </div>
         {isNarrow ? sectionNav : null}
       </div>
@@ -472,20 +302,23 @@ export function CompanyOnboarding() {
         <Card className="space-y-6 p-4 sm:p-6">
           <div>
             <p className="m-0 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Section {section.id} of {QUESTIONNAIRE_SECTIONS.length}
+              Step {section.id} of {STEP_COUNT}
             </p>
             <h2 className="m-0 mt-1 text-xl font-medium text-foreground">{section.title}</h2>
           </div>
 
-          <div className="space-y-6">
-            {section.fields.map((field) => (
-              <FieldEditor
-                key={field.id}
-                field={field}
-                answers={answers}
-                setAnswer={setAnswer}
-                isNarrow={isNarrow}
-              />
+          <div className="space-y-8">
+            {section.screens.map((screen) => (
+              <div key={screen.id} className="space-y-6">
+                {screen.fields.map((field) => (
+                  <FieldRenderer
+                    key={field.id}
+                    field={field}
+                    answers={answers}
+                    setAnswer={setAnswer}
+                  />
+                ))}
+              </div>
             ))}
           </div>
 
@@ -498,13 +331,13 @@ export function CompanyOnboarding() {
               <ChevronLeft className="mr-1 h-4 w-4" />
               Back
             </Button>
-            {sectionId < 10 ? (
+            {sectionId < STEP_COUNT ? (
               <Button loading={saving} onClick={() => persist(sectionId + 1)}>
                 Save & continue
                 <ChevronRight className="ml-1 h-4 w-4" />
               </Button>
             ) : (
-              <Button loading={finishing || saving} onClick={() => persist(10, { markComplete: true })}>
+              <Button loading={finishing || saving} onClick={() => persist(STEP_COUNT, { markComplete: true })}>
                 Finish profile
               </Button>
             )}
@@ -526,7 +359,7 @@ export function CompanyOnboarding() {
           >
             Back
           </Button>
-          {sectionId < 10 ? (
+          {sectionId < STEP_COUNT ? (
             <Button size="sm" className="flex-[2]" loading={saving} onClick={() => persist(sectionId + 1)}>
               Save & continue
             </Button>
@@ -535,7 +368,7 @@ export function CompanyOnboarding() {
               size="sm"
               className="flex-[2]"
               loading={finishing || saving}
-              onClick={() => persist(10, { markComplete: true })}
+              onClick={() => persist(STEP_COUNT, { markComplete: true })}
             >
               Finish
             </Button>
