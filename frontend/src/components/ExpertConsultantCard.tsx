@@ -107,7 +107,7 @@ export function ExpertConsultantCard({ consultant, compact, token, footer, class
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="m-0 text-lg font-medium text-foreground">{consultant.name}</h3>
-              {consultant.platform_verified ? <Badge variant="success">Worktruth verified</Badge> : null}
+              {consultant.platform_verified ? <Badge variant="success">Mjadi verified</Badge> : null}
             </div>
             {consultant.headline ? <p className="mt-1 text-sm text-muted-foreground">{consultant.headline}</p> : null}
             <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">

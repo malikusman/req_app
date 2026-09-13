@@ -35,7 +35,7 @@ company = Company.find_by(slug: "acme-corp") || Company.first
 raise "no company" unless company
 
 # Platform first-party catalog product + company match (post owned-solutions revert)
-entry = SolutionCatalogEntry.find_or_create_by!(name: "Worktruth AP Copilot") do |e|
+entry = SolutionCatalogEntry.find_or_create_by!(name: "Mjadi AP Copilot") do |e|
   e.category = "automation"
   e.active = true
   e.first_party = true

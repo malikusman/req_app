@@ -1,15 +1,15 @@
-# Worktruth — Project Status & Demo Guide
+# Mjadi — Project Status & Demo Guide
 
 > Last updated: July 2026  
-> Brand: **Worktruth** (repo/codename: `req_app`)
+> Brand: **Mjadi** (repo/codename: `req_app`)
 
-This document explains **what Worktruth is**, **what has been built**, **where we are now**, **how the demo seed works**, and **what is left to do**.
+This document explains **what Mjadi is**, **what has been built**, **where we are now**, **how the demo seed works**, and **what is left to do**.
 
 ---
 
 ## Table of contents
 
-1. [What Worktruth is](#what-worktruth-is)
+1. [What Mjadi is](#what-mjadi-is)
 2. [Architecture at a glance](#architecture-at-a-glance)
 3. [What we have done (by phase)](#what-we-have-done-by-phase)
 4. [Multi-agent discovery (latest major feature)](#multi-agent-discovery-latest-major-feature)
@@ -23,9 +23,9 @@ This document explains **what Worktruth is**, **what has been built**, **where w
 
 ---
 
-## What Worktruth is
+## What Mjadi is
 
-**Worktruth** is an enterprise workflow discovery platform. It:
+**Mjadi** is an enterprise workflow discovery platform. It:
 
 1. **Builds a document baseline** — upload SOPs, policies, and exports for signals without inviting employees yet.
 2. **Interviews employees over WhatsApp or web chat** — adaptive AI questions, voice notes, images, documents.
@@ -36,7 +36,7 @@ Three authenticated portals serve different audiences:
 
 | Portal | Audience |
 |--------|----------|
-| **Platform** (`/platform`) | Worktruth operators — companies, trials, playbooks, audit, system health |
+| **Platform** (`/platform`) | Mjadi operators — companies, trials, playbooks, audit, system health |
 | **Company** (`/company`) | Client admins — employees, documents, intelligence, reports, billing |
 | **Reviewer** (`/reviewer`) | External experts — assigned companies, report review, WhatsApp follow-ups |
 
@@ -94,7 +94,7 @@ Rails owns **canonical state** (`conversations.state_snapshot` blackboard). The 
 | **8 — Reviewer role** | Done | Reviewer portal, report section review, WhatsApp follow-ups, co-reviewer chat |
 | **Demo wiring** | Done | Rich Acme + Beta seed, platform/company/reviewer dashboards wired to APIs |
 | **Multi-agent (A/B/C)** | Done | Profiling, supervisor agents, blackboard, company memory, debug UI, dry-run simulator |
-| **Marketing redesign** | Done | Light theme, dual-path docs + interviews positioning, Worktruth brand |
+| **Marketing redesign** | Done | Light theme, dual-path docs + interviews positioning, Mjadi brand |
 | **Portal UI refresh** | In progress | Docs-first IA, empty states, honesty banners |
 | **Multi-agent Phase D** | Planned | Postgres checkpointer, Reviewer Liaison + Gap Analyst agents |
 

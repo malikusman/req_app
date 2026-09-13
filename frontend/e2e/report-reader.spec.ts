@@ -9,7 +9,7 @@ import { test, expect, type Page } from '@playwright/test';
 // Setup: `docker compose up`, then
 //   docker compose exec rails bundle exec rake e2e:seed_report_reader
 
-const EMAIL = process.env.E2E_EMAIL ?? 'reader-e2e@worktruth.test';
+const EMAIL = process.env.E2E_EMAIL ?? 'reader-e2e@mjadi.test';
 const PASSWORD = process.env.E2E_PASSWORD ?? 'ReaderE2E123!';
 
 async function login(page: Page) {

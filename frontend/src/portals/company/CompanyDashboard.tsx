@@ -413,7 +413,7 @@ export function CompanyDashboard() {
             <EmptyState
               icon={UserCircle}
               title="No consultant assigned yet"
-              description="A Worktruth expert appears here once they’re assigned to your company."
+              description="A Mjadi expert appears here once they’re assigned to your company."
               className="py-8"
             />
           )}

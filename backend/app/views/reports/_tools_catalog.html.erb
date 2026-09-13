@@ -6,7 +6,7 @@
   <div class="eyebrow">Capabilities</div>
   <h1 class="page-title">Products that already fit</h1>
   <% if tools.any? %>
-    <p class="lead" style="max-width:210mm;margin-bottom:5mm;">Existing solutions — our own products and partner tools — matched to the frictions above. "Worktruth product" is built by us; others are curated partners. Consultant-endorsed picks are flagged.</p>
+    <p class="lead" style="max-width:210mm;margin-bottom:5mm;">Existing solutions — our own products and partner tools — matched to the frictions above. "Mjadi product" is built by us; others are curated partners. Consultant-endorsed picks are flagged.</p>
   <% end %>
   <% if tools.any? %>
     <div class="card-grid-3">
@@ -16,7 +16,7 @@
       %>
         <div class="rec-card">
           <div class="match"><%= h tool["category"] %><% if score_label %> · <%= h score_label %><% end %><% if tool["placement"] == "extends_stack" || tool["already_in_stack"] %> · Extends stack<% elsif tool["placement"] == "new_capability" %> · New capability<% end %></div>
-          <h4><%= h tool["name"] %><% if tool["first_party"] %> <span style="font-size:8pt;color:var(--teal);font-weight:700;">· Worktruth product</span><% end %></h4>
+          <h4><%= h tool["name"] %><% if tool["first_party"] %> <span style="font-size:8pt;color:var(--teal);font-weight:700;">· Mjadi product</span><% end %></h4>
           <% if tool["vendor"].present? %><p><%= h tool["vendor"] %></p><% end %>
           <% if tool["consultant_added"] %><p style="font-size:8pt;color:var(--magenta);">Added by consultant<%= tool["consultant_name"].present? ? " (#{tool['consultant_name']})" : "" %></p><% end %>
           <% clean_reason = report_clean_reason(tool["reason"]) %>

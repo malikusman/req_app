@@ -50,7 +50,7 @@ export function SetPasswordPage() {
   };
 
   return (
-    <AuthLayout portal={portal} portalName="Worktruth" tagline="Choose a password to finish setting up your account.">
+    <AuthLayout portal={portal} portalName="Mjadi" tagline="Choose a password to finish setting up your account.">
       <div className="mb-6">
         <h1 className="font-display text-page-title text-text-primary m-0">Set password</h1>
         {email ? <p className="mt-1 text-sm text-text-secondary">{email}</p> : null}

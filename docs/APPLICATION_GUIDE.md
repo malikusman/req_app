@@ -1,4 +1,4 @@
-# Worktruth (Req) — Application Architecture & Portals Guide
+# Mjadi (Req) — Application Architecture & Portals Guide
 
 **Audience:** product, engineering, and partner discussions covering architecture, functionality, and UI/UX.  
 **Scope:** current shipped behavior (local + production-shaped).  
@@ -24,7 +24,7 @@
 
 ### 1.1 What the product does
 
-Worktruth helps organizations discover how work actually happens—approvals, tools, handoffs, pain points—then turn that evidence into **actionable intelligence** and a **reviewed report**.
+Mjadi helps organizations discover how work actually happens—approvals, tools, handoffs, pain points—then turn that evidence into **actionable intelligence** and a **reviewed report**.
 
 Companies can start from **documents** (SOPs, spreadsheets, PDFs), from **employee interviews** (WhatsApp or browser chat), or both. Interviews are guided by an AI discovery system (optionally multi-agent specialists). Results are aggregated into signals, patterns, and recommendations. External **consultants** validate the report; **platform** can approve visibility; the **company** downloads and shares the finished artifact.
 
@@ -32,7 +32,7 @@ Companies can start from **documents** (SOPs, spreadsheets, PDFs), from **employ
 
 | Actor | Who they are | Primary surface |
 |-------|----------------|-----------------|
-| **Platform Admin** | Worktruth operators | `/platform/*` |
+| **Platform Admin** | Mjadi operators | `/platform/*` |
 | **Company Admin (Client)** | Customer organization admin | `/company/*` |
 | **Consultant** | External domain expert assigned by platform (max 2 per company) | `/consultant/*` |
 | **Employee** | Interviewee inside the company | WhatsApp bot and/or `/discover/:token` |
@@ -720,7 +720,7 @@ Domain events create in-app notifications (and sometimes email): interview start
 ### 8.1 Portal shells
 
 - Consistent sidebar + top bar pattern across platform/company/consultant.
-- Company branding signal: company name in chrome; Worktruth product framing on marketing/auth.
+- Company branding signal: company name in chrome; Mjadi product framing on marketing/auth.
 - Consultant report workspace goes **full-bleed** to maximize evidence density.
 
 ### 8.2 Progressive engagement

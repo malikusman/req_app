@@ -5,7 +5,7 @@ namespace :e2e do
   task seed_report_reader: :environment do
     abort "Refusing to run in production" if Rails.env.production?
 
-    email = ENV.fetch("E2E_EMAIL", "reader-e2e@worktruth.test")
+    email = ENV.fetch("E2E_EMAIL", "reader-e2e@mjadi.test")
     password = ENV.fetch("E2E_PASSWORD", "ReaderE2E123!")
 
     company = Company.find_or_create_by!(slug: "reader-e2e") do |c|
@@ -82,7 +82,7 @@ namespace :e2e do
 
     # A consultant-authored section, so the reader's jump rail has to handle the
     # .expert-page case where every eyebrow reads "Expert consultant".
-    consultant = ConsultantUser.find_or_initialize_by(email: "reader-e2e-consultant@worktruth.test")
+    consultant = ConsultantUser.find_or_initialize_by(email: "reader-e2e-consultant@mjadi.test")
     consultant.assign_attributes(
       name: "Dr E2E Reviewer", headline: "12 yrs operations", status: "active",
       password: password, expertise_tags: %w[operations finance]

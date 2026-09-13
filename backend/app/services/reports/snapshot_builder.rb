@@ -292,14 +292,14 @@ module Reports
       depts = @company.documents.where(status: "ready").where.not(department: [nil, ""]).distinct.pluck(:department).compact
 
       context = if docs_first
-                  "Worktruth reviewed #{doc_count} internal #{'document'.pluralize(doc_count)}" \
+                  "Mjadi reviewed #{doc_count} internal #{'document'.pluralize(doc_count)}" \
                     "#{depts.any? ? " spanning #{depts.join(', ')}" : ""} to establish an operations baseline" \
                     " before live interviews expand the evidence set."
                 else
                   participation = Intelligence::SnapshotBuilder.call(company: @company)["participation"] || {}
                   completed = participation["completed"].to_i
                   invited = [participation["invited"].to_i, completed].max
-                  "Worktruth analyzed discovery interviews (#{completed} of #{invited} completed)" \
+                  "Mjadi analyzed discovery interviews (#{completed} of #{invited} completed)" \
                     "#{doc_count.positive? ? " alongside #{doc_count} internal documents" : ""} " \
                     "to surface where work slows, breaks, or depends on manual workarounds."
                 end

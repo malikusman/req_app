@@ -1,4 +1,4 @@
-# Worktruth — Agents & Reporting: Technical Review Pack
+# Mjadi — Agents & Reporting: Technical Review Pack
 
 *A complete walkthrough of the AI agents and the report pipeline: what each agent is,
 when it is called, what it receives, what it returns, what happens when it fails, and

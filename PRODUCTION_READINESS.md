@@ -1,8 +1,8 @@
-# Worktruth — Production Readiness & Roadmap Plan
+# Mjadi — Production Readiness & Roadmap Plan
 
 > **Status:** Planning document. Nothing here is implemented yet.
 > **Audience:** An implementing agent (Cursor) or engineer. Every item is written to be actioned directly.
-> **Repo:** `req_app` (brand: **Worktruth**). Rails 7 API + React/Vite/TS frontend + Python LangGraph agent, Docker.
+> **Repo:** `req_app` (brand: **Mjadi**). Rails 7 API + React/Vite/TS frontend + Python LangGraph agent, Docker.
 > **Base branch for this doc:** `production-readiness-plan` (cut from `report-update`).
 > **Created:** July 2026, from a full read-only audit of `report-update`.
 
@@ -10,7 +10,7 @@
 
 ## 0. How to use this document
 
-This file is the single source of truth for getting Worktruth to production and closing the product gaps found in review. It is split into:
+This file is the single source of truth for getting Mjadi to production and closing the product gaps found in review. It is split into:
 
 - **Part A — Production blockers & hardening** (must-fix engineering / security / ops).
 - **Part B — Product feature work** (the five product concerns from stakeholder feedback).
@@ -530,7 +530,7 @@ Add missing entries to `.env.example` and `deploy/.env.production.example`. **Bo
 | **`SENTRY_DSN`** | Rails/Sidekiq | BLK-4 (deferred on easy-wins track) |
 | **`VITE_SENTRY_DSN`** | Frontend | BLK-4 (deferred) |
 | **`LANGSMITH_API_KEY`** | Python agent | BLK-4 — enables LangSmith tracing when set |
-| **`LANGSMITH_PROJECT`** | Python agent | default `worktruth-agent` |
+| **`LANGSMITH_PROJECT`** | Python agent | default `mjadi-agent` |
 | **`LANGSMITH_TRACING`** | Python agent | optional; auto-on when API key set; `false` to disable |
 | **`STRIPE_SECRET_KEY`** | Rails | BLK-5 |
 | **`STRIPE_WEBHOOK_SECRET`** | Rails | BLK-5 — hard-required in prod |
@@ -542,7 +542,7 @@ Add missing entries to `.env.example` and `deploy/.env.production.example`. **Bo
 | `GOTENBERG_URL` | Rails | PDF |
 | `LANGGRAPH_URL` / agent host | Rails | discovery |
 | `ALLOW_MOCKS` | Rails/agent | **must be unset/0 in prod** |
-| `SALES_INBOX` | Rails | demo-request notifications (defaults to sales@worktruth.com) |
+| `SALES_INBOX` | Rails | demo-request notifications (defaults to sales@mjadi.com) |
 
 ## Appendix B — Key file map
 

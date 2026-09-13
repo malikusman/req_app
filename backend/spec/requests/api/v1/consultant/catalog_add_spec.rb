@@ -6,7 +6,7 @@ RSpec.describe "Consultant catalog add-from-catalog", type: :request do
   let(:company) { create(:company, :onboarded) }
   let(:consultant) { create(:consultant_user) }
   let!(:first_party) do
-    SolutionCatalogEntry.create!(name: "Worktruth AP Copilot", category: "automation", active: true, first_party: true)
+    SolutionCatalogEntry.create!(name: "Mjadi AP Copilot", category: "automation", active: true, first_party: true)
   end
   let!(:third_party) do
     SolutionCatalogEntry.create!(name: "Zapier", category: "automation", active: true, first_party: false)
@@ -18,8 +18,8 @@ RSpec.describe "Consultant catalog add-from-catalog", type: :request do
     get "/api/v1/consultant/companies/#{company.id}/catalog/available", headers: auth_headers_for(consultant)
     expect(response).to have_http_status(:ok)
     names = JSON.parse(response.body)["solutions"].map { |s| s["name"] }
-    expect(names).to include("Worktruth AP Copilot", "Zapier")
-    expect(names.first).to eq("Worktruth AP Copilot") # first_party ordered first
+    expect(names).to include("Mjadi AP Copilot", "Zapier")
+    expect(names.first).to eq("Mjadi AP Copilot") # first_party ordered first
   end
 
   it "adds a catalog product to the company with consultant attribution" do
@@ -40,7 +40,7 @@ RSpec.describe "Consultant catalog add-from-catalog", type: :request do
     CompanyCatalogMatch.create!(company: company, solution_catalog_entry: third_party, score: 0.5, matched_at: Time.current)
     get "/api/v1/consultant/companies/#{company.id}/catalog/available", headers: auth_headers_for(consultant)
     names = JSON.parse(response.body)["solutions"].map { |s| s["name"] }
-    expect(names).to include("Worktruth AP Copilot")
+    expect(names).to include("Mjadi AP Copilot")
     expect(names).not_to include("Zapier")
   end
 

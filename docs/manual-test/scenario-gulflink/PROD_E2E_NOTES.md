@@ -19,7 +19,7 @@ Report: **id=5** version **2** · Review **id=5** · 5 findings · 3 section com
 | Stage | Result |
 |-------|--------|
 | Questionnaire | **100%** |
-| First-party catalog | Worktruth AP Copilot + Ops Copilot matched |
+| First-party catalog | Mjadi AP Copilot + Ops Copilot matched |
 | Consultant Nadia | ProfileCompleteness **100%**, assigned |
 | Usman WA invite | **sent** (Meta wamid present) · **no profile seed** |
 | James / Elena / Ahmer | Full web discovery **completed** · 10 insights each · media attached |

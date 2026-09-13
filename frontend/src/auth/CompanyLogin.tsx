@@ -10,7 +10,7 @@ export function CompanyLogin() {
   return (
     <LoginForm
       portal="company"
-      portalName="Worktruth — Company"
+      portalName="Mjadi — Company"
       tagline="Run workflow discovery and intelligence for your organization."
       defaultEmail=""
       forgotPasswordTo="/auth/forgot-password?portal=company"

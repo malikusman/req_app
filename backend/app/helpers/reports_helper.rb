@@ -97,7 +97,7 @@ module ReportsHelper
   end
 
   def report_brand_footer(company_name, snapshot = nil)
-    "Worktruth · #{company_name} #{report_kind_noun(snapshot || @_report_snapshot)} Report"
+    "Mjadi · #{company_name} #{report_kind_noun(snapshot || @_report_snapshot)} Report"
   end
 
   # "Baseline" for docs-only companies, "Discovery" once interviews contribute.
@@ -364,7 +364,7 @@ module ReportsHelper
 
   def report_source_caption(company_name, version: nil)
     ver = version.present? ? "v#{version}" : "snapshot"
-    "Source: Worktruth discovery #{ver} · #{company_name}"
+    "Source: Mjadi discovery #{ver} · #{company_name}"
   end
 
   SECTION_LABELS = {

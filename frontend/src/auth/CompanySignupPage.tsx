@@ -47,7 +47,7 @@ export function CompanySignupPage() {
   return (
     <AuthLayout
       portal="company"
-      portalName="Worktruth — Company"
+      portalName="Mjadi — Company"
       tagline="Request a company account. A platform admin will approve access before you can sign in."
     >
       <div className="mb-6">

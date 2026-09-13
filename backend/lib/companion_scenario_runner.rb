@@ -116,10 +116,10 @@ class CompanionScenarioRunner
   end
 
   def ensure_catalog!
-    entry = SolutionCatalogEntry.find_or_initialize_by(slug: "worktruth-ap-copilot-eval")
+    entry = SolutionCatalogEntry.find_or_initialize_by(slug: "mjadi-ap-copilot-eval")
     entry.assign_attributes(
-      name: "Worktruth AP Copilot",
-      vendor: "Worktruth",
+      name: "Mjadi AP Copilot",
+      vendor: "Mjadi",
       category: "ai_agent",
       description: "AP invoice matching and exception triage for freight finance teams.",
       tags: %w[Finance AP invoice matching],

@@ -60,7 +60,7 @@ export function AuthLayout({ portal, portalName, tagline, children }: AuthLayout
         >
           <motion.div variants={fadeUp} transition={transition.reveal} className="flex items-center gap-2">
             <span className="h-6 w-2 shrink-0 rounded-sm bg-primary" aria-hidden />
-            <span className="text-3xl font-bold tracking-tight text-foreground">Worktruth</span>
+            <span className="text-3xl font-bold tracking-tight text-foreground">Mjadi</span>
           </motion.div>
           <motion.p
             variants={fadeUp}

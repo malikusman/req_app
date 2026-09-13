@@ -2,11 +2,11 @@
  * Marketing site copy — single source of truth for the public homepage.
  * Edit here when positioning, pricing, or product capabilities change.
  * Voice: warm, plain, confident — the product interviews people, so the site talks like a person.
- * Brand: Worktruth
+ * Brand: Mjadi
  */
 
-export const BRAND_NAME = 'Worktruth';
-export const SALES_EMAIL = 'sales@worktruth.com';
+export const BRAND_NAME = 'Mjadi';
+export const SALES_EMAIL = 'sales@mjadi.com';
 
 export const marketingContent = {
   nav: {
@@ -27,11 +27,11 @@ export const marketingContent = {
     headline: 'Your team already knows what’s broken.',
     headlineAccent: 'Just ask.',
     subhead:
-      'Worktruth builds operational truth from the evidence you already have: upload SOPs and exports for a baseline, then interview people on WhatsApp or web chat. Same intelligence graph. Versioned reports your leadership can defend.',
+      'Mjadi builds operational truth from the evidence you already have: upload SOPs and exports for a baseline, then interview people on WhatsApp or web chat. Same intelligence graph. Versioned reports your leadership can defend.',
     primaryCta: 'Request a demo',
     secondaryCta: 'See how it works',
     chat: {
-      contactName: 'Worktruth',
+      contactName: 'Mjadi',
       contactStatus: 'online · WhatsApp',
       messages: [
         {
@@ -80,7 +80,7 @@ export const marketingContent = {
     eyebrow: 'The problem',
     title: 'Your org chart is not your operating model',
     subtitle:
-      'Transformation stalls when discovery is slow, shallow, or filtered through three layers of management. Worktruth goes straight to the evidence — documents and the people doing the work.',
+      'Transformation stalls when discovery is slow, shallow, or filtered through three layers of management. Mjadi goes straight to the evidence — documents and the people doing the work.',
     pains: [
       {
         title: 'Surveys measure mood, not workflow',
@@ -90,7 +90,7 @@ export const marketingContent = {
       {
         title: 'Consulting discovery is expensive and episodic',
         description:
-          'A six-week interview blitz produces a deck, then the map goes stale. Worktruth keeps discovery running: upload more docs, invite more people, refresh intelligence, regenerate the report.',
+          'A six-week interview blitz produces a deck, then the map goes stale. Mjadi keeps discovery running: upload more docs, invite more people, refresh intelligence, regenerate the report.',
       },
       {
         title: 'IT assessments miss the front line',
@@ -100,7 +100,7 @@ export const marketingContent = {
       {
         title: 'AI pilots fail without operational truth',
         description:
-          'You can’t prioritise automation until you know which processes are manual, duplicated, and politically entrenched. Worktruth surfaces structured evidence you can defend.',
+          'You can’t prioritise automation until you know which processes are manual, duplicated, and politically entrenched. Mjadi surfaces structured evidence you can defend.',
       },
     ],
   },
@@ -113,7 +113,7 @@ export const marketingContent = {
       {
         title: 'Upload a document baseline',
         description:
-          'Drop in SOPs, policies, org charts, and finance exports. Worktruth parses text, extracts structured signals, and can produce a baseline report with zero employees invited.',
+          'Drop in SOPs, policies, org charts, and finance exports. Mjadi parses text, extracts structured signals, and can produce a baseline report with zero employees invited.',
         details: [
           'SOPs, policies, CSVs, and common office formats',
           'Department tagging for coverage and readiness',
@@ -133,7 +133,7 @@ export const marketingContent = {
       {
         title: 'A report you can defend',
         description:
-          'Worktruth generates versioned reports with deltas against the last run. Expert consultants annotate section by section before anything reaches leadership. Recommendations map to your solution catalog with evidence links.',
+          'Mjadi generates versioned reports with deltas against the last run. Expert consultants annotate section by section before anything reaches leadership. Recommendations map to your solution catalog with evidence links.',
         details: [
           'Versioned PDF & share links with access logging',
           'Independent expert review before delivery',
@@ -213,7 +213,7 @@ export const marketingContent = {
     eyebrow: 'Beyond the report',
     title: 'Discovery that keeps working after the PDF',
     subtitle:
-      'The report is a milestone, not the finish line. Worktruth keeps matching your evidence against what is possible — and tells the right people when something changes.',
+      'The report is a milestone, not the finish line. Mjadi keeps matching your evidence against what is possible — and tells the right people when something changes.',
     items: [
       {
         title: 'An agentic-AI backlog, grounded in your evidence',
@@ -227,7 +227,7 @@ export const marketingContent = {
       },
       {
         title: 'Stack-aware recommendations',
-        body: 'Worktruth infers which systems you already run from documents and interviews. Recommendations flag whether a tool extends something you own or adds a new capability — so effort estimates are honest.',
+        body: 'Mjadi infers which systems you already run from documents and interviews. Recommendations flag whether a tool extends something you own or adds a new capability — so effort estimates are honest.',
         badge: 'Client stack',
       },
     ],
@@ -262,7 +262,7 @@ export const marketingContent = {
       },
       {
         title: 'Platform console',
-        for: 'Worktruth operators & partners',
+        for: 'Mjadi operators & partners',
         features: [
           'Company and trial management, audit log, support impersonation',
           'Discovery playbooks by department and solution catalog',
@@ -277,7 +277,7 @@ export const marketingContent = {
     eyebrow: 'Who it’s for',
     title: 'Built for teams who own change',
     subtitle:
-      'Run discovery in-house or as a partner — Worktruth compresses time-to-insight without sacrificing depth.',
+      'Run discovery in-house or as a partner — Mjadi compresses time-to-insight without sacrificing depth.',
     items: [
       {
         title: 'COO & transformation offices',
@@ -301,8 +301,8 @@ export const marketingContent = {
   method: {
     eyebrow: 'The method',
     quote:
-      'Start with the files that already describe how work should happen — then interview the people who know where it actually breaks. Worktruth keeps both on one evidence graph so the report gets stronger over time, not rewritten from scratch.',
-    label: 'How every Worktruth engagement runs',
+      'Start with the files that already describe how work should happen — then interview the people who know where it actually breaks. Mjadi keeps both on one evidence graph so the report gets stronger over time, not rewritten from scratch.',
+    label: 'How every Mjadi engagement runs',
   },
 
   faq: {
@@ -314,7 +314,7 @@ export const marketingContent = {
       },
       {
         q: 'How is this different from an employee survey?',
-        a: 'Surveys aggregate opinions. Worktruth runs adaptive interviews and structured extraction from documents: follow-ups clarify tools and steps, then signals and patterns are tied to workflow evidence — quotes from interviews, excerpts from files.',
+        a: 'Surveys aggregate opinions. Mjadi runs adaptive interviews and structured extraction from documents: follow-ups clarify tools and steps, then signals and patterns are tied to workflow evidence — quotes from interviews, excerpts from files.',
       },
       {
         q: 'What languages are supported?',

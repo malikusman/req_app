@@ -34,7 +34,7 @@ export function ForgotPasswordPage() {
   };
 
   return (
-    <AuthLayout portal={portal} portalName="Worktruth" tagline="Reset your password with a secure email link.">
+    <AuthLayout portal={portal} portalName="Mjadi" tagline="Reset your password with a secure email link.">
       <div className="mb-6">
         <h1 className="font-display text-page-title text-text-primary m-0">Forgot password</h1>
         <p className="mt-1 text-sm text-text-secondary">

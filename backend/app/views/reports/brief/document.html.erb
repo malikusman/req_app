@@ -2,7 +2,7 @@
 <html lang="<%= snapshot.dig('company', 'locale') || 'en' %>">
 <head>
   <meta charset="utf-8"/>
-  <title>Worktruth Executive Brief — <%= h snapshot.dig('company', 'name') %></title>
+  <title>Mjadi Executive Brief — <%= h snapshot.dig('company', 'name') %></title>
   <%= render "reports/brief/styles" %>
 </head>
 <body>
@@ -28,7 +28,7 @@
 <%# ===== PAGE 1 · THE ANSWER, AND WHAT IT'S WORTH ===================== %>
 <section class="page">
   <div class="masthead">
-    <div class="logo">Worktruth<span class="muted" style="font-family:var(--sans);font-size:7.5pt;font-weight:500;"> · Executive brief</span></div>
+    <div class="logo">Mjadi<span class="muted" style="font-family:var(--sans);font-size:7.5pt;font-weight:500;"> · Executive brief</span></div>
     <div class="meta">
       <%= h company_name %><br/>
       <%= h generated_label %> · v<%= report_version %>
@@ -236,7 +236,7 @@
     <% else %>
       <p>Review the recommendations with the owners named against each, and pick the first one to fund.</p>
     <% end %>
-    <div class="pointer">The full report — every signal, all supporting evidence and the complete expert appendix — is available in your Worktruth portal.</div>
+    <div class="pointer">The full report — every signal, all supporting evidence and the complete expert appendix — is available in your Mjadi portal.</div>
   </div>
   <%= foot.call(4) %>
 </section>

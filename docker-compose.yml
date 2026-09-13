@@ -75,7 +75,7 @@ services:
       INTERNAL_API_TOKEN: dev-internal-token
       REDIS_URL: redis://redis:6379/0
       LANGSMITH_API_KEY: ${LANGSMITH_API_KEY:-}
-      LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-worktruth-agent}
+      LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-mjadi-agent}
       LANGSMITH_TRACING: ${LANGSMITH_TRACING:-}
     depends_on:
       - redis

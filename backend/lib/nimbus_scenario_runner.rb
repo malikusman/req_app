@@ -21,7 +21,7 @@
 class NimbusScenarioRunner
   SLUG = "nimbus-trading"
   ADMIN_EMAIL = "omar@nimbus.ae"
-  CONSULTANT_EMAIL = "samir.ops@consultants.worktruth.local"
+  CONSULTANT_EMAIL = "samir.ops@consultants.mjadi.local"
 
   # Tuned for a SLOW local model: interviews run strictly one employee at a time
   # (the runner is fully serial), and these keep the total LLM turn count small.
@@ -253,7 +253,7 @@ class NimbusScenarioRunner
     end
 
     # A stray active assignment from an older run (e.g. the pre-rename
-    # samir.ops@reviewers.worktruth.local record) sits on this company forever
+    # samir.ops@reviewers.mjadi.local record) sits on this company forever
     # otherwise, and check_all_submitted! correctly refuses to call reviews
     # complete while ANY active consultant hasn't submitted -- so a leftover
     # nobody submits for silently blocks reviews_complete indefinitely. A fresh

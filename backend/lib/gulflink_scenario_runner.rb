@@ -10,7 +10,7 @@
 #       findings/submit → regenerate appendix → observations.
 class GulflinkScenarioRunner
   SLUG = "gulflink-logistics"
-  CONSULTANT_EMAIL = "nadia.mckinsey@consultants.worktruth.local"
+  CONSULTANT_EMAIL = "nadia.mckinsey@consultants.mjadi.local"
   CEO_EMAIL = "ceo@gulflink.ae"
   CONTROLLER_PHONE = "+971500011001"
 

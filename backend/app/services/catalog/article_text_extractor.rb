@@ -18,7 +18,7 @@ module Catalog
       result = Http::GetWithRedirects.call(
         @url,
         headers: {
-          "User-Agent" => "WorktruthCatalogSync/1.0",
+          "User-Agent" => "MjadiCatalogSync/1.0",
           "Accept" => "text/html,application/xhtml+xml"
         },
         open_timeout: 5,

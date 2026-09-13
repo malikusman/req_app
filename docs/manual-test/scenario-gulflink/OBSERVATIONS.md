@@ -20,7 +20,7 @@ Checks: **28/28 passed** (final run)
 
 - Company CEO: `ceo@gulflink.ae` / `password123`
 - Finance Controller (seeded for Q&A): `controller@gulflink.ae` (employee channel)
-- Consultant: `nadia.mckinsey@consultants.worktruth.local` / `password123`
+- Consultant: `nadia.mckinsey@consultants.mjadi.local` / `password123`
 - Platform: `admin@reqapp.local` (seed password)
 - Report id: 29 (version 3)
 
