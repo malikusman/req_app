@@ -14,7 +14,7 @@ RSpec.describe Discovery::ContextBuilder do
   describe ".limits_for" do
     it "falls back to the code defaults" do
       expect(described_class.limits_for(company)).to eq(
-        max_questions: 8,
+        max_questions: 12,
         min_questions: 4,
         stall_turns: 2,
         slot_confidence: 0.6,

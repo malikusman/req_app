@@ -15,15 +15,52 @@ def bb_with(areas, slots=None):
 
 class TestRequiredKeys:
     def test_grows_with_each_area(self):
-        assert dossier.required_keys(bb_with([])) == ["ai_current_usage"]
+        assert dossier.required_keys(bb_with([]), THRESHOLD) == ["ai_current_usage"]
 
-        keys = dossier.required_keys(bb_with(["Invoicing"]))
+        keys = dossier.required_keys(bb_with(["Invoicing"]), THRESHOLD)
         assert "how_it_works::Invoicing" in keys
         assert "friction::Invoicing" in keys
+        # friction_cost is not required yet -- its trigger has not fired.
+        assert "friction_cost::Invoicing" not in keys
         assert len(keys) == 3
 
     def test_two_areas_yield_five_required_slots(self):
-        assert len(dossier.required_keys(bb_with(["Invoicing", "Month-end"]))) == 5
+        assert len(dossier.required_keys(bb_with(["Invoicing", "Month-end"]), THRESHOLD)) == 5
+
+    # A cost slot unlocks only once that area's friction is captured: asking how
+    # long something takes before you know what it is makes no sense.
+    def test_cost_becomes_required_once_friction_is_captured(self):
+        bb = bb_with(["Invoicing"], {"friction::Invoicing": 0.8})
+
+        assert "friction_cost::Invoicing" in dossier.required_keys(bb, THRESHOLD)
+
+    def test_cost_stays_locked_while_friction_is_only_weakly_answered(self):
+        bb = bb_with(["Invoicing"], {"friction::Invoicing": 0.4})
+
+        assert "friction_cost::Invoicing" not in dossier.required_keys(bb, THRESHOLD)
+
+    # Without a cap this scales with the area count and every interview hits the
+    # ceiling; the consultant-guided follow-up covers anything beyond two.
+    def test_at_most_two_areas_get_costed(self):
+        bb = bb_with(
+            ["Invoicing", "Month-end", "Reporting"],
+            {
+                "friction::Invoicing": 0.8,
+                "friction::Month-end": 0.8,
+                "friction::Reporting": 0.8,
+            },
+        )
+
+        costed = [k for k in dossier.required_keys(bb, THRESHOLD) if k.startswith("friction_cost")]
+        assert len(costed) == dossier.MAX_QUANTIFIED_AREAS
+
+    # merge_slots asks "could this ever be required?" when counting progress, so a
+    # cost filled for a third area must still register rather than read as a stall.
+    def test_without_a_threshold_every_cost_slot_counts_as_required(self):
+        bb = bb_with(["A", "B", "C"])
+
+        keys = dossier.required_keys(bb)
+        assert len([k for k in keys if k.startswith("friction_cost")]) == 3
 
 
 class TestCompleteness:
@@ -39,9 +76,23 @@ class TestCompleteness:
                 "ai_current_usage": 0.8,
                 "how_it_works::Invoicing": 0.8,
                 "friction::Invoicing": 0.7,
+                "friction_cost::Invoicing": 0.7,
             },
         )
         assert dossier.is_complete(bb, THRESHOLD)
+
+    def test_captured_friction_with_no_cost_is_not_complete(self):
+        bb = bb_with(
+            ["Invoicing"],
+            {
+                "ai_current_usage": 0.8,
+                "how_it_works::Invoicing": 0.8,
+                "friction::Invoicing": 0.8,
+            },
+        )
+
+        assert not dossier.is_complete(bb, THRESHOLD)
+        assert dossier.missing_required(bb, THRESHOLD) == ["friction_cost::Invoicing"]
 
     def test_low_confidence_does_not_count_as_filled(self):
         bb = bb_with(
@@ -62,9 +113,10 @@ class TestCompleteness:
                 "ai_current_usage": 0.8,
                 "how_it_works::Invoicing": 0.8,
                 "friction::Invoicing": 0.8,
+                "friction_cost::Invoicing": 0.8,
             },
         )
-        # ai_openness and volume_or_frequency are unfilled, yet the dossier is done.
+        # ai_openness is unfilled, yet the dossier is done.
         assert dossier.is_complete(bb, THRESHOLD)
 
 
@@ -157,10 +209,24 @@ class TestNextBeat:
         bb = bb_with(["Invoicing"], {"how_it_works::Invoicing": 0.8})
         assert dossier.next_beat(bb, THRESHOLD, 3)["slot"] == "friction"
 
-    def test_switches_area_when_the_current_one_is_done(self):
+    # Captured friction unlocks the cost question, so it lands before the switch.
+    def test_costs_the_friction_it_just_heard_about(self):
         bb = bb_with(
             ["Invoicing", "Month-end"],
             {"how_it_works::Invoicing": 0.8, "friction::Invoicing": 0.8},
+        )
+        beat = dossier.next_beat(bb, THRESHOLD, 3)
+        assert beat["slot"] == "friction_cost"
+        assert beat["area"] == "Invoicing"
+
+    def test_switches_area_when_the_current_one_is_done(self):
+        bb = bb_with(
+            ["Invoicing", "Month-end"],
+            {
+                "how_it_works::Invoicing": 0.8,
+                "friction::Invoicing": 0.8,
+                "friction_cost::Invoicing": 0.8,
+            },
         )
         assert dossier.next_beat(bb, THRESHOLD, 3)["area"] == "Month-end"
 
@@ -172,7 +238,11 @@ class TestNextBeat:
     def test_asks_ai_usage_once_every_area_is_understood(self):
         bb = bb_with(
             ["Invoicing"],
-            {"how_it_works::Invoicing": 0.8, "friction::Invoicing": 0.8},
+            {
+                "how_it_works::Invoicing": 0.8,
+                "friction::Invoicing": 0.8,
+                "friction_cost::Invoicing": 0.8,
+            },
         )
         assert dossier.next_beat(bb, THRESHOLD, 3)["slot"] == "ai_current_usage"
 
@@ -182,6 +252,7 @@ class TestNextBeat:
             {
                 "how_it_works::Invoicing": 0.8,
                 "friction::Invoicing": 0.8,
+                "friction_cost::Invoicing": 0.8,
                 "ai_current_usage": 0.8,
             },
         )
@@ -193,11 +264,24 @@ class TestNextBeat:
             {
                 "how_it_works::Invoicing": 0.8,
                 "friction::Invoicing": 0.8,
+                "friction_cost::Invoicing": 0.8,
                 "ai_current_usage": 0.8,
                 "ai_openness::Invoicing": 0.8,
-                "volume_or_frequency": 0.8,
             },
         )
+        assert dossier.next_beat(bb, THRESHOLD, 3) is None
+
+    def test_does_not_chase_a_third_area_cost(self):
+        filled = {"ai_current_usage": 0.8}
+        for area in ("A", "B", "C"):
+            filled[f"how_it_works::{area}"] = 0.8
+            filled[f"friction::{area}"] = 0.8
+            filled[f"ai_openness::{area}"] = 0.8
+        filled["friction_cost::A"] = 0.8
+        filled["friction_cost::B"] = 0.8
+        bb = bb_with(["A", "B", "C"], filled)
+
+        # C's friction is captured, but the cap has been spent on A and B.
         assert dossier.next_beat(bb, THRESHOLD, 3) is None
 
     def test_returns_none_without_areas(self):
