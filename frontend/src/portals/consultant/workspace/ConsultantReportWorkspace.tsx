@@ -789,6 +789,7 @@ export function ConsultantReportWorkspace() {
               )}
               <ConsultantDiscoveryPackagePanel
                 pkg={activeConversation.discovery_package}
+                companyId={Number(companyId)}
                 employeeName={activeConversation.employee_name}
                 onChanged={load}
               />

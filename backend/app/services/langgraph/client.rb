@@ -90,6 +90,28 @@ module Langgraph
       raise Langgraph::UnavailableError.new(e.message, retryable: true)
     end
 
+    # What else is worth asking this employee, and why. Proposes the need rather
+    # than drafting from one the consultant already stated, so it runs before the
+    # requirement loop rather than inside it.
+    def suggest_deep_dive_questions!(package:, dossier:, profile:, already_asked:, max_suggestions:, language:)
+      post(
+        "/v1/consultant/deep_dive/suggest",
+        {
+          package: package,
+          dossier: dossier,
+          profile: profile,
+          already_asked: already_asked,
+          max_suggestions: max_suggestions,
+          language: language
+        },
+        read_timeout: Integer(ENV.fetch("LANGGRAPH_DRAFT_READ_TIMEOUT", "180"))
+      )
+    rescue Langgraph::UnavailableError
+      raise
+    rescue StandardError => e
+      raise Langgraph::UnavailableError.new(e.message, retryable: true)
+    end
+
     # Post-discovery companion reply. Rails assembles the context (interview
     # insights, memory facts, recent notes) and the agent does the reasoning, the
     # same split discovery already uses. Lives here rather than in Openai::Client so

@@ -137,6 +137,12 @@ Rails.application.routes.draw do
           get "review_sync", to: "review_sync#show"
           # The McKinsey-style section library a consultant adds sections from.
           get "section_templates", to: "section_templates#index"
+          # What else is worth asking this employee, and why. GET is side-effect
+          # free; POST turns a suggestion into a real requirement.
+          resources :discovery_packages, only: [], controller: "discovery_packages" do
+            resources :deep_dive_suggestions, only: %i[index create],
+                      controller: "deep_dive_suggestions"
+          end
           resources :reports, only: %i[index show], controller: "reports" do
             member do
               get :download

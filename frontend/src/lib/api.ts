@@ -1372,6 +1372,32 @@ export const api = {
       token
     ),
 
+  /**
+   * What else is worth asking this employee, with the reason for each.
+   *
+   * Read-only: nothing is persisted and no budget is spent, so a consultant can
+   * look without committing the employee to anything.
+   */
+  deepDiveSuggestions: (token: string, companyId: number, packageId: number) =>
+    request<DeepDiveSuggestionSet>(
+      `/api/v1/consultant/companies/${companyId}/discovery_packages/${packageId}/deep_dive_suggestions`,
+      {},
+      token
+    ),
+
+  /** Accept one. It becomes an ordinary requirement, with the approved wording kept. */
+  acceptDeepDiveSuggestion: (
+    token: string,
+    companyId: number,
+    packageId: number,
+    payload: { body: string; rationale: string }
+  ) =>
+    request<{ requirement_id: number; question: DiscoveryFollowupQuestion }>(
+      `/api/v1/consultant/companies/${companyId}/discovery_packages/${packageId}/deep_dive_suggestions`,
+      { method: 'POST', body: JSON.stringify(payload) },
+      token
+    ),
+
   /** Reorder or skip a drafted question — its text is the agent's to write. */
   updateDiscoveryFollowupQuestion: (
     token: string,
@@ -1860,6 +1886,23 @@ export interface DiscoveryFollowupQuestion {
   consultant_requirement_id: number | null;
   sent_at: string | null;
   answered_at: string | null;
+}
+
+/** A question the agent thinks is worth asking, and why it thinks so. */
+export interface DeepDiveSuggestion {
+  /** Addressed to the employee. Sent as-is if the consultant accepts it. */
+  body: string;
+  /** Addressed to the consultant: what this would settle that the interview did not. */
+  rationale: string;
+  kind: 'quantify' | 'mechanism' | 'exception' | 'ownership' | 'scale';
+}
+
+export interface DeepDiveSuggestionSet {
+  suggestions: DeepDiveSuggestion[];
+  budget_remaining: number;
+  /** 'deterministic' or 'none' means these were built without a model. */
+  generated_by: string | null;
+  fallback_reason: string | null;
 }
 
 export interface ConsultantRequirement {

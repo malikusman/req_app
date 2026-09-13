@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from 'react';
-import { AlertTriangle, Check, Lightbulb, MessageCircleQuestion, Send, X } from 'lucide-react';
+import { AlertTriangle, Check, Lightbulb, MessageCircleQuestion, Send, Sparkles, X } from 'lucide-react';
 import type {
   ConsultantRequirement,
+  DeepDiveSuggestion,
+  DeepDiveSuggestionSet,
   DiscoveryFollowupQuestion,
   DiscoveryPackage,
   DiscoveryPackageItem,
@@ -33,6 +35,62 @@ const REQUIREMENT_LABEL: Record<string, string> = {
   satisfied: 'Settled',
   withdrawn: 'Withdrawn',
 };
+
+/**
+ * What a suggested question is FOR. The consultant is choosing between kinds as
+ * much as between questions — "nobody put a number on this" is a different sort
+ * of gap from "nobody said who owns it".
+ */
+const SUGGESTION_KIND_LABEL: Record<string, string> = {
+  quantify: 'Puts a number on it',
+  mechanism: 'How it actually works',
+  exception: 'When it goes wrong',
+  ownership: 'Who owns it',
+  scale: 'How much, how often',
+};
+
+/**
+ * One proposed question, shown with the reason it is worth one of the employee's
+ * remaining answers.
+ *
+ * The two lines are written for two different readers and must not be swapped:
+ * `body` is what the employee would receive, `rationale` is the case being made
+ * to the consultant. Showing the rationale is the entire point — a question
+ * without one is just more work handed over.
+ */
+function SuggestionCard({
+  suggestion,
+  onAccept,
+  onDismiss,
+  busy,
+  canSend,
+}: {
+  suggestion: DeepDiveSuggestion;
+  onAccept: () => void;
+  onDismiss: () => void;
+  busy: boolean;
+  canSend: boolean;
+}) {
+  return (
+    <li className="rounded-lg border border-border bg-muted/30 px-3 py-2">
+      <div className="flex items-start justify-between gap-3">
+        <p className="m-0 text-sm text-foreground">{suggestion.body}</p>
+        <Badge variant="neutral">
+          {SUGGESTION_KIND_LABEL[suggestion.kind] ?? 'Worth asking'}
+        </Badge>
+      </div>
+      <p className="m-0 mt-1 text-xs text-muted-foreground">{suggestion.rationale}</p>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <Button size="sm" variant="secondary" disabled={busy || !canSend} onClick={onAccept}>
+          Ask this
+        </Button>
+        <Button size="sm" variant="ghost" disabled={busy} onClick={onDismiss}>
+          Not useful
+        </Button>
+      </div>
+    </li>
+  );
+}
 
 /** An issue or solution: accept it, reword it, or reject it. */
 function ItemRow({
@@ -261,10 +319,12 @@ function RequirementCard({
  */
 export function ConsultantDiscoveryPackagePanel({
   pkg,
+  companyId,
   employeeName,
   onChanged,
 }: {
   pkg: DiscoveryPackage | null;
+  companyId: number;
   employeeName: string | null;
   onChanged: () => void;
 }) {
@@ -274,6 +334,11 @@ export function ConsultantDiscoveryPackagePanel({
   const [statement, setStatement] = useState('');
   const [recDraft, setRecDraft] = useState<string | null>(null);
   const [newIssue, setNewIssue] = useState('');
+  // Fetched on request, not on mount: it costs a model call, and a consultant who
+  // already knows what they need should never pay for one.
+  const [deepDive, setDeepDive] = useState<DeepDiveSuggestionSet | null>(null);
+  const [suggesting, setSuggesting] = useState(false);
+  const [dismissed, setDismissed] = useState<string[]>([]);
 
   const run = async (label: string, fn: () => Promise<unknown>) => {
     if (!token || !pkg) return;
@@ -291,6 +356,33 @@ export function ConsultantDiscoveryPackagePanel({
       setBusy(false);
     }
   };
+
+  const loadSuggestions = async () => {
+    if (!token || !pkg) return;
+    setSuggesting(true);
+    try {
+      setDeepDive(await api.deepDiveSuggestions(token, companyId, pkg.id));
+    } catch (err) {
+      toast({
+        variant: 'error',
+        title: 'Could not work out what else to ask',
+        description: err instanceof Error ? err.message : 'Something went wrong.',
+      });
+    } finally {
+      setSuggesting(false);
+    }
+  };
+
+  // Accepting removes the card: it has become a real question below, and leaving
+  // it here would invite the consultant to ask the same thing twice.
+  const acceptSuggestion = (suggestion: DeepDiveSuggestion) =>
+    run('Could not queue that question', async () => {
+      await api.acceptDeepDiveSuggestion(token!, companyId, pkg!.id, {
+        body: suggestion.body,
+        rationale: suggestion.rationale,
+      });
+      setDismissed((prev) => [...prev, suggestion.body]);
+    });
 
   if (!pkg) {
     return (
@@ -330,6 +422,9 @@ export function ConsultantDiscoveryPackagePanel({
     (q) => q.status === 'drafted' || q.status === 'queued'
   )?.id;
   const canSend = pkg.followup_budget_remaining > 0;
+  const visibleSuggestions = (deepDive?.suggestions ?? []).filter(
+    (s) => !dismissed.includes(s.body)
+  );
 
   return (
     <Card title="Discovery handover">
@@ -485,6 +580,55 @@ export function ConsultantDiscoveryPackagePanel({
         </div>
 
         {/* What do you need to know */}
+        {/*
+          One turn earlier than the requirement form below: the interview is
+          deliberately light, so there are things worth knowing that nobody
+          thought to ask. Suggestions cost nothing until one is accepted.
+        */}
+        <div>
+          <p className="m-0 mb-1 flex items-center gap-1.5 text-label-caps text-muted-foreground">
+            <Sparkles className="h-3.5 w-3.5" /> Worth asking
+          </p>
+          {deepDive === null ? (
+            <>
+              <p className="m-0 mb-2 text-xs text-muted-foreground">
+                The agent can look at what the interview captured — and what it never
+                got to — and propose questions, each with the reason it matters.
+                Nothing is sent until you accept one.
+              </p>
+              <Button size="sm" variant="secondary" disabled={suggesting || !canSend} onClick={loadSuggestions}>
+                {suggesting ? 'Working out what to ask…' : 'Suggest what else to ask'}
+              </Button>
+            </>
+          ) : visibleSuggestions.length > 0 ? (
+            <>
+              {deepDive.generated_by !== 'llm' && (
+                <p className="m-0 mb-2 text-xs text-muted-foreground">
+                  Built without a model, so these are the obvious gaps rather than the
+                  subtle ones.
+                </p>
+              )}
+              <ul className="m-0 list-none space-y-2 p-0">
+                {visibleSuggestions.map((suggestion) => (
+                  <SuggestionCard
+                    key={suggestion.body}
+                    suggestion={suggestion}
+                    busy={busy}
+                    canSend={canSend}
+                    onAccept={() => acceptSuggestion(suggestion)}
+                    onDismiss={() => setDismissed((prev) => [...prev, suggestion.body])}
+                  />
+                ))}
+              </ul>
+            </>
+          ) : (
+            <p className="m-0 text-xs text-muted-foreground">
+              Nothing further suggested — the interview covered what it set out to.
+              You can still state a need of your own below.
+            </p>
+          )}
+        </div>
+
         <div>
           <p className="m-0 mb-1 flex items-center gap-1.5 text-label-caps text-muted-foreground">
             <MessageCircleQuestion className="h-3.5 w-3.5" /> What else do you need to know?
