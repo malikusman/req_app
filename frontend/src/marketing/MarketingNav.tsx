@@ -6,6 +6,7 @@ import { Button } from '@/components/shadcn/button';
 import { fadeUp, transition } from '../lib/motion';
 import { marketingContent } from './content';
 import { RequestAccessModal } from './RequestAccessModal';
+import { MjadiLogo } from '../components/brand/MjadiLogo';
 
 export function MarketingNav() {
   const [open, setOpen] = useState(false);
@@ -27,8 +28,8 @@ export function MarketingNav() {
       transition={transition.normal}
     >
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
-        <Link to="/" className="font-display text-lg font-bold text-marketing-foreground">
-          Mjadi
+        <Link to="/" className="text-marketing-foreground" aria-label="Mjadi — home">
+          <MjadiLogo wordmarkClassName="text-lg font-bold" />
         </Link>
 
         <nav className="hidden items-center gap-6 md:flex">

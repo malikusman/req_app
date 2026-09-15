@@ -77,8 +77,9 @@ test.describe('company onboarding questionnaire', () => {
 
   test('saves an answer without a save button', async ({ page }) => {
     await gotoStep(page, 1);
-    await saved(page, () => setChoice(page, 'Businesses', false));
+    await setChoice(page, 'Businesses', true); // known starting state, saved or not
 
+    await saved(page, () => setChoice(page, 'Businesses', false));
     await saved(page, () => setChoice(page, 'Businesses', true));
     await page.reload();
     await expect(choice(page, 'Businesses')).toHaveAttribute('aria-pressed', 'true');
@@ -140,14 +141,20 @@ test.describe('company onboarding questionnaire', () => {
   test('asks for channels per party, not one flat list', async ({ page }) => {
     await gotoStep(page, 5);
 
-    // Start from no parties chosen, so stage two genuinely has nothing to show.
-    for (const party of ['customers / clients', 'suppliers / vendors']) {
-      await setChoice(page, party, false);
+    // Start from no parties chosen at all, so stage two genuinely has nothing
+    // to show — clearing only the two this test picks later is not enough.
+    // Scope to stage one: the channel chips in stage two are toggles too, and
+    // clearing those is neither wanted nor stable. Always click the first
+    // still-pressed button, since the match list shrinks with every click.
+    const parties = question(page, /which parties do you deal with regularly/i);
+    const chosen = parties.getByRole('button', { pressed: true });
+    for (let remaining = await chosen.count(); remaining > 0; remaining -= 1) {
+      await chosen.first().click();
     }
     await expect(page.getByText('How do you reach each one?')).toBeHidden();
 
-    await setChoice(page, 'customers / clients', true);
-    await setChoice(page, 'suppliers / vendors', true);
+    await setChoice(page, 'customers / clients', true, parties);
+    await setChoice(page, 'suppliers / vendors', true, parties);
     await expect(page.getByText('How do you reach each one?')).toBeVisible();
 
     // Each party gets its own card, so the same channel appears once per party —

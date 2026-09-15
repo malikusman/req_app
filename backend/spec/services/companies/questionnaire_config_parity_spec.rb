@@ -93,8 +93,8 @@ RSpec.describe "questionnaireOptions.ts vs Companies::QuestionnaireConfig" do
     expect(frontend).to match_array(Companies::QuestionnaireConfig::CONDITIONAL.keys)
   end
 
-  it "covers all eight steps and 45 stored answers" do
-    expect(questions.size).to eq(45)
+  it "covers all eight steps and 43 stored answers" do
+    expect(questions.size).to eq(43)
     expect(Companies::QuestionnaireConfig::STEP_COUNT).to eq(8)
   end
 

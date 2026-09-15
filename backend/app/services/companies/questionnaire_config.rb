@@ -79,8 +79,13 @@ module Companies
       { key: "q34_active_projects", step: 6, tier: :optional },
       # Step 7 — AI, automation & employee readiness
       { key: "q35_current_ai_automation", step: 7, tier: :essential, with_other: true },
-      { key: "q36_adoption_readiness", step: 7, tier: :essential },
-      { key: "q37_ai_employee_capability", step: 7, tier: :essential },
+      # Q36 (self-rated adoption readiness) and Q37 (self-rated employee AI
+      # capability) were removed deliberately. A company's own estimate of its
+      # readiness is the least reliable thing it can tell us — people either
+      # flatter themselves or undersell, and both corrupt the analysis. Readiness
+      # is read off the work itself in discovery. Q37a stays because it asks what
+      # training actually exists, which is a fact; it keeps its key rather than
+      # being renumbered, since keys address stored data, not screen position.
       { key: "q37a_ai_training", step: 7, tier: :recommended },
       { key: "q38_failed_ai_projects", step: 7, tier: :optional },
       # Step 8 — Governance & what you want to achieve

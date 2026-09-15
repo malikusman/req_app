@@ -388,7 +388,10 @@ function TwoStageMatrix({
     <fieldset className="space-y-3">
       <Legend field={field} />
 
-      <div className="space-y-2">
+      {/* The two stages are separate groupings, not one long list of toggles —
+          naming them keeps a screen reader (and anything else walking the page)
+          from reading a party and a channel as the same kind of choice. */}
+      <div className="space-y-2" role="group" aria-label={field.stageOneLabel || 'Which parties?'}>
         <p className="m-0 text-xs font-medium uppercase tracking-wide text-muted-foreground">
           {field.stageOneLabel || 'Which parties?'}
         </p>
@@ -406,7 +409,7 @@ function TwoStageMatrix({
       )}
 
       {parties.length > 0 && (
-        <div className="space-y-2">
+        <div className="space-y-2" role="group" aria-label={field.stageTwoLabel || 'How do you reach each one?'}>
           <p className="m-0 text-xs font-medium uppercase tracking-wide text-muted-foreground">
             {field.stageTwoLabel || 'How do you reach each one?'}
           </p>
