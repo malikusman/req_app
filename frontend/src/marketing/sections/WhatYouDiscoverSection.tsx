@@ -1,71 +1,52 @@
-import {
-  AlertTriangle,
-  Clock,
-  GitBranch,
-  Hand,
-  Sparkles,
-  Workflow,
-  type LucideIcon,
-} from 'lucide-react';
-import { motion, useReducedMotion } from 'motion/react';
-import { ScrollReveal } from '../../components/motion';
+import { Ban, Clock, Coins, Wrench, type LucideIcon } from 'lucide-react';
+import { Stagger } from '../../components/motion';
 import { cn } from '../../lib/cn';
-import { fadeUp, spring, staggerContainer, transition } from '../../lib/motion';
-import { marketingContent, type DiscoverCardContent } from '../content';
+import { Section, SectionHeader, cardClass } from '../components/Section';
+import { marketingContent, type DiscoverIcon } from '../content';
 
-const iconMap: Record<string, LucideIcon> = {
-  Bottlenecks: AlertTriangle,
-  'Manual workflows': Workflow,
-  'Time sinks': Clock,
-  'Cross-team dependencies': GitBranch,
-  'AI opportunities': Sparkles,
-  'Shadow processes': Hand,
+/**
+ * Keyed on a stable `icon` field, not on the card title.
+ *
+ * The previous map was keyed by display copy ("Bottlenecks", "Manual
+ * workflows"), so rewriting the titles silently dropped all six cards to the
+ * same fallback icon — six identical warning triangles shipped to production.
+ * Copy changes; keys do not.
+ */
+const icons: Record<DiscoverIcon, LucideIcon> = {
+  clock: Clock,
+  coins: Coins,
+  wrench: Wrench,
+  ban: Ban,
 };
 
-function DiscoverCard({ card }: { card: DiscoverCardContent }) {
-  const reduced = useReducedMotion();
-  const Icon = iconMap[card.title] ?? AlertTriangle;
-
-  return (
-    <motion.div
-      variants={fadeUp}
-      className={cn('rounded-2xl bg-marketing-surface p-6 shadow-marketing-card', card.span)}
-      whileHover={reduced ? undefined : { scale: 1.02 }}
-      transition={reduced ? transition.reveal : spring.snappy}
-    >
-      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-marketing-accent-muted">
-        <Icon className="h-5 w-5 text-marketing-accent" aria-hidden />
-      </div>
-      <h3 className="mt-4 font-semibold text-marketing-foreground">{card.title}</h3>
-      <p className="mt-2 text-sm leading-relaxed text-marketing-muted">{card.description}</p>
-    </motion.div>
-  );
-}
-
 export function WhatYouDiscoverSection() {
-  const reduced = useReducedMotion();
   const { discover } = marketingContent;
 
   return (
-    <section id="what-you-discover" className="bg-marketing-bg px-6 py-24 md:px-12 md:py-28">
-      <div className="mx-auto max-w-6xl">
-        <ScrollReveal>
-          <p className="text-label-caps text-marketing-accent">{discover.eyebrow}</p>
-          <h2 className="mt-2 font-display text-page-title text-marketing-foreground">{discover.title}</h2>
-          <p className="mt-3 max-w-3xl text-lg text-marketing-muted">{discover.subtitle}</p>
-        </ScrollReveal>
-        <motion.div
-          className="mt-12 grid auto-rows-[minmax(160px,auto)] grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
-          initial={reduced ? false : 'hidden'}
-          whileInView={reduced ? undefined : 'visible'}
-          viewport={{ once: true, margin: '-48px' }}
-          variants={staggerContainer(0.06)}
-        >
-          {discover.cards.map((c) => (
-            <DiscoverCard key={c.title} card={c} />
-          ))}
-        </motion.div>
-      </div>
-    </section>
+    <Section id="what-you-get" tone="ground">
+      <SectionHeader eyebrow={discover.eyebrow} title={discover.title} lede={discover.subtitle} />
+
+      {/*
+        Four equal cards. This was a six-card bento where the first spanned two
+        columns and two rows while holding two lines of text, which left roughly
+        half the section empty.
+      */}
+      <Stagger className="mt-12 grid gap-4 sm:grid-cols-2 lg:mt-14" staggerDelay={0.07}>
+        {discover.cards.map((card) => {
+          const Icon = icons[card.icon];
+          return (
+            <article key={card.title} className={cn(cardClass, 'h-full')}>
+              <Icon className="h-5 w-5 text-marketing-accent" aria-hidden />
+              <h3 className="m-0 mt-4 font-display text-base font-semibold text-marketing-foreground">
+                {card.title}
+              </h3>
+              <p className="m-0 mt-2 text-pretty text-sm leading-relaxed text-marketing-muted">
+                {card.description}
+              </p>
+            </article>
+          );
+        })}
+      </Stagger>
+    </Section>
   );
 }

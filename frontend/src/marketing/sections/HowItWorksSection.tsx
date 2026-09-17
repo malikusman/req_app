@@ -1,64 +1,66 @@
-import { FileText, MessageCircle, ShieldCheck } from 'lucide-react';
-import { motion, useReducedMotion } from 'motion/react';
 import { ScrollReveal, Stagger } from '../../components/motion';
-import { spring } from '../../lib/motion';
+import { Section, SectionHeader } from '../components/Section';
 import { marketingContent } from '../content';
 
-const icons = [FileText, MessageCircle, ShieldCheck] as const;
-
-function StepCard({
-  step,
-  index,
-}: {
-  step: (typeof marketingContent.howItWorks.steps)[number];
-  index: number;
-}) {
-  const reduced = useReducedMotion();
-  const Icon = icons[index] ?? MessageCircle;
-
-  return (
-    <motion.article
-      className="relative rounded-2xl bg-marketing-surface p-7 shadow-marketing-card"
-      whileHover={reduced ? undefined : { y: -4 }}
-      transition={spring.soft}
-    >
-      <div className="flex items-center gap-3">
-        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-marketing-accent text-sm font-bold text-white">
-          {index + 1}
-        </span>
-        <Icon className="h-5 w-5 text-marketing-accent" aria-hidden />
-      </div>
-      <h3 className="mt-5 font-display text-section-title text-marketing-foreground">{step.title}</h3>
-      <p className="mt-2 text-sm leading-relaxed text-marketing-muted">{step.description}</p>
-      <ul className="mt-5 space-y-2.5 border-t border-marketing-border pt-5">
-        {step.details.map((detail) => (
-          <li key={detail} className="flex gap-2.5 text-xs leading-relaxed text-marketing-muted">
-            <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-marketing-accent" aria-hidden />
-            {detail}
-          </li>
-        ))}
-      </ul>
-    </motion.article>
-  );
-}
-
+/**
+ * The three stages, plus the three facts that used to be a twelve-bullet
+ * "platform" section of its own.
+ *
+ * That section described our machinery in our words — three audience columns,
+ * four bullets each. An owner needs three things from it: what this asks of
+ * their staff, what protects those staff, and who checks the work. Those sit
+ * here, where the commitment is being described anyway.
+ */
 export function HowItWorksSection() {
   const { howItWorks } = marketingContent;
 
   return (
-    <section id="how-it-works" className="border-b border-marketing-border bg-marketing-surface px-6 py-24 md:px-12 md:py-28">
-      <div className="mx-auto max-w-6xl">
-        <ScrollReveal>
-          <p className="text-label-caps text-marketing-accent">{howItWorks.eyebrow}</p>
-          <h2 className="mt-2 font-display text-page-title text-marketing-foreground">{howItWorks.title}</h2>
-          <p className="mt-3 max-w-3xl text-lg text-marketing-muted">{howItWorks.subtitle}</p>
-        </ScrollReveal>
-        <Stagger className="mt-14 grid gap-6 lg:grid-cols-3" staggerDelay={0.1}>
-          {howItWorks.steps.map((step, i) => (
-            <StepCard key={step.title} step={step} index={i} />
+    <Section id="how-it-works" tone="surface" width="wide">
+      <SectionHeader eyebrow={howItWorks.eyebrow} title={howItWorks.title} lede={howItWorks.subtitle} />
+
+      <Stagger className="mt-12 grid gap-8 md:grid-cols-3 lg:mt-14" staggerDelay={0.09}>
+        {howItWorks.steps.map((step, i) => (
+          <article key={step.title} className="border-t-2 border-marketing-accent pt-6">
+            <p className="m-0 font-display text-sm font-bold tabular-nums text-marketing-accent">
+              {String(i + 1).padStart(2, '0')}
+            </p>
+            <h3 className="m-0 mt-2 font-display text-xl font-semibold text-marketing-foreground">
+              {step.title}
+            </h3>
+            <p className="m-0 mt-3 text-pretty text-[0.9375rem] leading-relaxed text-marketing-muted">
+              {step.description}
+            </p>
+            <ul className="m-0 mt-4 list-none space-y-2 p-0">
+              {step.details.map((detail) => (
+                <li key={detail} className="flex gap-2.5 text-sm leading-relaxed text-marketing-muted">
+                  <span className="mt-[0.5em] h-1 w-1 shrink-0 rounded-full bg-marketing-accent" aria-hidden />
+                  {detail}
+                </li>
+              ))}
+            </ul>
+          </article>
+        ))}
+      </Stagger>
+
+      {/* Written into the content from the start, never rendered until now. */}
+      <ScrollReveal>
+        <p className="m-0 mt-12 text-pretty font-display text-lg font-medium text-marketing-foreground sm:text-xl">
+          {howItWorks.closing}
+        </p>
+      </ScrollReveal>
+
+      <ScrollReveal>
+        <dl className="m-0 mt-10 grid gap-x-8 gap-y-6 border-t border-marketing-border pt-8 sm:grid-cols-3">
+          {howItWorks.facts.map((fact) => (
+            <div key={fact.label}>
+              <dt className="text-label-caps text-marketing-accent">{fact.label}</dt>
+              <dd className="m-0 mt-1.5 text-pretty text-sm leading-relaxed text-marketing-muted">
+                {fact.body}
+              </dd>
+            </div>
           ))}
-        </Stagger>
-      </div>
-    </section>
+        </dl>
+      </ScrollReveal>
+    </Section>
   );
 }

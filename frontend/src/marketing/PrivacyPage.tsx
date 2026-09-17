@@ -8,11 +8,14 @@ export function PrivacyPage() {
   return (
     <MarketingLayout>
       <MarketingNav />
-      <main className="border-b border-marketing-border bg-marketing-surface px-6 py-20 md:px-12 md:py-24">
+      {/* Shares the homepage's container and type scale — it is the same site. */}
+      <main className="border-b border-marketing-border bg-marketing-surface px-5 py-16 sm:px-8 sm:py-20 lg:py-24">
         <article className="mx-auto max-w-3xl">
-          <p className="text-label-caps text-marketing-accent">Legal</p>
-          <h1 className="mt-2 font-display text-page-title text-marketing-foreground">Privacy</h1>
-          <p className="mt-4 text-lg text-marketing-muted">
+          <p className="m-0 text-label-caps text-marketing-accent">Legal</p>
+          <h1 className="m-0 mt-3 font-display text-3xl font-semibold tracking-tight text-marketing-foreground sm:text-[2.5rem]">
+            Privacy
+          </h1>
+          <p className="m-0 mt-4 text-lg leading-relaxed text-marketing-muted">
             How {BRAND_NAME} handles employee conversations, documents, and company data during operational discovery.
           </p>
 

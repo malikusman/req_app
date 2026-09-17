@@ -27,7 +27,7 @@ export function MarketingNav() {
       animate={reduced ? undefined : { y: 0, opacity: 1 }}
       transition={transition.normal}
     >
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
+      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-5 sm:px-8">
         <Link to="/" className="text-marketing-foreground" aria-label="Mjadi — home">
           <MjadiLogo wordmarkClassName="text-lg font-bold" />
         </Link>
@@ -43,17 +43,16 @@ export function MarketingNav() {
               {link.label}
             </button>
           ))}
+          {/*
+            Seven items fought each other here: four section links, Sign in,
+            Sign up and the CTA. Sign up now lives in the footer and on the
+            sign-in page, so the bar carries one primary action.
+          */}
           <Link
             to="/platform/login"
             className="text-sm text-marketing-muted transition-colors hover:text-marketing-foreground"
           >
             {nav.signInLabel}
-          </Link>
-          <Link
-            to={nav.signupHref}
-            className="text-sm text-marketing-muted transition-colors hover:text-marketing-foreground"
-          >
-            {nav.signupLabel}
           </Link>
           <Button size="sm" onClick={() => setOpen(true)}>
             {nav.ctaLabel}
@@ -73,7 +72,7 @@ export function MarketingNav() {
       <AnimatePresence>
         {menuOpen && (
           <motion.nav
-            className="border-t border-marketing-border px-6 py-4 md:hidden"
+            className="border-t border-marketing-border px-5 py-4 sm:px-8 md:hidden"
             initial="hidden"
             animate="visible"
             exit="hidden"
