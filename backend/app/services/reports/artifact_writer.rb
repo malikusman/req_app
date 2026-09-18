@@ -32,7 +32,7 @@ module Reports
         storage_key: storage_key,
         content_type: content_type,
         reader_storage_key: reader_key,
-        page_count: page_count,
+        page_count: page_count(pdf_bytes),
         generated_at: Time.current,
         error_message: html_fallback ? FALLBACK_MESSAGE : nil
       )
@@ -80,9 +80,15 @@ module Reports
       "reports/#{@report.company_id}/v#{@report.version}/#{name}.#{ext}"
     end
 
-    # Counted from the rendered HTML rather than the PDF, so the portal can say
-    # "4 pp" on the button — which is the whole reason the brief gets clicked.
-    def page_count
+    # The PDF is the authority. The HTML section count is only a fallback for
+    # the case where there is no PDF to read — Gotenberg down, HTML stored
+    # instead — because it counts the pages the document INTENDED to have, and
+    # an overflowing section silently adds one.
+    def page_count(pdf_bytes)
+      PdfPageCounter.call(bytes: pdf_bytes, fallback: html_page_count)
+    end
+
+    def html_page_count
       @html.to_s.scan(/<section[^>]*class="[^"]*\bpage\b/).size
     end
   end

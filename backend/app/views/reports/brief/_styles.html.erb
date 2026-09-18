@@ -89,9 +89,14 @@ p{font-size:9.5pt;line-height:1.55;margin:0 0 3mm;color:#20303c;}
 .sig.cat-people .bar>i{background:var(--cat-people);}
 .sig.cat-data .bar>i{background:var(--cat-data);}
 .sig .lvl{font-size:7pt;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);}
-.heat{margin-top:7mm;}
-.heat svg{width:100%;height:auto;}
-.pattern{margin-top:6mm;padding-top:4mm;border-top:1px solid var(--hair);}
+/* This page ran 13px past the sheet, which cost a whole extra page in a
+   four-page document. The margins below were the slack; the max-height is the
+   part that keeps it fixed, because the heatmap grows a row per department and
+   would push the page over again at five or six. The SVG carries a viewBox, so
+   capping the height scales it down rather than cropping it. */
+.heat{margin-top:4mm;}
+.heat svg{width:100%;height:auto;max-height:82mm;}
+.pattern{margin-top:4mm;padding-top:3mm;border-top:1px solid var(--hair);}
 .pattern .t{font-family:var(--sans);font-weight:700;font-size:9.5pt;}
 .pattern p{font-size:8.5pt;margin:1.5mm 0 0;}
 

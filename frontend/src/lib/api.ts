@@ -1058,8 +1058,8 @@ export const api = {
       latest_ready_generated_at?: string | null;
     }>('/api/v1/company/reports', {}, token),
 
-  generateReport: (token: string) =>
-    request<{ report: Report }>('/api/v1/company/reports', { method: 'POST' }, token),
+  // No generateReport here on purpose: generation is not a company action.
+  // See ReportPolicy#create?.
 
   // Detail view carries report_snapshot, so the portal can render the governing
   // thought and the expert-validated opportunity as real selectable text rather

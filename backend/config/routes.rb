@@ -233,7 +233,8 @@ Rails.application.routes.draw do
           end
         end
         resources :agentic_ideas, only: %i[index], controller: "agentic_ideas"
-        resources :reports, only: %i[index show create] do
+        # No :create — generation is not a company action. See ReportPolicy#create?.
+        resources :reports, only: %i[index show] do
           member do
             get :download
             # HTML for the in-portal document reader (page nav + section jumps).

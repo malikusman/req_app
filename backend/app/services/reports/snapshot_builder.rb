@@ -640,6 +640,13 @@ module Reports
         tool.merge("endorsements" => related)
       end
 
+      # The catalog has no uniqueness on name, so the same product can exist as
+      # two entries under different categories — and did: "Mjadi AP Copilot"
+      # appeared twice on one page of a client report, at 82% fit and 29%. The
+      # list arrives ordered by score, so keeping the first occurrence of each
+      # name keeps each product at its best-evidenced match.
+      curated = curated.uniq { |tool| tool["name"].to_s.strip.downcase }
+
       {
         "curated_matches" => curated.first(8),
         "endorsements" => endorsements,

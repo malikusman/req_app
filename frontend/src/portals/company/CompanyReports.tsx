@@ -136,21 +136,6 @@ export function CompanyReports() {
     }
   };
 
-  const generate = async () => {
-    if (!token) return;
-    try {
-      await api.generateReport(token);
-      toast({
-        variant: 'success',
-        title: 'Generating a refreshed report',
-        description: "It goes through expert review before it's shared with you.",
-      });
-      load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not start generation');
-    }
-  };
-
   const download = async (id: number, variant: ReportVariant) => {
     if (!token) return;
     await api.downloadReport(token, id, variant);
@@ -207,15 +192,20 @@ export function CompanyReports() {
         </div>
       )}
 
+      {/*
+        This used to carry a "Generate refreshed report" button. Generation is
+        not a company action — ReportPolicy#create? refuses it, deliberately, so
+        that nothing reaches a client without expert review — and the button
+        therefore only ever produced "Forbidden". The banner still earns its
+        place by saying the report is behind; it no longer offers an action the
+        company does not have.
+      */}
       {stale && !generating && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-button border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
-          <span>
-            Your intelligence has changed
-            {intelUpdatedAt && ` (updated ${new Date(intelUpdatedAt).toLocaleString()})`} since your latest report.
-          </span>
-          <Button size="sm" variant="secondary" onClick={generate}>
-            Generate refreshed report
-          </Button>
+        <div className="rounded-button border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
+          Your intelligence has changed
+          {intelUpdatedAt && ` (updated ${new Date(intelUpdatedAt).toLocaleString()})`} since your latest
+          report. A refreshed report is prepared and reviewed by your consultant before it is shared with
+          you.
         </div>
       )}
 

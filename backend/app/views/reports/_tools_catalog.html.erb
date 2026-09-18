@@ -2,22 +2,30 @@
 <% tools = Array(snapshot.dig("tools_catalog", "curated_matches")) %>
 <% endorsements = Array(snapshot.dig("tools_catalog", "endorsements")) %>
 <% if tools.any? || endorsements.any? %>
-<section class="page">
-  <div class="eyebrow">Capabilities</div>
-  <h1 class="page-title">Products that already fit</h1>
-  <% if tools.any? %>
-    <p class="lead" style="max-width:210mm;margin-bottom:5mm;">Existing solutions — our own products and partner tools — matched to the frictions above. "Mjadi product" is built by us; others are curated partners. Consultant-endorsed picks are flagged.</p>
-  <% end %>
-  <% if tools.any? %>
+
+<%# Six cards — two rows of three — is what fits the sheet. Seven overran it by
+    115px, which Chromium resolved by spilling a third row onto a page of its
+    own with nothing else on it. Upstream allows eight matches, so this has to
+    paginate rather than assume one page. %>
+<% tool_pages = report_paginate(tools, 6) %>
+<% tool_pages.each_with_index do |group, page_index| %>
+  <section class="page">
+    <div class="eyebrow">Capabilities</div>
+    <h1 class="page-title">Products that already fit<%= " · continued" if page_index.positive? %></h1>
+    <% if page_index.zero? %>
+      <p class="lead" style="max-width:210mm;margin-bottom:5mm;">Existing solutions — our own products and partner tools — matched to the frictions above. "Mjadi product" is built by us; others are curated partners. Consultant-endorsed picks are flagged.</p>
+    <% end %>
     <div class="card-grid-3">
-      <% tools.each do |tool|
+      <% group.each do |tool|
         tool_endorsements = Array(tool["endorsements"])
         score_label = report_fit_score_label(tool["score"])
       %>
         <div class="rec-card">
           <div class="match"><%= h tool["category"] %><% if score_label %> · <%= h score_label %><% end %><% if tool["placement"] == "extends_stack" || tool["already_in_stack"] %> · Extends stack<% elsif tool["placement"] == "new_capability" %> · New capability<% end %></div>
           <h4><%= h tool["name"] %><% if tool["first_party"] %> <span style="font-size:8pt;color:var(--teal);font-weight:700;">· Mjadi product</span><% end %></h4>
-          <% if tool["vendor"].present? %><p><%= h tool["vendor"] %></p><% end %>
+          <%# Most catalog entries are named after their vendor, which rendered as
+              "Bill.com" directly under "Bill.com". Only say it when it adds something. %>
+          <% if tool["vendor"].present? && tool["vendor"].to_s.strip.casecmp(tool["name"].to_s.strip) != 0 %><p><%= h tool["vendor"] %></p><% end %>
           <% if tool["consultant_added"] %><p style="font-size:8pt;color:var(--magenta);">Added by consultant<%= tool["consultant_name"].present? ? " (#{tool['consultant_name']})" : "" %></p><% end %>
           <% clean_reason = report_clean_reason(tool["reason"]) %>
           <% if clean_reason.present? %><p><%= h clean_reason.truncate(220) %></p><% end %>
@@ -33,14 +41,23 @@
         </div>
       <% end %>
     </div>
-    <p class="method" style="margin-top:4mm;"><%= h snapshot.dig("tools_catalog", "disclaimer") %></p>
-  <% end %>
+    <% if page_index == tool_pages.size - 1 %>
+      <p class="method" style="margin-top:4mm;"><%= h snapshot.dig("tools_catalog", "disclaimer") %></p>
+    <% end %>
+    <%= render "reports/page_footer", company_name: company_name %>
+  </section>
+<% end %>
 
-  <% orphan_endorsements = endorsements.reject { |e| tools.any? { |t| t["solution_id"].to_i == e["solution_catalog_entry_id"].to_i } } %>
-  <% if orphan_endorsements.any? %>
-    <div class="eyebrow" style="margin-top:8mm;">Consultant catalog notes</div>
+<%# Consultant notes on catalog entries that were not matched to this company.
+    Its own page for the same reason: appended to the grid above, it was the
+    overflow nobody had budgeted for. %>
+<% orphan_endorsements = endorsements.reject { |e| tools.any? { |t| t["solution_id"].to_i == e["solution_catalog_entry_id"].to_i } } %>
+<% report_paginate(orphan_endorsements, 6).each_with_index do |group, page_index| %>
+  <section class="page">
+    <div class="eyebrow">Capabilities</div>
+    <h1 class="page-title">Consultant catalog notes<%= " · continued" if page_index.positive? %></h1>
     <div class="card-grid-3">
-      <% orphan_endorsements.first(6).each do |en| %>
+      <% group.each do |en| %>
         <div class="rec-card">
           <div class="match"><%= h en["disposition"].to_s.titleize %></div>
           <h4><%= h en["solution_name"].presence || "Catalog entry" %></h4>
@@ -49,8 +66,8 @@
         </div>
       <% end %>
     </div>
-  <% end %>
+    <%= render "reports/page_footer", company_name: company_name %>
+  </section>
+<% end %>
 
-  <%= render "reports/page_footer", company_name: company_name %>
-</section>
 <% end %>

@@ -102,11 +102,14 @@ end
   { name: "Zapier", vendor: "Zapier", category: "automation", tags: %w[manual_process automation], match_keywords: %w[workflow automate integration] },
   { name: "UiPath", vendor: "UiPath", category: "automation", tags: %w[manual_process], match_keywords: %w[rpa excel manual] },
   { name: "Bill.com", vendor: "Bill.com", category: "saas", tags: %w[manual_process finance], match_keywords: %w[invoice ap accounting] },
-  { name: "Make", vendor: "Celonis", category: "integration", tags: %w[tool_dependency data_silo], match_keywords: %w[integrate sync erp] },
+  { name: "Make", vendor: "Make", category: "integration", tags: %w[tool_dependency data_silo], match_keywords: %w[integrate sync erp] },
   { name: "Notion AI", vendor: "Notion", category: "ai_agent", tags: %w[communication], match_keywords: %w[document knowledge] }
 ].each do |attrs|
   SolutionCatalogEntry.find_or_create_by!(name: attrs[:name]) do |s|
-    s.assign_attributes(attrs.merge(active: true, partnership_tier: "preferred", description: "Curated solution for workflow discovery recommendations."))
+    # first_party is stated rather than left to the column default: the report
+    # badges these as "Mjadi product", and a partner tool wearing that badge
+    # tells a client we built something we did not.
+    s.assign_attributes(attrs.merge(active: true, first_party: false, partnership_tier: "preferred", description: "Curated solution for workflow discovery recommendations."))
   end
 end
 

@@ -32,29 +32,6 @@ module Api
           render json: payload
         end
 
-        def create
-          authorize Report, :create?
-          if current_company.report_readiness_score < 100 && !current_company.merged_settings["allow_early_report"]
-            return render json: { error: "Report readiness must reach 100% before generating" }, status: :unprocessable_entity
-          end
-
-          previous = current_company.reports.ready.order(version: :desc).first
-          # Gated by default — only auto-shared for explicit skip_platform_review
-          # companies. GenerateReportService finalizes visibility on completion.
-          initial_visibility = current_company.merged_settings["skip_platform_review"] ? "shared_with_company" : "internal_only"
-          report = current_company.reports.create!(
-            version: (current_company.reports.maximum(:version) || 0) + 1,
-            status: "queued",
-            visibility: initial_visibility,
-            triggered_by_type: "CompanyUser",
-            triggered_by_id: current_company_user.id,
-            previous_report: previous
-          )
-
-          GenerateReportJob.perform_later(report.id)
-          render json: { report: report_json(report) }, status: :accepted
-        end
-
         def download
           report = policy_scope(Report).find(params[:id])
           authorize report, :download?

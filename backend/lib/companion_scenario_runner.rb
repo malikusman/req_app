@@ -127,6 +127,10 @@ class CompanionScenarioRunner
       active: true,
       partnership_tier: "preferred",
       entity_type: "tool",
+      # It is ours — the vendor above says so — and the report badges first-party
+      # entries as "Mjadi product". Left unset, our own agent shipped to clients
+      # looking like someone else's tool.
+      first_party: true,
       published_at: Time.current
     )
     entry.save!

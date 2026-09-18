@@ -34,8 +34,17 @@
     <p class="muted">No overall notes were recorded for this review cycle.</p>
   <% end %>
 
-  <% if dispositions.any? %>
-    <h2 style="font-size:16pt;margin:8mm 0 3mm;">Section dispositions</h2>
+  <%= render "reports/page_footer", company_name: company_name %>
+</section>
+
+<%# The dispositions table shared the overall-notes page and was unbounded: one
+    row per consultant per reviewed section, so two consultants over seven
+    sections already overran the sheet by 80px. It gets its own paginated pages,
+    like the findings and comments below. Twelve rows is what fits. %>
+<% report_paginate(dispositions, 12).each_with_index do |group, page_index| %>
+  <section class="page">
+    <div class="eyebrow">Appendix · Expert judgement</div>
+    <h1 class="page-title">Section dispositions<%= " · continued" if page_index.positive? %></h1>
     <table class="data">
       <thead>
         <tr>
@@ -46,7 +55,7 @@
         </tr>
       </thead>
       <tbody>
-        <% dispositions.each do |row| %>
+        <% group.each do |row| %>
           <tr>
             <td><%= h ReportsHelper.section_label(row["section_key"]) %></td>
             <td><%= h row["consultant"] %></td>
@@ -56,10 +65,9 @@
         <% end %>
       </tbody>
     </table>
-  <% end %>
-
-  <%= render "reports/page_footer", company_name: company_name %>
-</section>
+    <%= render "reports/page_footer", company_name: company_name %>
+  </section>
+<% end %>
 
 <%# Findings and section comments were appended to the overall-notes page, which
     overran the sheet. Each gets its own paginated pages — four findings and six

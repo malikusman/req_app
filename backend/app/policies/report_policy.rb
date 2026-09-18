@@ -13,8 +13,17 @@ class ReportPolicy < ApplicationPolicy
     false
   end
 
+  # Nobody generates a report over HTTP. The company portal is view/download of
+  # shared reports only, so that nothing reaches a client without expert review.
+  #
+  # Kept explicit rather than deleted: a company-facing POST /company/reports
+  # existed for a long time behind this `false`, which meant the portal shipped a
+  # "Generate refreshed report" button that could only ever return Forbidden.
+  # Leaving the rule here states the intent to whoever considers adding it back.
+  #
+  # Generation today: Reports::GenerateReportService (rake, seeders), and
+  # Reports::ConsultantRefreshService for a consultant re-cutting a stale report.
   def create?
-    # Company portal is view/download of shared reports only; generation is consultant/platform.
     false
   end
 
