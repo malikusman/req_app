@@ -39,6 +39,39 @@ module Api
           send_data html, type: "text/html", disposition: "inline"
         end
 
+        # The operator's fallback. A company with no consultant assigned yet has
+        # nobody who can generate for it — and GenerateReportService already
+        # expects that case, routing an unassigned company straight to the
+        # approval gate. Without this, such a company could never have a report
+        # at all.
+        def create
+          company = ::Company.find(params[:company_id])
+          authorize Report, :create?
+
+          result = Reports::EnqueueService.call(
+            company: company,
+            triggered_by: current_platform_user,
+            force: params[:force].to_s == "true"
+          )
+
+          PlatformAuditService.log!(
+            platform_user: current_platform_user,
+            action: "report_generation_started",
+            target: result[:report],
+            request: request
+          )
+
+          render json: {
+            report: report_json(result[:report], company: company),
+            stale: result[:stale],
+            first: result[:first]
+          }, status: :accepted
+        rescue Reports::EnqueueService::Busy => e
+          render json: { error: e.message }, status: :conflict
+        rescue Reports::EnqueueService::NotStale => e
+          render json: { error: e.message, forceable: true }, status: :unprocessable_entity
+        end
+
         def approve
           report = Report.joins(:company).find_by!(id: params[:id], company_id: params[:company_id])
           authorize report, :approve?

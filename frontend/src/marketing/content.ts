@@ -295,10 +295,7 @@ export const marketingContent = {
       {
         name: 'Usman Malik',
         role: 'Co-founder',
-        // TODO(usman): replace with your own background before this goes live.
-        // Left deliberately unwritten rather than invented — a fabricated bio is
-        // exactly the kind of claim this site exists not to make.
-        body: 'Builds the technology behind Mjadi — the discovery platform, the agents that run the interviews, and the analysis that turns them into a report.',
+        body: 'Sixteen years building software, including for companies the size of Coca-Cola and Procter & Gamble, and the founder of a fintech startup. At Mjadi he builds the platform itself — the agents that run the interviews, and the analysis that turns them into a report.',
       },
     ],
     name: {

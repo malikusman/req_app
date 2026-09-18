@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { ChatMessageList, type ChatMessageItem } from '../../components/motion';
 import {
   api,
+  ApiRequestError,
   type CompanyDetail,
   type CompanyConversation,
   type CompanyConversationMessage,
@@ -172,6 +173,8 @@ export function PlatformCompanyDetail() {
   const [loading, setLoading] = useState(true);
   const [approvingId, setApprovingId] = useState<number | null>(null);
   const [selectedReportId, setSelectedReportId] = useState<number | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [generateNotice, setGenerateNotice] = useState<string | null>(null);
   const [reportPreviewUrl, setReportPreviewUrl] = useState<string | null>(null);
   const [reportDraftUrl, setReportDraftUrl] = useState<string | null>(null);
   // Approval ships BOTH renderings, so both have to be previewable at the gate.
@@ -296,6 +299,29 @@ export function PlatformCompanyDetail() {
         <ConversationMediaCard attachment={m.media_attachment} token={token} compact />
       ) : undefined,
   }));
+
+  // The operator's fallback. Generation belongs to the consultant, but a company
+  // with no consultant assigned has nobody who could do it — and that company
+  // would otherwise never get a first report at all.
+  const generateReport = async (force: boolean) => {
+    if (!token) return;
+    setActionError('');
+    setGenerateNotice(null);
+    setGenerating(true);
+    try {
+      await api.generatePlatformReport(token, companyId, force);
+      await loadReports();
+    } catch (err) {
+      const status = err instanceof ApiRequestError ? err.status : 0;
+      const message = err instanceof Error ? err.message : 'Could not start generation';
+      // 422 is "nothing new since the last one" — a refusal worth offering back
+      // rather than just reporting.
+      if (status === 422) setGenerateNotice(message);
+      else setActionError(message);
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const approveReport = async (reportId: number) => {
     if (!token) return;
@@ -734,6 +760,30 @@ export function PlatformCompanyDetail() {
 
       {tab === 'reports' && (
         <>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="m-0 text-sm text-text-secondary">
+              Generation normally belongs to the assigned consultant. Use this when there is no
+              consultant on the company yet.
+            </p>
+            <Button
+              variant="secondary"
+              loading={generating}
+              disabled={reports.some((r) => r.status === 'queued' || r.status === 'generating')}
+              onClick={() => generateReport(false)}
+            >
+              Generate report
+            </Button>
+          </div>
+
+          {generateNotice && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-button border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
+              <span>{generateNotice}</span>
+              <Button size="sm" variant="secondary" loading={generating} onClick={() => generateReport(true)}>
+                Generate anyway
+              </Button>
+            </div>
+          )}
+
           {actionError && <p className="text-sm text-status-error">{actionError}</p>}
           <DataTable
             columns={[

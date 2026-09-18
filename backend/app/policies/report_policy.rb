@@ -13,18 +13,20 @@ class ReportPolicy < ApplicationPolicy
     false
   end
 
-  # Nobody generates a report over HTTP. The company portal is view/download of
-  # shared reports only, so that nothing reaches a client without expert review.
+  # Generation belongs to the consultant, with the platform as the fallback.
   #
-  # Kept explicit rather than deleted: a company-facing POST /company/reports
-  # existed for a long time behind this `false`, which meant the portal shipped a
-  # "Generate refreshed report" button that could only ever return Forbidden.
-  # Leaving the rule here states the intent to whoever considers adding it back.
+  # The consultant is the one who knows whether new evidence changes the advice,
+  # so the trigger sits with them rather than with the client. The platform needs
+  # it too: a company with no consultant assigned yet has nobody who could
+  # generate for it, and would otherwise never get a first report.
   #
-  # Generation today: Reports::GenerateReportService (rake, seeders), and
-  # Reports::ConsultantRefreshService for a consultant re-cutting a stale report.
+  # The company is deliberately excluded — a client does not commission their own
+  # deliverable, and nothing reaches them without review and approval either way.
+  # Scoping to a company the consultant is actually assigned to is the
+  # controller's job, via policy_scope(Company), as it is for every other
+  # consultant action.
   def create?
-    false
+    platform? || consultant?
   end
 
   def download?

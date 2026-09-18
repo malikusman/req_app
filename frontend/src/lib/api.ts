@@ -850,6 +850,15 @@ export const api = {
   platformCompanyIntelligenceTimeline: (token: string, companyId: number) =>
     request<{ events: TimelineEvent[] }>(`/api/v1/platform/companies/${companyId}/intelligence/timeline`, {}, token),
 
+  // The operator's fallback: a company with no consultant assigned has nobody
+  // else who could generate for it.
+  generatePlatformReport: (token: string, companyId: number, force = false) =>
+    request<GeneratedReport>(
+      `/api/v1/platform/companies/${companyId}/reports`,
+      { method: 'POST', body: JSON.stringify({ force }) },
+      token
+    ),
+
   approvePlatformReport: (token: string, companyId: number, reportId: number) =>
     request<{ report: PlatformReport }>(
       `/api/v1/platform/companies/${companyId}/reports/${reportId}/approve`,
@@ -897,11 +906,12 @@ export const api = {
       anchors: { key: string; label: string }[];
     }>('/api/v1/consultant/section_templates', {}, token),
 
-  // Mint the next version when new evidence has landed since this one.
-  refreshConsultantReport: (token: string, companyId: number, reportId: number) =>
-    request<{ report: { id: number; version: number }; stale: boolean }>(
-      `/api/v1/consultant/companies/${companyId}/reports/${reportId}/refresh`,
-      { method: 'POST' },
+  // Generate a report, or re-cut it as the evidence changes. `force` overrides
+  // the "nothing new since the last one" refusal — the consultant decides.
+  generateConsultantReport: (token: string, companyId: number, force = false) =>
+    request<GeneratedReport>(
+      `/api/v1/consultant/companies/${companyId}/reports`,
+      { method: 'POST', body: JSON.stringify({ force }) },
       token
     ),
 
@@ -1794,6 +1804,8 @@ export interface ConsultantCompanyDetail extends ConsultantCompanySummary {
   completion_rate?: number;
   ready_documents?: number;
   latest_report: { id: number; version: number; status: string } | null;
+  /** True while a version is queued or rendering — one a consultant cannot see yet. */
+  report_generating?: boolean;
   my_review_status: string | null;
   co_consultant_count: number;
   review_pending?: boolean;
@@ -2183,6 +2195,19 @@ export interface PlatformTrialRow {
     status?: string;
   };
 }
+
+/**
+ * The response from generating a report, from either portal.
+ *
+ * `stale` says whether there was actually new evidence — the UI uses it to
+ * explain why a re-cut was refused. `first` distinguishes "there is now a
+ * report" from "there is a newer version", which read very differently.
+ */
+export type GeneratedReport = {
+  report: { id: number; version: number; status: string };
+  stale: boolean;
+  first: boolean;
+};
 
 export type ReportVariant = 'full' | 'exec_brief';
 

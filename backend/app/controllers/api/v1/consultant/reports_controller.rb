@@ -42,24 +42,31 @@ module Api
           send_data html, type: "text/html", disposition: "inline"
         end
 
-        # New evidence keeps arriving after a report is reviewed — more interviews
-        # complete, more documents land, signals strengthen. The consultant is the
-        # one who knows whether that changes the advice, so they can mint the next
-        # version themselves rather than waiting on the company to click Generate.
+        # The consultant generates, and re-generates as the evidence changes.
         #
-        # A new VERSION, not a silent re-render: the delta section then states what
-        # changed, and their section overrides carry forward so re-review starts
-        # from their existing work rather than from scratch.
-        def refresh
-          report = policy_scope(::Report).find(params[:id])
-          authorize report, :download?
+        # They are the one who knows whether new interviews actually change the
+        # advice, so the trigger belongs with them rather than with the client.
+        # `force` is theirs to use: the staleness check is a hint, not a veto —
+        # a consultant re-cutting a report after editing sections has a reason
+        # the system cannot see.
+        def create
+          company = policy_scope(::Company).find(params[:company_id])
+          authorize ::Report, :create?
 
-          result = Reports::ConsultantRefreshService.call(
-            report: report, consultant_user: current_consultant_user
+          result = Reports::EnqueueService.call(
+            company: company,
+            triggered_by: current_consultant_user,
+            force: params[:force].to_s == "true"
           )
-          render json: { report: report_json(result[:report]), stale: result[:stale] }, status: :accepted
-        rescue Reports::ConsultantRefreshService::NotStale => e
-          render json: { error: e.message }, status: :unprocessable_entity
+          render json: {
+            report: report_json(result[:report]),
+            stale: result[:stale],
+            first: result[:first]
+          }, status: :accepted
+        rescue Reports::EnqueueService::Busy => e
+          render json: { error: e.message }, status: :conflict
+        rescue Reports::EnqueueService::NotStale => e
+          render json: { error: e.message, forceable: true }, status: :unprocessable_entity
         end
 
         private

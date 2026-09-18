@@ -76,6 +76,7 @@ Rails.application.routes.draw do
         post "companies/:company_id/agentic_ideas/:id/archive", to: "agentic_ideas#archive"
         post "companies/:company_id/agentic_ideas/synthesize", to: "agentic_ideas#synthesize"
         get "reports/pending", to: "reports#pending"
+        post "companies/:company_id/reports", to: "reports#create"
         post "companies/:company_id/reports/:id/approve", to: "reports#approve"
         get "companies/:company_id/reports/:id/download", to: "reports#download"
         get "companies/:company_id/reports/:id/preview", to: "reports#preview"
@@ -143,7 +144,7 @@ Rails.application.routes.draw do
             resources :deep_dive_suggestions, only: %i[index create],
                       controller: "deep_dive_suggestions"
           end
-          resources :reports, only: %i[index show], controller: "reports" do
+          resources :reports, only: %i[index show create], controller: "reports" do
             member do
               get :download
               get :preview
