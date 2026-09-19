@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
 import { MessageSquare } from 'lucide-react';
-import { PageHeader, Card, DataTable, Badge, Button, Textarea, EmptyState, Modal } from '../../components/ui';
+import { PageHeader, Card, DataTable, Badge, Button, Textarea, EmptyState, Modal, ErrorNotice} from '../../components/ui';
 import { label } from '../../lib/labels';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/shadcn/sheet';
 import { useMediaQuery } from '../../lib/useMediaQuery';
@@ -141,12 +141,7 @@ export function CompanyOutreaches() {
       {error && !pending && <p className="text-sm text-status-error">{error}</p>}
 
       {loadError && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-button border border-status-error/30 bg-status-errorBg px-4 py-3 text-sm text-status-error">
-          <span>{loadError}</span>
-          <Button size="sm" variant="secondary" onClick={load}>
-            Retry
-          </Button>
-        </div>
+        <ErrorNotice message={loadError} onRetry={load} />
       )}
 
       <div className="grid gap-4 lg:grid-cols-[1fr_360px]">

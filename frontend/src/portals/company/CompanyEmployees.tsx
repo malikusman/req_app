@@ -13,6 +13,7 @@ import {
   FunnelChart,
   EmptyState,
   Modal,
+  ErrorNotice,
 } from '../../components/ui';
 import { label } from '../../lib/labels';
 import { useToast } from '../../components/ui/ToastProvider';
@@ -196,12 +197,7 @@ export function CompanyEmployees() {
       />
 
       {loadError && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-button border border-status-error/30 bg-status-errorBg px-4 py-3 text-sm text-status-error">
-          <span>{loadError}</span>
-          <Button size="sm" variant="secondary" onClick={load}>
-            Retry
-          </Button>
-        </div>
+        <ErrorNotice message={loadError} onRetry={load} />
       )}
 
       <div ref={inviteCardRef}>

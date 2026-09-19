@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, type TimelineEvent } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
-import { PageHeader, Card, Timeline, EmptyState, Skeleton, Button } from '../../components/ui';
+import { PageHeader, Card, Timeline, EmptyState, Skeleton, ErrorNotice} from '../../components/ui';
 
 export function CompanyTimeline() {
   const token = useCompanyToken();
@@ -42,12 +42,7 @@ export function CompanyTimeline() {
       />
 
       {loadError && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-button border border-status-error/30 bg-status-errorBg px-4 py-3 text-sm text-status-error">
-          <span>{loadError}</span>
-          <Button size="sm" variant="secondary" onClick={load}>
-            Retry
-          </Button>
-        </div>
+        <ErrorNotice message={loadError} onRetry={load} />
       )}
 
       <Card>

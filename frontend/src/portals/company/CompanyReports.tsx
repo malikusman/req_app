@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api, type Report, type ReportArtifact, type ReportVariant } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
 import { BadgeCheck, BookOpen, Copy, Download, FileText, Link2, Ban } from 'lucide-react';
-import { PageHeader, Button, Badge, EmptyState, Select, Card, Skeleton } from '../../components/ui';
+import { PageHeader, Button, Badge, EmptyState, Select, Card, Skeleton, ErrorNotice} from '../../components/ui';
 import { label } from '../../lib/labels';
 import { cn } from '../../lib/cn';
 import { useToast } from '../../components/ui/ToastProvider';
@@ -180,12 +180,7 @@ export function CompanyReports() {
 
       {error && <p className="text-sm text-status-error">{error}</p>}
       {loadError && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-button border border-status-error/30 bg-status-errorBg px-4 py-3 text-sm text-status-error">
-          <span>{loadError}</span>
-          <Button size="sm" variant="secondary" onClick={load}>
-            Retry
-          </Button>
-        </div>
+        <ErrorNotice message={loadError} onRetry={load} />
       )}
 
       {generating && (
