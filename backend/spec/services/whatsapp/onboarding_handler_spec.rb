@@ -81,6 +81,63 @@ RSpec.describe Whatsapp::OnboardingHandler do
       expect(employee.onboarding_step).to eq("awaiting_consent")
       expect(conversation.messages.where(direction: "outbound").last.body).to include("YES")
     end
+
+    # Consent required the WHOLE message to equal a keyword, so a person
+    # answering a question the way people answer questions was refused — twice,
+    # with the same instruction — at the very first step of the product.
+    describe "what counts as a yes" do
+      # The consent text has already gone out; this is the reply to it.
+      before do
+        conversation.messages.create!(direction: "outbound", channel: "whatsapp",
+                                      message_type: "text", body: "Reply YES to continue.")
+      end
+
+      def consent_after(reply)
+        described_class.new(employee: employee, conversation: conversation, client: client)
+                       .handle_inbound_text(reply)
+        employee.reload.consent_given_at.present?
+      end
+
+      [
+        "YES",
+        "yes",
+        "Yes.",
+        "Yes, happy to take part",
+        "yes please",
+        "Yeah sure, go ahead",
+        "OK, let's do it",
+        "I agree to the above",
+        "Sure thing",
+        "Happy to help with this"
+      ].each do |reply|
+        it "accepts #{reply.inspect}" do
+          expect(consent_after(reply)).to be(true)
+        end
+      end
+
+      # A false re-prompt costs one message. A false consent is not recoverable,
+      # so anything carrying a negation is refused even when it opens with a yes.
+      [
+        "No",
+        "No thanks",
+        "Not right now",
+        "yes but not the recording",
+        "OK but I do not consent to being recorded",
+        "I would rather not",
+        "maybe later",
+        "who is this?",
+        "Yesterday I was asked the same thing"
+      ].each do |reply|
+        it "refuses #{reply.inspect}" do
+          expect(consent_after(reply)).to be(false)
+        end
+      end
+
+      it "records which consent text version was agreed to" do
+        consent_after("Yes, happy to take part")
+        expect(employee.reload.consent_text_version).to eq("2026-06-20")
+      end
+    end
   end
 
   describe "awaiting_consent without profiling" do

@@ -170,17 +170,52 @@ module Whatsapp
         ConsentTextVersion.find_by(active: true)
     end
 
+    # Consent used to require the whole message to equal a keyword, so "Yes,
+    # happy to take part" was refused — twice, with the same instruction — on the
+    # very first thing an employee is ever asked to do. People do not reply to a
+    # question with a single bare word.
+    #
+    # So: an unambiguous affirmative at the START of the reply counts. The gate
+    # stays conservative in the way that matters — anything carrying a negation
+    # is refused and re-prompted rather than guessed at, because "yes but not the
+    # recording" is not consent. The exact-keyword path is unchanged and runs
+    # first, so ConsentTextVersion#confirmation_keywords remains the place to add
+    # a language (Arabic included) without touching this code.
+    AFFIRMATIVE_OPENERS = [
+      "YES", "YEP", "YEAH", "YUP", "OK", "OKAY", "SURE",
+      "AGREED", "AGREE", "I AGREE", "I CONSENT", "I ACCEPT", "ACCEPT",
+      "CONFIRM", "CONFIRMED", "HAPPY TO", "GO AHEAD",
+      "SI", "OUI", "JA"
+    ].freeze
+
+    # Any of these anywhere in the reply and we re-prompt. A false "please reply
+    # YES" costs one message; a false consent is not recoverable.
+    NEGATION = /\b(NO|NOT|NEVER|STOP|DONT|DON'T|WONT|WON'T|CANT|CAN'T|CANNOT|UNSUBSCRIBE|OPT ?OUT)\b/
+
+    AFFIRMATIVE_OPENING = /\A(#{Regexp.union(AFFIRMATIVE_OPENERS.sort_by { |o| -o.length })})\b/
+
     def consent_confirmed?(text, consent)
-      normalized = text.upcase.strip.gsub(/[ÍÌÎÏ]/, "I")
-      keywords = consent.confirmation_keywords.map { |k| k.upcase.gsub(/[ÍÌÎÏ]/, "I") }
-      return true if keywords.include?(normalized)
+      normalized = normalize_consent(text)
+      return false if normalized.blank?
+      return true if consent_keyword?(normalized, consent)
 
-      ConsentTextVersion.where(active: true).find_each do |version|
-        version_keywords = version.confirmation_keywords.map { |k| k.upcase.gsub(/[ÍÌÎÏ]/, "I") }
-        return true if version_keywords.include?(normalized)
+      return false if normalized.match?(NEGATION)
+
+      normalized.match?(AFFIRMATIVE_OPENING)
+    end
+
+    def normalize_consent(text)
+      text.to_s.upcase.strip.gsub(/[ÍÌÎÏ]/, "I").squeeze(" ")
+    end
+
+    # Exact match as before, with trailing punctuation forgiven so "YES." counts.
+    def consent_keyword?(normalized, consent)
+      bare = normalized.sub(/[[:punct:]]+\z/, "")
+      sets = [consent.confirmation_keywords] +
+             ConsentTextVersion.where(active: true).pluck(:confirmation_keywords)
+      sets.compact.any? do |keywords|
+        keywords.map { |k| k.to_s.upcase.gsub(/[ÍÌÎÏ]/, "I") }.include?(bare)
       end
-
-      %w[SI YES I\ AGREE OUI JA].include?(normalized)
     end
 
     def detect_and_set_language(text)
