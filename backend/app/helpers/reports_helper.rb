@@ -18,10 +18,10 @@ module ReportsHelper
   }.freeze
 
   CATEGORY_COLORS = {
-    "cat-process" => "#1F40FF",
-    "cat-tooling" => "#00A9F4",
-    "cat-people" => "#E6338A",
-    "cat-data" => "#14B8A6"
+    "cat-process" => "#0E9F6E",
+    "cat-tooling" => "#088EAF",
+    "cat-people" => "#DB2979",
+    "cat-data" => "#12B886"
   }.freeze
 
   CATEGORY_CYCLE = %w[cat-process cat-tooling cat-people cat-data].freeze
@@ -93,7 +93,7 @@ module ReportsHelper
   end
 
   def report_category_color(css_class)
-    CATEGORY_COLORS.fetch(css_class.to_s, "#1F40FF")
+    CATEGORY_COLORS.fetch(css_class.to_s, "#0E9F6E")
   end
 
   def report_brand_footer(company_name, snapshot = nil)
@@ -233,12 +233,12 @@ module ReportsHelper
     rest = 100 - pct
     <<~SVG.html_safe
       <svg width="64" height="64" viewBox="0 0 42 42" aria-hidden="true">
-        <circle cx="21" cy="21" r="15.9" fill="none" stroke="#EFF3F7" stroke-width="5"/>
+        <circle cx="21" cy="21" r="15.9" fill="none" stroke="#F1F7F3" stroke-width="5"/>
         <circle cx="21" cy="21" r="15.9" fill="none" stroke="#{color}" stroke-width="5"
           stroke-dasharray="#{pct} #{rest}" stroke-dashoffset="25"
           transform="rotate(-90 21 21)" stroke-linecap="round"/>
         <text x="21" y="24" text-anchor="middle" font-size="9" font-weight="700"
-          fill="#051C2C" font-family="Inter">#{pct}</text>
+          fill="#17251D" font-family="Manrope">#{pct}</text>
       </svg>
     SVG
   end
@@ -418,12 +418,12 @@ module ReportsHelper
     svg = +%(<svg viewBox="0 0 #{width} #{height}" width="100%" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">)
     cats.each_with_index do |cat, ci|
       x = left + ci * cell + cell / 2
-      svg << %(<text x="#{x}" y="#{top - 10}" text-anchor="middle" font-size="8" fill="#5A6B78" font-family="Inter">#{report_category_label(cat)}</text>)
+      svg << %(<text x="#{x}" y="#{top - 10}" text-anchor="middle" font-size="8" fill="#5B6B62" font-family="Manrope">#{report_category_label(cat)}</text>)
     end
     rows.each_with_index do |(dept_key, catmap), ri|
       y = top + ri * cell
       dept = labels[dept_key]
-      svg << %(<text x="#{left - 8}" y="#{y + cell / 2 + 3}" text-anchor="end" font-size="8" fill="#051C2C" font-family="Inter">#{ERB::Util.html_escape(dept.to_s.truncate(16))}</text>)
+      svg << %(<text x="#{left - 8}" y="#{y + cell / 2 + 3}" text-anchor="end" font-size="8" fill="#17251D" font-family="Manrope">#{ERB::Util.html_escape(dept.to_s.truncate(16))}</text>)
       cats.each_with_index do |cat, ci|
         x = left + ci * cell
         intensity = (catmap[cat] / max).clamp(0.0, 1.0)
@@ -431,7 +431,7 @@ module ReportsHelper
         # cell reads as more friction, not just a different colour. (Distinct hues
         # per column made intensities incomparable across columns.)
         opacity = (0.06 + intensity * 0.94).round(2)
-        svg << %(<rect x="#{x}" y="#{y}" width="#{cell - 4}" height="#{cell - 4}" rx="3" fill="#1F40FF" fill-opacity="#{opacity}"/>)
+        svg << %(<rect x="#{x}" y="#{y}" width="#{cell - 4}" height="#{cell - 4}" rx="3" fill="#0E9F6E" fill-opacity="#{opacity}"/>)
       end
     end
     svg << "</svg>"
@@ -451,20 +451,20 @@ module ReportsHelper
       x = 40 + (feas / 100.0) * 320
       y = 300 - (impact / 100.0) * 260
       pill = report_priority_pill(rec["priority"])
-      color = { "high" => "#E6338A", "med" => "#00A9F4", "low" => "#8896A2" }[pill]
+      color = { "high" => "#DB2979", "med" => "#088EAF", "low" => "#7C8B82" }[pill]
       label = rec["title"].to_s.split.first(2).join(" ")
       points << %(<circle cx="#{x.round}" cy="#{y.round}" r="7" fill="#{color}"/>)
-      points << %(<text x="#{x.round + 11}" y="#{y.round + 3}" font-size="8" fill="#051C2C" font-family="Inter">#{ERB::Util.html_escape(label)}</text>)
+      points << %(<text x="#{x.round + 11}" y="#{y.round + 3}" font-size="8" fill="#17251D" font-family="Manrope">#{ERB::Util.html_escape(label)}</text>)
     end
 
     <<~SVG.html_safe
       <svg viewBox="0 0 420 330" xmlns="http://www.w3.org/2000/svg" width="100%" aria-hidden="true">
-        <line x1="40" y1="300" x2="380" y2="300" stroke="#051C2C" stroke-width="1"/>
-        <line x1="40" y1="20" x2="40" y2="300" stroke="#051C2C" stroke-width="1"/>
-        <line x1="210" y1="20" x2="210" y2="300" stroke="#D6DEE6" stroke-dasharray="3 3"/>
-        <line x1="40" y1="160" x2="380" y2="160" stroke="#D6DEE6" stroke-dasharray="3 3"/>
-        <text x="210" y="322" text-anchor="middle" font-size="8" fill="#5A6B78" font-family="Inter">Feasibility →</text>
-        <text x="18" y="160" text-anchor="middle" font-size="8" fill="#5A6B78" font-family="Inter" transform="rotate(-90 18 160)">Impact →</text>
+        <line x1="40" y1="300" x2="380" y2="300" stroke="#17251D" stroke-width="1"/>
+        <line x1="40" y1="20" x2="40" y2="300" stroke="#17251D" stroke-width="1"/>
+        <line x1="210" y1="20" x2="210" y2="300" stroke="#E4EDE6" stroke-dasharray="3 3"/>
+        <line x1="40" y1="160" x2="380" y2="160" stroke="#E4EDE6" stroke-dasharray="3 3"/>
+        <text x="210" y="322" text-anchor="middle" font-size="8" fill="#5B6B62" font-family="Manrope">Feasibility →</text>
+        <text x="18" y="160" text-anchor="middle" font-size="8" fill="#5B6B62" font-family="Manrope" transform="rotate(-90 18 160)">Impact →</text>
         #{points.join}
       </svg>
     SVG
