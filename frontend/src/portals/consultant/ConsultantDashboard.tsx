@@ -196,7 +196,10 @@ export function ConsultantDashboard() {
           to: `/consultant/companies/${f.company_id}/employees/${f.employee_id}/followup`,
         },
       })),
-    ...(data.unread_count > 0
+    // Only when the hero is not already sending them to the same place. It was
+    // rendering "Open inbox" directly beneath a hero whose button said "Open
+    // inbox", and the sidebar carries the count either way.
+    ...(data.unread_count > 0 && hero.primaryAction.to !== '/consultant/inbox'
       ? [
           {
             tone: 'attention' as const,

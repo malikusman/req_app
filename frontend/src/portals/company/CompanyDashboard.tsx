@@ -257,11 +257,19 @@ export function CompanyDashboard() {
       {/* Also waiting */}
       <AttentionList items={attentionItems} />
 
-      {/* Opportunity headline — the consultant's estimate of what acting is worth */}
+      {/*
+        Opportunity headline — the consultant's estimate of what acting is worth.
+
+        Quiet surface on purpose. This carried a mint fill AND the heaviest
+        shadow in the system, directly beneath a hero with the same treatment, so
+        the two halved each other and the screen had no single peak. The hero is
+        the action and keeps the fill; this is a fact, and the figure is set
+        large enough to hold the eye on its own.
+      */}
       {data.opportunity_estimate && (
-        <div className="rounded-card border border-accent/40 bg-accent-muted p-5 shadow-hero-mockup sm:p-6">
+        <div className="rounded-card border border-border bg-card p-5 sm:p-6">
           <p className="text-label-caps uppercase text-accent-hover">Opportunity identified</p>
-          <p className="mt-1 font-display text-3xl font-semibold tabular-nums text-foreground sm:text-4xl">
+          <p className="mt-1 font-display text-4xl font-bold tabular-nums tracking-tight text-foreground sm:text-5xl">
             {data.opportunity_estimate.amount.toLocaleString()}{' '}
             <span className="text-xl font-semibold text-muted-foreground sm:text-2xl">
               {data.opportunity_estimate.unit}
@@ -349,7 +357,7 @@ export function CompanyDashboard() {
                       <span className="min-w-0 truncate text-sm font-semibold text-foreground">{s.label}</span>
                       <Badge variant={band.variant}>{band.label}</Badge>
                     </div>
-                    <StrengthBar strength={s.strength} label="" />
+                    <StrengthBar strength={s.strength} label="" tone="evidence" />
                   </div>
                 );
               })}

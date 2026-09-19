@@ -688,7 +688,7 @@ export function PlatformCompanyDetail() {
                     {intelSnapshot.top_pain_points.map((s) => (
                       <li key={s.id} className="flex items-center justify-between gap-4">
                         <span className="text-sm text-text-primary">{s.label}</span>
-                        <StrengthBar strength={s.strength} />
+                        <StrengthBar strength={s.strength} tone="evidence" />
                       </li>
                     ))}
                   </ul>
@@ -704,7 +704,7 @@ export function PlatformCompanyDetail() {
                   header: 'Strength',
                   render: (s) => (
                     <div className="min-w-[120px]">
-                      <StrengthBar strength={s.strength} />
+                      <StrengthBar strength={s.strength} tone="evidence" />
                     </div>
                   ),
                 },

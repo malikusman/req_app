@@ -49,7 +49,9 @@ module Intelligence
       CompanyReadinessRefresher.call(@company)
       TimelineRecorder.intelligence_refreshed!(
         company: @company,
-        summary: "Updated #{signals.size} signals, #{patterns.size} patterns, #{recommendations.size} recommendations"
+        # Reads on the client's activity feed, so it pluralises.
+        summary: "Updated #{pluralize(signals.size, 'signal')}, #{pluralize(patterns.size, 'pattern')} " \
+                 "and #{pluralize(recommendations.size, 'recommendation')}"
       )
       NotificationService.notify_pattern_detected(company: @company) if patterns.any?
 
@@ -96,6 +98,10 @@ module Intelligence
     rescue StandardError => e
       Rails.logger.warn("[AggregateCompanyIntelligence] agentic ideas failed company=#{@company.id}: #{e.message}")
       0
+    end
+
+    def pluralize(count, word)
+      "#{count} #{word.pluralize(count)}"
     end
   end
 end

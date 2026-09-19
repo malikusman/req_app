@@ -54,7 +54,7 @@ export function PageHeader({
         <div>
           <h1 className="m-0 font-display tracking-tight text-page-title text-foreground">{title}</h1>
           {description && (
-            <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+            <p className="mt-1.5 max-w-2xl text-[0.9375rem] leading-relaxed text-muted-foreground">{description}</p>
           )}
         </div>
         {actions && <motion.div className="flex shrink-0 items-center gap-2">{actions}</motion.div>}
