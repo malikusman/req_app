@@ -173,6 +173,7 @@ export function PlatformCompanyDetail() {
   const [loading, setLoading] = useState(true);
   const [approvingId, setApprovingId] = useState<number | null>(null);
   const [selectedReportId, setSelectedReportId] = useState<number | null>(null);
+  const [consultantCount, setConsultantCount] = useState<number | null>(null);
   const [generating, setGenerating] = useState(false);
   const [generateNotice, setGenerateNotice] = useState<string | null>(null);
   const [reportPreviewUrl, setReportPreviewUrl] = useState<string | null>(null);
@@ -184,6 +185,16 @@ export function PlatformCompanyDetail() {
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
+
+  // Only for the Reports tab's helper line, which claims the button exists
+  // BECAUSE no consultant is assigned — so it has to know whether that is true.
+  const loadConsultantCount = () => {
+    if (!token) return Promise.resolve();
+    return api
+      .companyConsultantAssignments(token, companyId)
+      .then((d) => setConsultantCount(d.active_count))
+      .catch(() => setConsultantCount(null));
+  };
 
   const loadReports = () => {
     if (!token || !companyId) return Promise.resolve([]);
@@ -202,7 +213,7 @@ export function PlatformCompanyDetail() {
   useEffect(() => {
     if (!token || !companyId) return;
     setLoading(true);
-    Promise.all([api.platformCompany(token, companyId).then((d) => d.company), loadReports()])
+    Promise.all([api.platformCompany(token, companyId).then((d) => d.company), loadReports(), loadConsultantCount()])
       .then(([c]) => setCompany(c))
       .catch(() => setCompany(null))
       .finally(() => setLoading(false));
@@ -761,9 +772,15 @@ export function PlatformCompanyDetail() {
       {tab === 'reports' && (
         <>
           <div className="flex flex-wrap items-center justify-between gap-3">
+            {/*
+              The line is about WHY this button is here, so it should only claim
+              that when it is true. On a company that already has consultants it
+              read as a contradiction of the row beneath it.
+            */}
             <p className="m-0 text-sm text-text-secondary">
-              Generation normally belongs to the assigned consultant. Use this when there is no
-              consultant on the company yet.
+              {consultantCount === 0
+                ? 'No consultant is assigned yet, so nobody else can generate for this company.'
+                : 'Generation normally belongs to the assigned consultant. Use this to re-cut a version yourself.'}
             </p>
             <Button
               variant="secondary"

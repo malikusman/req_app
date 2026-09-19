@@ -46,7 +46,25 @@ function sectionsComplete(states: { section_key: string; status: string }[]) {
 // Exploratory steps (context/evidence/synthesis) are reference material with no
 // completion criteria — only these carry a real "done" signal, so we never show
 // a green check for merely visiting a page.
-const ACTION_STEPS: WorkspaceStepId[] = ['sections', 'collaborate', 'submit'];
+// Steps that can carry a green check. Collaborate is deliberately NOT one: its
+// only completion signal was "a co-consultant has done something", so the rail
+// ticked a step the reviewer had never touched — and a check in a numbered task
+// list reads as "you did this". It keeps its number and the subtler "seen" ring.
+// A submitted review is a record, not a dead form. The two field components
+// disagreed about what "disabled" looks like — Input fades its value to 50%
+// (so a saved figure read as an empty placeholder) while this Textarea had no
+// disabled styling at all and stayed fully black. One treatment: the value stays
+// legible, the field plainly is not editable.
+const LOCKED_FIELD = 'disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-100 disabled:text-text-primary';
+
+// One spelling of a section name, shared by the panel and the rail.
+function sectionTitle(key: string): string {
+  return key
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+const ACTION_STEPS: WorkspaceStepId[] = ['sections', 'submit'];
 
 const OPPORTUNITY_UNITS = [
   { value: 'AED / year', label: 'AED / year' },
@@ -462,11 +480,8 @@ export function ConsultantReportWorkspace() {
       evidence: false,
       synthesis: false,
       sections: sectionsComplete(states),
-      collaborate:
-        !hasCoConsultants ||
-        workspace.co_consultant_reviews.some(
-          (cr) => cr.comments.length > 0 || (cr.activity && cr.activity !== 'not_started')
-        ),
+      // Not an action the reviewer completes — see ACTION_STEPS.
+      collaborate: false,
       submit: submitted,
     } satisfies Record<WorkspaceStepId, boolean>;
   }, [workspace, submitted, visited, hasCoConsultants]);
@@ -874,7 +889,10 @@ export function ConsultantReportWorkspace() {
           {activeStep === 'sections' && (
             <div className="space-y-4">
               <Card
-                title={activeSection.replace(/_/g, ' ')}
+                /* The rail beside this renders the same key with CSS capitalize,
+                   so the panel said "executive summary" next to "Executive
+                   Summary". One spelling. */
+                title={sectionTitle(activeSection)}
                 action={
                   !submitted && (hasCoConsultants || activeConversation) ? (
                     <EvidenceAskBubble
@@ -1076,7 +1094,7 @@ export function ConsultantReportWorkspace() {
                     type="number"
                     inputMode="numeric"
                     min={0}
-                    className="w-40"
+                    className={cn('w-40', LOCKED_FIELD)}
                     placeholder="e.g. 240000"
                     value={oppAmount}
                     disabled={submitted}
@@ -1087,6 +1105,7 @@ export function ConsultantReportWorkspace() {
                   />
                   <Select
                     label="Unit"
+                    className={LOCKED_FIELD}
                     options={OPPORTUNITY_UNITS}
                     value={oppUnit}
                     disabled={submitted}
@@ -1097,7 +1116,7 @@ export function ConsultantReportWorkspace() {
                   />
                 </div>
                 <Textarea
-                  className="mt-3"
+                  className={cn('mt-3', LOCKED_FIELD)}
                   rows={2}
                   value={oppBasis}
                   disabled={submitted}
@@ -1117,7 +1136,13 @@ export function ConsultantReportWorkspace() {
                 )}
               </Card>
               <Card title="Overall note">
-                <Textarea rows={5} value={note} disabled={submitted} onChange={(e) => setNote(e.target.value)} />
+                <Textarea
+                  rows={5}
+                  className={LOCKED_FIELD}
+                  value={note}
+                  disabled={submitted}
+                  onChange={(e) => setNote(e.target.value)}
+                />
                 {!submitted && (
                   <Button variant="secondary" size="sm" className="mt-3" onClick={handleSaveNote}>
                     Save note

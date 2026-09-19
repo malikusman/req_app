@@ -5,6 +5,7 @@ import { useCompanyToken } from '../../lib/auth';
 import { BadgeCheck, BookOpen, Copy, Download, FileText, Link2, Ban } from 'lucide-react';
 import { PageHeader, Button, Badge, EmptyState, Select, Card, Skeleton } from '../../components/ui';
 import { label } from '../../lib/labels';
+import { cn } from '../../lib/cn';
 import { useToast } from '../../components/ui/ToastProvider';
 
 // The report IS the product. It used to be rendered as row one of a DataTable
@@ -151,6 +152,7 @@ export function CompanyReports() {
     null;
   const opportunity = snapshot?.expert?.opportunity ?? null;
   const validators = snapshot?.expert?.validators ?? [];
+  const metricCount = Math.min(snapshot?.key_metrics?.length ?? 0, 3);
   const artifacts = hero?.artifacts ?? [];
   const olderReports = reports.filter((r) => r.id !== hero?.id);
 
@@ -274,7 +276,19 @@ export function CompanyReports() {
               )}
 
               {(snapshot?.key_metrics?.length ?? 0) > 0 && (
-                <div className="grid gap-4 sm:grid-cols-3">
+                /*
+                  Columns follow the count. Fixed at three, a single extracted
+                  metric sat in the left third under a rule a third as wide as
+                  the block, reading as two missing metrics rather than as one
+                  finding — and how many get extracted is a property of the
+                  evidence, not something the layout should assume.
+                */
+                <div
+                  className={cn(
+                    'grid gap-4',
+                    metricCount >= 3 ? 'sm:grid-cols-3' : metricCount === 2 ? 'sm:grid-cols-2' : 'grid-cols-1'
+                  )}
+                >
                   {snapshot!.key_metrics!.slice(0, 3).map((m) => (
                     <div key={`${m.headline}-${m.label}`} className="border-t-2 border-border pt-2">
                       <div className="text-lg font-semibold text-text-primary">{m.headline}</div>

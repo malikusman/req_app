@@ -2,10 +2,18 @@
 <style>
 
 :root{
- --ink:#051C2C;--blue:#1F40FF;--blue2:#5A7BFF;--cyan:#00A9F4;--teal:#14B8A6;--magenta:#E6338A;
- --paper:#FFFFFF;--paper-soft:#F5F7FA;--hair:#D6DEE6;--muted:#5A6B78;--negative:#C0362C;
- --cat-process:var(--blue);--cat-tooling:var(--cyan);--cat-people:var(--magenta);--cat-data:var(--teal);
- --serif:"Playfair Display",Georgia,serif;--sans:"Inter","Helvetica Neue",Arial,sans-serif;
+ /* The Pulse palette — the same tokens the app and the website are built on.
+    This document used a navy/electric-blue/Playfair identity of its own, which
+    meant the one artefact a client keeps and forwards looked like it came from
+    a different firm than the site they signed up on. Category hues come from
+    the app's chart palette, which was picked for colour-blind separation. */
+ --ink:#17251D;--blue:#0E9F6E;--blue2:#34BE8C;--cyan:#088EAF;--teal:#0E9F6E;--magenta:#DB2979;
+ --paper:#FFFFFF;--paper-soft:#F1F7F3;--hair:#E4EDE6;--muted:#5B6B62;--negative:#B3261E;
+ --body:#2A3B32;--warn:#B35309;
+ --cat-process:#0E9F6E;--cat-tooling:#2977D6;--cat-people:#DB2979;--cat-data:#088EAF;
+ /* "serif" is now a display sans; the variable name is kept so every
+    partial that reads it keeps working. */
+ --serif:"Sora","Helvetica Neue",Arial,sans-serif;--sans:"Manrope","Helvetica Neue",Arial,sans-serif;
  --pw:297mm;--ph:210mm;--pad:14mm 18mm 12mm;}
 @page{size:A4 landscape;margin:0;}
 *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
@@ -41,7 +49,7 @@ html,body{margin:0;padding:0;background:#fff;color:var(--ink);font-family:var(--
 .dark .footer .brand{color:#fff;}
 h1,h2,h3,h4{font-family:var(--serif);font-weight:700;line-height:1.05;margin:0;}
 .eyebrow{font-family:var(--sans);font-weight:600;font-size:8.5pt;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);}
-p{font-size:9.5pt;line-height:1.5;margin:0 0 3mm;color:#20303c;}
+p{font-size:9.5pt;line-height:1.5;margin:0 0 3mm;color:var(--body);}
 .lead{font-size:11pt;line-height:1.55;color:var(--ink);}
 .muted{color:var(--muted);}
 strong{font-weight:600;}
@@ -201,7 +209,7 @@ table.data td{padding:2mm;border-bottom:1px solid var(--hair);}
 /* ===== CONSULTANT-NOTES APPENDIX ===== */
 .status{ display:inline-block; font-size:7.5pt; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:1mm 3mm; border-radius:20px; color:#fff; white-space:nowrap; }
 .status.reviewed{ background:var(--teal); }
-.status.clarify{ background:#E8862A; }
+.status.clarify{ background:var(--warn); }
 .consultant-note{ border-left:3px solid var(--blue); padding-left:5mm; }
 .consultant-note .who{ font-family:var(--sans); font-weight:700; font-size:10.5pt; }
 .consultant-note .role{ font-size:8pt; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin:1mm 0 3mm; }
@@ -210,16 +218,16 @@ table.data td{padding:2mm;border-bottom:1px solid var(--hair);}
 .review-row{ display:grid; grid-template-columns:46mm 34mm 1fr; gap:6mm; align-items:start; padding:3mm 0; border-top:1px solid var(--hair); font-size:8.8pt; break-inside:avoid; }
 .review-row.head{ border-top:none; color:var(--muted); font-size:7.5pt; text-transform:uppercase; letter-spacing:.06em; }
 .review-row .sec{ font-family:var(--sans); font-weight:600; }
-.review-row .cmt{ color:#20303c; }
+.review-row .cmt{ color:var(--body); }
 
 /* Structured findings */
 .finding-card{ border:1px solid var(--hair); border-left:3px solid var(--blue); padding:4mm 5mm; break-inside:avoid; page-break-inside:avoid; }
-.finding-card.sev-material{ border-left-color:#E8862A; }
+.finding-card.sev-material{ border-left-color:var(--warn); }
 .finding-card.sev-critical{ border-left-color:var(--magenta); }
 .finding-meta{ display:flex; flex-wrap:wrap; gap:2mm 3mm; align-items:center; font-size:8pt; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin-bottom:2mm; }
 .finding-title{ font-family:var(--sans); font-weight:700; font-size:10.5pt; margin:0 0 1.5mm; }
 .status.sev-info{ background:var(--blue); }
-.status.sev-material{ background:#E8862A; }
+.status.sev-material{ background:var(--warn); }
 .status.sev-critical{ background:var(--magenta); }
 .status.disposition{ background:var(--teal); }
 .evidence-refs{ margin-top:3mm; display:flex; flex-wrap:wrap; gap:2mm; align-items:center; }
@@ -242,7 +250,7 @@ h1,h2,h3,h4{letter-spacing:-0.008em;}
 /* Hairlines were 1px, which renders as a heavy 0.26mm line at print DPI. */
 .exhibit{border-color:var(--hair);}
 ul.plain{list-style:none;padding:0;margin:0;}
-ul.plain li{font-size:9pt;line-height:1.5;margin:0 0 2mm;padding-left:4mm;position:relative;color:#20303c;}
+ul.plain li{font-size:9pt;line-height:1.5;margin:0 0 2mm;padding-left:4mm;position:relative;color:var(--body);}
 ul.plain li::before{content:"";position:absolute;left:0;top:2.6mm;width:1.6mm;height:1.6mm;background:var(--blue);}
 /* Aggregate evidence attribution, replacing the verbatim excerpt block. */
 .attribution{font-size:8pt;line-height:1.4;color:var(--muted);margin:3mm 0 0;padding-top:2.5mm;border-top:1px solid var(--hair);}
@@ -256,9 +264,9 @@ ul.plain li::before{content:"";position:absolute;left:0;top:2.6mm;width:1.6mm;he
 .rt-h{font-family:var(--sans);font-weight:700;font-size:10pt;line-height:1.3;letter-spacing:0;color:var(--ink);margin:5mm 0 2mm;break-after:avoid;}
 .rt-h:first-child{margin-top:0;}
 .rt-h3{font-size:9.5pt;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;}
-.rt-p{font-size:9.5pt;line-height:1.58;margin:0 0 3mm;color:#20303c;}
+.rt-p{font-size:9.5pt;line-height:1.58;margin:0 0 3mm;color:var(--body);}
 .rt-list{list-style:none;padding:0;margin:0 0 3mm;}
-.rt-list li{font-size:9.5pt;line-height:1.55;margin:0 0 2mm;padding-left:5mm;position:relative;color:#20303c;}
+.rt-list li{font-size:9.5pt;line-height:1.55;margin:0 0 2mm;padding-left:5mm;position:relative;color:var(--body);}
 .rt-list li::before{content:"";position:absolute;left:0;top:2.9mm;width:2.6mm;height:1px;background:var(--blue);}
 .rich-text em{font-style:italic;color:var(--muted);}
 
@@ -288,7 +296,7 @@ ul.plain li::before{content:"";position:absolute;left:0;top:2.6mm;width:1.6mm;he
    lines mid-figure. The period is now its own line by design. */
 .opportunity-amount{font-family:var(--serif);font-weight:800;font-size:27pt;line-height:1.02;letter-spacing:-0.015em;color:var(--blue);margin:3mm 0 1mm;}
 .opportunity-period{font-family:var(--sans);font-weight:600;font-size:8pt;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:3mm;}
-.opportunity-basis{font-size:8.5pt;line-height:1.5;color:#20303c;margin:0 0 3mm;}
+.opportunity-basis{font-size:8.5pt;line-height:1.5;color:var(--body);margin:0 0 3mm;}
 .opportunity-by{font-size:7.5pt;line-height:1.45;color:var(--muted);}
 .validators{margin-top:6mm;}
 .validator{margin-top:3mm;padding-top:3mm;border-top:1px solid var(--hair);}
