@@ -33,7 +33,7 @@ export default {
         },
         accent: {
           DEFAULT: 'hsl(var(--primary))',
-          hover: 'hsl(160 83% 26%)',
+          hover: 'hsl(160 83% 21%)',
           muted: 'hsl(153 46% 91%)',
           foreground: 'hsl(var(--accent-foreground))',
         },
@@ -107,7 +107,7 @@ export default {
           muted: 'hsl(var(--muted-foreground))',
           accent: {
             DEFAULT: 'hsl(var(--primary))',
-            hover: 'hsl(160 83% 26%)',
+            hover: 'hsl(160 83% 21%)',
             muted: 'hsl(153 46% 91%)',
           },
           border: 'hsl(var(--border))',

@@ -10,12 +10,19 @@ export function SimpleBarChart({
   data,
   emptyLabel = 'No data yet',
   valueSuffix = '',
+  domainMax,
   height = 220,
   layout = 'vertical',
   className,
 }: {
   data: SimpleBarDatum[];
   emptyLabel?: string;
+  /**
+   * Pin the value axis instead of letting it scale to the tallest bar. A
+   * percentage chart needs this: without it the highest company draws a FULL
+   * bar whatever its value, so 40% and 100% look identical.
+   */
+  domainMax?: number;
   valueSuffix?: string;
   height?: number;
   layout?: 'vertical' | 'horizontal';
@@ -42,7 +49,13 @@ export function SimpleBarChart({
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={!isHorizontal} horizontal={isHorizontal} />
           {isHorizontal ? (
             <>
-              <XAxis type="number" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+              <XAxis
+                type="number"
+                domain={domainMax != null ? [0, domainMax] : undefined}
+                tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                axisLine={false}
+                tickLine={false}
+              />
               <YAxis
                 type="category"
                 dataKey="name"
@@ -64,7 +77,13 @@ export function SimpleBarChart({
                 textAnchor={chartData.length > 4 ? 'end' : 'middle'}
                 height={chartData.length > 4 ? 56 : 30}
               />
-              <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} width={36} />
+              <YAxis
+                domain={domainMax != null ? [0, domainMax] : undefined}
+                tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                axisLine={false}
+                tickLine={false}
+                width={36}
+              />
             </>
           )}
           <Tooltip

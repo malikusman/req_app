@@ -30,10 +30,18 @@ function reviewStatusVariant(status: string | null): 'success' | 'warning' | 'in
   return 'neutral';
 }
 
+/**
+ * Participation as a percentage, 0-100.
+ *
+ * The API returns completion_rate as a RATIO. This rounded it and labelled the
+ * result "%", so 0.6 became 1: a company with 60% participation reported "1%",
+ * and one at 100% reported "1%" as well. The third branch — computed from the
+ * raw counts — was always correct, which is how this survived: it only runs
+ * when completion_rate is missing.
+ */
 function companyCompletionRate(c: ConsultantDashboardPayload['companies'][number]): number {
-  if (typeof c.completion_rate === 'number') return Math.round(c.completion_rate);
-  const fromParticipation = c.participation?.completion_rate;
-  if (typeof fromParticipation === 'number') return Math.round(fromParticipation);
+  const ratio = typeof c.completion_rate === 'number' ? c.completion_rate : c.participation?.completion_rate;
+  if (typeof ratio === 'number') return Math.round(ratio * 100);
   if (c.invited_count > 0) return Math.round((c.completed_count / c.invited_count) * 100);
   return 0;
 }
@@ -338,6 +346,7 @@ export function ConsultantDashboard() {
               data={readinessByCompany}
               emptyLabel="Assign companies to see portfolio readiness."
               valueSuffix="%"
+              domainMax={100}
               layout="horizontal"
               height={Math.max(200, readinessByCompany.length * 40)}
             />
@@ -347,6 +356,7 @@ export function ConsultantDashboard() {
               data={participationByCompany}
               emptyLabel="Participation appears once employees are invited."
               valueSuffix="%"
+              domainMax={100}
               layout="horizontal"
               height={Math.max(200, participationByCompany.length * 40)}
             />
