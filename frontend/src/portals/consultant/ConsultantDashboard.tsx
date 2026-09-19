@@ -310,23 +310,39 @@ export function ConsultantDashboard() {
                       <h3 className="m-0 font-display font-semibold text-foreground">{c.name}</h3>
                       {pending && <Badge variant="warning">Review</Badge>}
                     </div>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <Badge variant="info">{Math.round(c.report_readiness_score ?? 0)}% readiness</Badge>
-                      <Badge variant="neutral">{rate}% participation</Badge>
-                      {(c.ready_documents ?? 0) > 0 && (
-                        <Badge variant="neutral">{c.ready_documents} docs ready</Badge>
-                      )}
-                      {c.latest_report && (
-                        <Badge variant={c.latest_report.status === 'ready' ? 'success' : 'neutral'}>
-                          v{c.latest_report.version} — {c.latest_report.status}
-                        </Badge>
-                      )}
-                      {c.latest_report && (
+                    {/*
+                      Five pills in three colours with no hierarchy, two of them
+                      carrying numbers. A pill is for STATE; a measure is a
+                      figure, and figures in a fixed position can be compared
+                      down a row of cards, which pills cannot. So: two measures,
+                      one pill for the thing that is actually the consultant's
+                      job, and the rest as quiet meta.
+                    */}
+                    <dl className="mt-4 grid grid-cols-2 gap-3">
+                      <div>
+                        <dt className="text-label-caps uppercase text-muted-foreground">Readiness</dt>
+                        <dd className="m-0 font-display text-xl font-bold tabular-nums text-foreground">
+                          {Math.round(c.report_readiness_score ?? 0)}%
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-label-caps uppercase text-muted-foreground">Participation</dt>
+                        <dd className="m-0 font-display text-xl font-bold tabular-nums text-foreground">{rate}%</dd>
+                      </div>
+                    </dl>
+                    {c.latest_report && (
+                      <div className="mt-3">
                         <Badge variant={reviewStatusVariant(c.my_review_status ?? null)}>
-                          Review: {label('reviewStatus', c.my_review_status ?? 'pending')}
+                          Your review: {label('reviewStatus', c.my_review_status ?? 'pending')}
                         </Badge>
-                      )}
-                    </div>
+                      </div>
+                    )}
+                    <p className="m-0 mt-3 text-xs text-muted-foreground">
+                      {c.latest_report
+                        ? `Report v${c.latest_report.version} · ${c.latest_report.status}`
+                        : 'No report yet'}
+                      {(c.ready_documents ?? 0) > 0 && ` · ${c.ready_documents} docs ready`}
+                    </p>
                     {c.co_consultant_count > 0 && (
                       <p className="mt-2 text-xs text-muted-foreground">
                         {c.co_consultant_count} co-consultant{c.co_consultant_count === 1 ? '' : 's'}
