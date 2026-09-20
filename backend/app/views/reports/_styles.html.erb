@@ -166,9 +166,18 @@ table.data td{padding:2mm;border-bottom:1px solid var(--hair);}
 
 /* ===== LANDSCAPE LAYOUT (297x210) ===== */
 
-.cols-3{ column-count:3; column-gap:9mm; }
-.cols-3 p:first-child{ margin-top:0; }
+/* A grid, not CSS columns. These are three discrete sentences, and column flow
+   split them wherever the text happened to run out — "…Core system dependency,"
+   ended one column and "Coordination overhead." opened the next, so a single
+   sentence read as two fragments. A grid keeps one statement per column. */
+.cols-3{ display:grid; grid-template-columns:repeat(3,1fr); gap:9mm; align-items:start; }
+.cols-3 p{ margin:0; }
+/* Column count follows the item count. Fixed at three, two recommendations sat
+   in the left two-thirds with an empty column beside them, which reads as a
+   missing card rather than as a deliberate pair. */
 .card-grid-3{ display:grid; grid-template-columns:repeat(3,1fr); gap:6mm; margin-top:5mm; }
+.card-grid-3:has(> :last-child:nth-child(1)){ grid-template-columns:minmax(0,1fr); max-width:120mm; }
+.card-grid-3:has(> :last-child:nth-child(2)){ grid-template-columns:repeat(2,1fr); }
 .split{ display:grid; grid-template-columns:0.92fr 1.28fr; gap:12mm; align-items:start; margin-top:4mm; }
 .split .exhibit{ margin-top:0; }
 

@@ -156,7 +156,10 @@ module ReportsHelper
       top = Array(snapshot["recommendations"]).max_by { |r| r["impact_score"].to_f }
       return fallback unless top&.dig("title").present?
 
-      "#{top['title']} is the highest-impact move"
+      # Titles here are imperative ("Automate manual data entry"), so they
+      # cannot be the subject of a sentence — that produced "Automate manual
+      # data entry is the highest-impact move". Lead with the label instead.
+      "The highest-impact move: #{top['title']}"
     else
       fallback
     end
@@ -415,7 +418,10 @@ module ReportsHelper
     width = left + cats.size * cell + 20
     height = top + rows.size * cell + 30
 
-    svg = +%(<svg viewBox="0 0 #{width} #{height}" width="100%" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">)
+    # A legend row: intensity is the whole encoding, so the reader needs to know
+    # which end is which. Height grows to make room for it.
+    legend_h = 26
+    svg = +%(<svg viewBox="0 0 #{width} #{height + legend_h}" width="100%" style="max-width:150mm;display:block;" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Friction intensity by department and category">)
     cats.each_with_index do |cat, ci|
       x = left + ci * cell + cell / 2
       svg << %(<text x="#{x}" y="#{top - 10}" text-anchor="middle" font-size="8" fill="#5B6B62" font-family="Manrope">#{report_category_label(cat)}</text>)
@@ -431,9 +437,17 @@ module ReportsHelper
         # cell reads as more friction, not just a different colour. (Distinct hues
         # per column made intensities incomparable across columns.)
         opacity = (0.06 + intensity * 0.94).round(2)
-        svg << %(<rect x="#{x}" y="#{y}" width="#{cell - 4}" height="#{cell - 4}" rx="3" fill="#0E9F6E" fill-opacity="#{opacity}"/>)
+        svg << %(<rect x="#{x}" y="#{y}" width="#{cell - 4}" height="#{cell - 4}" rx="3" fill="#0B7F58" fill-opacity="#{opacity}"/>)
       end
     end
+    legend_y = top + rows.size * cell + 14
+    legend_x = left
+    svg << %(<text x="#{legend_x - 8}" y="#{legend_y + 9}" text-anchor="end" font-size="7.5" fill="#5B6B62" font-family="Manrope">Less</text>)
+    4.times do |i|
+      opacity = (0.06 + (i / 3.0) * 0.94).round(2)
+      svg << %(<rect x="#{legend_x + i * 22}" y="#{legend_y}" width="18" height="12" rx="2" fill="#0B7F58" fill-opacity="#{opacity}"/>)
+    end
+    svg << %(<text x="#{legend_x + 4 * 22 - 2}" y="#{legend_y + 9}" font-size="7.5" fill="#5B6B62" font-family="Manrope">More friction</text>)
     svg << "</svg>"
     svg.html_safe
   end
