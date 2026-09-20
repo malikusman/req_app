@@ -36,6 +36,7 @@ import { ConsultantDocumentAnalysis } from './portals/consultant/ConsultantDocum
 import { CompanyMediaLibrary } from './portals/company/CompanyMediaLibrary';
 import { CompanyDiscoveryQuestions } from './portals/company/CompanyDiscoveryQuestions';
 import { CompanyReports } from './portals/company/CompanyReports';
+import { CompanyReportReader } from './portals/company/CompanyReportReader';
 import { CompanyConsultantsPage } from './portals/company/CompanyConsultantsPage';
 import { CompanySettings } from './portals/company/CompanySettings';
 import { CompanyBilling } from './portals/company/CompanyBilling';
@@ -197,6 +198,7 @@ export default function App() {
               <Route path="discovery-questions" element={<CompanyDiscoveryQuestions />} />
               <Route path="recommendations" element={<Navigate to="/company/intelligence#recommendations" replace />} />
               <Route path="reports" element={<CompanyReports />} />
+              <Route path="reports/:id/read" element={<CompanyReportReader />} />
               <Route path="consultants" element={<CompanyConsultantsPage />} />
               <Route path="settings" element={<CompanySettings />} />
               <Route path="billing" element={<CompanyBilling />} />

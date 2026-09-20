@@ -17,26 +17,18 @@ module Reports
       previous = @report.previous_report
       delta = DeltaCalculator.call(company: @company, previous_report: previous)
       snapshot = SnapshotBuilder.call(company: @company, delta: delta)
-      html = HtmlBuilder.call(snapshot: snapshot, report_version: @report.version)
-      pdf_bytes = PdfGenerator.call(html: html)
-      html_fallback = pdf_bytes == html
-      content_type = html_fallback ? "text/html" : "application/pdf"
-      ext = content_type == "application/pdf" ? "pdf" : "html"
-      storage_key = "reports/#{@company.id}/v#{@report.version}/report.#{ext}"
-
-      Storage::MinioClient.new.upload(
-        key: storage_key,
-        body: pdf_bytes,
-        content_type: content_type
-      )
+      # One snapshot, N renderings. A variant is a section allowlist and a paper
+      # size — never a second analysis — so the brief and the full report cannot
+      # disagree about a number.
+      VariantSpec::VARIANTS.each do |variant|
+        html = HtmlBuilder.call(snapshot: snapshot, report_version: @report.version, variant: variant)
+        ArtifactWriter.call(report: @report, variant: variant, html: html)
+      end
 
       @report.update!(
         status: "ready",
-        storage_key: storage_key,
-        content_type: content_type,
         report_snapshot: snapshot,
-        generated_at: Time.current,
-        error_message: html_fallback ? "PDF service unavailable — stored as HTML (not a PDF)." : nil
+        generated_at: Time.current
       )
 
       carry_forward_overrides!(previous)
@@ -73,7 +65,14 @@ module Reports
       return unless defined?(ReportSectionOverride) && ReportSectionOverride.table_exists?
       return if @report.report_section_overrides.exists?
 
+      # Deduped: without this, a section the consultant re-added after it had
+      # already been carried forward accumulates a fresh copy on every version,
+      # and the report prints the page once per copy.
+      seen = Set.new
       previous.report_section_overrides.published.find_each do |ov|
+        signature = [ov.action, ov.section_key, ov.title.to_s.strip, ov.body.to_s.strip]
+        next unless seen.add?(signature)
+
         @report.report_section_overrides.create!(
           consultant_user_id: ov.consultant_user_id,
           action: ov.action,

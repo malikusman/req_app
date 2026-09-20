@@ -91,12 +91,18 @@ def default_limits() -> dict[str, Any]:
     authority; these apply only when a limit is absent from the payload.
 
     max_questions is a BACKSTOP, not a target. A well-run interview closes on a
-    filled dossier several questions earlier. min_questions exists because without
+    filled dossier several questions earlier. Raised 8 -> 12 when friction_cost
+    was added. The arithmetic: 2 orient turns, 2 static slots per area, a cost slot
+    for up to 2 areas, and ai_current_usage. That is 9 questions for a typical
+    two-area person (measured, closing on dossier_complete) and 11 for three areas.
+    A ceiling of 10 would have left a three-area interview no way to finish, and a
+    two-area one a single turn of slack for any turn that clarifies rather than
+    fills a slot. min_questions exists because without
     it a terse employee trips the stall detector at turn 3 and the discovery
     package gets built on almost nothing.
     """
     return {
-        "max_questions": 8,
+        "max_questions": 12,
         "min_questions": 4,
         "stall_turns": 2,
         "slot_confidence": 0.6,

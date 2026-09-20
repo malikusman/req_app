@@ -3,6 +3,7 @@ import { motion, useReducedMotion } from 'motion/react';
 import { Check } from 'lucide-react';
 import { cn } from '../../lib/cn';
 import { fadeUp, slideInRight, staggerContainer, transition } from '../../lib/motion';
+import { MjadiMark } from '../brand/MjadiLogo';
 
 export type AuthPortal = 'platform' | 'company' | 'consultant';
 
@@ -59,8 +60,8 @@ export function AuthLayout({ portal, portalName, tagline, children }: AuthLayout
           variants={staggerContainer(0.08)}
         >
           <motion.div variants={fadeUp} transition={transition.reveal} className="flex items-center gap-2">
-            <span className="h-6 w-2 shrink-0 rounded-sm bg-primary" aria-hidden />
-            <span className="text-3xl font-bold tracking-tight text-foreground">Worktruth</span>
+            <MjadiMark className="h-9 w-9" />
+            <span className="text-3xl font-bold tracking-tight text-foreground">Mjadi</span>
           </motion.div>
           <motion.p
             variants={fadeUp}

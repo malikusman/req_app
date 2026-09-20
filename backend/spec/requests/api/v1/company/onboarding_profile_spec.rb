@@ -34,9 +34,9 @@ RSpec.describe "Company onboarding profile enrichment", type: :request do
           params: {
             questionnaire_step: 2,
             questionnaire_answers: {
-              company_industry: "Logistics & Transportation",
-              company_size: "51–200",
-              company_location: "United Arab Emirates"
+              q01_primary_industry: "Logistics & Transportation",
+              q03_employee_count: "51–100",
+              q04_headquarters_country: "United Arab Emirates"
             }
           },
           headers: auth_headers_for(user),
@@ -47,7 +47,7 @@ RSpec.describe "Company onboarding profile enrichment", type: :request do
     expect(body["completion_percent"]).to be > 0
     expect(body["questionnaire_step"]).to eq(2)
     company.reload
-    expect(company.questionnaire_answers["company_industry"]).to eq("Logistics & Transportation")
+    expect(company.questionnaire_answers["q01_primary_industry"]).to eq("Logistics & Transportation")
     expect(company.company_profile["industry"]).to eq("logistics")
     expect(company.company_profile["size_band"]).to eq("51-200")
   end

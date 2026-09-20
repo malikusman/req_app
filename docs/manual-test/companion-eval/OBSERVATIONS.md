@@ -48,7 +48,7 @@ _Judge:_ Provides a specific, actionable solution based on previous context with
 **Assistant:**
 
 > From your company catalog / matches:
-> 1. Worktruth AP Copilot (Worktruth) — tag_match:finance; keyword_match:invoice,matching
+> 1. Mjadi AP Copilot (Mjadi) — tag_match:finance; keyword_match:invoice,matching
 > 2. Bill.com (Bill.com) — tag_match:finance; keyword_match:invoice
 > 3. Automate POD exception capture — Reduce Excel retyping of handwritten POD notes before SAP posting.
 > 

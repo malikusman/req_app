@@ -27,9 +27,9 @@ Chosen to mirror the real "check the PI automatically" use case.
 ## Actors
 | Actor | Who | Login |
 |---|---|---|
-| Platform admin | Worktruth operator | `admin@reqapp.local` |
+| Platform admin | Mjadi operator | `admin@reqapp.local` |
 | Company admin | Omar Haddad (CEO) | `omar@nimbus.ae` / `password123` |
-| Consultant | Samir Al-Farsi (trade-ops & finance expert) | `samir.ops@consultants.worktruth.local` / `password123` |
+| Consultant | Samir Al-Farsi (trade-ops & finance expert) | `samir.ops@consultants.mjadi.local` / `password123` |
 | Employees | 4 (below) | invite-first |
 
 ## Employees & channels (both exercised)

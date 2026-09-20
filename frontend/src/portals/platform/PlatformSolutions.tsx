@@ -145,7 +145,7 @@ export function PlatformSolutions() {
           />
           <label className="flex items-center gap-2 text-sm text-text-secondary md:col-span-2">
             <input type="checkbox" checked={firstParty} onChange={(e) => setFirstParty(e.target.checked)} />
-            First-party product (built by Worktruth) — badged as ours in reports
+            First-party product (built by Mjadi) — badged as ours in reports
           </label>
           <div className="md:col-span-2">
             <Button type="submit">Add solution</Button>

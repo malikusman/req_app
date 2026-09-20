@@ -15,13 +15,13 @@ module Companies
     TEXT_LIMIT = 12_000
 
     PRODUCT_HEADERS = {
-      "User-Agent" => "WorktruthCompanyResearch/1.0 (+https://req.pebbleintelligentsolutions.com)",
+      "User-Agent" => "MjadiCompanyResearch/1.0 (+https://req.pebbleintelligentsolutions.com)",
       "Accept" => "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       "Accept-Language" => "en-US,en;q=0.9"
     }.freeze
 
     BROWSER_HEADERS = {
-      "User-Agent" => "Mozilla/5.0 (compatible; WorktruthCompanyResearch/1.0; +https://req.pebbleintelligentsolutions.com) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+      "User-Agent" => "Mozilla/5.0 (compatible; MjadiCompanyResearch/1.0; +https://req.pebbleintelligentsolutions.com) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
       "Accept" => "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       "Accept-Language" => "en-US,en;q=0.9"
     }.freeze

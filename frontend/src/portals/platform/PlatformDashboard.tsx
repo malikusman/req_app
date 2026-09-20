@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Building2,
   FileCheck2,
@@ -65,6 +66,8 @@ function StatusChip({ count }: { count: number }) {
     </span>
   );
 }
+
+const TRIALS_ON_DASHBOARD = 5;
 
 export function PlatformDashboard() {
   const token = usePlatformToken();
@@ -236,8 +239,33 @@ export function PlatformDashboard() {
         )}
       </section>
 
-      {/* Trials — kept with inline Extend action */}
-      <Card title="Trials expiring soon">
+      {/* At a glance — cheap orientation, so it sits above the detail */}
+      {monitoring && (
+        <section className="space-y-3">
+          <h2 className="m-0 font-display text-lg font-semibold text-foreground">At a glance</h2>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            <StatCard label="Total companies" value={monitoring.companies.total} to="/platform/companies" icon={<Building2 className="h-5 w-5 text-accent" />} />
+            <StatCard label="Active trials" value={activeTrials} to="/platform/operations?tab=trials" icon={<Clock className="h-5 w-5 text-accent" />} />
+            <StatCard label="Discovery (24h)" value={monitoring.discovery.conversations_last_24h} icon={<MessageSquare className="h-5 w-5 text-accent" />} />
+            <StatCard label="Awaiting approval" value={awaitingApprovalCount} to="/platform/approvals" icon={<FileCheck2 className="h-5 w-5 text-accent" />} />
+            <StatCard label="Avg readiness" value={`${monitoring.companies.avg_readiness}%`} icon={<Users className="h-5 w-5 text-accent" />} />
+            <StatCard label="System" value={systemHealthLabel} to="/platform/operations?tab=system" icon={<Activity className="h-5 w-5 text-accent" />} />
+          </div>
+        </section>
+      )}
+
+      {/* The five closest to expiry. The full list is a page of its own, and
+          the triage card above already carries the count. */}
+      <Card
+        title="Trials expiring soon"
+        action={
+          trials.length > TRIALS_ON_DASHBOARD ? (
+            <Link to="/platform/operations?tab=trials" className="text-sm font-semibold text-accent-hover hover:underline">
+              View all {trials.length} →
+            </Link>
+          ) : undefined
+        }
+      >
         <DataTable
           columns={[
             { key: 'name', header: 'Company', render: (r) => r.company.name },
@@ -275,25 +303,10 @@ export function PlatformDashboard() {
               ),
             },
           ]}
-          rows={trials}
+          rows={trials.slice(0, TRIALS_ON_DASHBOARD)}
           emptyState={<EmptyState title="No trials expiring" description="No trials ending in the next 7 days." />}
         />
       </Card>
-
-      {/* At a glance — demoted secondary KPIs */}
-      {monitoring && (
-        <section className="space-y-3">
-          <h2 className="m-0 font-display text-lg font-semibold text-foreground">At a glance</h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-            <StatCard label="Total companies" value={monitoring.companies.total} to="/platform/companies" icon={<Building2 className="h-5 w-5 text-accent" />} />
-            <StatCard label="Active trials" value={activeTrials} to="/platform/operations?tab=trials" icon={<Clock className="h-5 w-5 text-accent" />} />
-            <StatCard label="Discovery (24h)" value={monitoring.discovery.conversations_last_24h} icon={<MessageSquare className="h-5 w-5 text-accent" />} />
-            <StatCard label="Awaiting approval" value={awaitingApprovalCount} to="/platform/approvals" icon={<FileCheck2 className="h-5 w-5 text-accent" />} />
-            <StatCard label="Avg readiness" value={`${monitoring.companies.avg_readiness}%`} icon={<Users className="h-5 w-5 text-accent" />} />
-            <StatCard label="System" value={systemHealthLabel} to="/platform/operations?tab=system" icon={<Activity className="h-5 w-5 text-accent" />} />
-          </div>
-        </section>
-      )}
 
       {/* Telemetry — secondary monitoring */}
       {monitoring && (

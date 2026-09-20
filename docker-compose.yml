@@ -75,7 +75,7 @@ services:
       INTERNAL_API_TOKEN: dev-internal-token
       REDIS_URL: redis://redis:6379/0
       LANGSMITH_API_KEY: ${LANGSMITH_API_KEY:-}
-      LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-worktruth-agent}
+      LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-mjadi-agent}
       LANGSMITH_TRACING: ${LANGSMITH_TRACING:-}
     depends_on:
       - redis
@@ -88,6 +88,11 @@ services:
     volumes:
       - ./backend:/app
       - ./docs/manual-test:/docs/manual-test
+      # Read-only, for the questionnaire parity spec: the question text lives in
+      # the frontend config and the storage keys in Rails, and nothing at runtime
+      # notices when the two drift. CI checks out the whole repo, so it resolves
+      # this path relatively; in Docker it needs the mount.
+      - ./frontend:/frontend:ro
     ports:
       # Overridable so the stack can run alongside another project holding 3000
       # (see .env). Default unchanged. Keep in step with API_PUBLIC_HOST below.

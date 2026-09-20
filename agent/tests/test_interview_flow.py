@@ -24,6 +24,8 @@ def complete_bb():
                 "ai_current_usage": 0.8,
             "how_it_works::Invoicing": 0.8,
             "friction::Invoicing": 0.8,
+            # Captured friction unlocks the cost slot, so a complete dossier needs it.
+            "friction_cost::Invoicing": 0.8,
         },
     )
 

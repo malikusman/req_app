@@ -35,7 +35,7 @@ module Documents
         summaries << { "document_id" => doc["id"], "summary" => text.truncate(280) }
       end
 
-      goals = Array(profile.dig("questionnaire_answers", "primary_goals")).presence ||
+      goals = Array(profile.dig("questionnaire_answers", "q40_desired_outcomes")).presence ||
               Array(profile.dig("company_profile", "business_goals"))
       if goals.any? && knowledge.any?
         questions << {
@@ -49,7 +49,11 @@ module Documents
           "rationale" => "Missing process documentation"
         }
       end
-      if profile.dig("questionnaire_answers", "erp_system").blank? && knowledge.none? { |k| k["entry_type"] == "system" }
+      # Q22 stores a system per category; an ERP named there is the signal that
+      # used to come from the standalone erp_system question.
+      named_erp = profile.dig("questionnaire_answers", "q22_business_systems")
+      named_erp = named_erp.is_a?(Hash) ? named_erp["erp"] : nil
+      if named_erp.blank? && knowledge.none? { |k| k["entry_type"] == "system" }
         questions << {
           "body" => "Which core systems (ERP, CRM, accounting) does your team rely on day to day?",
           "rationale" => "Systems not evident from documents or profile"

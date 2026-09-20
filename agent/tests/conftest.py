@@ -23,6 +23,10 @@ MODULES_USING_LLM_SWITCH = (
     # llm_configured() was true on a machine set up for local Gemma, so the
     # no-model test took the model path and asserted against a live reply.
     "app.companion",
+    # And again, identically, the moment deep-dive tests existed — the suite hung
+    # for minutes making real Gemma calls. Any new module that imports
+    # llm_configured belongs on this list on the same commit that adds it.
+    "app.deep_dive",
 )
 
 

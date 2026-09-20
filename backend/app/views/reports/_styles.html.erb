@@ -2,18 +2,38 @@
 <style>
 
 :root{
- --ink:#051C2C;--blue:#1F40FF;--blue2:#5A7BFF;--cyan:#00A9F4;--teal:#14B8A6;--magenta:#E6338A;
- --paper:#FFFFFF;--paper-soft:#F5F7FA;--hair:#D6DEE6;--muted:#5A6B78;--negative:#C0362C;
- --cat-process:var(--blue);--cat-tooling:var(--cyan);--cat-people:var(--magenta);--cat-data:var(--teal);
- --serif:"Playfair Display",Georgia,serif;--sans:"Inter","Helvetica Neue",Arial,sans-serif;
- --pw:297mm;--ph:210mm;--pad:15mm;}
+ /* The Pulse palette — the same tokens the app and the website are built on.
+    This document used a navy/electric-blue/Playfair identity of its own, which
+    meant the one artefact a client keeps and forwards looked like it came from
+    a different firm than the site they signed up on. Category hues come from
+    the app's chart palette, which was picked for colour-blind separation. */
+ --ink:#17251D;--blue:#0E9F6E;--blue2:#34BE8C;--cyan:#088EAF;--teal:#0E9F6E;--magenta:#DB2979;
+ --paper:#FFFFFF;--paper-soft:#F1F7F3;--hair:#E4EDE6;--muted:#5B6B62;--negative:#B3261E;
+ --body:#2A3B32;--warn:#B35309;
+ --cat-process:#0E9F6E;--cat-tooling:#2977D6;--cat-people:#DB2979;--cat-data:#088EAF;
+ /* "serif" is now a display sans; the variable name is kept so every
+    partial that reads it keeps working. */
+ --serif:"Sora","Helvetica Neue",Arial,sans-serif;--sans:"Manrope","Helvetica Neue",Arial,sans-serif;
+ --pw:297mm;--ph:210mm;--pad:14mm 18mm 12mm;}
 @page{size:A4 landscape;margin:0;}
 *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
 html,body{margin:0;padding:0;background:#fff;color:var(--ink);font-family:var(--sans);}
 .refbar{background:#111;color:#fff;font-family:var(--sans);font-size:12px;padding:10px 16px;text-align:center;line-height:1.4;}
 .refbar b{color:#FFD34E;}
 @media print{.refbar{display:none;}}
-.page{position:relative;width:var(--pw);min-height:var(--ph);padding:var(--pad);margin:0 auto 10mm;background:var(--paper);overflow:hidden;page-break-after:always;break-after:page;}
+/* THE WHITESPACE FIX.
+   .page was min-height:210mm with an absolutely-positioned footer pinned to
+   bottom:10mm. A section whose content overran one sheet grew the div past
+   210mm, Chromium split it across two sheets, and the footer landed at the
+   bottom of the SECOND one — leaving the hole in the middle of the page that
+   this report was full of. Two changes fix it:
+     (a) the page is a flex column and the footer sits IN FLOW with margin-top:auto,
+         so it is always at the bottom of the page it belongs to;
+     (b) long lists are chunked into page-sized groups by report_paginate,
+         so a page stops overflowing in the first place.
+   overflow is no longer hidden: silently clipping a section is worse than a
+   visible break, and with (b) there should be nothing to clip. */
+.page{position:relative;display:flex;flex-direction:column;width:var(--pw);min-height:var(--ph);padding:var(--pad);margin:0 auto 10mm;background:var(--paper);page-break-after:always;break-after:page;}
 .page:last-child{page-break-after:auto;}
 /* In print the 10mm inter-page gap pushes each 210mm page to 220mm, overflowing
    the A4 sheet and emitting a blank page after every real one. Removing the
@@ -23,13 +43,13 @@ html,body{margin:0;padding:0;background:#fff;color:var(--ink);font-family:var(--
 .page.dark{background:var(--ink);color:#fff;}
 .page.bleed{padding:0;}
 .exhibit,.stat,.signal-card,.pattern-card,.rec-card,.highlight-box,figure,.lolli{break-inside:avoid;page-break-inside:avoid;}
-.footer{position:absolute;left:var(--pad);right:var(--pad);bottom:10mm;display:flex;justify-content:space-between;align-items:center;font-size:8pt;letter-spacing:.02em;color:var(--muted);border-top:1px solid var(--hair);padding-top:4mm;}
+.footer{margin-top:auto;padding-top:5mm;display:flex;justify-content:space-between;align-items:baseline;font-size:7.5pt;letter-spacing:.04em;color:var(--muted);border-top:1px solid var(--hair);}
 .footer .brand{font-weight:600;color:var(--ink);}
 .dark .footer{color:rgba(255,255,255,.6);border-color:rgba(255,255,255,.18);}
 .dark .footer .brand{color:#fff;}
 h1,h2,h3,h4{font-family:var(--serif);font-weight:700;line-height:1.05;margin:0;}
 .eyebrow{font-family:var(--sans);font-weight:600;font-size:8.5pt;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);}
-p{font-size:9.5pt;line-height:1.5;margin:0 0 3mm;color:#20303c;}
+p{font-size:9.5pt;line-height:1.5;margin:0 0 3mm;color:var(--body);}
 .lead{font-size:11pt;line-height:1.55;color:var(--ink);}
 .muted{color:var(--muted);}
 strong{font-weight:600;}
@@ -38,7 +58,7 @@ strong{font-weight:600;}
 .cols-2 p:first-child{margin-top:0;}
 .dropcap::first-letter{font-family:var(--serif);font-weight:800;float:left;font-size:34pt;line-height:.8;padding:2pt 4pt 0 0;color:var(--ink);}
 /* cover */
-.cover{position:relative;height:var(--ph);background:var(--ink);color:#fff;}
+.cover{position:relative;display:block;height:var(--ph);background:var(--ink);color:#fff;overflow:hidden;}
 .cover svg{position:absolute;inset:0;width:100%;height:100%;}
 .cover .layer{position:absolute;inset:0;padding:18mm;display:flex;flex-direction:column;justify-content:space-between;}
 .cover .logo{font-family:var(--serif);font-size:16pt;font-weight:700;}
@@ -50,13 +70,13 @@ strong{font-weight:600;}
 /* contents */
 .toc{display:grid;grid-template-columns:1fr 1fr;gap:0 14mm;margin-top:8mm;}
 .toc h2{font-size:34pt;grid-column:1/-1;margin-bottom:6mm;}
-.toc-item{display:grid;grid-template-columns:auto 1fr;gap:5mm;align-items:baseline;padding:4mm 0;border-top:2px solid var(--ink);}
+.toc-item{display:grid;grid-template-columns:auto 1fr;gap:5mm;align-items:baseline;padding:3mm 0;border-top:2px solid var(--ink);}
 .toc-item .n{font-family:var(--serif);font-weight:700;font-size:14pt;}
 .toc-item .t{font-family:var(--sans);font-weight:600;font-size:10.5pt;}
-.toc-item .d{grid-column:2;font-size:8.5pt;color:var(--muted);margin-top:1mm;}
+.toc-item .d{grid-column:2;font-size:8pt;line-height:1.35;color:var(--muted);margin-top:0.8mm;}
 .toc-item.rule-blue{border-top-color:var(--blue);}.toc-item.rule-teal{border-top-color:var(--teal);}.toc-item.rule-magenta{border-top-color:var(--magenta);}
 /* divider */
-.divider{display:grid;grid-template-rows:1fr auto;height:var(--ph);}
+.divider{display:grid;grid-template-rows:1fr auto;height:var(--ph);overflow:hidden;}
 .divider .hero{position:relative;overflow:hidden;}
 .divider .hero .cat{position:absolute;top:0;left:0;padding:3mm 6mm;font-family:var(--sans);font-weight:600;font-size:8.5pt;letter-spacing:.12em;text-transform:uppercase;color:#fff;z-index:2;}
 .divider .hero svg{position:absolute;inset:0;width:100%;height:100%;}
@@ -146,9 +166,18 @@ table.data td{padding:2mm;border-bottom:1px solid var(--hair);}
 
 /* ===== LANDSCAPE LAYOUT (297x210) ===== */
 
-.cols-3{ column-count:3; column-gap:9mm; }
-.cols-3 p:first-child{ margin-top:0; }
+/* A grid, not CSS columns. These are three discrete sentences, and column flow
+   split them wherever the text happened to run out — "…Core system dependency,"
+   ended one column and "Coordination overhead." opened the next, so a single
+   sentence read as two fragments. A grid keeps one statement per column. */
+.cols-3{ display:grid; grid-template-columns:repeat(3,1fr); gap:9mm; align-items:start; }
+.cols-3 p{ margin:0; }
+/* Column count follows the item count. Fixed at three, two recommendations sat
+   in the left two-thirds with an empty column beside them, which reads as a
+   missing card rather than as a deliberate pair. */
 .card-grid-3{ display:grid; grid-template-columns:repeat(3,1fr); gap:6mm; margin-top:5mm; }
+.card-grid-3:has(> :last-child:nth-child(1)){ grid-template-columns:minmax(0,1fr); max-width:120mm; }
+.card-grid-3:has(> :last-child:nth-child(2)){ grid-template-columns:repeat(2,1fr); }
 .split{ display:grid; grid-template-columns:0.92fr 1.28fr; gap:12mm; align-items:start; margin-top:4mm; }
 .split .exhibit{ margin-top:0; }
 
@@ -163,7 +192,10 @@ table.data td{padding:2mm;border-bottom:1px solid var(--hair);}
 .cover .sub{ color:rgba(255,255,255,.8); }
 
 /* Contents: big title left, two TOC columns right */
-.contents-land{ display:grid; grid-template-columns:0.7fr 1.5fr; gap:0 14mm; align-items:start; margin-top:6mm; }
+/* Adding the Expert assessment entry took the contents to 14 rows, which
+   overran the sheet at the old 4mm row padding. Tightened rather than capped —
+   a contents page that hides sections is worse than a dense one. */
+.contents-land{ display:grid; grid-template-columns:0.62fr 1.5fr; gap:0 12mm; align-items:start; margin-top:4mm; }
 .contents-land h2{ font-size:42pt; }
 .contents-land .cols{ display:grid; grid-template-columns:1fr 1fr; gap:0 12mm; }
 
@@ -186,7 +218,7 @@ table.data td{padding:2mm;border-bottom:1px solid var(--hair);}
 /* ===== CONSULTANT-NOTES APPENDIX ===== */
 .status{ display:inline-block; font-size:7.5pt; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:1mm 3mm; border-radius:20px; color:#fff; white-space:nowrap; }
 .status.reviewed{ background:var(--teal); }
-.status.clarify{ background:#E8862A; }
+.status.clarify{ background:var(--warn); }
 .consultant-note{ border-left:3px solid var(--blue); padding-left:5mm; }
 .consultant-note .who{ font-family:var(--sans); font-weight:700; font-size:10.5pt; }
 .consultant-note .role{ font-size:8pt; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin:1mm 0 3mm; }
@@ -195,16 +227,16 @@ table.data td{padding:2mm;border-bottom:1px solid var(--hair);}
 .review-row{ display:grid; grid-template-columns:46mm 34mm 1fr; gap:6mm; align-items:start; padding:3mm 0; border-top:1px solid var(--hair); font-size:8.8pt; break-inside:avoid; }
 .review-row.head{ border-top:none; color:var(--muted); font-size:7.5pt; text-transform:uppercase; letter-spacing:.06em; }
 .review-row .sec{ font-family:var(--sans); font-weight:600; }
-.review-row .cmt{ color:#20303c; }
+.review-row .cmt{ color:var(--body); }
 
 /* Structured findings */
 .finding-card{ border:1px solid var(--hair); border-left:3px solid var(--blue); padding:4mm 5mm; break-inside:avoid; page-break-inside:avoid; }
-.finding-card.sev-material{ border-left-color:#E8862A; }
+.finding-card.sev-material{ border-left-color:var(--warn); }
 .finding-card.sev-critical{ border-left-color:var(--magenta); }
 .finding-meta{ display:flex; flex-wrap:wrap; gap:2mm 3mm; align-items:center; font-size:8pt; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin-bottom:2mm; }
 .finding-title{ font-family:var(--sans); font-weight:700; font-size:10.5pt; margin:0 0 1.5mm; }
 .status.sev-info{ background:var(--blue); }
-.status.sev-material{ background:#E8862A; }
+.status.sev-material{ background:var(--warn); }
 .status.sev-critical{ background:var(--magenta); }
 .status.disposition{ background:var(--teal); }
 .evidence-refs{ margin-top:3mm; display:flex; flex-wrap:wrap; gap:2mm; align-items:center; }
@@ -213,5 +245,106 @@ table.data td{padding:2mm;border-bottom:1px solid var(--hair);}
 
 /* Catalog endorsement chips in tools section */
 .endorsement-chip{ display:inline-block; font-size:7.5pt; font-weight:700; letter-spacing:.05em; text-transform:uppercase; padding:1mm 2.5mm; border-radius:2px; background:var(--paper-soft); color:var(--blue); border:1px solid var(--hair); margin:2mm 0 1mm; }
+
+/* ===== TYPOGRAPHIC REFINEMENT =====================================
+   The report used inline font-size on nearly every <h1> (32pt here, 28pt
+   there, 26pt on signals), so no two section titles were the same size and
+   nothing shared a vertical rhythm. One .page-title, one scale. */
+.page-title{font-size:29pt;line-height:1.02;letter-spacing:-0.01em;margin:3mm 0 5mm;max-width:230mm;}
+.page-title.tight{margin-bottom:3mm;}
+h1,h2,h3,h4{letter-spacing:-0.008em;}
+.eyebrow{font-size:8pt;letter-spacing:.16em;}
+.exlabel{font-family:var(--sans);font-weight:600;font-size:7.5pt;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);border-left:3px solid var(--blue);padding-left:3mm;}
+.lead{max-width:210mm;}
+/* Hairlines were 1px, which renders as a heavy 0.26mm line at print DPI. */
+.exhibit{border-color:var(--hair);}
+ul.plain{list-style:none;padding:0;margin:0;}
+ul.plain li{font-size:9pt;line-height:1.5;margin:0 0 2mm;padding-left:4mm;position:relative;color:var(--body);}
+ul.plain li::before{content:"";position:absolute;left:0;top:2.6mm;width:1.6mm;height:1.6mm;background:var(--blue);}
+/* Aggregate evidence attribution, replacing the verbatim excerpt block. */
+.attribution{font-size:8pt;line-height:1.4;color:var(--muted);margin:3mm 0 0;padding-top:2.5mm;border-top:1px solid var(--hair);}
+
+/* ===== CONSULTANT PROSE ==========================================
+   Rendered from the light markup the section scaffolds use. Consultant pages
+   used to be pre-wrap plain text — the expert's contribution looked worse than
+   the machine's. */
+.rich-text{max-width:215mm;}
+.rich-text.cols-2{max-width:none;column-count:2;column-gap:12mm;}
+.rt-h{font-family:var(--sans);font-weight:700;font-size:10pt;line-height:1.3;letter-spacing:0;color:var(--ink);margin:5mm 0 2mm;break-after:avoid;}
+.rt-h:first-child{margin-top:0;}
+.rt-h3{font-size:9.5pt;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;}
+.rt-p{font-size:9.5pt;line-height:1.58;margin:0 0 3mm;color:var(--body);}
+.rt-list{list-style:none;padding:0;margin:0 0 3mm;}
+.rt-list li{font-size:9.5pt;line-height:1.55;margin:0 0 2mm;padding-left:5mm;position:relative;color:var(--body);}
+.rt-list li::before{content:"";position:absolute;left:0;top:2.9mm;width:2.6mm;height:1px;background:var(--blue);}
+.rich-text em{font-style:italic;color:var(--muted);}
+
+/* ===== EXPERT SECTION PAGE ======================================== */
+.expert-page{position:relative;padding-left:24mm;}
+.expert-rail{position:absolute;left:0;top:0;bottom:0;width:8mm;background:var(--blue);}
+.expert-eyebrow{color:var(--blue);}
+.expert-purpose{font-size:10pt;color:var(--muted);max-width:190mm;margin:0 0 6mm;padding-bottom:4mm;border-bottom:1px solid var(--hair);}
+.expert-sign{margin-top:6mm;padding-top:4mm;border-top:2px solid var(--ink);max-width:120mm;}
+.expert-sign-name{font-family:var(--serif);font-weight:700;font-size:12pt;}
+.expert-sign-cred{font-size:8pt;color:var(--muted);letter-spacing:.02em;margin-top:1mm;}
+.expert-sign-note{font-size:7.5pt;color:var(--muted);font-style:italic;margin-top:2mm;}
+
+/* ===== EXPERT VERDICT / OPPORTUNITY VALUE =========================
+   The opportunity figure was collected in the review workspace and reached no
+   PDF at all. It is the single number an owner most wants, so it is set as the
+   largest thing on the page. */
+.verdict-grid{display:grid;grid-template-columns:1.45fr 1fr;gap:14mm;align-items:start;}
+.verdict-title{font-family:var(--sans);font-weight:700;font-size:13pt;line-height:1.28;margin:0 0 4mm;max-width:150mm;}
+.verdict-body{max-width:150mm;}
+.verdict-rec{margin-top:6mm;padding:5mm 6mm;background:var(--paper-soft);border-left:3px solid var(--blue);}
+.verdict-rec .exlabel{border-left:none;padding-left:0;margin-bottom:2mm;}
+.verdict-side{border-left:1px solid var(--hair);padding-left:12mm;}
+.opportunity{padding-bottom:6mm;}
+.opportunity.is-divided{border-bottom:2px solid var(--ink);}
+/* 33pt overflowed the side column and broke "AED 450,000 / year" across two
+   lines mid-figure. The period is now its own line by design. */
+.opportunity-amount{font-family:var(--serif);font-weight:800;font-size:27pt;line-height:1.02;letter-spacing:-0.015em;color:var(--blue);margin:3mm 0 1mm;}
+.opportunity-period{font-family:var(--sans);font-weight:600;font-size:8pt;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:3mm;}
+.opportunity-basis{font-size:8.5pt;line-height:1.5;color:var(--body);margin:0 0 3mm;}
+.opportunity-by{font-size:7.5pt;line-height:1.45;color:var(--muted);}
+.validators{margin-top:6mm;}
+.validator{margin-top:3mm;padding-top:3mm;border-top:1px solid var(--hair);}
+.validator:first-of-type{border-top:none;padding-top:2mm;}
+.validator-name{font-family:var(--sans);font-weight:700;font-size:9.5pt;}
+.validator-cred{font-size:7.5pt;color:var(--muted);line-height:1.4;margin-top:0.5mm;}
+
+/* ===== OPPORTUNITIES (ranked list, not cards) ====================== */
+.idea{display:grid;grid-template-columns:1fr 46mm;gap:8mm;align-items:start;
+      padding:4mm 0;border-top:1px solid var(--hair);break-inside:avoid;page-break-inside:avoid;}
+.idea:first-child{border-top:2px solid var(--ink);}
+.idea-title{font-family:var(--sans);font-weight:700;font-size:11pt;line-height:1.3;}
+.idea-summary{font-size:8.8pt;line-height:1.5;margin:1.5mm 0 0;}
+.idea-fit{font-size:8pt;color:var(--muted);margin-top:1.5mm;}
+.idea-values{font-size:8pt;color:var(--muted);margin-top:1.5mm;}
+.idea-side{text-align:right;border-left:1px solid var(--hair);padding-left:6mm;}
+.idea-conf{font-family:var(--serif);font-weight:800;font-size:18pt;line-height:1;color:var(--blue);}
+.idea-conf-lab{font-size:7pt;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:0.8mm;}
+.idea-terms{font-size:7.5pt;color:var(--muted);line-height:1.4;margin-top:2.5mm;}
+
+/* Exhibit SVGs are emitted with viewBox + width="100%" and no height, so their
+   height came out as whatever the aspect ratio implied at full column width —
+   111mm for the department heatmap, enough to push its page onto a second
+   sheet. An explicit height is needed: max-height does NOT clamp a
+   viewBox-sized SVG in Chromium's print path (measured — see probe in the
+   commit). 68mm measured as the largest that fits; width:auto keeps the ratio, and a fixed height also means
+   exhibits line up with each other across pages. */
+.exhibit svg{display:block;height:68mm;width:auto;max-width:100%;margin:0 auto;}
+
+/* The reviewer's overall conclusion, promoted out of the appendix onto the
+   expert assessment page — a reader decides whether to trust the analysis long
+   before they reach page 30. */
+.verdict-quote{margin:7mm 0 0;padding:5mm 0 0;border-top:1px solid var(--hair);
+               font-family:var(--serif);font-weight:600;font-size:13pt;line-height:1.35;
+               color:var(--ink);max-width:150mm;}
+.verdict-quote cite{display:block;font-family:var(--sans);font-style:normal;font-weight:600;
+                    font-size:7.5pt;letter-spacing:.06em;text-transform:uppercase;
+                    color:var(--muted);margin-top:4mm;}
+.endorsed{margin-top:6mm;padding-top:4mm;border-top:1px solid var(--hair);}
+.endorsed p{font-size:8pt;line-height:1.45;color:var(--muted);margin:2mm 0 0;}
 
 </style>

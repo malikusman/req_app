@@ -130,7 +130,7 @@ Stakeholder clarified the real requirement: **the platform** uploads *their* pro
 So we:
 - **Reverted** the company-facing slice (page/nav/route, company + consultant `owned_solutions` controllers, `OwnedSolutionFitService`, `_owned_capabilities` partial, and the `company_systems` owned-solution columns via `20260802150000`). Kept the heatmap and pre-existing build fixes.
 - **Rebuilt on the existing Solution Catalog** (`SolutionCatalogEntry`), which already supported rich descriptions + per-company fit (`CompanyFitService` → `CompanyCatalogMatch`) + consultant endorsement:
-  - Added a **`first_party`** flag (platform marks their own products; reports badge them "Worktruth product"). Platform Solutions form gained a toggle. Migration `20260802160000`.
+  - Added a **`first_party`** flag (platform marks their own products; reports badge them "Mjadi product"). Platform Solutions form gained a toggle. Migration `20260802160000`.
   - Added **consultant "add product from catalog"**: `catalog/available` (browse catalog, first-party first, excludes already-matched) + `catalog/add` (create a `CompanyCatalogMatch`, attributed via `added_by_consultant_id`). Consultant catalog page gained an "Add a product" panel; the report tags consultant-added items "Added by consultant".
 
 **Net:** the three report sections that recommend things are now distinct (see §11): Recommendations (actions), Opportunities (agentic AI we'd build), Capabilities (existing products that fit).
@@ -201,7 +201,7 @@ A recurring reader-confusion problem: three visually identical grids all "recomm
 | **Opportunities** | *"Agentic AI we'd build for you"* — tailored concepts we'd design/build | `AgenticIdea` (now LLM-generated) |
 | **Capabilities & evidence** | *"Products that already fit"* — our first-party products + partner tools, consultant-endorsable | `CompanyCatalogMatch` (+ endorsements, supporting docs) |
 
-First-party matches badge as **"Worktruth product"**; consultant-added matches badge **"Added by consultant"**.
+First-party matches badge as **"Mjadi product"**; consultant-added matches badge **"Added by consultant"**.
 
 ---
 

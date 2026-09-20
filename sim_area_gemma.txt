@@ -1,0 +1,46 @@
+LLM configured: True | model: google/gemma-4-12b-qat | area_routing: True
+
+Q1  [orient:-/-]  areas=[]
+    It is great to meet you Layla. That sounds like a busy role keeping everything running smoothly. Out of those three main areas you mentioned, which one usually takes up the most of your time on a daily basis?
+
+Q2  [orient:-/-]  areas=['Invoice Processing', 'PO Matching', 'Month-end Close']
+    That sounds like it requires a lot of attention to detail to get everything to match up correctly. Does that invoice processing usually happen in big batches, or is it more of a steady stream throughout the day?
+
+Q3  [orient:-/-]  areas=['Invoice Processing', 'PO Matching', 'Month-end Close']
+    That sounds like a lot of detective work to get those discrepancies sorted out. How does your focus usually shift when it comes time for the month-end close?
+
+Q4  [branch:Invoice Processing/how]  areas=['Invoice Processing', 'PO Matching', 'Month-end Close']
+    That sounds like a real headache when those discrepancies start to stack up. When you are working through those invoice matches, what does the actual day-to-day workflow look like in SAP to get them sorted out?
+
+Q5  [branch:Invoice Processing/pain]  areas=['Invoice Processing', 'PO Matching', 'Month-end Close']
+    It sounds like you're doing quite a bit of heavy lifting by jumping between those three systems to get everything squared away. When you're working through those invoices that need manual attention, what's the most frustrating or time-consuming part of getting those approvals back from others?
+
+Q6  [branch:Invoice Processing/ai]  areas=['Invoice Processing', 'PO Matching', 'Month-end Close']
+    That kind of repetitive data entry can be so draining, especially when you're trying to stay on top of a high volume of invoices. Since that copy-pasting takes up so much of your time, have you ever wondered what it would be like if a tool or some kind of automation could just handle that specific part of the process for you?
+
+Q7  [branch:PO Matching/how]  areas=['Invoice Processing', 'PO Matching', 'Month-end Close']
+    That pressure during month-end sounds really intense, especially when you're racing against the clock to get everything into the right period. Moving back to the matching side of things, what's the most common reason you find yourself having to jump back and forth between SAP and Excel to get those invoices to line up with the POs?
+
+Q8  [branch:PO Matching/pain]  areas=['Invoice Processing', 'PO Matching', 'Month-end Close']
+    That definitely adds a layer of complexity when you're trying to keep things moving. When you're looking at those PO matches that don't line up, what's the most common snag that causes the mismatch—is it usually a difference in the items listed, the quantities, or something else?
+
+Q9  [branch:PO Matching/ai]  areas=['Invoice Processing', 'PO Matching', 'Month-end Close']
+    That would be such a huge win for your workload and definitely take some of the pressure off. Since you mentioned how much of a difference that would make, if you could have a tool handle just one small, boring part of the matching process to start with, what specific task would you want to see it tackle first?
+
+Q10  [branch:Month-end Close/how]  areas=['Invoice Processing', 'PO Matching', 'Month-end Close']
+    Backdating those charges sounds like a tricky balancing act to manage. I'd love to hear more about how the whole month-end close period actually goes for you. What does your typical day look like during that crunch to make sure everything gets wrapped up on time, and which tools do you find yourself leaning on most to get it all done?
+
+--- CLOSE at Q11 ---
+
+
+===== QUESTION SEQUENCE (repetition scan) =====
+1. It is great to meet you Layla. That sounds like a busy role keeping everything running smoothly. Out of those three main areas you mentioned, which one usually takes up the most of your time on a daily basis?
+2. That sounds like it requires a lot of attention to detail to get everything to match up correctly. Does that invoice processing usually happen in big batches, or is it more of a steady stream throughout the day?
+3. That sounds like a lot of detective work to get those discrepancies sorted out. How does your focus usually shift when it comes time for the month-end close?
+4. That sounds like a real headache when those discrepancies start to stack up. When you are working through those invoice matches, what does the actual day-to-day workflow look like in SAP to get them sorted out?
+5. It sounds like you're doing quite a bit of heavy lifting by jumping between those three systems to get everything squared away. When you're working through those invoices that need manual attention, what's the most frustrating or time-consuming part of getting those approvals back from others?
+6. That kind of repetitive data entry can be so draining, especially when you're trying to stay on top of a high volume of invoices. Since that copy-pasting takes up so much of your time, have you ever wondered what it would be like if a tool or some kind of automation could just handle that specific part of the process for you?
+7. That pressure during month-end sounds really intense, especially when you're racing against the clock to get everything into the right period. Moving back to the matching side of things, what's the most common reason you find yourself having to jump back and forth between SAP and Excel to get those invoices to line up with the POs?
+8. That definitely adds a layer of complexity when you're trying to keep things moving. When you're looking at those PO matches that don't line up, what's the most common snag that causes the mismatch—is it usually a difference in the items listed, the quantities, or something else?
+9. That would be such a huge win for your workload and definitely take some of the pressure off. Since you mentioned how much of a difference that would make, if you could have a tool handle just one small, boring part of the matching process to start with, what specific task would you want to see it tackle first?
+10. Backdating those charges sounds like a tricky balancing act to manage. I'd love to hear more about how the whole month-end close period actually goes for you. What does your typical day look like during that crunch to make sure everything gets wrapped up on time, and which tools do you find yourself leaning on most to get it all done?

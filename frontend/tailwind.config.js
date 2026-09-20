@@ -33,7 +33,7 @@ export default {
         },
         accent: {
           DEFAULT: 'hsl(var(--primary))',
-          hover: 'hsl(160 83% 26%)',
+          hover: 'hsl(160 83% 21%)',
           muted: 'hsl(153 46% 91%)',
           foreground: 'hsl(var(--accent-foreground))',
         },
@@ -107,7 +107,7 @@ export default {
           muted: 'hsl(var(--muted-foreground))',
           accent: {
             DEFAULT: 'hsl(var(--primary))',
-            hover: 'hsl(160 83% 26%)',
+            hover: 'hsl(160 83% 21%)',
             muted: 'hsl(153 46% 91%)',
           },
           border: 'hsl(var(--border))',
@@ -126,9 +126,18 @@ export default {
         sans: ['Manrope', 'system-ui', 'sans-serif'],
         display: ['Sora', 'Manrope', 'system-ui', 'sans-serif'],
       },
+      /* The scale, and the reason for it.
+         Body text in this product is 14px. page-title was 24px and
+         section-title 18px, so a page title, a card title and a table header
+         all sat within a whisker of the body copy — the eye had nowhere to
+         land, and screens read as flat however well they were organised.
+         These reach nearly every screen through PageHeader (39) and Card (45),
+         so widening the steps here is what makes the hierarchy visible. */
       fontSize: {
-        'page-title': ['1.5rem', { lineHeight: '2rem', fontWeight: '600' }],
-        'section-title': ['1.125rem', { lineHeight: '1.75rem', fontWeight: '600' }],
+        'page-title': ['1.875rem', { lineHeight: '2.25rem', fontWeight: '700', letterSpacing: '-0.02em' }],
+        'section-title': ['1.25rem', { lineHeight: '1.75rem', fontWeight: '700', letterSpacing: '-0.01em' }],
+        // Big figures: a KPI should not be set at body weight.
+        metric: ['2rem', { lineHeight: '2.25rem', fontWeight: '700', letterSpacing: '-0.02em' }],
         'label-caps': ['0.6875rem', { lineHeight: '1rem', fontWeight: '600', letterSpacing: '0.05em' }],
       },
       spacing: {

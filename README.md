@@ -1,8 +1,8 @@
-# Worktruth — Enterprise Workflow Discovery Platform
+# Mjadi — Enterprise Workflow Discovery Platform
 
 AI-powered operational discovery via documents and WhatsApp/web interviews, with portals for platform operators, company admins, and expert reviewers.
 
-Brand: **Worktruth** (repo folder: `req_app`).
+Brand: **Mjadi** (repo folder: `req_app`).
 
 ## Stack
 

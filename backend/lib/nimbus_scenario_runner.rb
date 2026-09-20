@@ -21,7 +21,7 @@
 class NimbusScenarioRunner
   SLUG = "nimbus-trading"
   ADMIN_EMAIL = "omar@nimbus.ae"
-  CONSULTANT_EMAIL = "samir.ops@consultants.worktruth.local"
+  CONSULTANT_EMAIL = "samir.ops@consultants.mjadi.local"
 
   # Tuned for a SLOW local model: interviews run strictly one employee at a time
   # (the runner is fully serial), and these keep the total LLM turn count small.
@@ -253,7 +253,7 @@ class NimbusScenarioRunner
     end
 
     # A stray active assignment from an older run (e.g. the pre-rename
-    # samir.ops@reviewers.worktruth.local record) sits on this company forever
+    # samir.ops@reviewers.mjadi.local record) sits on this company forever
     # otherwise, and check_all_submitted! correctly refuses to call reviews
     # complete while ANY active consultant hasn't submitted -- so a leftover
     # nobody submits for silently blocks reviews_complete indefinitely. A fresh
@@ -437,6 +437,15 @@ class NimbusScenarioRunner
               "#{reason} after #{conv.question_count}q")
       log "  · #{name}: discovery ENDED ITSELF after #{conv.question_count} questions — reason: #{reason.inspect}"
       observe("dossier", "info", "#{name} filled", filled.keys.join(" | "))
+
+      # The point of friction_cost is a figure the report can annualise. A run that
+      # never fills it is not a failed check -- it depends on what the employee
+      # said -- but it IS the thing to look at first when a report reads thin.
+      costed = filled.keys.select { |k| k.start_with?("friction_cost::") }
+      quantified = costed.map { |k| k.split("::").last }
+      observe("dossier", costed.any? ? "info" : "warn", "#{name} frictions costed",
+              costed.any? ? quantified.join(" | ") : "none — nothing to annualise from this interview")
+      log "  · #{name}: frictions with a time cost captured: #{quantified.any? ? quantified.join(', ') : '(none)'}"
       observe("dossier", "info", "#{name} parked", parked.map { |x| x["note"] }.join(" | ")) if parked.any?
     end
   end

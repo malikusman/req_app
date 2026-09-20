@@ -41,18 +41,58 @@ export type DiscoverVerifyResponse = {
   messages: DiscoverMessage[];
 };
 
-const STORAGE_KEY = 'req_discover_token';
+const STORAGE_KEY = 'req_discover_session';
 
-export function getStoredDiscoverToken(): string | null {
-  return sessionStorage.getItem(STORAGE_KEY);
+/**
+ * The interview session, kept against the invite link it belongs to.
+ *
+ * This was sessionStorage, which dies with the tab — and the server refuses to
+ * verify an invite link twice ("This link was already used"). So an employee who
+ * closed the tab mid-interview was locked out until an admin issued a new
+ * invite, which is the opposite of the "answer when you have a moment" this is
+ * sold as. localStorage survives that; the link stays single-use, so nothing
+ * about who can start an interview changes.
+ *
+ * Keyed by link because localStorage is shared across tabs: without it, a second
+ * employee opening their own invite on the same browser would be redirected
+ * straight into the FIRST employee's conversation. Sign out still clears it, and
+ * the JWT carries its own expiry.
+ */
+type StoredSession = { link: string; token: string };
+
+function readSession(): StoredSession | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as StoredSession;
+    return parsed?.link && parsed?.token ? parsed : null;
+  } catch {
+    // Private mode, cleared storage, or a value from an older shape.
+    return null;
+  }
 }
 
-export function storeDiscoverToken(token: string) {
-  sessionStorage.setItem(STORAGE_KEY, token);
+export function getStoredDiscoverToken(link?: string): string | null {
+  const session = readSession();
+  if (!session) return null;
+  if (link && session.link !== link) return null;
+  return session.token;
+}
+
+export function storeDiscoverToken(link: string, token: string) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ link, token }));
+  } catch {
+    // Storage unavailable: the interview still works for this page load.
+  }
 }
 
 export function clearDiscoverToken() {
-  sessionStorage.removeItem(STORAGE_KEY);
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // Nothing to do — there is no session to forget.
+  }
 }
 
 async function discoverRequest<T>(path: string, options: RequestInit = {}, token?: string | null): Promise<T> {

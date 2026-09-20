@@ -7,12 +7,14 @@ import {
   UserPlus,
   ChevronRight,
   ClipboardCheck,
+  RefreshCw,
   MessagesSquare,
   FileText,
   Package,
 } from 'lucide-react';
 import {
   api,
+  ApiRequestError,
   type CompanyPattern,
   type CompanySignal,
   type Employee,
@@ -58,6 +60,11 @@ export function ConsultantCompanyOverview() {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [tab, setTab] = useState('overview');
+  const [generating, setGenerating] = useState(false);
+  // A 422 means "nothing new since the last one" — a refusal the consultant is
+  // allowed to overrule, so it is offered back to them rather than just shown.
+  const [generateError, setGenerateError] = useState<{ message: string; forceable: boolean } | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!token || !companyId) return;
@@ -81,7 +88,29 @@ export function ConsultantCompanyOverview() {
       })
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load company'))
       .finally(() => setLoading(false));
-  }, [token, companyId]);
+  }, [token, companyId, reloadKey]);
+
+  const generateReport = async (force: boolean) => {
+    if (!token || !companyId) return;
+    setGenerating(true);
+    setGenerateError(null);
+    try {
+      const res = await api.generateConsultantReport(token, Number(companyId), force);
+      setGenerateError(null);
+      // The job runs on the queue, so the new version shows as "queued" until
+      // it renders. Reloading is what makes that visible.
+      setReloadKey((k) => k + 1);
+      return res;
+    } catch (e) {
+      const status = e instanceof ApiRequestError ? e.status : 0;
+      setGenerateError({
+        message: e instanceof Error ? e.message : 'Could not start generation',
+        forceable: status === 422,
+      });
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -111,6 +140,10 @@ export function ConsultantCompanyOverview() {
 
   const reportId = company.latest_report?.id;
   const reviewSubmitted = company.my_review_status === 'submitted';
+  // One run at a time per company: the server refuses a second with 409, so the
+  // button should not invite it. This cannot be read off latest_report — that is
+  // the newest READY report, so the version currently rendering is not in it.
+  const generatingInFlight = company.report_generating === true;
   const hasCoConsultants = company.co_consultant_count >= 1;
   const completedInterviews = conversations.filter((c) => c.status === 'completed').length;
   const roster =
@@ -297,17 +330,57 @@ export function ConsultantCompanyOverview() {
                         </Badge>
                       </div>
                     </div>
-                    <Link to={`/consultant/companies/${companyId}/reports/${reportId}/review`}>
-                      <Button icon={<ClipboardCheck className="h-4 w-4" />}>
-                        {reviewSubmitted ? 'View review' : 'Open report review'}
+                    <div className="flex flex-wrap items-center gap-2">
+                      {/*
+                        Evidence keeps arriving after a report is reviewed. Re-cutting
+                        it is the consultant's call, so the trigger lives next to the
+                        review rather than with the client.
+                      */}
+                      <Button
+                        variant="secondary"
+                        loading={generating}
+                        disabled={generatingInFlight}
+                        icon={<RefreshCw className="h-4 w-4" />}
+                        onClick={() => generateReport(false)}
+                      >
+                        New version
                       </Button>
-                    </Link>
+                      <Link to={`/consultant/companies/${companyId}/reports/${reportId}/review`}>
+                        <Button icon={<ClipboardCheck className="h-4 w-4" />}>
+                          {reviewSubmitted ? 'View review' : 'Open report review'}
+                        </Button>
+                      </Link>
+                    </div>
                   </div>
                 ) : (
                   <EmptyState
                     title="No report yet"
-                    description="A report will appear here once this company reaches readiness and one is generated."
+                    description="Generate one when there is enough evidence to be worth reading. It stays internal until you have reviewed it and the platform approves."
+                    // EmptyState's action has no disabled state, so while a run is
+                    // in flight the offer is withdrawn rather than left to 409.
+                    action={
+                      generatingInFlight
+                        ? undefined
+                        : { label: 'Generate report', onClick: () => generateReport(false) }
+                    }
                   />
+                )}
+
+                {generatingInFlight && (
+                  <p className="mt-4 text-sm text-muted-foreground">
+                    A version is generating now. This page updates when it is ready.
+                  </p>
+                )}
+
+                {generateError && (
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-button border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
+                    <span>{generateError.message}</span>
+                    {generateError.forceable && (
+                      <Button size="sm" variant="secondary" loading={generating} onClick={() => generateReport(true)}>
+                        Generate anyway
+                      </Button>
+                    )}
+                  </div>
                 )}
               </Card>
 

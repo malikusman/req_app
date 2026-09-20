@@ -10,7 +10,7 @@ export function ConsultantLogin() {
   return (
     <LoginForm
       portal="consultant"
-      portalName="Worktruth — Consultant"
+      portalName="Mjadi — Consultant"
       tagline="Review discovery reports and coordinate expert analysis."
       defaultEmail="consultant@reqapp.local"
       forgotPasswordTo="/auth/forgot-password?portal=consultant"

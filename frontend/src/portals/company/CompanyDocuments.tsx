@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Download, HelpCircle, Pencil, Trash2, Upload } from 'lucide-react';
 import { api, type CompanyDocument, type DocumentAnalysisRun } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
-import { PageHeader, Card, Input, DataTable, Badge, FileDropzone, EmptyState, Button } from '../../components/ui';
+import { PageHeader, Card, Input, DataTable, Badge, FileDropzone, EmptyState, Button, ErrorNotice} from '../../components/ui';
 import { useToast } from '../../components/ui/ToastProvider';
 
 export function CompanyDocuments() {
@@ -330,12 +330,7 @@ export function CompanyDocuments() {
       {error && <p className="text-sm text-status-error">{error}</p>}
 
       {loadError && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-button border border-status-error/30 bg-status-errorBg px-4 py-3 text-sm text-status-error">
-          <span>{loadError}</span>
-          <Button size="sm" variant="secondary" onClick={load}>
-            Retry
-          </Button>
-        </div>
+        <ErrorNotice message={loadError} onRetry={load} />
       )}
 
       <Card title="How analysis works">

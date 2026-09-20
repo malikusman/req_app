@@ -177,7 +177,7 @@ export function ConsultantCatalog() {
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="truncate text-sm font-medium text-text-primary">{s.name}</span>
-                        {s.first_party && <Badge variant="success">Worktruth product</Badge>}
+                        {s.first_party && <Badge variant="success">Mjadi product</Badge>}
                         {s.vendor && <span className="text-xs text-text-secondary">{s.vendor}</span>}
                       </div>
                       {s.description && (

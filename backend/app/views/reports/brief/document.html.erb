@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="<%= snapshot.dig('company', 'locale') || 'en' %>">
+<head>
+  <meta charset="utf-8"/>
+  <title>Mjadi Executive Brief — <%= h snapshot.dig('company', 'name') %></title>
+  <%= render "reports/brief/styles" %>
+</head>
+<body>
+<%# THE EXECUTIVE BRIEF — four portrait pages, rendered from the SAME snapshot
+    and the SAME consultant overlay as the full report. It is a section
+    allowlist and a paper size, never a second analysis: if a number here
+    differs from the full report, that is one bug with one cause.
+
+    Content-driven: a thin evidence base yields two or three pages rather than
+    four padded ones. Every section self-suppresses. %>
+<% company_name = snapshot.dig("company", "name") %>
+<% narrative = snapshot["narrative"].is_a?(Hash) ? snapshot["narrative"] : {} %>
+<% expert = report_expert(snapshot) %>
+<% opportunity = report_opportunity(snapshot) %>
+<% verdict = expert && expert["verdict"] %>
+<% signals = Array(snapshot["signals"]).sort_by { |s| -s["strength"].to_f } %>
+<% patterns = Array(snapshot["patterns"]) %>
+<% recommendations = Array(snapshot["recommendations"]).sort_by { |r| -r["impact_score"].to_f } %>
+<% roadmap = snapshot["roadmap"].is_a?(Hash) ? snapshot["roadmap"] : {} %>
+<% docs_first = snapshot["docs_first_phase"] == true || snapshot["report_kind"].to_s == "baseline" %>
+<% foot = ->(n) { %(<div class="foot"><span class="brand">#{h report_brand_footer(company_name)}</span><span>#{n} / 4</span></div>).html_safe } %>
+
+<%# ===== PAGE 1 · THE ANSWER, AND WHAT IT'S WORTH ===================== %>
+<section class="page">
+  <div class="masthead">
+    <div class="logo">Mjadi<span class="muted" style="font-family:var(--sans);font-size:7.5pt;font-weight:500;"> · Executive brief</span></div>
+    <div class="meta">
+      <%= h company_name %><br/>
+      <%= h generated_label %> · v<%= report_version %>
+    </div>
+  </div>
+
+  <%# The governing thought is already answer-first, already carries a grounded
+      number and already survived the hallucination filter. It does not need to
+      be written again for the brief. %>
+  <div class="fill">
+  <%# Labels the page like the other three, and gives the in-portal reader
+      something to name it in the section rail. %>
+  <div class="eyebrow" style="margin-bottom:5mm;">The answer</div>
+  <% headline = narrative["governing_thought"].presence ||
+                snapshot.dig("situation", "headline").presence ||
+                snapshot["executive_summary"].to_s.split(/(?<=\.)\s+/).first %>
+  <h1 class="answer"><%= h headline %></h1>
+
+  <%# Without a model there are no narrative supporting points, which left this
+      page with a headline and nothing under it. The deterministic stand-in is
+      built from the real signals, so the page is honest either way. %>
+  <% support = Array(narrative["supporting_points"]).reject(&:blank?).first(3) %>
+  <% support = report_deterministic_support(snapshot) if support.empty? %>
+  <% if support.any? %>
+    <ul class="support">
+      <% support.each do |point| %><li><%= h point %></li><% end %>
+    </ul>
+  <% end %>
+
+  <% stakes = narrative["stakes"].presence ||
+              Array(snapshot["implications"]).max_by { |i| i["confidence"].to_f }&.dig("statement") %>
+  <% if stakes.present? %>
+    <div class="stakes"><strong>What's at stake.</strong> <%= h stakes %></div>
+  <% end %>
+
+  <% metrics = Array(snapshot["key_metrics"]).first(3) %>
+  <% if metrics.any? %>
+    <div class="metrics">
+      <% metrics.each do |m| %>
+        <div class="metric">
+          <div class="n"><%= h m["headline"] %></div>
+          <% if m["comparison"].present? %><div class="c"><%= h m["comparison"] %></div><% end %>
+          <div class="l"><%= h m["label"].to_s.truncate(70) %></div>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+
+  </div><%# /.fill — the slack lives here, so the value block sits on the footer %>
+
+  <% if opportunity %>
+    <% amount = report_amount_parts(opportunity["amount"], opportunity["unit"]) %>
+    <div class="value">
+      <div class="exlabel">Identified opportunity · expert validated</div>
+      <div class="value-amount"><%= h amount[:figure] %></div>
+      <% if amount[:period] %><div class="value-period">per <%= h amount[:period] %></div><% end %>
+      <% if opportunity["basis"].present? %>
+        <p class="value-basis"><%= h opportunity["basis"] %></p>
+      <% end %>
+      <div class="value-by">
+        Sized by <strong><%= h opportunity["consultant"] %></strong><br/>
+        <%= h opportunity["consultant_credential"] %>
+      </div>
+    </div>
+  <% end %>
+  <%= foot.call(1) %>
+</section>
+
+<%# ===== PAGE 2 · WHERE IT HURTS ====================================== %>
+<% if signals.any? %>
+<section class="page">
+  <div class="eyebrow">Where it hurts</div>
+  <h1 style="font-size:20pt;margin:3mm 0 6mm;">The friction, ranked</h1>
+
+  <%# Top four only. The ranking IS the insight; the long tail is reference and
+      lives in the full report. No excerpts — a client deliverable does not
+      quote what an employee said. %>
+  <% signals.first(4).each do |signal| %>
+    <% cat = report_category_class(signal["signal_type"]) %>
+    <% depts = Array(signal["departments"]).reject(&:blank?) %>
+    <div class="sig <%= cat %>">
+      <div>
+        <div class="name"><%= h signal["label"] %></div>
+        <div class="where"><%= h report_category_label(cat) %><% if depts.any? %> · <%= h depts.join(", ") %><% end %></div>
+        <% evidence = report_evidence_line(signal, docs_first: docs_first) %>
+        <% if evidence %><div class="ev"><%= h evidence %></div><% end %>
+      </div>
+      <div class="band">
+        <div class="bar"><i style="width:<%= report_pct(signal["strength"]) %>%"></i></div>
+        <div class="lvl"><%= report_strength_label(signal["strength"]) %></div>
+      </div>
+    </div>
+  <% end %>
+
+  <%# Already a single compact SVG, and it answers "which team" faster than any
+      paragraph. Self-suppresses below two departments, so this page shrinks
+      honestly when the data is thin. %>
+  <% heatmap = report_department_heatmap_svg(signals) %>
+  <% if heatmap.to_s.strip.present? %>
+    <div class="heat">
+      <div class="exlabel">Friction by department</div>
+      <%= heatmap %>
+    </div>
+  <% end %>
+
+  <% top_pattern = patterns.max_by { |p| p["confidence"].to_f } %>
+  <% if top_pattern %>
+    <div class="pattern">
+      <div class="exlabel">Strongest cross-team pattern</div>
+      <div class="t" style="margin-top:2mm;"><%= h top_pattern["title"] %></div>
+      <% if top_pattern["description"].present? %>
+        <p><%= h top_pattern["description"].to_s.truncate(320) %></p>
+      <% end %>
+    </div>
+  <% end %>
+  <%= foot.call(2) %>
+</section>
+<% end %>
+
+<%# ===== PAGE 3 · WHAT TO DO ABOUT IT ================================= %>
+<% if recommendations.any? || roadmap.values.any? { |v| Array(v).any? } %>
+<section class="page">
+  <div class="eyebrow">What to do about it</div>
+  <h1 style="font-size:20pt;margin:3mm 0 6mm;">Where to act first</h1>
+
+  <%# An owner acts on three, not nine. %>
+  <% recommendations.first(3).each do |rec| %>
+    <div class="rec">
+      <div class="top">
+        <h3><%= h rec["title"] %></h3>
+        <span class="pill <%= report_priority_pill(rec["priority"]) %>"><%= h report_priority_label(rec["priority"]) %></span>
+      </div>
+      <% if rec["description"].present? %>
+        <p><%= h rec["description"].to_s.truncate(260) %></p>
+      <% end %>
+      <% match = report_catalog_match(rec) %>
+      <% if match.present? %>
+        <div class="fit">Catalog match · <%= h match %></div>
+      <% end %>
+    </div>
+  <% end %>
+
+  <% if roadmap.values.any? { |v| Array(v).any? } %>
+    <div class="phases">
+      <% [["now", "Now", ""], ["next", "Next", "next"], ["later", "Later", "later"]].each do |key, label, cls| %>
+        <% items = Array(roadmap[key]) %>
+        <% next if items.empty? %>
+        <div class="phase <%= cls %>">
+          <h4><%= label %></h4>
+          <ul>
+            <% items.first(4).each do |item| %>
+              <li><%= h item["title"] %></li>
+            <% end %>
+          </ul>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+  <%= foot.call(3) %>
+</section>
+<% end %>
+
+<%# ===== PAGE 4 · HOW WE KNOW, AND WHO CHECKED ======================== %>
+<section class="page">
+  <div class="eyebrow">How we know</div>
+  <h1 style="font-size:20pt;margin:3mm 0 6mm;">Method, and independent validation</h1>
+
+  <div class="fill">
+  <% evidence_sentence = report_evidence_base_sentence(snapshot) %>
+  <% if evidence_sentence %>
+    <div class="method-line" style="margin-top:0;">
+      <strong>Evidence base.</strong> <%= h evidence_sentence.upcase_first %>.
+      Individual transcripts, document files and media exhibits are working
+      papers and are deliberately not reproduced here.
+    </div>
+  <% end %>
+
+  <% validators = Array(expert && expert["validators"]) %>
+  <% if validators.any? %>
+    <div class="who">
+      <div class="exlabel">Reviewed and endorsed by</div>
+      <% validators.each do |v| %>
+        <div class="card">
+          <div class="nm"><%= h v["name"] %></div>
+          <div class="cr"><%= h v["credential"] %></div>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+
+  <% if verdict && verdict["overall_note"].present? %>
+    <div style="margin-top:6mm;">
+      <div class="exlabel">The reviewer's conclusion</div>
+      <p style="margin-top:2mm;"><%= h verdict["overall_note"].to_s.truncate(560) %></p>
+    </div>
+  <% end %>
+
+  </div><%# /.fill %>
+
+  <div class="ask">
+    <h3>Next step</h3>
+    <% next_now = Array(roadmap["now"]).first %>
+    <% if next_now %>
+      <p>Start with <strong><%= h next_now["title"] %></strong><%= ". #{next_now['rationale']}" if next_now["rationale"].present? %></p>
+    <% else %>
+      <p>Review the recommendations with the owners named against each, and pick the first one to fund.</p>
+    <% end %>
+    <div class="pointer">The full report — every signal, all supporting evidence and the complete expert appendix — is available in your Mjadi portal.</div>
+  </div>
+  <%= foot.call(4) %>
+</section>
+</body>
+</html>

@@ -25,8 +25,8 @@ export function CompanyExpertConsultants({ hideIntro = false }: { hideIntro?: bo
       {!hideIntro ? (
         <p className="mb-4 text-sm text-text-secondary">
           {consultants.length === 0
-            ? 'Consultants appear here when Worktruth assigns experts to your company and they publish their profile.'
-            : 'Independent experts shaping your transformation report — verified by Worktruth.'}
+            ? 'Consultants appear here when Mjadi assigns experts to your company and they publish their profile.'
+            : 'Independent experts shaping your transformation report — verified by Mjadi.'}
         </p>
       ) : null}
       {consultants.length > 0 ? (

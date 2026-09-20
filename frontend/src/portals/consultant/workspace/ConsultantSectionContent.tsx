@@ -128,7 +128,7 @@ export function ConsultantSectionContent({
               <span>{s.label}</span>
               <span>{Math.round(s.strength * 100)}%</span>
             </div>
-            <StrengthBar strength={s.strength} className="mt-2" />
+            <StrengthBar strength={s.strength} tone="evidence" className="mt-2" />
             <p className="mt-1 text-xs text-muted-foreground">{s.departments?.join(', ')}</p>
             {s.evidence_count != null && (
               <p className="mt-1 text-xs text-muted-foreground">{s.evidence_count} evidence mentions</p>

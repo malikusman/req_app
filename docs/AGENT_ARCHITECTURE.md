@@ -1,6 +1,21 @@
+> ## ⚠️ SUPERSEDED — do not rely on this document
+>
+> This describes the **retired specialist-queue interview engine** (per-specialist
+> question budgets, `domain_{dept}` personas, `agent/app/router.py`), which no longer
+> exists in the codebase. The interview now maps the person's own role areas and ends on
+> a filled role dossier rather than a question counter.
+>
+> **Current architecture:
+> [`TECHNICAL_REVIEW_AGENTS_AND_REPORTING.md`](TECHNICAL_REVIEW_AGENTS_AND_REPORTING.md)**
+> — verified against the code, September 2026.
+>
+> Kept only as a record of how the interview used to work.
+
+---
+
 # Agent architecture
 
-How Worktruth agents run, who owns state, and what each one is for. Interview behaviour is documented as it exists today — see [Discovery interview length](#discovery-interview-length-resolved) for how the interview decides when it is done.
+How Mjadi agents run, who owns state, and what each one is for. Interview behaviour is documented as it exists today — see [Discovery interview length](#discovery-interview-length-resolved) for how the interview decides when it is done.
 
 > **See also:** a visual version of this map (flow diagrams + a card per agent) and the concrete interview redesign live in [`DISCOVERY_REDESIGN_PLAN.md`](DISCOVERY_REDESIGN_PLAN.md). Verified against the current code Aug 2026.
 

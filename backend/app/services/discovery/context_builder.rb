@@ -19,7 +19,7 @@ module Discovery
     LIMIT_DEFAULTS = {
       # A BACKSTOP, not a target. The interview closes on a filled dossier, usually
       # several questions earlier. If this fires often, the dossier wants too much.
-      "discovery_max_questions" => { env: "DISCOVERY_MAX_QUESTIONS", default: 8, cast: :int },
+      "discovery_max_questions" => { env: "DISCOVERY_MAX_QUESTIONS", default: 12, cast: :int },
       # Without a floor, a two-word-answer employee trips the stall exit at turn 3
       # and the discovery package gets built on almost nothing.
       "discovery_min_questions" => { env: "DISCOVERY_MIN_QUESTIONS", default: 4, cast: :int },

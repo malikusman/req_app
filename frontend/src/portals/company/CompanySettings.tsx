@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
-import { PageHeader, Card, Input, Select, Button, Skeleton } from '../../components/ui';
+import { PageHeader, Card, Input, Select, Button, Skeleton, ErrorNotice} from '../../components/ui';
 import { SETTINGS_SECONDARY_LINKS } from './nav';
 
 export function CompanySettings() {
@@ -73,12 +73,7 @@ export function CompanySettings() {
       <PageHeader title="Settings" description="Your organization details, security, and other tools." />
 
       {loadError && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-button border border-status-error/30 bg-status-errorBg px-4 py-3 text-sm text-status-error">
-          <span>{loadError}</span>
-          <Button size="sm" variant="secondary" onClick={load}>
-            Retry
-          </Button>
-        </div>
+        <ErrorNotice message={loadError} onRetry={load} />
       )}
 
       <Card title="Organization">

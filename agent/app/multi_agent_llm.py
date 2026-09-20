@@ -422,7 +422,7 @@ def _mock_agent_turn(state: dict[str, Any]) -> dict[str, Any]:
         "friction": f"What's the most annoying part of {area or 'that'}?",
         "ai_openness": f"Ever thought about letting software take a slice of {area or 'that'} off your plate?",
         "ai_current_usage": "Do you use any AI tools in your day to day work at the moment?",
-        "volume_or_frequency": f"Roughly how often does {area or 'that'} come up?",
+        "friction_cost": f"Roughly how much time does that side of {area or 'that'} eat up in a week?",
     }.get(slot, f"Tell me a bit more about {area or 'your work'}?")
 
     return {

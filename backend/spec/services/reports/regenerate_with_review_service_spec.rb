@@ -26,9 +26,11 @@ RSpec.describe Reports::RegenerateWithReviewService do
   end
 
   it "rebuilds the artifact with consultant notes in the HTML payload" do
-    expect(Reports::HtmlBuilder).to receive(:call).with(
+    # Called once per variant. The snapshot it receives is a COPY carrying the
+    # consultant overlay and the expert layer, so it is deliberately not
+    # compared against the stored snapshot by equality.
+    expect(Reports::HtmlBuilder).to receive(:call).at_least(:once).with(
       hash_including(
-        snapshot: report.report_snapshot,
         review_notes: array_including(
           hash_including("consultant" => "Alex Expert", "body" => "Looks solid."),
           hash_including("section_key" => "signals", "body" => "Add more finance evidence.")

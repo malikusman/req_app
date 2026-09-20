@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, type ReportSectionOverride, type SectionOverrideAction } from '@/lib/api';
+import {
+  api,
+  type ReportSectionOverride,
+  type ReportSectionTemplate,
+  type SectionOverrideAction,
+} from '@/lib/api';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
@@ -19,9 +24,9 @@ const SECTION_LABELS: Record<string, string> = {
   recommendations: 'Recommendations',
   roadmap: 'Roadmap',
   opportunities: 'Opportunities',
-  tools_catalog: 'Capabilities & evidence',
-  supporting_media: 'Supporting media',
+  tools_catalog: 'Capabilities',
   methodology: 'Methodology',
+  expert_verdict: 'Expert assessment',
 };
 
 const label = (key: string | null) => (key ? SECTION_LABELS[key] ?? key : '');
@@ -53,6 +58,12 @@ export function ConsultantSectionEditorPanel({ token, companyId, reportId, disab
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [saving, setSaving] = useState(false);
+  // The section library. Adding a section always worked; what it lacked was any
+  // structure -- a consultant got an empty textarea and no indication that a real
+  // deliverable wants assumptions, risks, quick wins, benchmarks.
+  const [templates, setTemplates] = useState<ReportSectionTemplate[]>([]);
+  const [templateKey, setTemplateKey] = useState<string | null>(null);
+  const [showAllTemplates, setShowAllTemplates] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -73,9 +84,29 @@ export function ConsultantSectionEditorPanel({ token, companyId, reportId, disab
     load();
   }, [load]);
 
+  useEffect(() => {
+    api
+      .consultantSectionTemplates(token)
+      .then((d) => setTemplates(d.templates))
+      .catch(() => setTemplates([]));
+  }, [token]);
+
   const reset = () => {
     setTitle('');
     setBody('');
+    setTemplateKey(null);
+  };
+
+  // Prefill from the library. The scaffold is a skeleton that poses the questions
+  // the section must answer -- the consultant replaces it with judgement rather
+  // than staring at a cursor. section_key carries the template key so the
+  // rendered page can show what the section is for.
+  const applyTemplate = (template: ReportSectionTemplate) => {
+    setAction('add');
+    setTemplateKey(template.key);
+    setTitle(template.title);
+    setBody(template.scaffold);
+    setAnchor(template.anchor);
   };
 
   const submit = async () => {
@@ -85,7 +116,7 @@ export function ConsultantSectionEditorPanel({ token, companyId, reportId, disab
     try {
       await api.createConsultantSectionOverride(token, companyId, reportId, {
         action,
-        section_key: action === 'add' ? null : sectionKey,
+        section_key: action === 'add' ? templateKey : sectionKey,
         anchor_section: action === 'add' ? anchor : null,
         title: title.trim() || null,
         body: body.trim() || null,
@@ -191,7 +222,53 @@ export function ConsultantSectionEditorPanel({ token, companyId, reportId, disab
             </div>
           )}
 
-          {/* Add note / custom section */}
+          {/* The section library */}
+          {!disabled && templates.length > 0 && (
+            <div className="space-y-2 border-t border-border pt-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-text-secondary">
+                Sections a deliverable should carry
+              </p>
+              <p className="text-xs text-text-secondary">
+                These need your judgement — the generated report cannot produce them from evidence alone.
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {(showAllTemplates ? templates : templates.filter((t) => t.recommended)).map((t) => {
+                  const used = overrides.some((o) => o.action === 'add' && o.section_key === t.key);
+                  return (
+                    <button
+                      key={t.key}
+                      type="button"
+                      disabled={used}
+                      onClick={() => applyTemplate(t)}
+                      className={`rounded-md border px-3 py-2 text-left transition ${
+                        templateKey === t.key
+                          ? 'border-accent bg-accent/5'
+                          : 'border-border hover:border-accent/60'
+                      } disabled:cursor-not-allowed disabled:opacity-50`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-text-primary">{t.title}</span>
+                        {used && <Badge variant="success">Added</Badge>}
+                        {!used && t.recommended && <Badge variant="neutral">Recommended</Badge>}
+                      </div>
+                      <p className="mt-0.5 text-xs leading-snug text-text-secondary">{t.purpose}</p>
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                className="text-xs text-accent hover:underline"
+                onClick={() => setShowAllTemplates((v) => !v)}
+              >
+                {showAllTemplates
+                  ? 'Show recommended only'
+                  : `Show all ${templates.length} sections`}
+              </button>
+            </div>
+          )}
+
+          {/* Add / rewrite a section */}
           {!disabled && (
             <div className="space-y-3 border-t border-border pt-4">
               <Select
@@ -200,16 +277,25 @@ export function ConsultantSectionEditorPanel({ token, companyId, reportId, disab
                 onChange={(e) => setAction(e.target.value as SectionOverrideAction)}
                 options={[
                   { value: 'add', label: 'Add a new section' },
-                  { value: 'edit', label: 'Add an editorial note to a section' },
+                  { value: 'edit', label: 'Rewrite a generated section' },
                 ]}
               />
               {action === 'edit' && (
-                <Select
-                  label="Section"
-                  value={sectionKey}
-                  onChange={(e) => setSectionKey(e.target.value)}
-                  options={sections.map((k) => ({ value: k, label: label(k) }))}
-                />
+                <>
+                  <Select
+                    label="Section to rewrite"
+                    value={sectionKey}
+                    onChange={(e) => setSectionKey(e.target.value)}
+                    options={sections.map((k) => ({ value: k, label: label(k) }))}
+                  />
+                  {/* This used to be labelled "add an editorial note", which
+                      misdescribed what happens: the text REPLACES the generated
+                      section in the deliverable rather than sitting beside it. */}
+                  <p className="text-xs text-warning">
+                    Your text replaces the generated {label(sectionKey) || 'section'} entirely — it does not appear
+                    alongside it.
+                  </p>
+                </>
               )}
               {action === 'add' && (
                 <Select
@@ -221,21 +307,27 @@ export function ConsultantSectionEditorPanel({ token, companyId, reportId, disab
               )}
               {(action === 'add' || action === 'edit') && (
                 <Textarea
-                  label={action === 'add' ? 'Section title' : 'Note heading (optional)'}
+                  label={action === 'add' ? 'Section title' : 'Replacement heading (optional)'}
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   rows={1}
                 />
               )}
               <Textarea
-                label={action === 'add' ? 'Section content' : 'Your note'}
+                label={action === 'add' ? 'Section content' : 'Your replacement text'}
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
-                rows={5}
+                rows={action === 'add' && templateKey ? 14 : 5}
               />
+              {/* The deliverable renders this light markup as real typography —
+                  worth saying, since the alternative is a wall of plain text. */}
+              <p className="-mt-1 text-xs text-text-secondary">
+                <code>##</code> for a heading, <code>-</code> for a bullet, <code>**bold**</code>,{' '}
+                <code>*italic*</code>.
+              </p>
               <div className="flex justify-end">
                 <Button onClick={submit} loading={saving} disabled={saving}>
-                  {action === 'add' ? 'Add section' : 'Add note'}
+                  {action === 'add' ? 'Add section' : 'Replace section'}
                 </Button>
               </div>
             </div>

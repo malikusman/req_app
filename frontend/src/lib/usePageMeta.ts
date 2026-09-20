@@ -65,12 +65,12 @@ function resolveTitle(pathname: string, fallback: string): string {
   return fallback;
 }
 
-export function usePageMeta(fallback = 'Worktruth') {
+export function usePageMeta(fallback = 'Mjadi') {
   const { pathname } = useLocation();
   const title = resolveTitle(pathname, fallback);
 
   useEffect(() => {
-    document.title = title === 'Worktruth' ? 'Worktruth' : `${title} · Worktruth`;
+    document.title = title === 'Mjadi' ? 'Mjadi' : `${title} · Mjadi`;
   }, [title]);
 
   return { title };

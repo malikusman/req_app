@@ -1,4 +1,4 @@
-# Worktruth — sample report narratives for sales pilots
+# Mjadi — sample report narratives for sales pilots
 
 Use these blurbs when walking a prospect through baseline vs discovery reports.
 They match product behaviour (`report_kind`, methodology, executive summary).
@@ -8,7 +8,7 @@ They match product behaviour (`report_kind`, methodology, executive summary).
 **When:** Company chose documents-first / zero completed interviews; readiness hit the docs-phase bar.
 
 **What leadership hears:**
-> We analysed your internal SOPs, policies, and exports. Worktruth extracted structured signals (bottlenecks, manual steps, tools) and clustered recurring patterns. This baseline is citeable to files — not live employee quotes. Invite people next; the same signals strengthen with interview evidence.
+> We analysed your internal SOPs, policies, and exports. Mjadi extracted structured signals (bottlenecks, manual steps, tools) and clustered recurring patterns. This baseline is citeable to files — not live employee quotes. Invite people next; the same signals strengthen with interview evidence.
 
 **UI labels:** `report_kind: baseline`, methodology = document extraction, divider “What the documents revealed”.
 
@@ -33,4 +33,4 @@ They match product behaviour (`report_kind`, methodology, executive summary).
 
 ## Sales one-liner
 
-**Worktruth:** documents and/or WhatsApp → operational truth → governed report.
+**Mjadi:** documents and/or WhatsApp → operational truth → governed report.

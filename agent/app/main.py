@@ -256,6 +256,29 @@ def evaluate_requirement_satisfaction(body: EvaluateRequirementRequest):
     return evaluate_requirement(body.model_dump())
 
 
+class DeepDiveRequest(BaseModel):
+    package: dict[str, Any] = Field(default_factory=dict)
+    dossier: dict[str, Any] = Field(default_factory=dict)
+    profile: dict[str, Any] = Field(default_factory=dict)
+    already_asked: list[str] = Field(default_factory=list)
+    max_suggestions: int = 3
+    language: str = "en"
+
+
+@app.post("/v1/consultant/deep_dive/suggest")
+def suggest_deep_dive_questions(body: DeepDiveRequest):
+    """Propose what else is worth asking this employee, and why.
+
+    Never raises. A consultant opening the review and finding no suggestions cannot
+    tell "nothing worth asking" from "generation broke", so this falls back to the
+    uncosted frictions computed straight from the dossier — which is the most
+    valuable suggestion anyway, and needs no model to find.
+    """
+    from app.deep_dive import suggest_questions
+
+    return suggest_questions(body.model_dump())
+
+
 @app.post("/v1/threads", response_model=dict)
 def create_thread():
     return {"thread_id": str(uuid.uuid4())}

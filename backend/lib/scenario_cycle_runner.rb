@@ -281,7 +281,7 @@ class ScenarioCycleRunner
     @report.reload
 
     snapshot = @report.report_snapshot || {}
-    supporting_docs = Array(snapshot["supporting_documents"])
+    supporting_docs = Array.new(snapshot.dig("evidence_base", "documents").to_i)
     tools = Array(snapshot.dig("tools_catalog", "curated_matches"))
 
     check "Report ready", @report.status == "ready"
@@ -536,7 +536,7 @@ class ScenarioCycleRunner
 
     snapshot = @report.report_snapshot || {}
     tools = Array(snapshot.dig("tools_catalog", "curated_matches"))
-    docs = Array(snapshot["supporting_documents"])
+    docs = Array.new(snapshot.dig("evidence_base", "documents").to_i)
     findings = Array(overlay["structured_findings"])
     sample_ref = findings.flat_map { |f| Array(f["evidence_refs"]) }.find(&:present?)
     sample_disposition = findings.map { |f| f["disposition"] }.find(&:present?)

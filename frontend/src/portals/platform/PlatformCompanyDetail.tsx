@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { ChatMessageList, type ChatMessageItem } from '../../components/motion';
 import {
   api,
+  ApiRequestError,
   type CompanyDetail,
   type CompanyConversation,
   type CompanyConversationMessage,
@@ -14,6 +15,7 @@ import {
   type PlatformAuditLogEntry,
   type PlatformReport,
   type Recommendation,
+  type ReportVariant,
   type TimelineEvent,
 } from '../../lib/api';
 import { usePlatformToken } from '../../lib/auth';
@@ -36,38 +38,22 @@ import {
   DiscoveryProvenancePanel,
 } from '../../components/ui';
 import { label } from '../../lib/labels';
+import { allFields } from '../../lib/questionnaireOptions';
 import { PlatformCompanyConsultants } from './PlatformCompanyConsultants';
 import { ConversationMediaCard, ConversationMediaList } from '../../components/ConversationMediaCard';
 import { CompanyStackPanel } from './CompanyStackPanel';
 import { AgenticIdeasPanel } from '../shared/AgenticIdeasPanel';
 
-const PROFILE_FIELD_LABELS: Record<string, string> = {
-  company_industry: 'Industry',
-  company_size: 'Company size',
-  company_location: 'Location',
-  business_model: 'Business model',
-  annual_revenue: 'Annual revenue',
-  departments_present: 'Departments',
-  operational_structure: 'Operational structure',
-  num_locations: 'Locations',
-  department_pain_point: 'Department pain points',
-  erp_system: 'ERP',
-  crm_system: 'CRM',
-  accounting_software: 'Accounting',
-  hr_software: 'HR software',
-  communication_tools: 'Communication tools',
-  tech_stack_maturity: 'Tech stack maturity',
-  primary_goals: 'Primary goals',
-  timeline: 'Timeline',
-  budget_range: 'Budget range',
-  additional_context: 'Additional context',
-  current_ai_usage: 'Current AI usage',
-  ai_openness: 'AI openness',
-  data_hosting: 'Data hosting',
-  top_bottlenecks: 'Top bottlenecks',
-};
-
-const PROFILE_FIELD_ORDER = Object.keys(PROFILE_FIELD_LABELS);
+/**
+ * Labels come from the questionnaire itself rather than a list kept here. The
+ * previous hardcoded map drifted the moment a question was reworded, and silently
+ * dropped any question added after it was written.
+ */
+const QUESTION_FIELDS = allFields().filter((f) => f.type !== 'static');
+const PROFILE_FIELD_LABELS: Record<string, string> = Object.fromEntries(
+  QUESTION_FIELDS.map((f) => [f.id, f.label])
+);
+const PROFILE_FIELD_ORDER = QUESTION_FIELDS.map((f) => f.id);
 
 function generatePassword() {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
@@ -82,6 +68,19 @@ function formatProfileValue(value: unknown): string | null {
   if (Array.isArray(value)) {
     const parts = value.map((v) => String(v).trim()).filter(Boolean);
     return parts.length ? parts.join(', ') : null;
+  }
+  if (typeof value === 'object') {
+    // The matrix questions (systems by category, parties and their channels,
+    // headcount per department) store a keyed map.
+    const parts = Object.entries(value as Record<string, unknown>)
+      .map(([k, v]) => {
+        const inner = Array.isArray(v)
+          ? v.map((x) => String(x).trim()).filter(Boolean).join(', ')
+          : String(v ?? '').trim();
+        return inner ? `${k}: ${inner}` : null;
+      })
+      .filter(Boolean);
+    return parts.length ? parts.join(' · ') : null;
   }
   return null;
 }
@@ -174,13 +173,28 @@ export function PlatformCompanyDetail() {
   const [loading, setLoading] = useState(true);
   const [approvingId, setApprovingId] = useState<number | null>(null);
   const [selectedReportId, setSelectedReportId] = useState<number | null>(null);
+  const [consultantCount, setConsultantCount] = useState<number | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [generateNotice, setGenerateNotice] = useState<string | null>(null);
   const [reportPreviewUrl, setReportPreviewUrl] = useState<string | null>(null);
   const [reportDraftUrl, setReportDraftUrl] = useState<string | null>(null);
+  // Approval ships BOTH renderings, so both have to be previewable at the gate.
+  const [reportPreviewVariant, setReportPreviewVariant] = useState<ReportVariant>('full');
   const [reportPreviewMode, setReportPreviewMode] = useState<'draft' | 'stored'>('draft');
   const [actionError, setActionError] = useState('');
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
+
+  // Only for the Reports tab's helper line, which claims the button exists
+  // BECAUSE no consultant is assigned — so it has to know whether that is true.
+  const loadConsultantCount = () => {
+    if (!token) return Promise.resolve();
+    return api
+      .companyConsultantAssignments(token, companyId)
+      .then((d) => setConsultantCount(d.active_count))
+      .catch(() => setConsultantCount(null));
+  };
 
   const loadReports = () => {
     if (!token || !companyId) return Promise.resolve([]);
@@ -199,7 +213,7 @@ export function PlatformCompanyDetail() {
   useEffect(() => {
     if (!token || !companyId) return;
     setLoading(true);
-    Promise.all([api.platformCompany(token, companyId).then((d) => d.company), loadReports()])
+    Promise.all([api.platformCompany(token, companyId).then((d) => d.company), loadReports(), loadConsultantCount()])
       .then(([c]) => setCompany(c))
       .catch(() => setCompany(null))
       .finally(() => setLoading(false));
@@ -297,6 +311,29 @@ export function PlatformCompanyDetail() {
       ) : undefined,
   }));
 
+  // The operator's fallback. Generation belongs to the consultant, but a company
+  // with no consultant assigned has nobody who could do it — and that company
+  // would otherwise never get a first report at all.
+  const generateReport = async (force: boolean) => {
+    if (!token) return;
+    setActionError('');
+    setGenerateNotice(null);
+    setGenerating(true);
+    try {
+      await api.generatePlatformReport(token, companyId, force);
+      await loadReports();
+    } catch (err) {
+      const status = err instanceof ApiRequestError ? err.status : 0;
+      const message = err instanceof Error ? err.message : 'Could not start generation';
+      // 422 is "nothing new since the last one" — a refusal worth offering back
+      // rather than just reporting.
+      if (status === 422) setGenerateNotice(message);
+      else setActionError(message);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   const approveReport = async (reportId: number) => {
     if (!token) return;
     setActionError('');
@@ -379,7 +416,7 @@ export function PlatformCompanyDetail() {
     }
     let objectUrl: string | null = null;
     api
-      .previewPlatformReportDraft(token, companyId, selectedReport.id)
+      .previewPlatformReportDraft(token, companyId, selectedReport.id, reportPreviewVariant)
       .then((url) => {
         objectUrl = url;
         setReportDraftUrl(url);
@@ -388,7 +425,7 @@ export function PlatformCompanyDetail() {
     return () => {
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [token, companyId, selectedReport?.id, selectedReport?.status]);
+  }, [token, companyId, selectedReport?.id, selectedReport?.status, reportPreviewVariant]);
 
   const auditTotalPages = Math.max(1, Math.ceil(auditTotal / 50));
 
@@ -651,7 +688,7 @@ export function PlatformCompanyDetail() {
                     {intelSnapshot.top_pain_points.map((s) => (
                       <li key={s.id} className="flex items-center justify-between gap-4">
                         <span className="text-sm text-text-primary">{s.label}</span>
-                        <StrengthBar strength={s.strength} />
+                        <StrengthBar strength={s.strength} tone="evidence" />
                       </li>
                     ))}
                   </ul>
@@ -667,7 +704,7 @@ export function PlatformCompanyDetail() {
                   header: 'Strength',
                   render: (s) => (
                     <div className="min-w-[120px]">
-                      <StrengthBar strength={s.strength} />
+                      <StrengthBar strength={s.strength} tone="evidence" />
                     </div>
                   ),
                 },
@@ -734,6 +771,36 @@ export function PlatformCompanyDetail() {
 
       {tab === 'reports' && (
         <>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            {/*
+              The line is about WHY this button is here, so it should only claim
+              that when it is true. On a company that already has consultants it
+              read as a contradiction of the row beneath it.
+            */}
+            <p className="m-0 text-sm text-text-secondary">
+              {consultantCount === 0
+                ? 'No consultant is assigned yet, so nobody else can generate for this company.'
+                : 'Generation normally belongs to the assigned consultant. Use this to re-cut a version yourself.'}
+            </p>
+            <Button
+              variant="secondary"
+              loading={generating}
+              disabled={reports.some((r) => r.status === 'queued' || r.status === 'generating')}
+              onClick={() => generateReport(false)}
+            >
+              Generate report
+            </Button>
+          </div>
+
+          {generateNotice && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-button border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
+              <span>{generateNotice}</span>
+              <Button size="sm" variant="secondary" loading={generating} onClick={() => generateReport(true)}>
+                Generate anyway
+              </Button>
+            </div>
+          )}
+
           {actionError && <p className="text-sm text-status-error">{actionError}</p>}
           <DataTable
             columns={[
@@ -844,6 +911,24 @@ export function PlatformCompanyDetail() {
                     >
                       Current artifact
                     </button>
+                    <span className="mx-1 h-4 w-px bg-border" aria-hidden />
+                    {/* One approval ships two documents. Approving a brief nobody
+                        looked at is exactly the failure mode to avoid. */}
+                    <button
+                      type="button"
+                      onClick={() => setReportPreviewVariant('full')}
+                      className={`rounded-full px-3 py-1 text-xs font-medium transition ${reportPreviewVariant === 'full' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}
+                    >
+                      Full report
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setReportPreviewVariant('exec_brief')}
+                      disabled={reportPreviewMode === 'stored'}
+                      className={`rounded-full px-3 py-1 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-40 ${reportPreviewVariant === 'exec_brief' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}
+                    >
+                      Executive brief
+                    </button>
                     <span className="text-xs text-muted-foreground">
                       {reportPreviewMode === 'draft' ? 'Exactly what the client gets on approval.' : 'The last generated file.'}
                     </span>
@@ -851,7 +936,7 @@ export function PlatformCompanyDetail() {
                   <iframe
                     src={(reportPreviewMode === 'draft' ? reportDraftUrl : reportPreviewUrl) ?? undefined}
                     title="Report preview"
-                    className="h-[520px] w-full rounded-lg border border-border bg-muted/30"
+                    className={`w-full rounded-lg border border-border bg-muted/30 ${reportPreviewVariant === 'exec_brief' ? 'h-[760px]' : 'h-[520px]'}`}
                   />
                 </Card>
               )}

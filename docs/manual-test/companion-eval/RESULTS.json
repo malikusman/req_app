@@ -92,7 +92,7 @@
       "awaiting_promote": false,
       "question_count_before": 10,
       "question_count_after": 10,
-      "reply": "From your company catalog / matches:\n1. Worktruth AP Copilot (Worktruth) — tag_match:finance; keyword_match:invoice,matching\n2. Bill.com (Bill.com) — tag_match:finance; keyword_match:invoice\n3. Automate POD exception capture — Reduce Excel retyping of handwritten POD notes before SAP posting.\n\nWant something added to your discovery interview for the company report? Say \"add this to my interview\".",
+      "reply": "From your company catalog / matches:\n1. Mjadi AP Copilot (Mjadi) — tag_match:finance; keyword_match:invoice,matching\n2. Bill.com (Bill.com) — tag_match:finance; keyword_match:invoice\n3. Automate POD exception capture — Reduce Excel retyping of handwritten POD notes before SAP posting.\n\nWant something added to your discovery interview for the company report? Say \"add this to my interview\".",
       "layer_a": {
         "pass": true,
         "score": 1.0,

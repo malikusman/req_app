@@ -8,7 +8,7 @@ module Api
           authorize :onboarding, :show?
           progress = Companies::QuestionnaireProgress.call(current_company.questionnaire_answers)
           render json: {
-            step: current_company.questionnaire_step.to_i.clamp(1, 10),
+            step: current_company.questionnaire_step.to_i.clamp(1, Companies::QuestionnaireConfig::STEP_COUNT),
             portal_onboarding_completed_at: current_company.portal_onboarding_completed_at,
             questionnaire_completed_at: current_company.questionnaire_completed_at,
             questionnaire_answers: current_company.questionnaire_answers || {},
@@ -52,9 +52,13 @@ module Api
 
         def update_questionnaire
           authorize :onboarding, :update_profile?
-          answers = (current_company.questionnaire_answers || {}).merge(questionnaire_answers_param)
+          incoming = questionnaire_answers_param
+          errors = sidecar_length_errors(incoming)
+          return render json: { errors: errors }, status: :unprocessable_entity if errors.any?
+
+          answers = (current_company.questionnaire_answers || {}).merge(incoming)
           step = params[:questionnaire_step].presence&.to_i
-          step = step.clamp(1, 10) if step
+          step = step.clamp(1, Companies::QuestionnaireConfig::STEP_COUNT) if step
 
           attrs = { questionnaire_answers: answers }
           attrs[:questionnaire_step] = step if step
@@ -78,6 +82,22 @@ module Api
             completion_percent: progress[:completion_percent],
             section_status: progress[:section_status]
           }
+        end
+
+        # Autosave. Persists answers and nothing else: no profile sync, no staleness
+        # marking, no completion stamping, no step tracking. Those are real work and
+        # belong on a step change or on finish, not on every keystroke — which is
+        # exactly what update_questionnaire still does.
+        def update_questionnaire_answers
+          authorize :onboarding, :update_profile?
+          incoming = questionnaire_answers_param
+          errors = sidecar_length_errors(incoming)
+          return render json: { errors: errors }, status: :unprocessable_entity if errors.any?
+
+          current_company.update!(
+            questionnaire_answers: (current_company.questionnaire_answers || {}).merge(incoming)
+          )
+          render json: { ok: true }
         end
 
         def complete
@@ -129,7 +149,32 @@ module Api
           return {} unless raw.respond_to?(:to_unsafe_h) || raw.is_a?(Hash)
 
           hash = raw.respond_to?(:to_unsafe_h) ? raw.to_unsafe_h : raw.to_h
-          hash.stringify_keys.slice(*Companies::QuestionnaireProgress::FIELD_IDS)
+          # The whitelist covers the questions plus their companion keys — the
+          # "_other" free text and the "_detail" map. Anything else a client sends
+          # is dropped rather than stored.
+          hash = hash.stringify_keys.slice(*Companies::QuestionnaireConfig::WHITELIST)
+          sanitize_sidecars!(hash)
+        end
+
+        # Free text the user typed, so it gets the usual treatment: control
+        # characters out, surrounding space trimmed.
+        def sanitize_sidecars!(hash)
+          Companies::QuestionnaireConfig::SIDECAR_KEYS.each do |key|
+            next unless hash.key?(key)
+
+            hash[key] = hash[key].to_s.gsub(/[\x00-\x1F\x7F]/, "").strip
+          end
+          hash
+        end
+
+        def sidecar_length_errors(hash)
+          max = Companies::QuestionnaireConfig::OTHER_TEXT_MAX_LENGTH
+          Companies::QuestionnaireConfig::SIDECAR_KEYS.filter_map do |key|
+            next unless hash.key?(key)
+            next if hash[key].to_s.length <= max
+
+            "#{key} is too long (max #{max} characters)"
+          end
         end
       end
     end

@@ -2,51 +2,65 @@
 <% implications = Array(snapshot["implications"]) %>
 <% heatmap = report_department_heatmap_svg(snapshot["signals"]) %>
 <% docs_first = snapshot["docs_first_phase"] == true || snapshot["report_kind"].to_s == "baseline" %>
+<%# The heatmap exhibit plus every pattern card on one page ran to four sheets.
+    The exhibit gets its own page (it is the section's argument), and the cards
+    are chunked into rows that actually fit. %>
 <section class="page">
   <div class="eyebrow">Patterns</div>
-  <h1 style="font-size:26pt;margin:4mm 0 3mm;"><%= h report_action_title(snapshot, :patterns, "Cross-team themes") %></h1>
-  <p class="lead" style="max-width:200mm;">Each pattern connects several signals across departments. Confidence reflects how consistently the theme appeared across <%= docs_first ? "the internal documents reviewed" : "documents, interviews, and evidence" %>.</p>
+  <h1 class="page-title"><%= h report_action_title(snapshot, :patterns, "Cross-team themes") %></h1>
+  <p class="lead">Each pattern connects several signals across departments. Confidence reflects how consistently the theme appeared across <%= docs_first ? "the internal documents reviewed" : "documents, interviews, and evidence" %>.</p>
   <% if heatmap.present? %>
-    <div class="exhibit" style="margin:4mm 0;">
+    <div class="exhibit" style="margin:5mm 0 0;">
       <div class="exlabel">Exhibit · Friction intensity by department</div>
       <h3>Where each type of friction concentrates.</h3>
       <%= heatmap %>
       <div class="caption">Colour intensity reflects summed signal strength per department and category. <%= h report_source_caption(company_name, version: report_version) %></div>
+      <div class="mark">Mjadi</div>
     </div>
   <% end %>
-  <div class="patterns-3">
-    <% Array(patterns).each do |pattern| %>
-      <% cat = report_pattern_category_class(pattern["title"], signal_types: pattern["linked_signal_types"]) %>
-      <% conf = report_pct(pattern["confidence"]) %>
-      <% depts = Array(pattern["departments"]).reject(&:blank?) %>
-      <% labels = Array(pattern["linked_signal_labels"]).reject(&:blank?) %>
-      <div class="pattern-card">
-        <%= report_donut_svg(conf, report_category_color(cat)) %>
-        <div>
-          <div class="st"><%= h pattern["title"] %></div>
-          <div class="meta">
-            <%= report_confidence_label(pattern["confidence"]) %> confidence
-            <% if depts.any? %> · <%= h depts.join(", ") %><% end %>
-            <% if pattern["evidence_count"].to_i.positive? %> · <%= pattern["evidence_count"] %> evidence<% end %>
-          </div>
-          <p><%= h pattern["description"] %></p>
-          <% if labels.any? %>
-            <div class="meta" style="margin-top:2mm;">Linked signals: <%= h labels.first(4).join("; ") %></div>
-          <% end %>
-        </div>
-      </div>
-    <% end %>
-  </div>
   <%= render "reports/page_footer", company_name: company_name %>
 </section>
 
-<% if implications.any? %>
+<% report_paginate(Array(patterns), 3).each_with_index do |group, page_index| %>
+  <section class="page">
+    <div class="eyebrow">Patterns<%= " · continued" if page_index.positive? %></div>
+    <h1 class="page-title">The themes, and how confident we are</h1>
+    <div class="patterns-3">
+      <% group.each do |pattern| %>
+        <% cat = report_pattern_category_class(pattern["title"], signal_types: pattern["linked_signal_types"]) %>
+        <% conf = report_pct(pattern["confidence"]) %>
+        <% depts = Array(pattern["departments"]).reject(&:blank?) %>
+        <% labels = Array(pattern["linked_signal_labels"]).reject(&:blank?) %>
+        <div class="pattern-card">
+          <%= report_donut_svg(conf, report_category_color(cat)) %>
+          <div>
+            <div class="st"><%= h pattern["title"] %></div>
+            <div class="meta">
+              <%= report_confidence_label(pattern["confidence"]) %> confidence
+              <% if depts.any? %> · <%= h depts.join(", ") %><% end %>
+              <% if pattern["evidence_count"].to_i.positive? %> · <%= pattern["evidence_count"] %> evidence<% end %>
+            </div>
+            <p><%= h pattern["description"].to_s.truncate(340) %></p>
+            <% if labels.any? %>
+              <div class="meta" style="margin-top:2mm;">Linked signals: <%= h labels.first(4).join("; ") %></div>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+    </div>
+    <%= render "reports/page_footer", company_name: company_name %>
+  </section>
+<% end %>
+
+<% report_paginate(implications, 3).each_with_index do |group, page_index| %>
 <section class="page">
-  <div class="eyebrow">Implications</div>
-  <h1 style="font-size:28pt;margin:4mm 0 3mm;">What this means if left unaddressed</h1>
-  <p class="lead" style="max-width:200mm;">These implications are derived from the patterns above — departments involved, linked signals, and documented evidence counts. No speculative ROI is invented here.</p>
+  <div class="eyebrow">Implications<%= " · continued" if page_index.positive? %></div>
+  <h1 class="page-title">What this means if left unaddressed</h1>
+  <% if page_index.zero? %>
+    <p class="lead">These implications are derived from the patterns above — departments involved, linked signals, and documented evidence counts. No speculative ROI is invented here.</p>
+  <% end %>
   <div class="card-grid-3">
-    <% implications.each do |item| %>
+    <% group.each do |item| %>
       <% cat = report_pattern_category_class(item["title"]) %>
       <div class="rec-card">
         <div class="match <%= cat %>"><%= h report_category_label(cat) %></div>

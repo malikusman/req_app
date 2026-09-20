@@ -4,14 +4,22 @@
 
 @layer base {
   :root {
-    /* Pulse theme — mist green surfaces, pine ink, WhatsApp-warm green accent */
+    /* Pulse theme — mist green surfaces, pine ink, WhatsApp-warm green accent.
+
+       Semantic lightness is set by CONTRAST, not by taste. Every one of these
+       carries text — as a fill under white, or as text on white — and the
+       previous values did not clear WCAG AA at body size: white on the accent
+       measured 3.36:1 on every filled button in the product, warning 2.14:1 and
+       success 2.89:1, which fail even the 3:1 floor for non-text UI. Hue and
+       saturation are untouched, so the palette still reads as the same green;
+       only lightness moved. Re-measure before changing any of them. */
     --background: 135 29% 97%;
     --foreground: 146 23% 12%;
     --card: 0 0% 100%;
     --card-foreground: 146 23% 12%;
     --popover: 0 0% 100%;
     --popover-foreground: 146 23% 12%;
-    --primary: 160 84% 34%;
+    --primary: 160 84% 27%;
     --primary-foreground: 0 0% 100%;
     --secondary: 143 27% 94%;
     --secondary-foreground: 146 23% 12%;
@@ -19,12 +27,12 @@
     --muted-foreground: 144 8% 39%;
     --accent: 153 46% 91%;
     --accent-foreground: 160 83% 26%;
-    --destructive: 0 84% 60%;
+    --destructive: 0 84% 45%;
     --destructive-foreground: 0 0% 100%;
     --border: 138 21% 91%;
     --border-strong: 138 16% 83%;
     --input: 138 21% 91%;
-    --ring: 160 84% 34%;
+    --ring: 160 84% 27%;
     --radius: 0.875rem;
     /* Chart palette validated for CVD separation + contrast on the mist surface */
     --chart-1: 160 84% 34%;
@@ -33,11 +41,11 @@
     --chart-4: 305 31% 42%;
     --chart-5: 192 91% 36%;
     --chart-6: 333 71% 51%;
-    --success: 142 71% 40%;
+    --success: 142 71% 30%;
     --success-foreground: 0 0% 100%;
-    --warning: 38 92% 50%;
-    --warning-foreground: 146 23% 12%;
-    --info: 213 68% 50%;
+    --warning: 38 92% 32%;
+    --warning-foreground: 0 0% 100%;
+    --info: 213 68% 44%;
     --info-foreground: 0 0% 100%;
     /* Pine rail — the chrome owns the brand: deep pine surface, mist text,
        pulse-green reserved for the active-item accent bar + icon. */

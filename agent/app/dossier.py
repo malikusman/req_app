@@ -24,11 +24,35 @@ SEP = "::"
 # meant it could only be satisfied by the model volunteering a slots_filled entry
 # for it, so an otherwise-finished interview ran to the ceiling instead.
 GLOBAL_REQUIRED = ["ai_current_usage"]
-GLOBAL_OPPORTUNISTIC = ["volume_or_frequency"]
+# volume_or_frequency used to live here as an opportunistic "take it if they offer
+# it, never chase it" slot. It is gone: friction_cost below strictly supersedes it
+# (targeted at a named friction rather than the role generally, and shaped to
+# produce an annualisable figure), and two near-identical slots invited the model
+# to fill the wrong one — slot fidelity is already the weakest link in the turn.
+GLOBAL_OPPORTUNISTIC: list[str] = []
 
 # Asked per role area.
 AREA_REQUIRED = ["how_it_works", "friction"]
 AREA_OPPORTUNISTIC = ["ai_openness"]
+
+# Required only once its trigger slot is filled, keyed slot -> trigger.
+#
+# Why conditional rather than simply required: asking how long something takes
+# before you know what "it" is makes no sense, and chasing a cost for an area whose
+# friction was never captured spends the interview's only scarce resource (turns)
+# on nothing. Unlocking on `friction` means we ask exactly when the question has
+# become answerable.
+AREA_CONDITIONAL = {"friction_cost": "friction"}
+
+# How many areas get their friction quantified in the interview itself.
+#
+# Without a cap this scales with MAX_AREAS: three areas would add three more
+# required slots and push a normal interview into the ceiling every time. Two keeps
+# the added burden at +2 questions no matter how many areas a person has, and the
+# consultant-guided follow-up covers anything else worth costing — that path can be
+# aimed at the frictions that actually reached the report, which an interview
+# cannot know yet.
+MAX_QUANTIFIED_AREAS = 2
 
 # What the interviewer is actually curious about for each slot. Phrased as intent,
 # not as a script — the model writes the question.
@@ -47,8 +71,11 @@ SLOT_INTENT = {
         "whether they already use any AI tools in their day-to-day work and what for — "
         "a plain, easy question, no jargon, no judgement either way"
     ),
-    "volume_or_frequency": (
-        "roughly how often or how much of this they handle — take it if they offer it, never chase it"
+    "friction_cost": (
+        "what the friction they just described actually costs them in time — how often it "
+        "comes up and how long it takes — in whatever terms they would naturally use "
+        "(\"about an hour a day\", \"twenty minutes each, maybe thirty a week\"). Ask it as "
+        "ONE natural question about time, not as two; their own phrasing is what we want"
     ),
 }
 
@@ -78,11 +105,34 @@ def area_names(bb: dict[str, Any]) -> list[str]:
     return [a.get("name", "") for a in (bb.get("role_areas") or []) if a.get("name")]
 
 
-def required_keys(bb: dict[str, Any]) -> list[str]:
-    """Required slots depend on the areas discovered, so this grows during orient."""
+def required_keys(bb: dict[str, Any], threshold: float | None = None) -> list[str]:
+    """Required slots depend on the areas discovered, so this grows during orient.
+
+    threshold=None means "every key that could EVER be required", ignoring whether a
+    conditional slot's trigger has fired. That is what merge_slots wants when it asks
+    "was this turn progress?" — a conditional filled early still counts. Pass a real
+    threshold to ask the narrower question "what is required right now?", which is
+    what completion and the next-beat decision need.
+    """
     keys = list(GLOBAL_REQUIRED)
+    dossier = ensure_dossier(bb)
+    quantified = 0
+
     for area in area_names(bb):
         keys.extend(slot_key(slot, area) for slot in AREA_REQUIRED)
+
+        # The cap governs what we CHASE, not what counts as progress — so it only
+        # applies when a threshold was given. Without one the caller is asking
+        # "could this ever be required?", and a cost filled for a fourth area is
+        # still progress, not a stall.
+        if threshold is not None and quantified >= MAX_QUANTIFIED_AREAS:
+            continue
+        for slot, trigger in AREA_CONDITIONAL.items():
+            if threshold is not None and not is_filled(dossier, slot_key(trigger, area), threshold):
+                continue
+            keys.append(slot_key(slot, area))
+            quantified += 1
+
     return keys
 
 
@@ -93,7 +143,7 @@ def is_filled(dossier: dict[str, Any], key: str, threshold: float) -> bool:
 
 def missing_required(bb: dict[str, Any], threshold: float) -> list[str]:
     dossier = ensure_dossier(bb)
-    return [k for k in required_keys(bb) if not is_filled(dossier, k, threshold)]
+    return [k for k in required_keys(bb, threshold) if not is_filled(dossier, k, threshold)]
 
 
 def is_complete(bb: dict[str, Any], threshold: float) -> bool:
@@ -126,7 +176,7 @@ def merge_slots(bb: dict[str, Any], reported: Any, turn: int, threshold: float) 
         area = item.get("area") or None
         # Per-area slots must attach to an area we actually know about, otherwise a
         # hallucinated area name would create a required slot nobody can fill.
-        if name in AREA_REQUIRED or name in AREA_OPPORTUNISTIC:
+        if name in AREA_REQUIRED or name in AREA_OPPORTUNISTIC or name in AREA_CONDITIONAL:
             if not area or area not in area_names(bb):
                 continue
         else:
@@ -186,8 +236,20 @@ def next_beat(bb: dict[str, Any], threshold: float, switch_after: int) -> dict[s
     idx = bb.get("current_area_idx", 0) % len(areas)
     streak = bb.get("area_streak", 0)
 
+    # Static slots first, so an area is understood before it is costed; the unlocked
+    # cost slot then trails it. Ordering matters because next_beat takes missing[0].
+    quantifiable = _quantifiable_areas(bb, dossier, threshold)
+
     def area_missing(area: str) -> list[str]:
-        return [s for s in AREA_REQUIRED if not is_filled(dossier, slot_key(s, area), threshold)]
+        missing = [s for s in AREA_REQUIRED if not is_filled(dossier, slot_key(s, area), threshold)]
+        if area in quantifiable:
+            missing += [
+                slot
+                for slot, trigger in AREA_CONDITIONAL.items()
+                if is_filled(dossier, slot_key(trigger, area), threshold)
+                and not is_filled(dossier, slot_key(slot, area), threshold)
+            ]
+        return missing
 
     # Force-switch off an area that has had its turn, or one that's done. The
     # current area is excluded from the candidates — otherwise it sorts first again
@@ -224,6 +286,24 @@ def next_beat(bb: dict[str, Any], threshold: float, switch_after: int) -> dict[s
             return {"slot": slot, "area": None, "intent": SLOT_INTENT[slot]}
 
     return None
+
+
+def _quantifiable_areas(bb: dict[str, Any], dossier: dict[str, Any], threshold: float) -> set[str]:
+    """The first MAX_QUANTIFIED_AREAS areas whose friction is captured.
+
+    Deterministic and explainable: areas in discovery order, so the same interview
+    state always picks the same ones, and required_keys agrees with next_beat about
+    which areas are in scope.
+    """
+    chosen = set()
+    for area in area_names(bb):
+        if len(chosen) >= MAX_QUANTIFIED_AREAS:
+            break
+        for trigger in AREA_CONDITIONAL.values():
+            if is_filled(dossier, slot_key(trigger, area), threshold):
+                chosen.add(area)
+                break
+    return chosen
 
 
 def summary_for_prompt(bb: dict[str, Any], threshold: float) -> str:

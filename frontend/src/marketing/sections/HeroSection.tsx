@@ -34,6 +34,10 @@ function HeroChatBubble({ message, index }: { message: HeroChatMessage; index: n
   );
 }
 
+/**
+ * One of only two elevated elements on the page. Everything else is a hairline,
+ * so the shadow here is doing real work rather than decorating.
+ */
 function HeroChatCard() {
   const reduced = useReducedMotion();
   const { chat } = marketingContent.hero;
@@ -56,13 +60,13 @@ function HeroChatCard() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 px-5 py-6" aria-label="Example Worktruth interview on WhatsApp">
+        <div className="flex flex-col gap-3 px-5 py-6" aria-label="Example Mjadi interview on WhatsApp">
           {chat.messages.map((message, i) => (
             <HeroChatBubble key={message.text} message={message} index={i} />
           ))}
 
           <motion.div
-            className="mt-2 flex items-start gap-3 rounded-2xl border border-marketing-accent/25 bg-marketing-surface p-4 shadow-marketing-card"
+            className="mt-2 flex items-start gap-3 rounded-2xl border border-marketing-accent/25 bg-marketing-surface p-4"
             initial={reduced ? false : { opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: reduced ? 0 : insightDelay, type: 'spring', stiffness: 260, damping: 24 }}
@@ -92,45 +96,66 @@ export function HeroSection() {
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_50%_60%_at_78%_20%,hsl(var(--primary)/0.08)_0%,transparent_70%)]"
         aria-hidden
       />
-      <div className="relative mx-auto grid max-w-6xl items-center gap-14 px-6 pb-20 pt-16 md:px-12 md:pt-24 lg:grid-cols-2 lg:gap-10">
-        <motion.div
-          initial={reduced ? false : { opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: 'easeOut' }}
-        >
-          <p className="text-label-caps text-marketing-accent">{hero.eyebrow}</p>
-          <h1 className="mt-4 font-display text-4xl font-extrabold leading-[1.08] tracking-tight text-marketing-foreground md:text-5xl lg:text-[3.4rem]">
-            {hero.headline} <span className="text-marketing-accent">{hero.headlineAccent}</span>
-          </h1>
-          <p className="mt-6 max-w-xl text-lg leading-relaxed text-marketing-muted">{hero.subhead}</p>
-          <div className="mt-8 flex flex-wrap items-center gap-4">
-            <Button size="lg" className="px-8" onClick={() => setModalOpen(true)}>
-              {hero.primaryCta}
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}
-            >
-              {hero.secondaryCta}
-            </Button>
-          </div>
+      <div className="relative mx-auto max-w-6xl px-5 pb-14 pt-14 sm:px-8 sm:pb-16 lg:pt-20">
+        {/* Asymmetric: the headline is long, and an even split ran it to six lines. */}
+        <div className="grid items-center gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:gap-12">
+          <motion.div
+            initial={reduced ? false : { opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: 'easeOut' }}
+          >
+            <p className="m-0 text-label-caps text-marketing-accent">{hero.eyebrow}</p>
+            <h1 className="m-0 mt-4 text-balance font-display text-4xl font-extrabold leading-[1.06] tracking-tight text-marketing-foreground sm:text-5xl lg:text-[3.1rem]">
+              {hero.headline} <span className="text-marketing-accent">{hero.headlineAccent}</span>
+            </h1>
+            <p className="m-0 mt-6 max-w-xl text-pretty text-lg leading-relaxed text-marketing-muted">
+              {hero.subhead}
+            </p>
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              <Button size="lg" className="px-8" onClick={() => setModalOpen(true)}>
+                {hero.primaryCta}
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}
+              >
+                {hero.secondaryCta}
+              </Button>
+            </div>
 
-          <dl className="mt-12 grid max-w-xl grid-cols-1 gap-4 border-t border-marketing-border pt-8 sm:grid-cols-3 sm:gap-6">
-            {hero.stats.map((stat) => (
-              <div key={stat.label}>
-                <dt className="sr-only">{stat.label}</dt>
-                <dd className="m-0 font-display text-2xl font-bold tabular-nums text-marketing-foreground md:text-3xl">
-                  {stat.value}
-                </dd>
-                <p className="mt-1 text-xs leading-snug text-marketing-muted">{stat.label}</p>
-              </div>
+            <dl className="mt-10 grid max-w-xl grid-cols-1 gap-5 border-t border-marketing-border pt-8 sm:grid-cols-3 sm:gap-6">
+              {hero.stats.map((stat) => (
+                <div key={stat.label}>
+                  <dt className="sr-only">{stat.label}</dt>
+                  <dd className="m-0 font-display text-2xl font-bold tabular-nums text-marketing-foreground">
+                    {stat.value}
+                  </dd>
+                  <p className="m-0 mt-1 text-xs leading-snug text-marketing-muted">{stat.label}</p>
+                </div>
+              ))}
+            </dl>
+          </motion.div>
+
+          <HeroChatCard />
+        </div>
+
+        {/*
+          The industry list was a full band of its own with a scrolling marquee.
+          It is one line of context, so it sits at the foot of the hero now —
+          one fewer section boundary, and it reads as a qualifier on the claim
+          above rather than as a (non-existent) client logo wall.
+        */}
+        <div className="mt-14 flex flex-col gap-3 border-t border-marketing-border pt-7 sm:flex-row sm:items-baseline sm:gap-6">
+          <p className="m-0 shrink-0 text-label-caps text-marketing-muted">{hero.industriesLabel}</p>
+          <ul className="m-0 flex list-none flex-wrap gap-x-5 gap-y-1.5 p-0">
+            {hero.industries.map((industry) => (
+              <li key={industry} className="text-sm font-medium text-marketing-foreground/70">
+                {industry}
+              </li>
             ))}
-          </dl>
-          <p className="mt-4 max-w-xl text-[11px] text-marketing-muted/70">{hero.statsDisclaimer}</p>
-        </motion.div>
-
-        <HeroChatCard />
+          </ul>
+        </div>
       </div>
       <RequestAccessModal open={modalOpen} onClose={() => setModalOpen(false)} />
     </section>

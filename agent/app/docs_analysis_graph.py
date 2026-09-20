@@ -156,7 +156,11 @@ def question_generator_node(state: DocsAnalysisState) -> dict[str, Any]:
     questions: list[dict[str, Any]] = []
 
     answers = profile.get("questionnaire_answers") or {}
-    goals = answers.get("primary_goals") or (profile.get("company_profile") or {}).get("business_goals") or []
+    goals = (
+        answers.get("q40_desired_outcomes")
+        or (profile.get("company_profile") or {}).get("business_goals")
+        or []
+    )
     if goals and "how do your current documents" not in " ".join(existing_q):
         body = f"How do your uploaded documents support these goals: {', '.join(map(str, goals[:3]))}?"
         if body.lower() not in existing_q:

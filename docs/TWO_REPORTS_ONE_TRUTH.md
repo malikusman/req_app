@@ -1,6 +1,6 @@
 # Two Reports, One Truth
 
-Product analysis of Worktruth report generation, and a proposal for a short executive brief rendered from the same reviewed snapshot as the full report.
+Product analysis of Mjadi report generation, and a proposal for a short executive brief rendered from the same reviewed snapshot as the full report.
 
 *22 August 2026 · read of `backend/app/services/reports/` + `backend/app/views/reports/`*
 

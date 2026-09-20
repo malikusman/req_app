@@ -163,13 +163,30 @@ export function DataTable<T extends object>({
                   <motion.tr
                     key={rowKey}
                     onClick={onRowClick ? () => onRowClick(row) : undefined}
+                    // A clickable row has to be reachable without a mouse. The
+                    // mobile branch above has always done this; the desktop row
+                    // carried onClick alone, so keyboard users could not open a
+                    // company, a report or a candidate on any of these screens.
+                    role={clickable ? 'button' : undefined}
+                    tabIndex={clickable ? 0 : undefined}
+                    onKeyDown={
+                      onRowClick
+                        ? (e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              onRowClick(row);
+                            }
+                          }
+                        : undefined
+                    }
                     initial="hidden"
                     animate="visible"
                     variants={fadeUp}
                     transition={{ ...transition.fast, delay: i * stagger.tight }}
                     className={cn(
                       'border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted',
-                      clickable && 'cursor-pointer'
+                      clickable &&
+                        'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring'
                     )}
                   >
                     {columns.map((col) => (

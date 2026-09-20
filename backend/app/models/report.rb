@@ -5,7 +5,12 @@ class Report < ApplicationRecord
   belongs_to :previous_report, class_name: "Report", optional: true
   belongs_to :reviewed_by_platform_user, class_name: "PlatformUser", optional: true
   has_many :report_share_accesses, dependent: :destroy
+  # Per-variant share links. reports.share_token still backs the full variant so
+  # links already in a client's inbox keep resolving.
+  has_many :report_shares, dependent: :destroy
   has_many :report_reviews, dependent: :destroy
+  # The renderings of this one reviewed analysis — see Reports::VariantSpec.
+  has_many :report_artifacts, dependent: :destroy
   has_many :report_section_overrides, dependent: :destroy
   has_many :review_discussions, dependent: :destroy
 
@@ -31,6 +36,12 @@ class Report < ApplicationRecord
 
   def share_active?
     share_token.present? && share_token_expires_at.present? && share_token_expires_at.future?
+  end
+
+  # The full report also lives on reports.storage_key for backwards
+  # compatibility; every other variant is only ever an artifact row.
+  def artifact_for(variant)
+    report_artifacts.find_by(variant: variant.to_s)
   end
 
   def next_version_for_company

@@ -21,6 +21,12 @@ module Api
             company: company_summary(company).merge(
               participation: Intelligence::SnapshotBuilder.call(company: company)["participation"],
               latest_report: latest_report ? { id: latest_report.id, version: latest_report.version, status: latest_report.status } : nil,
+              # `latest_report` is the newest READY one, because that is the only
+              # one a consultant can review. A report still rendering is therefore
+              # invisible there — including the one they just asked for. This says
+              # so plainly, so the portal can stop offering the button and explain
+              # the wait instead of looking like nothing happened.
+              report_generating: company.reports.where(status: %w[queued generating]).exists?,
               my_review_status: my_review&.status,
               co_consultant_count: company.consultant_assignments.active.where.not(consultant_user_id: current_consultant_user.id).count,
               company_admins: company.company_users.where(role: "company_admin", status: "active").order(:name).map { |u|

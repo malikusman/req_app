@@ -33,7 +33,7 @@ function mapMessages(messages: DiscoverMessage[]): ChatMessageItem[] {
 export function DiscoverChat() {
   const { token = '' } = useParams();
   const navigate = useNavigate();
-  const jwt = getStoredDiscoverToken();
+  const jwt = getStoredDiscoverToken(token);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [messages, setMessages] = useState<ChatMessageItem[]>([]);
   const [state, setState] = useState<DiscoverState | null>(null);

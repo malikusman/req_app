@@ -187,7 +187,7 @@ class FullCycleSimulator
     check "Report status ready", @created_report.status == "ready"
     check "Report stored in MinIO", @created_report.storage_key.present?
     check "Report snapshot populated", @created_report.report_snapshot.present?
-    supporting = Array(@created_report.report_snapshot["supporting_media"])
+    supporting = Array.new(@created_report.report_snapshot.dig("evidence_base", "media").to_i)
     check "Report includes supporting media (#{supporting.size})", supporting.any?
 
     if @company.consultant_assignments.active.exists?

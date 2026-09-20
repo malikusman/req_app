@@ -8,6 +8,17 @@ from langchain_openai import ChatOpenAI
 from app.config import settings
 
 
+# Mirrors Rails' Openai::Client::DEFAULT_CHAT_BASE. Passed explicitly rather than
+# left to the library's own default, because ChatOpenAI reads OPENAI_BASE_URL from
+# the environment itself and a PRESENT-BUT-BLANK value ("" — what
+# `${OPENAI_BASE_URL:-}` yields in docker-compose) is treated as a real base URL.
+# Every call then dies with APIConnectionError("Connection error.") whose real
+# cause, "Request URL is missing an 'http://' or 'https://' protocol", is buried
+# three exceptions deep. docker-compose.prod.yml already defaults the var to this
+# value for the same reason; this makes the agent safe on its own.
+DEFAULT_CHAT_BASE = "https://api.openai.com/v1"
+
+
 def llm_configured() -> bool:
     return bool(settings.openai_api_key.strip() or settings.openai_base_url.strip())
 
@@ -57,8 +68,8 @@ def build_chat_openai(
         "temperature": temperature,
         "max_tokens": max_tokens or settings.openai_max_tokens,
     }
-    if settings.openai_base_url.strip():
-        kwargs["base_url"] = settings.openai_base_url.rstrip("/")
+    base = settings.openai_base_url.strip()
+    kwargs["base_url"] = base.rstrip("/") if base else DEFAULT_CHAT_BASE
     model_kwargs: dict = {}
     if _use_json_mode(json_mode):
         model_kwargs["response_format"] = {"type": "json_object"}

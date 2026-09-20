@@ -9,9 +9,9 @@ import { TopBar } from './TopBar';
 import { UserMenu, type UserMenuProps } from './UserMenu';
 
 const defaultLogos: Record<Portal, string> = {
-  platform: 'Worktruth — Platform',
-  company: 'Worktruth — Company',
-  consultant: 'Worktruth — Consultant',
+  platform: 'Mjadi — Platform',
+  company: 'Mjadi — Company',
+  consultant: 'Mjadi — Consultant',
 };
 
 export type PortalShellProps = {

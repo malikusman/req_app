@@ -2,17 +2,33 @@
 
 module Intelligence
   class TimelineRecorder
+    # These two land on the CLIENT dashboard, so they are written for the person
+    # paying for the report, not for us. They used to read "Strength increased to
+    # 0.57 across 5 mentions" — our model's vocabulary and a raw score, in front
+    # of a customer. The evidence count is the part that actually means something
+    # to them, so that is what is said.
     def self.signal_detected!(company:, signal:)
       create!(company: company, event_type: "signal_detected", target: signal,
               title: signal.label,
-              summary: "Detected in #{signal.departments.join(', ').presence || 'discovery'} (strength #{signal.strength})")
+              summary: "First raised #{where_phrase(signal)}")
     end
 
     def self.signal_strengthened!(company:, signal:)
+      count = signal.evidence_count.to_i
       create!(company: company, event_type: "signal_strengthened", target: signal,
               title: signal.label,
-              summary: "Strength increased to #{signal.strength} across #{signal.evidence_count} mentions")
+              summary: "Now raised in #{count} #{'conversation'.pluralize(count)} #{where_phrase(signal)}")
     end
+
+    # "in finance and operations", or "in discovery" when no department is known.
+    def self.where_phrase(signal)
+      departments = Array(signal.departments).reject(&:blank?)
+      return "in discovery" if departments.empty?
+      return "in #{departments.first}" if departments.one?
+
+      "across #{departments[0..-2].join(', ')} and #{departments.last}"
+    end
+    private_class_method :where_phrase
 
     def self.pattern_detected!(company:, pattern:)
       create!(company: company, event_type: "pattern_detected", target: pattern,

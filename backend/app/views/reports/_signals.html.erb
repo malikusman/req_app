@@ -1,14 +1,18 @@
 <% company_name = snapshot.dig("company", "name") %>
 <% ranked = Array(signals).sort_by { |s| -(s["strength"].to_f) } %>
 <% docs_first = snapshot["docs_first_phase"] == true || snapshot["report_kind"].to_s == "baseline" %>
-<% evidence_sources = docs_first ? "internal documents" : "documents, interviews, and media" %>
+<%# The ranked exhibit is the insight; the cards are the detail. Both used to
+    render every signal on ONE page, with three verbatim excerpts per card — the
+    page overflowed its own height and the footer landed on the next sheet. Cards
+    are now paginated six at a time (two rows of three) and carry aggregate
+    attribution instead of quotes. %>
 <section class="page">
   <div class="eyebrow">Signals</div>
-  <h1 style="font-size:26pt;margin:4mm 0 3mm;"><%= h report_action_title(snapshot, :signals, "Recurring pain points") %></h1>
+  <h1 class="page-title"><%= h report_action_title(snapshot, :signals, "Recurring pain points") %></h1>
   <div class="exhibit">
     <div class="exlabel">Exhibit 3 · Signals ranked by strength</div>
     <h3>Colour encodes category: process, tooling, people, data.</h3>
-    <% ranked.each do |signal| %>
+    <% ranked.first(10).each do |signal| %>
       <% cat = report_category_class(signal["signal_type"]) %>
       <% pct = report_pct(signal["strength"]) %>
       <div class="lolli">
@@ -17,38 +21,36 @@
           <span class="line <%= cat %>" style="width:<%= pct %>%"></span>
           <span class="dot <%= cat %>" style="left:<%= pct %>%"></span>
         </span>
-        <span class="val" title="<%= format("%.2f", signal["strength"].to_f) %>"><%= report_strength_label(signal["strength"]) %></span>
+        <span class="val"><%= report_strength_label(signal["strength"]) %></span>
       </div>
     <% end %>
     <div class="caption"><%= h report_source_caption(company_name, version: report_version) %></div>
-    <div class="mark">Worktruth</div>
-  </div>
-  <div class="card-grid-3">
-    <% ranked.each do |signal| %>
-      <% cat = report_category_class(signal["signal_type"]) %>
-      <% pct = report_pct(signal["strength"]) %>
-      <% depts = Array(signal["departments"]).reject(&:blank?) %>
-      <% excerpts = report_signal_excerpts(signal, limit: 3) %>
-      <% multimodal = report_multimodal_labels(signal) %>
-      <div class="signal-card <%= cat %>">
-        <div class="meta"><%= h report_category_label(cat) %><% if depts.any? %> · <%= h depts.join(", ") %><% end %></div>
-        <div class="st"><%= h signal["label"] %></div>
-        <div class="strength"><i style="width:<%= pct %>%"></i></div>
-        <div class="meta"><%= report_strength_label(signal["strength"]) %> strength</div>
-        <% ev = signal["evidence_count"].to_i %>
-        <% if excerpts.any? %>
-          <p>Seen in <%= ev.positive? ? ev : excerpts.size %> evidence point<%= "s" unless (ev.positive? ? ev : excerpts.size) == 1 %> across <%= evidence_sources %>.</p>
-        <% elsif ev.positive? %>
-          <p><%= ev %> supporting reference<%= "s" unless ev == 1 %> on record.</p>
-        <% end %>
-        <% if multimodal.any? %>
-          <div class="meta" style="margin-top:2mm;">Also seen in: <%= h multimodal.join(", ") %></div>
-        <% end %>
-        <% excerpts.each do |excerpt| %>
-          <div class="evidence"><%= h excerpt.truncate(160) %></div>
-        <% end %>
-      </div>
-    <% end %>
+    <div class="mark">Mjadi</div>
   </div>
   <%= render "reports/page_footer", company_name: company_name %>
 </section>
+
+<% report_paginate(ranked, 9).each_with_index do |group, page_index| %>
+  <section class="page">
+    <div class="eyebrow">Signals<%= " · continued" if page_index.positive? %></div>
+    <h1 class="page-title">Where the friction sits</h1>
+    <div class="card-grid-3">
+      <% group.each do |signal| %>
+        <% cat = report_category_class(signal["signal_type"]) %>
+        <% pct = report_pct(signal["strength"]) %>
+        <% depts = Array(signal["departments"]).reject(&:blank?) %>
+        <div class="signal-card <%= cat %>">
+          <div class="meta"><%= h report_category_label(cat) %><% if depts.any? %> · <%= h depts.join(", ") %><% end %></div>
+          <div class="st"><%= h signal["label"] %></div>
+          <div class="strength"><i style="width:<%= pct %>%"></i></div>
+          <div class="meta"><%= report_strength_label(signal["strength"]) %> strength</div>
+          <% evidence = report_evidence_line(signal, docs_first: docs_first) %>
+          <% if evidence %>
+            <p class="attribution"><%= h evidence %></p>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+    <%= render "reports/page_footer", company_name: company_name %>
+  </section>
+<% end %>

@@ -336,6 +336,12 @@ class DiscoverySimulator
       %w[how_it_works friction].all? { |slot| filled.key?("#{slot}::#{name}") }
     end
     check "At least one area fully understood (#{per_area.join(', ')})", per_area.any?
+
+    # Separate from "understood" on purpose: an area can be well described and still
+    # carry no figure, and that distinction is exactly what decides whether the
+    # report can put hours or money on the problem.
+    costed = area_names.select { |name| filled.key?("friction_cost::#{name}") }
+    check "Friction costed for at least one area (#{costed.join(', ')})", costed.any?
     check "Current AI usage captured", filled.key?("ai_current_usage")
 
     parked = blackboard.dig("dossier", "parked") || []

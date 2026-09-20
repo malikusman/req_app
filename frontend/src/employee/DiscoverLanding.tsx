@@ -18,7 +18,9 @@ export function DiscoverLanding() {
 
   useEffect(() => {
     if (!token) return;
-    const existing = getStoredDiscoverToken();
+    // Scoped to this link: a colleague's session on the same browser must not
+    // drop this person into that conversation.
+    const existing = getStoredDiscoverToken(token);
     if (existing) {
       navigate(`/discover/${token}/chat`, { replace: true });
       return;
@@ -38,7 +40,7 @@ export function DiscoverLanding() {
     setSubmitting(true);
     try {
       const res = await discoverApi.start(token);
-      storeDiscoverToken(res.token);
+      storeDiscoverToken(token, res.token);
       navigate(`/discover/${token}/chat`, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not start interview');

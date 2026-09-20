@@ -7,6 +7,7 @@ export { Textarea } from './Textarea';
 export { Select, type SelectOption } from './Select';
 export { StatCard } from './StatCard';
 export { ProgressBar } from './ProgressBar';
+export { ErrorNotice } from './ErrorNotice';
 export { EmptyState } from './EmptyState';
 export { Skeleton } from './Skeleton';
 export { Modal } from './Modal';

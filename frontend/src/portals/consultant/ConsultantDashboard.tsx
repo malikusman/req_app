@@ -30,10 +30,18 @@ function reviewStatusVariant(status: string | null): 'success' | 'warning' | 'in
   return 'neutral';
 }
 
+/**
+ * Participation as a percentage, 0-100.
+ *
+ * The API returns completion_rate as a RATIO. This rounded it and labelled the
+ * result "%", so 0.6 became 1: a company with 60% participation reported "1%",
+ * and one at 100% reported "1%" as well. The third branch — computed from the
+ * raw counts — was always correct, which is how this survived: it only runs
+ * when completion_rate is missing.
+ */
 function companyCompletionRate(c: ConsultantDashboardPayload['companies'][number]): number {
-  if (typeof c.completion_rate === 'number') return Math.round(c.completion_rate);
-  const fromParticipation = c.participation?.completion_rate;
-  if (typeof fromParticipation === 'number') return Math.round(fromParticipation);
+  const ratio = typeof c.completion_rate === 'number' ? c.completion_rate : c.participation?.completion_rate;
+  if (typeof ratio === 'number') return Math.round(ratio * 100);
   if (c.invited_count > 0) return Math.round((c.completed_count / c.invited_count) * 100);
   return 0;
 }
@@ -188,7 +196,10 @@ export function ConsultantDashboard() {
           to: `/consultant/companies/${f.company_id}/employees/${f.employee_id}/followup`,
         },
       })),
-    ...(data.unread_count > 0
+    // Only when the hero is not already sending them to the same place. It was
+    // rendering "Open inbox" directly beneath a hero whose button said "Open
+    // inbox", and the sidebar carries the count either way.
+    ...(data.unread_count > 0 && hero.primaryAction.to !== '/consultant/inbox'
       ? [
           {
             tone: 'attention' as const,
@@ -299,23 +310,39 @@ export function ConsultantDashboard() {
                       <h3 className="m-0 font-display font-semibold text-foreground">{c.name}</h3>
                       {pending && <Badge variant="warning">Review</Badge>}
                     </div>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <Badge variant="info">{Math.round(c.report_readiness_score ?? 0)}% readiness</Badge>
-                      <Badge variant="neutral">{rate}% participation</Badge>
-                      {(c.ready_documents ?? 0) > 0 && (
-                        <Badge variant="neutral">{c.ready_documents} docs ready</Badge>
-                      )}
-                      {c.latest_report && (
-                        <Badge variant={c.latest_report.status === 'ready' ? 'success' : 'neutral'}>
-                          v{c.latest_report.version} — {c.latest_report.status}
-                        </Badge>
-                      )}
-                      {c.latest_report && (
+                    {/*
+                      Five pills in three colours with no hierarchy, two of them
+                      carrying numbers. A pill is for STATE; a measure is a
+                      figure, and figures in a fixed position can be compared
+                      down a row of cards, which pills cannot. So: two measures,
+                      one pill for the thing that is actually the consultant's
+                      job, and the rest as quiet meta.
+                    */}
+                    <dl className="mt-4 grid grid-cols-2 gap-3">
+                      <div>
+                        <dt className="text-label-caps uppercase text-muted-foreground">Readiness</dt>
+                        <dd className="m-0 font-display text-xl font-bold tabular-nums text-foreground">
+                          {Math.round(c.report_readiness_score ?? 0)}%
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-label-caps uppercase text-muted-foreground">Participation</dt>
+                        <dd className="m-0 font-display text-xl font-bold tabular-nums text-foreground">{rate}%</dd>
+                      </div>
+                    </dl>
+                    {c.latest_report && (
+                      <div className="mt-3">
                         <Badge variant={reviewStatusVariant(c.my_review_status ?? null)}>
-                          Review: {label('reviewStatus', c.my_review_status ?? 'pending')}
+                          Your review: {label('reviewStatus', c.my_review_status ?? 'pending')}
                         </Badge>
-                      )}
-                    </div>
+                      </div>
+                    )}
+                    <p className="m-0 mt-3 text-xs text-muted-foreground">
+                      {c.latest_report
+                        ? `Report v${c.latest_report.version} · ${c.latest_report.status}`
+                        : 'No report yet'}
+                      {(c.ready_documents ?? 0) > 0 && ` · ${c.ready_documents} docs ready`}
+                    </p>
                     {c.co_consultant_count > 0 && (
                       <p className="mt-2 text-xs text-muted-foreground">
                         {c.co_consultant_count} co-consultant{c.co_consultant_count === 1 ? '' : 's'}
@@ -338,6 +365,7 @@ export function ConsultantDashboard() {
               data={readinessByCompany}
               emptyLabel="Assign companies to see portfolio readiness."
               valueSuffix="%"
+              domainMax={100}
               layout="horizontal"
               height={Math.max(200, readinessByCompany.length * 40)}
             />
@@ -347,6 +375,7 @@ export function ConsultantDashboard() {
               data={participationByCompany}
               emptyLabel="Participation appears once employees are invited."
               valueSuffix="%"
+              domainMax={100}
               layout="horizontal"
               height={Math.max(200, participationByCompany.length * 40)}
             />

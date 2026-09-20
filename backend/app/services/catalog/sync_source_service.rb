@@ -123,7 +123,7 @@ module Catalog
       result = Http::GetWithRedirects.call(
         @source.endpoint_url,
         headers: {
-          "User-Agent" => "WorktruthCatalogSync/1.0",
+          "User-Agent" => "MjadiCatalogSync/1.0",
           "Accept" => "application/json"
         },
         open_timeout: 10,
@@ -166,7 +166,7 @@ module Catalog
       result = Http::GetWithRedirects.call(
         @source.endpoint_url,
         headers: {
-          "User-Agent" => "WorktruthCatalogSync/1.0",
+          "User-Agent" => "MjadiCatalogSync/1.0",
           "Accept" => "application/rss+xml, application/atom+xml, application/xml, text/xml, */*"
         },
         open_timeout: 10,

@@ -1,0 +1,508 @@
+====================================================================================================
+NIMBUS TRADING CO — FULL SCENARIO RUN
+Generated 2026-09-08 15:28 UTC · model: google/gemma-4-12b-qat @ http://host.docker.internal:1234/v1
+====================================================================================================
+
+This is a full run of the discovery-to-report pipeline against the SAME company
+the app itself would produce it for: 4 real operational documents uploaded, two
+employees interviewed end-to-end (one on WhatsApp, one on web chat), a consultant
+reviewing and amending the handover, and a final approved report.
+
+For each employee turn below: the EMPLOYEE's message, the AGENT's reply, and then
+the agent's own internal state for that turn — which slot it was trying to fill and
+why (routing_decision), and its own summary/topics for what it just learned
+(insight). This is the actual LangGraph turn output, not a paraphrase.
+
+RUN RESULT: 48/51 scenario checks passed.
+Failed checks (root-caused in section 6 below):
+  ✗ Employees interviewed to completion (1/2)
+  ✗ Fatima Noor: dossier slots filled (0)
+  ✗ A package exists per interviewed employee (1/2)
+----------------------------------------------------------------------------------------------------
+1. THE COMPANY, AND THE DOCUMENTS PUSHED TO IT
+----------------------------------------------------------------------------------------------------
+Company: Nimbus Trading (Nimbus Trading Co LLC) · engagement_mode=hybrid
+Readiness score: 88.3
+
+— Document: procurement-sop.txt  [procurement / sop]  status=ready
+  storage_key: companies/14/nimbus/a92b0cd1-16c7-4c9b-830c-9d2900aa7303/procurement-sop.txt
+  chunks: 3
+  --- full text pushed to the company (as stored / chunked) ---
+  | Nimbus Trading Co LLC — Procurement & Purchase Order SOP
+  | Document ID: NB-PROC-SOP-2026-01 | Effective: 2026-01-15 | Owner: Procurement Manager
+  | Sites: Dubai HQ, Jebel Ali warehouse
+  | 
+  | 1. PURPOSE
+  | Governs supplier selection, purchase orders (LPOs), and proforma invoice (PI) checking for
+  | imported goods (electronics, home appliances). When a sales order is confirmed, Procurement
+  | raises an LPO and requests a PI from the supplier before any payment.
+  | 
+  | 2. SYSTEMS OF RECORD
+  | - Zoho Inventory: stock levels, purchase orders (LPO numbers)
+  | - Excel PO tracker: interim worksheet owned by Procurement (copy-paste from Zoho exports)
+  | - Outlook: supplier quotes, PIs, and shipping confirmations by email
+  | - WhatsApp Business: supplier follow-ups and freight updates
+  | 
+  | 3. PI CHECKING (the core friction)
+  | A. Every PI is checked MANUALLY against: the LPO raised, the emailed quote (prices), and the
+  |    agreed Incoterms and payment terms. There is no automated match.
+  | B. Roughly 1 in 4 PIs has a mismatch (price, quantity, or shipping term) versus the LPO.
+  | C. A procurement officer spends about 20-30 minutes per PI reconciling by hand across Outlook,
+  |    Zoho, and the Excel tracker.
+  | D. Target PI-to-payment approval time is 2 days; actual is 4-6 days when a mismatch is found.
+  | 
+  | 4. APPROVAL THRESHOLDS (AED)
+  | 0 - 10,000        | Procurement Officer   | Zoho + email        | 1 day
+  | 10,001 - 50,000   | Procurement Manager   | Zoho + Excel + email | 2 business days
+  | 50,001+           | Finance Director      | dual sign-off        | 4 business days
+
+— Document: ap-three-way-match-policy.txt  [finance / policy]  status=ready
+  storage_key: companies/14/nimbus/2ac4f5e9-5e13-4d01-a21e-92cba8a440f5/ap-three-way-match-policy.txt
+  chunks: 2
+  --- full text pushed to the company (as stored / chunked) ---
+  | Nimbus Trading Co LLC — Accounts Payable Three-Way Match Policy
+  | Document ID: NB-FIN-AP-2026-02 | Effective: 2026-02-01 | Currency: AED | Owner: Finance Director
+  | 
+  | PURPOSE
+  | Supplier invoices are paid only after a three-way match: purchase order (LPO) + goods receipt
+  | note (GRN) + supplier invoice. AP re-keys invoice lines from PDF invoices into the accounting
+  | system because Zoho Inventory and the accounting package are not integrated.
+  | 
+  | CURRENT-STATE KPIs
+  | Metric                                | Target   | Current
+  | Invoice-to-pay cycle                  | 5 days   | 9-12 days
+  | Three-way match first-pass rate       | 95%      | ~72%
+  | Exception aging (unmatched > 5 days)  | < 10%    | ~30%
+  | Manual re-keying per invoice          | 0        | 100% (every invoice)
+  | 
+  | FRICTIONS
+  | - AP clerks copy-paste invoice numbers, amounts, and vendor codes between the PDF, Excel, and the
+  |   accounting system daily — slow and error-prone.
+  | - When the GRN is missing (logistics hasn't posted receipt), the invoice parks in an Excel
+  |   exception tab and ages 5-14 days.
+  | - Month-end close is a crunch; accruals must hit the right period even when supplier paperwork
+  |   arrives late.
+
+— Document: supplier-terms.txt  [procurement / policy]  status=ready
+  storage_key: companies/14/nimbus/d50d56f6-e659-4561-9f1f-3059dccbd807/supplier-terms.txt
+  chunks: 2
+  --- full text pushed to the company (as stored / chunked) ---
+  | Nimbus Trading Co LLC — Key Supplier Terms Sheet (Internal)
+  | Document ID: NB-PROC-TERMS-2026-03 | Audience: Procurement + Finance AP
+  | 
+  | Supplier A (Shenzhen electronics): Incoterms FOB Shenzhen; payment 30% advance, 70% on B/L copy;
+  | lead time 35-45 days. Frequent PI price drift vs quote (~5-8%).
+  | 
+  | Supplier B (Istanbul appliances): Incoterms CIF Jebel Ali; payment LC at sight; lead time 20-30
+  | days. Reliable PIs but slow to send GRN-supporting docs.
+  | 
+  | Supplier C (India housewares): Incoterms EXW; payment 50% advance; lead time 25-35 days. Often
+  | sends PI in a scanned image, not a structured PDF, so AP retypes everything.
+  | 
+  | NOTES
+  | - Demurrage at Jebel Ali if customs clearance slips beyond 48 hours of free time.
+  | - Chargebacks and short-shipments are tracked in a separate Excel sheet, reconciled monthly.
+
+— Document: proforma-invoice-sample.txt  [finance / other]  status=ready
+  storage_key: companies/14/nimbus/82b27637-d347-47ae-8796-1b0c2cae6aa7/proforma-invoice-sample.txt
+  chunks: 2
+  --- full text pushed to the company (as stored / chunked) ---
+  | PROFORMA INVOICE (sample) — Supplier A (Shenzhen electronics)
+  | PI No: SA-PI-2026-0417 | Date: 2026-03-05 | Against LPO: NB-LPO-2026-0391
+  | 
+  | Line | Item                    | Qty | Unit (USD) | Amount (USD)
+  | 1    | 4K Smart TV 55"         | 200 | 210.00     | 42,000.00
+  | 2    | Soundbar 2.1            | 150 | 48.00      | 7,200.00
+  | 3    | Wall mount bracket      | 200 | 6.50       | 1,300.00
+  | Subtotal: 50,500.00 | Freight (FOB): 0 | Total: USD 50,500.00
+  | 
+  | Terms: FOB Shenzhen; 30% advance, 70% on B/L copy; lead time 40 days.
+  | NOTE (AP flag): LPO NB-LPO-2026-0391 priced the 55" TV at USD 205.00 (PI shows 210.00) — a
+  | 2.4% price drift on 200 units (~USD 1,000). Quantity and soundbar price match. Requires
+  | procurement sign-off before advance payment.
+
+----------------------------------------------------------------------------------------------------
+2. THE INTERVIEWS — FULL TRANSCRIPT + AGENT REASONING, TURN BY TURN
+----------------------------------------------------------------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+EMPLOYEE: Fatima Noor  (procurement, Procurement Officer)
+channel: whatsapp · conversation status: completed
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Role areas the agent identified during orientation: LPO management, Invoice processing
+Why the interview stopped: stalled
+
+  [turn 1] EMPLOYEE (whatsapp): YES
+  [turn 1] AGENT (phase=n/a): Thank you! Before we dive in, I'd like to learn a little about your role so I can ask the right questions.
+  [turn 1] AGENT (phase=n/a): What's your job title or role?
+  [turn 2] EMPLOYEE (whatsapp): Procurement Officer
+  [turn 2] AGENT (phase=n/a): Which team or department are you part of?
+  [turn 3] EMPLOYEE (whatsapp): Procurement
+  [turn 3] AGENT (phase=n/a): Would you say you're an individual contributor, a team lead, a manager, or an executive?
+  [turn 4] EMPLOYEE (whatsapp): I'm an individual contributor
+  [turn 4] AGENT (phase=n/a): In one or two sentences, what do you spend most of your time on at work?
+  [turn 5] EMPLOYEE (whatsapp): I raise LPOs, request proforma invoices and check them against our orders
+  [turn 5] AGENT (phase=n/a): Which tools or systems do you use every day? (e.g. SAP, Excel, Salesforce)
+  [turn 6] EMPLOYEE (whatsapp): Zoho Inventory, Excel and Outlook
+  [turn 7] EMPLOYEE (whatsapp): I'm Fatima Noor, a Procurement Officer in procurement. I raise LPOs, request proforma invoices and check them against our orders I mainly use Zoho Inventory, Excel, Outlook.
+  [turn 7] AGENT (phase=orient): That sounds like a lot of moving parts to keep track of. How do you usually split your time between those different tasks?
+            routing_decision: {"area":null,"slot":null,"agent":"orient","action":"handoff","reason":"mapping the person's main role areas","close_reason":null}
+  [turn 8] EMPLOYEE (whatsapp): Most of my day is raising LPOs in Zoho and then checking the proforma invoices suppliers send back.
+  [turn 8] AGENT (phase=orient): That sounds like a very clear workflow. How does the LPO process usually work?
+            routing_decision: {"area":null,"slot":null,"agent":"orient","action":"continue","reason":"mapping the person's main role areas","close_reason":null}
+  [turn 9] EMPLOYEE (whatsapp): Checking the PI is fully manual — I compare it line by line against the LPO and the emailed quote.
+  [turn 9] AGENT (phase=branch): That sounds like it takes a lot of focus to get every detail right. What is the process for raising LPOs in Zoho?
+            routing_decision: {"area":"LPO management","slot":"how_it_works","agent":"branch","action":"handoff","reason":"asking for 'how_it_works' on 'LPO management'","close_reason":null}
+  [turn 10] EMPLOYEE (whatsapp): About one in four PIs has a mismatch, usually a price drift of five to eight percent from Supplier A.
+  [turn 10] AGENT (phase=branch): That is a lot of price drift to manage. How many LPOs do you usually raise in a week?
+            routing_decision: {"area":"LPO management","slot":"how_it_works","agent":"branch","action":"continue","reason":"asking for 'how_it_works' on 'LPO management'","close_reason":null}
+  [turn 11] EMPLOYEE (whatsapp): Each PI takes me twenty to thirty minutes to reconcile across Outlook, Zoho and my Excel tracker.
+  [turn 11] AGENT (phase=close): Thank you, Fatima Noor! We've got what we need for the discovery interview. You can keep messaging me anytime — tips, tools, or notes from your day. If something should count for the company report, say "add this to my interview".
+            routing_decision: {"area":null,"slot":null,"agent":"close","action":"close","reason":"interview complete (stalled)","close_reason":"stalled"}
+  [turn 11] AGENT (phase=n/a): Could you tell me a bit more about who signs off on a PI once a price mismatch is found, and whether they can hold the payment?
+  [turn 12] EMPLOYEE (whatsapp): Our finance manager Aisha signs off any PI with a mismatch, and she can hold the payment until it is fixed.
+  [turn 12] AGENT (phase=n/a): Thanks — that helps. There may be one more quick question on this.
+
+  --- agent's own per-turn insight (what it believes it just learned) ---
+  turn 1: Fatima manages LPOs and invoice verification using Zoho Inventory, Excel, and Outlook.
+    topics: LPO management, Invoice verification, Tools
+  turn 2: Fatima spends the majority of her day raising LPOs in Zoho and verifying supplier proforma invoices.
+    topics: LPO management, Invoice verification
+  turn 3: Fatima performs manual line-by-line comparisons between proforma invoices, LPOs, and emailed quotes.
+    topics: invoice verification
+  turn 4: Fatima noted that about 25% of proforma invoices have price mismatches, typically a 5-8% drift from Supplier A.
+    topics: price drift, supplier issues
+
+  --- parked asides (interesting threads the agent deliberately did not chase) ---
+  · Price drift from Supplier A  (area=LPO management, turn=4)
+
+  --- shared_findings (the agent's own synthesized takeaways) ---
+  · Fatima uses Zoho Inventory, Excel, and Outlook to manage LPOs and invoices.  (confidence=0.9, turn=1)
+  · Invoice verification is a manual process involving line-by-line comparison against LPOs and quotes.  (confidence=0.9, turn=3)
+  · About 25% of proforma invoices show a 5-8% price drift from Supplier A.  (confidence=0.9, turn=4)
+
+  --- agent's rolling conversation summary ---
+  Fatima is a Procurement Officer at Nimbus Trading who manages LPOs and invoice verification using Zoho Inventory, Excel, and Outlook. She handles the manual comparison of proforma invoices against LPOs and quotes, noting a frequent price drift issue with one supplier.
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+EMPLOYEE: Sara Haddad  (sales, Sales Coordinator)
+channel: web · conversation status: discovery
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Role areas the agent identified during orientation: Order Confirmation, Procurement Handover
+Why the interview stopped: (see below)
+
+  [turn 0] AGENT (phase=n/a): Thank you! Before we dive in, I'd like to learn a little about your role so I can ask the right questions.
+  [turn 0] AGENT (phase=n/a): What's your job title or role?
+  [turn 1] EMPLOYEE (web): Sales Coordinator
+  [turn 1] AGENT (phase=n/a): Which team or department are you part of?
+  [turn 2] EMPLOYEE (web): Sales
+  [turn 2] AGENT (phase=n/a): Would you say you're an individual contributor, a team lead, a manager, or an executive?
+  [turn 3] EMPLOYEE (web): I'm an individual contributor
+  [turn 3] AGENT (phase=n/a): In one or two sentences, what do you spend most of your time on at work?
+  [turn 4] EMPLOYEE (web): I confirm customer orders and hand them to procurement
+  [turn 4] AGENT (phase=n/a): Which tools or systems do you use every day? (e.g. SAP, Excel, Salesforce)
+  [turn 5] EMPLOYEE (web): Zoho CRM, Excel and Outlook
+  [turn 6] EMPLOYEE (web): I'm Sara Haddad, a Sales Coordinator in sales. I confirm customer orders and hand them to procurement I mainly use Zoho CRM, Excel, Outlook.
+  [turn 6] AGENT (phase=orient): That sounds like a really important role for keeping things moving. What does the order confirmation part of your day look like?
+            routing_decision: {"area":null,"slot":null,"agent":"orient","action":"handoff","reason":"mapping the person's main role areas","close_reason":null}
+  [turn 7] EMPLOYEE (web): I confirm customer orders and pass the details to procurement to raise the LPO.
+  [turn 7] AGENT (phase=orient): That makes sense. What does the handover to procurement usually look like for you?
+            routing_decision: {"area":null,"slot":null,"agent":"orient","action":"continue","reason":"mapping the person's main role areas","close_reason":null}
+  [turn 8] EMPLOYEE (web): The handoff is over email and a shared Excel — nothing links the sales order to the PO automatically.
+  [turn 9] EMPLOYEE (web): Customers chase me for delivery dates and I have to ask procurement and logistics each time.
+  [turn 10] EMPLOYEE (web): When a PI price changes, the customer quote can go stale before we catch it.
+  [turn 11] EMPLOYEE (web): I re-enter order lines from the CRM into the procurement Excel a lot.
+  [turn 12] EMPLOYEE (web): A single view linking the sales order, the LPO and the shipment would remove most of my chasing.
+  [turn 13] EMPLOYEE (web): I confirm customer orders and pass the details to procurement to raise the LPO.
+  [turn 14] EMPLOYEE (web): The handoff is over email and a shared Excel — nothing links the sales order to the PO automatically.
+  [turn 15] EMPLOYEE (web): Customers chase me for delivery dates and I have to ask procurement and logistics each time.
+  [turn 16] EMPLOYEE (web): When a PI price changes, the customer quote can go stale before we catch it.
+
+  --- agent's own per-turn insight (what it believes it just learned) ---
+  turn 1: Sara confirms customer orders and hands them to procurement using Zoho, Excel, and Outlook.
+    topics: order confirmation, procurement handover
+  turn 2: Sara clarified that her primary workflow involves confirming customer orders and then passing those details to the procurement team to generate the LPO.
+    topics: Order Confirmation, Procurement Handover
+
+----------------------------------------------------------------------------------------------------
+3. DISCOVERY PACKAGES — WHAT THE CONSULTANT SAW, AND WHAT THEY DID WITH IT
+----------------------------------------------------------------------------------------------------
+— Fatima Noor (package v1, generated_by=llm)
+  AGENT recommendation: Automate the PI-to-LPO match first; AP re-keying is downstream of it.
+  AGENT rationale: Fatima spends the majority of her day manually comparing proforma invoices against LPOs and quotes across three different platforms (Zoho, Excel, and Outlook).
+  confidence: 0.9
+
+  ISSUE [high] origin=agent status=rejected: Manual Invoice Verification
+    Fatima performs manual line-by-line comparisons between proforma invoices, LPOs, and emailed quotes, which consumes the majority of her day.
+  ISSUE [medium] origin=consultant status=accepted: Advance payment exposure
+    PIs are paid on advance before the price drift is caught, so the cash is already out the door.
+  ISSUE [medium] origin=agent status=proposed: Supplier Price Drift
+    About 25% of proforma invoices from Supplier A show a 5-8% price drift, requiring manual identification and correction.
+  SOLUTION origin=agent: Automated Matching
+    Implement a system that automatically matches proforma invoices against LPOs and quotes in Zoho Inventory.
+  SOLUTION origin=agent: Drift Alerts
+    Set up automated alerts to flag any price variance from Supplier A that exceeds a specific threshold.
+
+  DRAFTED FOLLOW-UP [drafted] (from a parked aside): What is the reason provided for the price drift from Supplier A?
+    rationale: Determine if the drift is a recurring error or a market fluctuation.
+  DRAFTED FOLLOW-UP [drafted] (from a parked aside): How many LPOs does she raise per day?
+    rationale: Quantify the volume of the manual work to calculate time savings.
+  DRAFTED FOLLOW-UP [answered] (from consultant requirement): Could you tell me a bit more about who signs off on a PI once a price mismatch is found, and whether they can hold the payment?
+    rationale: Drafted without a language model, from the stated need.
+
+--- consultant → agent → employee loop ---
+consultant STATED (own words): "I need to know who signs off on a PI once a price mismatch is found, and whether they can hold the payment."
+agent DRAFTED: "Could you tell me a bit more about who signs off on a PI once a price mismatch is found, and whether they can hold the payment?"  status=answered
+requirement outcome: partially_satisfied  (basis: n/a)
+missing_aspects: ["Could not be assessed automatically — review the answer yourself."]
+
+----------------------------------------------------------------------------------------------------
+4. INTELLIGENCE — SIGNALS, PATTERNS, RECOMMENDATIONS, AND HOW THE DOCUMENTS CONTRIBUTED
+----------------------------------------------------------------------------------------------------
+SIGNALS (extracted from BOTH the interview transcripts and the uploaded documents):
+  manual_process           strength=0.76  evidence_count=7  departments=["procurement", "finance"]
+    label: Manual data entry and spreadsheets
+  communication            strength=0.32  evidence_count=2  departments=["procurement"]
+    label: Coordination overhead
+  approval_bottleneck      strength=0.28  evidence_count=2  departments=["procurement", "finance"]
+    label: Approval bottlenecks
+  data_silo                strength=0.28  evidence_count=2  departments=["procurement"]
+    label: Data silos and reconciliation
+  time_sink                strength=0.28  evidence_count=2  departments=["finance", "procurement"]
+    label: Repetitive time-consuming work
+  tool_dependency          strength=0.20  evidence_count=1  departments=["procurement"]
+    label: Core system dependency
+
+How each document's text matched the signal-detection rules (this is the literal
+keyword-rule contribution — SignalExtractor's RULES, matched against document text):
+  procurement-sop.txt [procurement] matched rule types: manual_process, approval_bottleneck, tool_dependency, communication
+  ap-three-way-match-policy.txt [finance] matched rule types: manual_process, time_sink
+  supplier-terms.txt [procurement] matched rule types: manual_process, data_silo, time_sink
+  proforma-invoice-sample.txt [finance] matched rule types: approval_bottleneck
+
+Real quantified metrics extracted from documents + interviews (Reports::MetricExtractor,
+deterministic regex — zero LLM calls, so nothing here is invented):
+  ~72%  (Three-way match first-pass rate)  target 95%  source=Internal document
+  9-12 days  (Invoice-to-pay cycle)  target 5 days  source=Internal document
+  30%  (Supplier A (Shenzhen electronics): Incoterms FOB Shenzhen; payment advance, 70% on B/L copy)    source=Internal document
+  50%  (Supplier C (India housewares): Incoterms EXW; payment advance; lead time 25-35 days.)    source=Internal document
+  1 in 4  (Roughly PIs has a mismatch (price, quantity, or shipping term) versus the LPO.)    source=Internal document
+  8%  (Frequent PI price drift vs quote (~5-).)    source=Internal document
+
+PATTERNS (cross-signal / cross-department themes):
+  Manual data entry and spreadsheets across departments confidence=0.76  status=confirmed  departments=["procurement", "finance"]
+    This pain point appears in procurement, finance, sales.
+  Approval bottlenecks across departments            confidence=0.28  status=emerging  departments=["procurement", "finance"]
+    This pain point appears in procurement, finance.
+  Repetitive time-consuming work across departments  confidence=0.28  status=emerging  departments=["finance", "procurement"]
+    This pain point appears in finance, procurement.
+
+RECOMMENDATIONS (published, catalog-matched):
+  [high] Automate manual data entry
+    Reduce spreadsheet-heavy work with workflow automation. (Pattern: Manual data entry and spreadsheets across departments)
+    implementation_outline: Introduce automation for repetitive data entry; consider RPA or integration platforms. Consider: UiPath, Bill.com.
+
+AGENTIC IDEAS (published — the AI-generated automation concepts):
+  AutoInventory Data Sync Agent  (confidence=0.92, source=generated)
+    An agent that automatically extracts and validates inventory data from Excel and Zoho Inventory, reducing manual entry and syncing updates in real-time for the inventory and accounting teams.
+    system_fit: Integrates with Zoho Inventory API and Excel files via macros/scripts; updates the accounting system records and feeds status via Outlook notifications.
+    value_time: Eliminates hours spent daily on manual inventory updates
+  AutoEntry Sync Agent  (confidence=0.89, source=generated)
+    Automates extraction and synchronization of data from Excel and Zoho Inventory into the accounting system, reducing manual data entry for finance staff.
+    system_fit: Integrates via APIs with Zoho Inventory, Excel files, and the accounting system to auto-transfer data entries.
+    value_time: Reduces hours spent on manual data entry daily
+  Smart Data Entry Assistant  (confidence=0.88, source=generated)
+    An AI agent that automates data extraction and input from emails, spreadsheets, and the freight portal into Zoho Inventory and the accounting system for the operations team.
+    system_fit: Integrates with Zoho Inventory APIs, accounting system interfaces, Excel files, and monitors Outlook and WhatsApp communications for relevant data to input automatically.
+    value_time: Significantly reduces manual data entry time and latency in updating inventory and accounting records.
+  Auto-Entry Sync Bot  (confidence=0.87, source=generated)
+    An AI agent that automates the extraction and synchronization of data from Excel spreadsheets and emails into Zoho Inventory and the accounting system, reducing manual data entry work for operations staff.
+    system_fit: Integrates with Excel, Outlook, Zoho Inventory, and accounting system APIs to update records automatically.
+    value_time: Reduces latency by minutes to hours by cutting manual data entry delays.
+  AutoInventory Data Sync  (confidence=0.86, source=generated)
+    An agent that automatically extracts and updates inventory data between Zoho Inventory and Excel spreadsheets, eliminating manual data entry for the inventory and logistics teams.
+    system_fit: Integrates with Zoho Inventory API and connects to existing Excel-based reports used by operations.
+    value_time: Reduces hours spent daily updating spreadsheets.
+  FreightFlow Auto-Sync  (confidence=0.85, source=generated)
+    An agent that monitors the freight portal for shipment updates and automatically populates corresponding tracking numbers and delivery statuses into Zoho Inventory.
+    system_fit: Extracts data from the freight portal via web-scraping or API and writes directly to Zoho Inventory.
+    value_time: Eliminates manual copying of tracking numbers for every shipment.
+  Smart Data Sync Agent  (confidence=0.77, source=generated)
+    Automates data extraction from Excel and Zoho Inventory, consolidating key inventory, sales, and accounting info into a unified dashboard for Nimbus Trading's operations team.
+    system_fit: Integrates with Zoho Inventory API and Excel via macros or Office scripts, feeding reconciled data to a cloud dashboard accessible company-wide.
+    value_time: reduces hours spent manually inputting and verifying data daily
+  WhatsApp Lead Concierge  (confidence=0.75, source=generated)
+    An agent that parses incoming WhatsApp messages to identify customer inquiries, updates the Zoho CRM, and drafts suggested responses for the sales team.
+    system_fit: Connects WhatsApp to Zoho CRM to ensure communication is logged in the central system.
+    value_time: Reduces time spent switching between WhatsApp and CRM to log notes.
+  AutoDataSync Agent  (confidence=0.72, source=generated)
+    An agent that automatically extracts data from incoming emails, freight portal updates, and WhatsApp messages to populate Zoho Inventory and Excel sheets, reducing manual data entry workloads for operations staff.
+    system_fit: Integrates via APIs with Zoho Inventory, Excel, Outlook, WhatsApp, and the freight portal to automate data extraction and entry.
+    value_time: Reduces delays caused by manual entry, speeding data availability.
+  Smart Freight Approval Bot  (confidence=0.7, source=generated)
+    An agent that monitors freight quotes, compares them against historical price points in Excel, and sends a push notification via WhatsApp for one-click approval.
+    system_fit: Reads quote data, references the historical Excel sheet, and triggers a WhatsApp notification for the manager.
+    value_time: Accelerates the approval cycle from hours to seconds.
+  Reconciliation Guard  (confidence=0.65, source=generated)
+    An agent that periodically compares records in 'the accounting system' against Zoho Inventory to flag discrepancies in paid vs. shipped orders.
+    system_fit: Runs a background check between the Accounting System and Zoho Inventory, alerting the team via Outlook.
+    value_time: Automates the weekly reconciliation process.
+  Approval Workflow Automator  (confidence=0.6, source=generated)
+    Streamlines approval processes by automating request routing and reminders within Outlook and Zoho CRM to reduce approval bottlenecks for management.
+    system_fit: Builds on Outlook calendar and Zoho CRM task workflows to automate escalation and notification triggers.
+    value_time: Speeds up approval turnaround times significantly
+  Approval Workflow Accelerator  (confidence=0.5, source=generated)
+    An agent that monitors approval requests routed via Outlook and Zoho CRM, sending timely reminders and escalating delayed approvals to minimize bottlenecks in decision-making.
+    system_fit: Hooks into Outlook email and Zoho CRM task workflows to track approvals and send automated follow-ups.
+    value_time: Reduces wait times on approvals by proactive nudging.
+  Cross-System Reconciliation Agent  (confidence=0.5, source=generated)
+    An AI tool that identifies and reconciles discrepancies between data in Zoho Inventory, accounting system, Excel sheets, and freight portal to eliminate data silos.
+    system_fit: Interfaces with Zoho Inventory APIs, accounting system, spreadsheets, and freight portal datasets to continuously audit and synchronize data.
+    value_time: Reduces time spent on manual reconciliation and error correction.
+  Approval copilot for Approval bottlenecks  (confidence=0.45, source=generated)
+    An agentic workflow that monitors "Approval bottlenecks" and assists teams before work stalls.
+    system_fit: Designed to sit alongside Zoho Inventory, Excel, Outlook, the accounting system, optionally leveraging Worktruth AP Copilot.
+    value_time: Reduce wait time and re-keying around approval bottlenecks by drafting the next action for a human to approve.
+  Freight Coordination Hub  (confidence=0.45, source=generated)
+    An automation assistant that consolidates freight portal updates, email (Outlook), and WhatsApp messages to streamline communication and reduce coordination overhead in logistics.
+    system_fit: Connects freight portal notifications with Outlook and WhatsApp to centralize messaging and task assignment for the logistics team.
+    value_time: Decreases delays caused by scattered communications.
+  Agentic capture for Manual data entry and spreadsheets  (confidence=0.45, source=generated)
+    An agentic workflow that monitors "Manual data entry and spreadsheets" and assists teams before work stalls.
+    system_fit: Designed to sit alongside Zoho Inventory, Excel, Outlook, the accounting system, optionally leveraging UiPath.
+    value_time: Reduce wait time and re-keying around manual data entry and spreadsheets by drafting the next action for a human to approve.
+  Workflow agent for Coordination overhead  (confidence=0.45, source=generated)
+    An agentic workflow that monitors "Coordination overhead" and assists teams before work stalls.
+    system_fit: Designed to sit alongside Zoho Inventory, Excel, Outlook, the accounting system, optionally leveraging UiPath.
+    value_time: Reduce wait time and re-keying around coordination overhead by drafting the next action for a human to approve.
+  Workflow agent for Repetitive time-consuming work  (confidence=0.45, source=generated)
+    An agentic workflow that monitors "Repetitive time-consuming work" and assists teams before work stalls.
+    system_fit: Designed to sit alongside Zoho Inventory, Excel, Outlook, the accounting system, optionally leveraging UiPath.
+    value_time: Reduce wait time and re-keying around repetitive time-consuming work by drafting the next action for a human to approve.
+  Integration agent around Core system dependency  (confidence=0.45, source=generated)
+    An agentic workflow that monitors "Core system dependency" and assists teams before work stalls.
+    system_fit: Designed to sit alongside Zoho Inventory, Excel, Outlook, the accounting system, optionally leveraging UiPath.
+    value_time: Reduce wait time and re-keying around core system dependency by drafting the next action for a human to approve.
+  Reconciliation agent for Data silos and reconciliation  (confidence=0.45, source=generated)
+    An agentic workflow that monitors "Data silos and reconciliation" and assists teams before work stalls.
+    system_fit: Designed to sit alongside Zoho Inventory, Excel, Outlook, the accounting system, optionally leveraging UiPath.
+    value_time: Reduce wait time and re-keying around data silos and reconciliation by drafting the next action for a human to approve.
+  Automated Accounting Reconciliation Agent  (confidence=0.3, source=generated)
+    An agent that cross-checks transaction data between the accounting system, Zoho Inventory, and Excel sheets to detect and flag inconsistencies, addressing data silos and manual reconciliation work.
+    system_fit: Connects via APIs to accounting system, Zoho Inventory, and Excel exports to automate reconciliation tasks.
+    value_time: Cuts down manual reconciliation time significantly.
+  Approval Flow Optimizer  (confidence=0.28, source=generated)
+    An AI-powered approval routing agent that identifies and routes pending approvals in their accounting system and Zoho CRM to the right stakeholders to reduce bottlenecks.
+    system_fit: Integrates with the accounting system's and Zoho CRM's approval workflows, monitoring pending approvals and nudging approvers timely.
+    value_time: Speeds up financial and sales process approvals.
+  ApprovalFlow Streamliner  (confidence=0.28, source=generated)
+    An agent embedded into the accounting system and Zoho CRM that monitors approval requests and nudges responsible parties via Outlook and WhatsApp to speed up decision-making and reduce approval bottlenecks.
+    system_fit: Hooks into the accounting system and Zoho CRM workflows, combined with Outlook and WhatsApp notifications for reminders.
+    value_time: Cuts latency in approval cycles by automated follow-ups.
+  ReconcileMaster Agent  (confidence=0.28, source=generated)
+    An AI agent that automatically identifies and highlights discrepancies across Zoho Inventory, the accounting system, Excel records, and freight portal data to resolve data silos and reconciliation challenges.
+    system_fit: Connects existing data sources (Zoho Inventory, accounting system, Excel, freight portal) through API integration to perform cross-system data validation.
+    value_time: Speeds reconciliation processes by early anomaly detection.
+  TaskScheduler Agent  (confidence=0.28, source=generated)
+    An automation agent that organizes and prioritizes repetitive, time-consuming operational tasks by integrating with Zoho CRM, freight portal, and Outlook calendars to streamline daily workflows for team members.
+    system_fit: Leverages APIs and connectors with Zoho CRM, freight portal, and Outlook to schedule and remind on routine tasks, reducing coordination burdens.
+    value_time: Decreases time spent managing schedules manually.
+  Data Reconciliation Assistant  (confidence=0.28, source=generated)
+    An agent that automatically detects discrepancies among data in Zoho CRM, Zoho Inventory, and the accounting system, suggesting reconciliations to reduce data silos and errors.
+    system_fit: Pulls synchronized data from Zoho CRM, Inventory, and accounting for cross-validation and flagging inconsistencies.
+    value_time: Cuts hours spent on manual reconciliation.
+  Freight Portal Coordination Bot  (confidence=0.28, source=generated)
+    A bot that collects freight status updates from their freight portal and consolidates key logistics data into Zoho CRM and Outlook, reducing coordination overhead for logistics and sales teams.
+    system_fit: Hooks into the freight portal API and pushes updates into Zoho CRM and Outlook task reminders.
+    value_time: Provides real-time, consolidated updates without manual checks across tools.
+  Repetitive Task Auto-Handler  (confidence=0.28, source=generated)
+    An automation bot that identifies and automates repetitive, time-consuming tasks across Excel, Outlook scheduling, and freight portal updates to free up staff time.
+    system_fit: Taps into current Excel macros, Outlook calendar, and freight portal workflows, extending automation capabilities for routine tasks.
+    value_time: Saves substantial employee hours by automating common tasks.
+  Unified Freight and Inventory Dashboard  (confidence=0.28, source=generated)
+    A dashboard agent that consolidates data from the freight portal, Zoho Inventory, and accounting system to reconcile information and expose data silos, assisting logistics and inventory teams.
+    system_fit: Aggregates and visualizes data via APIs from existing core systems and freight portal for cross-team visibility.
+    value_time: Speeds up reconciliation checks from days to minutes.
+  Task Automation for Repetitive Trading Operations  (confidence=0.28, source=generated)
+    This agent automates repetitive, time-consuming tasks such as updating trading logs and standard reporting by leveraging API integrations with Zoho CRM and Excel.
+    system_fit: Works with Zoho CRM data exports and Excel templates to auto-generate updates and reports.
+    value_time: Significantly shortens time spent on daily repetitive tasks.
+
+----------------------------------------------------------------------------------------------------
+5. THE FINAL REPORT — AI-WRITTEN CONTENT, CONSULTANT EDITS, AND THE APPROVED RESULT
+----------------------------------------------------------------------------------------------------
+Report v19 · status=ready · visibility=shared_with_company
+review_workflow_status=platform_approved
+
+--- AI-written executive summary (as generated, before consultant edit) ---
+1 of 1 employees completed discovery interviews. Findings are reinforced by 4 internal documents. Top friction areas include Manual data entry and spreadsheets, Coordination overhead, Approval bottlenecks. 3 cross-team patterns inform the recommendations below.
+
+--- CONSULTANT overrides applied to the deliverable (4 raw rows on this v19, 2 unique after the same dedup the renderer applies) ---
+  [edit] executive_summary
+    Nimbus loses the most time where paperwork crosses systems: manual proforma-invoice checking (1 in 4 PIs mismatch) and 100% manual AP re-keying (three-way match first-pass only ~72%). Fixing the PI-to-LPO match first removes the upstream cause of the AP exceptions.
+  [add] Risk register
+    Demurrage exposure at Jebel Ali when customs clearance slips beyond 48h; price-drift on Supplier A PIs (~5-8%) paid on advance before sign-off.
+
+--- Consultant review: Samir Al-Farsi — status=approved ---
+overall_note: Strong, well-evidenced discovery. Endorsed with one added risk register and a sharpened executive summary.
+  comment [recommendations]: Sequence the PI auto-match ahead of AP re-keying — it removes the upstream mismatch that causes the exceptions.
+  finding [executive_conclusion/endorse]: As a trade-ops consultant I endorse the docs+interview narrative: PI checking and AP re-keying are the core, quantified frictions; automating the PI-to-LPO match is the highest-leverage first move.
+
+Final artifact: application/pdf at reports/14/v19/report.pdf
+Share/visibility: shared_with_company
+----------------------------------------------------------------------------------------------------
+6. WHAT DID NOT COMPLETE THIS RUN, AND WHY (root-caused, not guessed)
+----------------------------------------------------------------------------------------------------
+48 of 51 scenario checks passed. The 3 failures trace to ONE root event, so this
+section explains that event precisely rather than restating the check list.
+
+Fatima Noor (WhatsApp) completed her interview normally: 4 real discovery turns,
+closed on 'stalled' (not 'dossier_complete') after floor (4) was reached. Every
+turn's insight/summary was genuinely on-topic and correct (see section 2 above) —
+but the structured 'slots_filled' field the model is asked to report alongside
+its reply came back empty on all 4 turns, so the dossier never marked
+'how_it_works' or 'friction' as filled even though her answers plainly covered
+both (turn 3: "Checking the PI is fully manual — I compare it line by line";
+turn 4: "About one in four PIs has a mismatch"). Both branch-phase turns asked
+for the SAME slot (how_it_works on LPO management) because nothing ever registered
+as filled, so the orchestrator kept re-asking it until the stall counter closed the
+interview. This is a MODEL reporting-fidelity gap (correct prose, empty structured
+field), not a routing bug — the beat/slot_hint the model was given each turn was
+correct per the message log's routing_decision. Net effect: BuildPackageService
+still produced a good package (it also reads the raw per-turn insights and parked
+asides, not only dossier.slots), so the pipeline was resilient to this — but a
+'complete' interview closed for the wrong reason and the report's readiness
+arithmetic never saw a filled dossier for her.
+
+Sara Haddad (web) did not complete. Her first two turns (orient phase) were quick
+(16s and 1m22s). Her THIRD turn — the first branch-phase question, on 'Order
+Confirmation' / 'Procurement Handover' — never returned: the call ran for the
+full LANGGRAPH_READ_TIMEOUT (1800s / 30 minutes) before the HTTP client gave up.
+Discovery::ProcessTurnService caught that as a retryable Langgraph::UnavailableError,
+tripped the shared OpenAI circuit breaker, and returned a delay message. Every
+scripted answer the scenario sent immediately afterward hit that now-open breaker
+instantly (see the run of 'delay_notice' replies, all timestamped 12:50:26) — by
+design, an ALREADY-open breaker is not re-tripped and is not retried synchronously,
+so the conversation stayed stuck at question_count=2 for the rest of the scenario's
+MAX_DISCOVERY_TURNS budget. A background retry job was scheduled 30s after the
+original failure, but the scenario script does not wait for it, so it never had a
+chance to let the conversation catch up before the run moved on.
+
+Consequence for intelligence: SignalExtractor only reads messages from COMPLETED
+conversations, so Sara's 6 real (but never-graded) answers contributed NOTHING to
+signals/patterns despite being genuinely on-topic (CRM/Excel re-entry, no linkage
+between sales order and LPO, stale customer quotes). The 6 signals and 3 patterns
+reported above come from Fatima's interview and the 4 documents ONLY.
+
+This is a known, previously-documented characteristic of this local Gemma
+configuration under sustained multi-turn load (branch-phase turns are measured at
+roughly 5,700-6,000 reasoning tokens vs ~800 for orient-phase turns, and local
+throughput degrades further the longer LM Studio has been running back-to-back
+calls) — not a regression introduced by anything in this branch. A GPT-4.1-mini
+run of the same scenario completes both interviews in a few minutes total with
+dossier_complete firing normally; this run intentionally used the local model per
+the current .env, which is the right choice for a zero-cost full-pipeline proof but
+the wrong choice when interview quality (not just pipeline plumbing) is what's
+being evaluated.
+====================================================================================================
+END OF EXTRACTION
+====================================================================================================

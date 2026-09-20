@@ -32,8 +32,44 @@ module Api
           authorize report, :download?
           return head :unprocessable_entity if report.report_snapshot.blank?
 
-          html = Reports::RegenerateWithReviewService.render_html(report: report)
+          variant = normalize_variant(nil)
+          return if performed?
+
+          html = Reports::RegenerateWithReviewService.render_html(report: report, variant: variant)
           send_data html, type: "text/html", disposition: "inline"
+        end
+
+        # The operator's fallback. A company with no consultant assigned yet has
+        # nobody who can generate for it — and GenerateReportService already
+        # expects that case, routing an unassigned company straight to the
+        # approval gate. Without this, such a company could never have a report
+        # at all.
+        def create
+          company = ::Company.find(params[:company_id])
+          authorize Report, :create?
+
+          result = Reports::EnqueueService.call(
+            company: company,
+            triggered_by: current_platform_user,
+            force: params[:force].to_s == "true"
+          )
+
+          PlatformAuditService.log!(
+            platform_user: current_platform_user,
+            action: "report_generation_started",
+            target: result[:report],
+            request: request
+          )
+
+          render json: {
+            report: report_json(result[:report], company: company),
+            stale: result[:stale],
+            first: result[:first]
+          }, status: :accepted
+        rescue Reports::EnqueueService::Busy => e
+          render json: { error: e.message }, status: :conflict
+        rescue Reports::EnqueueService::NotStale => e
+          render json: { error: e.message, forceable: true }, status: :unprocessable_entity
         end
 
         def approve
@@ -112,6 +148,7 @@ module Api
             reviews_completed_at: report.reviews_completed_at,
             generated_at: report.generated_at,
             company_id: report.company_id,
+            artifacts: report_artifacts_json(report),
             consultant_progress: reviews.map do |rv|
               {
                 consultant_user_id: rv.consultant_user_id,

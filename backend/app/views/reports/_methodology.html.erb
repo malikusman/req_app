@@ -1,10 +1,12 @@
 <% company_name = snapshot.dig("company", "name") %>
 <% participation = snapshot["participation"] || {} %>
 <% docs_first = snapshot["docs_first_phase"] == true || snapshot["report_kind"].to_s == "baseline" %>
-<% doc_count = Array(snapshot["supporting_documents"]).size %>
+<% base = report_evidence_base(snapshot) %>
+<% doc_count = base["documents"].to_i %>
+<% evidence_sentence = report_evidence_base_sentence(snapshot) %>
 <section class="page">
   <div class="eyebrow">Methodology</div>
-  <h1 style="font-size:28pt;margin:4mm 0 4mm;">How we measured</h1>
+  <h1 class="page-title">How we measured</h1>
   <div class="split">
     <div>
       <% if docs_first %>
@@ -46,6 +48,10 @@
             Interviews were led by role-routed specialist agents:
             <%= agents.map { |a| "#{a['role']} (#{a['turns']} #{a['turns'].to_i == 1 ? 'turn' : 'turns'})" }.join("; ") %>.
           </dd>
+        <% end %>
+        <% if evidence_sentence %>
+          <dt>Evidence base</dt>
+          <dd style="font-size:9pt;color:var(--muted);"><%= h evidence_sentence.upcase_first %>. Individual interview transcripts, document files and media exhibits are working papers and are deliberately excluded from this deliverable — findings are reported with the weight of evidence behind them, not the source material itself.</dd>
         <% end %>
         <dt>Review</dt>
         <dd style="font-size:9pt;color:var(--muted);">When consultants are assigned, overall notes and section comments are merged into an appendix at platform approval. Live discussions and WhatsApp follow-up threads are collaboration tooling and are intentionally excluded from this deliverable.</dd>

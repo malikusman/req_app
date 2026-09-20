@@ -41,7 +41,7 @@ export function ConsultantApplyPage() {
   return (
     <AuthLayout
       portal="consultant"
-      portalName="Worktruth — Consultant"
+      portalName="Mjadi — Consultant"
       tagline="Apply to review discovery reports. Access is granted after platform approval."
     >
       <div className="mb-6">

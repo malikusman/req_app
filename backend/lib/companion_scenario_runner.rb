@@ -116,10 +116,10 @@ class CompanionScenarioRunner
   end
 
   def ensure_catalog!
-    entry = SolutionCatalogEntry.find_or_initialize_by(slug: "worktruth-ap-copilot-eval")
+    entry = SolutionCatalogEntry.find_or_initialize_by(slug: "mjadi-ap-copilot-eval")
     entry.assign_attributes(
-      name: "Worktruth AP Copilot",
-      vendor: "Worktruth",
+      name: "Mjadi AP Copilot",
+      vendor: "Mjadi",
       category: "ai_agent",
       description: "AP invoice matching and exception triage for freight finance teams.",
       tags: %w[Finance AP invoice matching],
@@ -127,6 +127,10 @@ class CompanionScenarioRunner
       active: true,
       partnership_tier: "preferred",
       entity_type: "tool",
+      # It is ours — the vendor above says so — and the report badges first-party
+      # entries as "Mjadi product". Left unset, our own agent shipped to clients
+      # looking like someone else's tool.
+      first_party: true,
       published_at: Time.current
     )
     entry.save!

@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     max_openai_retries: int = 2
     # LangSmith (BLK-4 easy-wins): set LANGSMITH_API_KEY to enable tracing
     langsmith_api_key: str = ""
-    langsmith_project: str = "worktruth-agent"
+    langsmith_project: str = "mjadi-agent"
     # Empty = auto (on when api key present); "true"/"false" to force
     langsmith_tracing: str = ""
 

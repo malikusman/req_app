@@ -18,10 +18,10 @@ module ReportsHelper
   }.freeze
 
   CATEGORY_COLORS = {
-    "cat-process" => "#1F40FF",
-    "cat-tooling" => "#00A9F4",
-    "cat-people" => "#E6338A",
-    "cat-data" => "#14B8A6"
+    "cat-process" => "#0E9F6E",
+    "cat-tooling" => "#088EAF",
+    "cat-people" => "#DB2979",
+    "cat-data" => "#12B886"
   }.freeze
 
   CATEGORY_CYCLE = %w[cat-process cat-tooling cat-people cat-data].freeze
@@ -93,11 +93,11 @@ module ReportsHelper
   end
 
   def report_category_color(css_class)
-    CATEGORY_COLORS.fetch(css_class.to_s, "#1F40FF")
+    CATEGORY_COLORS.fetch(css_class.to_s, "#0E9F6E")
   end
 
   def report_brand_footer(company_name, snapshot = nil)
-    "Worktruth · #{company_name} #{report_kind_noun(snapshot || @_report_snapshot)} Report"
+    "Mjadi · #{company_name} #{report_kind_noun(snapshot || @_report_snapshot)} Report"
   end
 
   # "Baseline" for docs-only companies, "Discovery" once interviews contribute.
@@ -156,7 +156,10 @@ module ReportsHelper
       top = Array(snapshot["recommendations"]).max_by { |r| r["impact_score"].to_f }
       return fallback unless top&.dig("title").present?
 
-      "#{top['title']} is the highest-impact move"
+      # Titles here are imperative ("Automate manual data entry"), so they
+      # cannot be the subject of a sentence — that produced "Automate manual
+      # data entry is the highest-impact move". Lead with the label instead.
+      "The highest-impact move: #{top['title']}"
     else
       fallback
     end
@@ -233,12 +236,12 @@ module ReportsHelper
     rest = 100 - pct
     <<~SVG.html_safe
       <svg width="64" height="64" viewBox="0 0 42 42" aria-hidden="true">
-        <circle cx="21" cy="21" r="15.9" fill="none" stroke="#EFF3F7" stroke-width="5"/>
+        <circle cx="21" cy="21" r="15.9" fill="none" stroke="#F1F7F3" stroke-width="5"/>
         <circle cx="21" cy="21" r="15.9" fill="none" stroke="#{color}" stroke-width="5"
           stroke-dasharray="#{pct} #{rest}" stroke-dashoffset="25"
           transform="rotate(-90 21 21)" stroke-linecap="round"/>
         <text x="21" y="24" text-anchor="middle" font-size="9" font-weight="700"
-          fill="#051C2C" font-family="Inter">#{pct}</text>
+          fill="#17251D" font-family="Manrope">#{pct}</text>
       </svg>
     SVG
   end
@@ -275,12 +278,13 @@ module ReportsHelper
   # Maps a TOC title to the section_key a consultant can hide, so a hidden section
   # drops out of the contents page too.
   TOC_TITLE_TO_KEY = {
-    "Executive summary" => "executive_summary", "Readiness" => "readiness",
+    "Executive summary" => "executive_summary", "Expert assessment" => "expert_verdict",
+    "Readiness" => "readiness",
     "Company context" => "company_context", "Participation" => "participation",
     "What changed" => "delta", "Signals" => "signals", "Patterns" => "patterns",
     "Implications" => "patterns", "Recommendations" => "recommendations",
     "Roadmap" => "roadmap", "Opportunities" => "opportunities",
-    "Capabilities & evidence" => "tools_catalog", "Supporting media" => "supporting_media",
+    "Capabilities" => "tools_catalog",
     "Methodology" => "methodology"
   }.freeze
 
@@ -296,64 +300,38 @@ module ReportsHelper
     end
 
     add.call("Executive summary", "The headline story in one read", "rule-blue") if snapshot["executive_summary"].present?
-    if snapshot.dig("readiness", "score").present?
-      add.call("Readiness", "Score and its weighted breakdown", "rule-blue")
+    expert = report_expert(snapshot)
+    if expert && (expert["verdict"] || expert["opportunity"])
+      add.call("Expert assessment", "An independent expert's conclusion and sizing", "rule-blue")
     end
     profile = snapshot.dig("company", "profile") || {}
     stack = Array(snapshot["client_stack"])
-    kb = Array(snapshot["knowledge_base"])
     website = snapshot.dig("company", "website_url").presence || profile["website_url"].presence
-    if profile.present? || stack.any? || kb.any? || website.present?
-      add.call("Company context", "Firmographics, systems, and research", "rule-blue")
-    end
-    participation = snapshot["participation"] || {}
-    if participation["invited"].to_i.positive? || participation["completed"].to_i.positive?
-      add.call("Participation", "Invited, started, completed, by department", "rule-teal")
+    if profile.present? || stack.any? || website.present?
+      add.call("Company context", "Firmographics, systems, and public research", "rule-blue")
     end
     add.call("What changed", "Delta versus the previous version", "rule-teal") if report_has_delta?(snapshot["delta_from_previous"])
-    add.call("Signals", "Recurring pain points with evidence", "rule-magenta") if Array(snapshot["signals"]).any?
+    add.call("Signals", "Recurring pain points, ranked by weight of evidence", "rule-magenta") if Array(snapshot["signals"]).any?
     add.call("Patterns", "Cross-team themes and confidence", "rule-magenta") if Array(snapshot["patterns"]).any?
     add.call("Implications", "What the findings mean if left unaddressed", "rule-magenta") if Array(snapshot["implications"]).any?
     add.call("Recommendations", "Prioritized actions, catalog-matched", "rule-blue") if Array(snapshot["recommendations"]).any?
     add.call("Roadmap", "Sequenced now / next / later", "rule-blue") if snapshot["roadmap"].present?
     add.call("Opportunities", "Published agentic ideas for this company", "rule-blue") if Array(snapshot["agentic_ideas"]).any?
-    if Array(snapshot.dig("tools_catalog", "curated_matches")).any? || Array(snapshot["supporting_documents"]).any?
-      add.call("Capabilities & evidence", "Catalog matches and supporting documents", "rule-teal")
+    if Array(snapshot.dig("tools_catalog", "curated_matches")).any?
+      add.call("Capabilities", "Catalog matches assessed for fit", "rule-teal")
     end
-    add.call("Supporting media", "Multimodal evidence from discovery", "rule-teal") if Array(snapshot["supporting_media"]).any?
+    # Back matter, matching the render order in document.html.erb.
+    if snapshot.dig("readiness", "score").present?
+      add.call("Readiness", "Score and its weighted breakdown", "rule-teal")
+    end
+    participation = snapshot["participation"] || {}
+    if participation["invited"].to_i.positive? || participation["completed"].to_i.positive?
+      add.call("Participation", "Invited, started, completed, by department", "rule-teal")
+    end
     add.call("Methodology", "How readiness and findings were measured", "rule-teal")
     entries
   end
 
-  def report_signal_excerpt(signal)
-    report_signal_excerpts(signal, limit: 1).first
-  end
-
-  def report_signal_excerpts(signal, limit: 3)
-    Array(signal["source_excerpts"]).filter_map do |item|
-      if item.is_a?(Hash)
-        (item["excerpt"] || item["text"] || item["body"]).to_s.presence
-      else
-        item.to_s.presence
-      end
-    end.first(limit)
-  end
-
-  # Human-readable, de-duplicated media-evidence labels. Prefer the attachment's
-  # semantic type ("screen_recording") over the internal source enum
-  # ("media_attachment") that used to leak into the client PDF.
-  def report_multimodal_labels(signal)
-    Array(signal["multimodal_evidence"]).filter_map do |item|
-      raw = if item.is_a?(Hash)
-        item["attachment_type"] || item["type"] || item["label"] || item["kind"] || item["source"]
-      else
-        item
-      end
-      report_media_type_label(raw)
-    end.uniq.first(4)
-  end
-
-  MEDIA_SOURCE_FALLBACK = { "media_attachment" => "Media attachment" }.freeze
   def report_media_type_label(raw)
     v = raw.to_s.strip
     return nil if v.blank?
@@ -389,7 +367,7 @@ module ReportsHelper
 
   def report_source_caption(company_name, version: nil)
     ver = version.present? ? "v#{version}" : "snapshot"
-    "Source: Worktruth discovery #{ver} · #{company_name}"
+    "Source: Mjadi discovery #{ver} · #{company_name}"
   end
 
   SECTION_LABELS = {
@@ -399,7 +377,6 @@ module ReportsHelper
     "signals" => "Signals",
     "patterns" => "Patterns",
     "recommendations" => "Recommendations",
-    "supporting_media" => "Supporting media",
     "methodology" => "Methodology",
     "tools_catalog" => "Recommended capabilities"
   }.freeze
@@ -441,15 +418,18 @@ module ReportsHelper
     width = left + cats.size * cell + 20
     height = top + rows.size * cell + 30
 
-    svg = +%(<svg viewBox="0 0 #{width} #{height}" width="100%" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">)
+    # A legend row: intensity is the whole encoding, so the reader needs to know
+    # which end is which. Height grows to make room for it.
+    legend_h = 26
+    svg = +%(<svg viewBox="0 0 #{width} #{height + legend_h}" width="100%" style="max-width:150mm;display:block;" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Friction intensity by department and category">)
     cats.each_with_index do |cat, ci|
       x = left + ci * cell + cell / 2
-      svg << %(<text x="#{x}" y="#{top - 10}" text-anchor="middle" font-size="8" fill="#5A6B78" font-family="Inter">#{report_category_label(cat)}</text>)
+      svg << %(<text x="#{x}" y="#{top - 10}" text-anchor="middle" font-size="8" fill="#5B6B62" font-family="Manrope">#{report_category_label(cat)}</text>)
     end
     rows.each_with_index do |(dept_key, catmap), ri|
       y = top + ri * cell
       dept = labels[dept_key]
-      svg << %(<text x="#{left - 8}" y="#{y + cell / 2 + 3}" text-anchor="end" font-size="8" fill="#051C2C" font-family="Inter">#{ERB::Util.html_escape(dept.to_s.truncate(16))}</text>)
+      svg << %(<text x="#{left - 8}" y="#{y + cell / 2 + 3}" text-anchor="end" font-size="8" fill="#17251D" font-family="Manrope">#{ERB::Util.html_escape(dept.to_s.truncate(16))}</text>)
       cats.each_with_index do |cat, ci|
         x = left + ci * cell
         intensity = (catmap[cat] / max).clamp(0.0, 1.0)
@@ -457,9 +437,17 @@ module ReportsHelper
         # cell reads as more friction, not just a different colour. (Distinct hues
         # per column made intensities incomparable across columns.)
         opacity = (0.06 + intensity * 0.94).round(2)
-        svg << %(<rect x="#{x}" y="#{y}" width="#{cell - 4}" height="#{cell - 4}" rx="3" fill="#1F40FF" fill-opacity="#{opacity}"/>)
+        svg << %(<rect x="#{x}" y="#{y}" width="#{cell - 4}" height="#{cell - 4}" rx="3" fill="#0B7F58" fill-opacity="#{opacity}"/>)
       end
     end
+    legend_y = top + rows.size * cell + 14
+    legend_x = left
+    svg << %(<text x="#{legend_x - 8}" y="#{legend_y + 9}" text-anchor="end" font-size="7.5" fill="#5B6B62" font-family="Manrope">Less</text>)
+    4.times do |i|
+      opacity = (0.06 + (i / 3.0) * 0.94).round(2)
+      svg << %(<rect x="#{legend_x + i * 22}" y="#{legend_y}" width="18" height="12" rx="2" fill="#0B7F58" fill-opacity="#{opacity}"/>)
+    end
+    svg << %(<text x="#{legend_x + 4 * 22 - 2}" y="#{legend_y + 9}" font-size="7.5" fill="#5B6B62" font-family="Manrope">More friction</text>)
     svg << "</svg>"
     svg.html_safe
   end
@@ -477,22 +465,183 @@ module ReportsHelper
       x = 40 + (feas / 100.0) * 320
       y = 300 - (impact / 100.0) * 260
       pill = report_priority_pill(rec["priority"])
-      color = { "high" => "#E6338A", "med" => "#00A9F4", "low" => "#8896A2" }[pill]
+      color = { "high" => "#DB2979", "med" => "#088EAF", "low" => "#7C8B82" }[pill]
       label = rec["title"].to_s.split.first(2).join(" ")
       points << %(<circle cx="#{x.round}" cy="#{y.round}" r="7" fill="#{color}"/>)
-      points << %(<text x="#{x.round + 11}" y="#{y.round + 3}" font-size="8" fill="#051C2C" font-family="Inter">#{ERB::Util.html_escape(label)}</text>)
+      points << %(<text x="#{x.round + 11}" y="#{y.round + 3}" font-size="8" fill="#17251D" font-family="Manrope">#{ERB::Util.html_escape(label)}</text>)
     end
 
     <<~SVG.html_safe
       <svg viewBox="0 0 420 330" xmlns="http://www.w3.org/2000/svg" width="100%" aria-hidden="true">
-        <line x1="40" y1="300" x2="380" y2="300" stroke="#051C2C" stroke-width="1"/>
-        <line x1="40" y1="20" x2="40" y2="300" stroke="#051C2C" stroke-width="1"/>
-        <line x1="210" y1="20" x2="210" y2="300" stroke="#D6DEE6" stroke-dasharray="3 3"/>
-        <line x1="40" y1="160" x2="380" y2="160" stroke="#D6DEE6" stroke-dasharray="3 3"/>
-        <text x="210" y="322" text-anchor="middle" font-size="8" fill="#5A6B78" font-family="Inter">Feasibility →</text>
-        <text x="18" y="160" text-anchor="middle" font-size="8" fill="#5A6B78" font-family="Inter" transform="rotate(-90 18 160)">Impact →</text>
+        <line x1="40" y1="300" x2="380" y2="300" stroke="#17251D" stroke-width="1"/>
+        <line x1="40" y1="20" x2="40" y2="300" stroke="#17251D" stroke-width="1"/>
+        <line x1="210" y1="20" x2="210" y2="300" stroke="#E4EDE6" stroke-dasharray="3 3"/>
+        <line x1="40" y1="160" x2="380" y2="160" stroke="#E4EDE6" stroke-dasharray="3 3"/>
+        <text x="210" y="322" text-anchor="middle" font-size="8" fill="#5B6B62" font-family="Manrope">Feasibility →</text>
+        <text x="18" y="160" text-anchor="middle" font-size="8" fill="#5B6B62" font-family="Manrope" transform="rotate(-90 18 160)">Impact →</text>
         #{points.join}
       </svg>
     SVG
+  end
+
+  # --- Consultant prose ---------------------------------------------------
+  # Consultant sections used to render as `white-space: pre-wrap` plain text on a
+  # bare page: the expert's contribution — the part of the deliverable we sell —
+  # looked worse than the AI's. This renders the light markup the section
+  # scaffolds use (## headings, - bullets, **bold**, *italic*) as real typography.
+  #
+  # Escape first, then introduce markup, so consultant input can never inject HTML.
+  def report_rich_text(body)
+    text = body.to_s.gsub("\r\n", "\n").strip
+    return "".html_safe if text.blank?
+
+    blocks = text.split(/\n{2,}/).map { |block| report_rich_block(block) }
+    safe_join(blocks)
+  end
+
+  def report_rich_block(block)
+    lines = block.split("\n").map(&:strip).reject(&:blank?)
+    return "".html_safe if lines.empty?
+
+    if lines.all? { |l| l.start_with?("- ", "* ") }
+      items = lines.map { |l| tag.li(report_rich_inline(l.sub(/\A[-*]\s+/, ""))) }
+      return tag.ul(safe_join(items), class: "rt-list")
+    end
+
+    first = lines.first
+    if (m = first.match(/\A(#{'#'}{2,4})\s+(.+)\z/))
+      level = m[1].length
+      heading = tag.h4(report_rich_inline(m[2]), class: "rt-h rt-h#{level}")
+      rest = lines[1..].presence
+      return heading if rest.nil?
+
+      return safe_join([heading, tag.p(report_rich_inline(rest.join(" ")), class: "rt-p")])
+    end
+
+    tag.p(report_rich_inline(lines.join(" ")), class: "rt-p")
+  end
+
+  # **bold** and *italic* over escaped text. Bold runs first so *italic* inside a
+  # bold run is not consumed by the single-asterisk pass.
+  def report_rich_inline(fragment)
+    escaped = ERB::Util.html_escape(fragment.to_s)
+    escaped = escaped.gsub(/\*\*(.+?)\*\*/) { "<strong>#{Regexp.last_match(1)}</strong>" }
+    escaped = escaped.gsub(/(?<!\*)\*(?!\s)([^*]+?)(?<!\s)\*(?!\*)/) { "<em>#{Regexp.last_match(1)}</em>" }
+    escaped.html_safe
+  end
+
+  # --- Evidence attribution (no verbatim quotes) ---------------------------
+  # Replaces the raw interview excerpts that used to sit on every signal card.
+  # A client deliverable does not quote what an employee said — but it must stay
+  # falsifiable, so the aggregate weight behind a finding is stated instead.
+  def report_evidence_line(signal, docs_first: false)
+    count = signal["evidence_count"].to_i
+    depts = Array(signal["departments"]).reject(&:blank?)
+    return nil if count.zero? && depts.empty?
+
+    parts = []
+    parts << "#{count} evidence point#{'s' unless count == 1}" if count.positive?
+    if depts.size > 1
+      parts << "#{depts.size} departments"
+    elsif depts.one?
+      parts << depts.first
+    end
+    return nil if parts.empty?
+
+    source = docs_first ? "internal documents" : "interviews and documents"
+    "Seen in #{parts.join(' across ')} · #{source}"
+  end
+
+  # --- Page budgeting -----------------------------------------------------
+  # The whitespace bug: .page is min-height 210mm with a footer pinned to the
+  # bottom, so a section whose content overran one sheet split across two — the
+  # footer landing at the bottom of the SECOND sheet with a hole above it.
+  # Long lists are chunked into page-sized groups instead of trusting the
+  # browser to break them somewhere sensible.
+  def report_paginate(list, per_page)
+    Array(list).each_slice([per_page.to_i, 1].max).to_a
+  end
+
+  # --- Expert layer -------------------------------------------------------
+  def report_expert(snapshot)
+    snapshot["expert"].is_a?(Hash) ? snapshot["expert"] : nil
+  end
+
+  def report_opportunity(snapshot)
+    report_expert(snapshot)&.dig("opportunity")
+  end
+
+  # "AED 450,000" / "450,000 hours" — the unit carries the period ("AED / year").
+  def report_amount(amount, unit)
+    parts = report_amount_parts(amount, unit)
+    parts[:period].present? ? "#{parts[:figure]} / #{parts[:period]}" : parts[:figure]
+  end
+
+  # The figure and its period, separately. Set as one string at display size the
+  # period wrapped onto its own line mid-figure ("AED 450,000 /" then "year"),
+  # which reads as a typesetting accident; splitting it is deliberate.
+  def report_amount_parts(amount, unit)
+    number = amount.to_i.to_s.reverse.scan(/\d{1,3}/).join(",").reverse
+    currency, _, period = unit.to_s.partition("/")
+    currency = currency.strip
+    figure = currency.match?(/\A[A-Z]{2,4}\z/) ? "#{currency} #{number}" : "#{number} #{currency}".strip
+    { figure: figure, period: period.strip.presence }
+  end
+
+  # A validator row that is just the person who already sized the opportunity is
+  # the same credential printed twice on one page.
+  def report_other_validators(snapshot)
+    expert = report_expert(snapshot)
+    return [] unless expert
+
+    sizer = expert.dig("opportunity", "consultant")
+    Array(expert["validators"]).reject { |v| v["name"] == sizer }
+  end
+
+  # Deterministic stand-in for the LLM narrative's supporting points, so the
+  # brief's first page is honest rather than sparse when no model is configured.
+  def report_deterministic_support(snapshot, limit: 3)
+    Array(snapshot["signals"]).sort_by { |s| -s["strength"].to_f }.first(limit).filter_map do |signal|
+      label = signal["label"].to_s.strip
+      next if label.blank?
+
+      depts = Array(signal["departments"]).reject(&:blank?)
+      count = signal["evidence_count"].to_i
+      # Terse and varied enough to read as findings rather than three runs of the
+      # same sentence. Strength is downcased: report_strength_label capitalises
+      # for use as a standalone label, which reads wrong mid-sentence.
+      parts = ["#{report_strength_label(signal['strength']).to_s.downcase} strength"]
+      parts << depts.join(", ") if depts.any?
+      parts << "#{count} evidence point#{'s' unless count == 1}" if count.positive?
+      # Deliberately not the evidence source: it is identical on every bullet,
+      # and page 4 states the evidence base once.
+      "#{label} — #{parts.compact.join(' · ')}"
+    end
+  end
+
+  def report_evidence_base(snapshot)
+    base = snapshot["evidence_base"]
+    base.is_a?(Hash) ? base : {}
+  end
+
+  # "24 interviews across 5 departments and 12 internal documents" — method, not
+  # content. This is what survives cutting the document index and the media cards.
+  def report_evidence_base_sentence(snapshot)
+    base = report_evidence_base(snapshot)
+    parts = []
+    if base["interviews"].to_i.positive?
+      parts << "#{base['interviews']} discovery interview#{'s' unless base['interviews'].to_i == 1}"
+    end
+    if base["documents"].to_i.positive?
+      parts << "#{base['documents']} internal document#{'s' unless base['documents'].to_i == 1}"
+    end
+    if base["media"].to_i.positive?
+      parts << "#{base['media']} media exhibit#{'s' unless base['media'].to_i == 1}"
+    end
+    return nil if parts.empty?
+
+    sentence = parts.to_sentence
+    depts = base["departments"].to_i
+    depts.positive? ? "#{sentence}, spanning #{depts} department#{'s' unless depts == 1}" : sentence
   end
 end

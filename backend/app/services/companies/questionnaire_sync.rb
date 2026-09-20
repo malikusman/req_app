@@ -1,8 +1,14 @@
 # frozen_string_literal: true
 
 module Companies
-  # Syncs questionnaire answers into company_profile + company_systems.
+  # Folds questionnaire answers into company_profile + company_systems.
+  #
+  # The questionnaire is what the company says in their own words; company_profile
+  # is the normalised form the rest of the platform reasons about (catalog fit,
+  # report firmographics, agent context). This is the one place that translates.
   class QuestionnaireSync
+    # Q01's option list. "Other" and anything unrecognised fall to "other" rather
+    # than inventing a category.
     INDUSTRY_MAP = {
       "Retail & E-commerce" => "retail",
       "Manufacturing" => "manufacturing",
@@ -11,7 +17,7 @@ module Companies
       "Real Estate" => "other",
       "Logistics & Transportation" => "logistics",
       "Hospitality & Food Service" => "other",
-      "Professional Services (Legal/Consulting/Accounting)" => "professional_services",
+      "Professional Services" => "professional_services",
       "Financial Services & Insurance" => "finance",
       "Education" => "other",
       "IT & Software" => "technology",
@@ -23,28 +29,26 @@ module Companies
       "Other" => "other"
     }.freeze
 
+    # Q03 asks in eight bands; company_profile speaks in five, and
+    # Catalog::CompanyFitService matches on those five by string. Widening the
+    # stored vocabulary would silently stop that matching, so the finer question
+    # folds back into the coarser profile. The question is still worth asking at
+    # eight — the answer is kept verbatim in the questionnaire either way.
     SIZE_MAP = {
       "1–10" => "1-10",
-      "1-10" => "1-10",
-      "11–50" => "11-50",
-      "11-50" => "11-50",
-      "51–200" => "51-200",
-      "51-200" => "51-200",
-      "201–500" => "201-500",
-      "201-500" => "201-500",
-      "500+" => "500+"
+      "11–25" => "11-50",
+      "26–50" => "11-50",
+      "51–100" => "51-200",
+      "101–250" => "51-200",
+      "251–500" => "201-1000",
+      "501–1,000" => "201-1000",
+      "1,000+" => "1000+"
     }.freeze
 
-    REVENUE_MAP = {
-      "Prefer not to say" => nil,
-      "<$500K" => "under_500k",
-      "$500K–$2M" => "500k_2m",
-      "$2M–$10M" => "2m_10m",
-      "$10M–$50M" => "10m_50m",
-      "$50M+" => "50m_plus"
-    }.freeze
-
-    SYSTEM_KEYS = %w[erp_system crm_system accounting_software hr_software].freeze
+    # Values that mean "we don't have one" rather than naming a system.
+    NON_SYSTEMS = ["None", "Spreadsheets", "Mostly physical files", "A network shared drive",
+                   "A shared email inbox", "Handled by an external accountant",
+                   "Custom / in-house system", "Custom / in-house dashboards"].freeze
 
     def self.call(company:, answers:)
       new(company: company, answers: answers).call
@@ -56,14 +60,15 @@ module Companies
     end
 
     def call
+      country = @answers["q04_headquarters_country"].presence
+
       profile = {
         industry: mapped_industry,
         size_band: mapped_size,
-        country: @answers["company_location"].presence,
-        region: @answers["company_location"].presence,
-        annual_revenue_band: mapped_revenue,
-        org_departments: Array(@answers["departments_present"]).map(&:to_s).reject(&:blank?),
-        business_goals: Array(@answers["primary_goals"]).map(&:to_s).reject(&:blank?)
+        country: country,
+        region: country,
+        org_departments: string_list("q07_departments"),
+        business_goals: string_list("q40_desired_outcomes")
       }.compact
 
       Companies::ProfileUpdater.call(
@@ -77,41 +82,34 @@ module Companies
     private
 
     def mapped_industry
-      raw = @answers["company_industry"].to_s
+      raw = @answers["q01_primary_industry"].to_s
       return nil if raw.blank?
 
       INDUSTRY_MAP[raw] || "other"
     end
 
     def mapped_size
-      raw = @answers["company_size"].to_s
+      raw = @answers["q03_employee_count"].to_s
       return nil if raw.blank?
 
       SIZE_MAP[raw] || raw
     end
 
-    def mapped_revenue
-      raw = @answers["annual_revenue"].to_s
-      return nil if raw.blank?
-
-      REVENUE_MAP.fetch(raw, raw.parameterize.underscore)
+    def string_list(key)
+      Array(@answers[key]).map(&:to_s).reject(&:blank?)
     end
 
+    # Q22 names a system per category; Q23 names the productivity tools in daily
+    # use. Both are things the company actually runs, which is what company_systems
+    # is for.
     def known_systems
-      names = []
-      SYSTEM_KEYS.each do |key|
-        value = @answers[key].to_s.strip
-        next if value.blank? || value == "None"
+      from_matrix = @answers["q22_business_systems"]
+      names = from_matrix.is_a?(Hash) ? from_matrix.values.map(&:to_s) : []
+      names += string_list("q23_productivity_tools")
 
-        names << value
-      end
-      Array(@answers["communication_tools"]).each do |tool|
-        t = tool.to_s.strip
-        next if t.blank? || t == "Other"
-
-        names << t
-      end
-      names.uniq
+      names.map(&:strip)
+           .reject { |n| n.blank? || n.start_with?("Other") || NON_SYSTEMS.include?(n) }
+           .uniq
     end
   end
 end

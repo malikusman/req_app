@@ -1,4 +1,5 @@
 import { Download } from 'lucide-react';
+import type { ReportVariant } from '@/lib/api';
 import {
   Sheet,
   SheetContent,
@@ -8,6 +9,10 @@ import {
 } from '@/components/shadcn/sheet';
 import { Button } from '../../../components/ui';
 
+// The reviewer has to be able to SEE the executive brief before submitting.
+// Four pages is where a weak governing thought does maximum damage — there is no
+// surrounding detail to soften it — and the brief is the artifact a client
+// actually forwards.
 export function ConsultantPdfDrawer({
   open,
   onOpenChange,
@@ -16,6 +21,8 @@ export function ConsultantPdfDrawer({
   downloadUrl,
   mode,
   onModeChange,
+  variant,
+  onVariantChange,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -24,15 +31,30 @@ export function ConsultantPdfDrawer({
   downloadUrl: string | null;
   mode: 'stored' | 'draft';
   onModeChange: (mode: 'stored' | 'draft') => void;
+  variant: ReportVariant;
+  onVariantChange: (variant: ReportVariant) => void;
 }) {
   const url = mode === 'draft' ? draftUrl : previewUrl;
+
+  const pill = (active: boolean) =>
+    `rounded-full px-3 py-1 text-xs font-medium transition ${
+      active ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'
+    }`;
+
   const tab = (value: 'stored' | 'draft', label: string) => (
+    <button type="button" onClick={() => onModeChange(value)} className={pill(mode === value)}>
+      {label}
+    </button>
+  );
+
+  const variantTab = (value: ReportVariant, label: string) => (
     <button
       type="button"
-      onClick={() => onModeChange(value)}
-      className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-        mode === value ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'
-      }`}
+      onClick={() => onVariantChange(value)}
+      // The stored artifact is only fetched for the full report; the brief is
+      // reviewable in the live "with your edits" render.
+      disabled={mode === 'stored' && value !== 'full'}
+      className={`${pill(variant === value)} disabled:cursor-not-allowed disabled:opacity-40`}
     >
       {label}
     </button>
@@ -48,9 +70,12 @@ export function ConsultantPdfDrawer({
               ? 'Live render with your pending section edits applied — what the client gets on approval.'
               : 'The last generated deliverable artifact.'}
           </SheetDescription>
-          <div className="flex items-center gap-2 pt-2">
+          <div className="flex flex-wrap items-center gap-2 pt-2">
             {tab('draft', 'With your edits')}
             {tab('stored', 'Stored PDF')}
+            <span className="mx-1 h-4 w-px bg-border" aria-hidden />
+            {variantTab('full', 'Full report')}
+            {variantTab('exec_brief', 'Executive brief · 4pp')}
             {downloadUrl && (
               <a href={downloadUrl} target="_blank" rel="noreferrer" className="ml-auto inline-flex">
                 <Button variant="secondary" size="sm" icon={<Download className="h-4 w-4" />}>

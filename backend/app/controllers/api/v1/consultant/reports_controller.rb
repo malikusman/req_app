@@ -32,8 +32,41 @@ module Api
           authorize report, :download?
           return head :unprocessable_entity if report.report_snapshot.blank?
 
-          html = Reports::RegenerateWithReviewService.render_html(report: report)
+          # The consultant must be able to SEE the brief before submitting. Four
+          # pages is where a weak governing thought does maximum damage — there
+          # is no surrounding detail to soften it.
+          variant = normalize_variant(nil)
+          return if performed?
+
+          html = Reports::RegenerateWithReviewService.render_html(report: report, variant: variant)
           send_data html, type: "text/html", disposition: "inline"
+        end
+
+        # The consultant generates, and re-generates as the evidence changes.
+        #
+        # They are the one who knows whether new interviews actually change the
+        # advice, so the trigger belongs with them rather than with the client.
+        # `force` is theirs to use: the staleness check is a hint, not a veto —
+        # a consultant re-cutting a report after editing sections has a reason
+        # the system cannot see.
+        def create
+          company = policy_scope(::Company).find(params[:company_id])
+          authorize ::Report, :create?
+
+          result = Reports::EnqueueService.call(
+            company: company,
+            triggered_by: current_consultant_user,
+            force: params[:force].to_s == "true"
+          )
+          render json: {
+            report: report_json(result[:report]),
+            stale: result[:stale],
+            first: result[:first]
+          }, status: :accepted
+        rescue Reports::EnqueueService::Busy => e
+          render json: { error: e.message }, status: :conflict
+        rescue Reports::EnqueueService::NotStale => e
+          render json: { error: e.message, forceable: true }, status: :unprocessable_entity
         end
 
         private

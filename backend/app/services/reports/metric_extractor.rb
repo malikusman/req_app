@@ -52,7 +52,10 @@ module Reports
     def gather_evidence
       evidence = []
       @company.documents.where(status: "ready").includes(:document_chunks).find_each do |doc|
-        label = "Document: #{doc.filename}"
+        # Not the filename. A metric's provenance in a client deliverable is
+        # "an internal document", not "2026-Q2-AP-aging-FINAL-v3.xlsx" — the
+        # filename is working-paper detail and often reveals more than intended.
+        label = "Internal document"
         doc.document_chunks.order(:chunk_index).limit(12).each do |chunk|
           evidence << { text: chunk.content.to_s, source: label }
         end
@@ -120,9 +123,18 @@ module Reports
     end
 
     # Strip the number out of the clause to leave the "what it measures" phrase.
+    #
+    # Cutting the figure out of the middle of a sentence leaves punctuation
+    # stranded: "Manager sign-off waits 2-3 days." becomes "Manager sign-off
+    # waits ." — which shipped as the largest line on page one of the executive
+    # brief, reading "Manager sign-off waits .: 2-3 days". So close the gap
+    # before any orphaned punctuation, then drop it: this is a label, and a
+    # label does not end in a full stop.
     def humanize_clause(sentence, headline)
       phrase = sentence.sub(headline, "").gsub(/\s+/, " ").strip
-      phrase = phrase.sub(/\A[-–—•,:;]\s*/, "").sub(/[,:;]\s*\z/, "")
+      phrase = phrase.sub(/\A[-–—•,:;.]\s*/, "")
+      phrase = phrase.gsub(/\s+([,.;:!?])/, '\1')
+      phrase = phrase.sub(/[\s,:;.!?]+\z/, "")
       phrase.presence&.truncate(SNIPPET_MAX) || sentence.truncate(SNIPPET_MAX)
     end
 

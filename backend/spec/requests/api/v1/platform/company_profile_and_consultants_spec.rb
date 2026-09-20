@@ -12,9 +12,9 @@ RSpec.describe "Platform company profile + consultant cards", type: :request do
         :company,
         company_profile: { "industry" => "retail", "size_band" => "51-200" },
         questionnaire_answers: {
-          "company_industry" => "Retail & E-commerce",
-          "company_size" => "51–200",
-          "primary_goals" => ["Cut manual work"]
+          "q01_primary_industry" => "Retail & E-commerce",
+          "q03_employee_count" => "51–100",
+          "q40_desired_outcomes" => ["Cut manual work"]
         }
       )
     end
@@ -25,7 +25,7 @@ RSpec.describe "Platform company profile + consultant cards", type: :request do
       body = JSON.parse(response.body)
       c = body["company"]
       expect(c["company_profile"]["industry"]).to eq("retail")
-      expect(c["questionnaire_answers"]["company_industry"]).to eq("Retail & E-commerce")
+      expect(c["questionnaire_answers"]["q01_primary_industry"]).to eq("Retail & E-commerce")
       expect(c).to have_key("questionnaire_completion_percent")
       expect(c["questionnaire_completion_percent"]).to be > 0
     end

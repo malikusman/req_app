@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, type DiscoveryQuestion } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
-import { PageHeader, DataTable, Button, Badge, EmptyState } from '../../components/ui';
+import { PageHeader, DataTable, Button, Badge, EmptyState, ErrorNotice} from '../../components/ui';
 
 export function CompanyDiscoveryQuestions() {
   const token = useCompanyToken();
@@ -44,12 +44,7 @@ export function CompanyDiscoveryQuestions() {
       {error && <p className="text-sm text-status-error">{error}</p>}
 
       {loadError && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-button border border-status-error/30 bg-status-errorBg px-4 py-3 text-sm text-status-error">
-          <span>{loadError}</span>
-          <Button size="sm" variant="secondary" onClick={load}>
-            Retry
-          </Button>
-        </div>
+        <ErrorNotice message={loadError} onRetry={load} />
       )}
 
       <DataTable

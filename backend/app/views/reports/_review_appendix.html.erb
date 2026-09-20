@@ -19,7 +19,7 @@
 
 <section class="page">
   <div class="eyebrow">Appendix · Expert judgement</div>
-  <h1 style="font-size:26pt;margin:4mm 0 5mm;">Overall notes</h1>
+  <h1 class="page-title">Overall notes</h1>
   <% if overall.any? %>
     <div class="split" style="grid-template-columns:1fr 1fr;">
       <% overall.each do |note| %>
@@ -34,8 +34,17 @@
     <p class="muted">No overall notes were recorded for this review cycle.</p>
   <% end %>
 
-  <% if dispositions.any? %>
-    <h2 style="font-size:16pt;margin:8mm 0 3mm;">Section dispositions</h2>
+  <%= render "reports/page_footer", company_name: company_name %>
+</section>
+
+<%# The dispositions table shared the overall-notes page and was unbounded: one
+    row per consultant per reviewed section, so two consultants over seven
+    sections already overran the sheet by 80px. It gets its own paginated pages,
+    like the findings and comments below. Twelve rows is what fits. %>
+<% report_paginate(dispositions, 12).each_with_index do |group, page_index| %>
+  <section class="page">
+    <div class="eyebrow">Appendix · Expert judgement</div>
+    <h1 class="page-title">Section dispositions<%= " · continued" if page_index.positive? %></h1>
     <table class="data">
       <thead>
         <tr>
@@ -46,7 +55,7 @@
         </tr>
       </thead>
       <tbody>
-        <% dispositions.each do |row| %>
+        <% group.each do |row| %>
           <tr>
             <td><%= h ReportsHelper.section_label(row["section_key"]) %></td>
             <td><%= h row["consultant"] %></td>
@@ -56,15 +65,22 @@
         <% end %>
       </tbody>
     </table>
-  <% end %>
+    <%= render "reports/page_footer", company_name: company_name %>
+  </section>
+<% end %>
 
-  <% if findings.any? %>
-    <h2 style="font-size:16pt;margin:8mm 0 3mm;">Structured findings</h2>
-    <% findings.each do |finding|
+<%# Findings and section comments were appended to the overall-notes page, which
+    overran the sheet. Each gets its own paginated pages — four findings and six
+    comment groups per page is what fits. %>
+<% report_paginate(findings, 4).each_with_index do |group, page_index| %>
+  <section class="page">
+    <div class="eyebrow">Appendix · Expert judgement</div>
+    <h1 class="page-title">Structured findings<%= " · continued" if page_index.positive? %></h1>
+    <% group.each do |finding|
          sev = finding["severity"].to_s.presence || "info"
          refs = Array(finding["evidence_refs"]).map(&:to_s).reject(&:blank?)
     %>
-      <div class="finding-card sev-<%= h sev %>" style="margin-bottom:3mm;">
+      <div class="finding-card sev-<%= h sev %>" style="margin-bottom:4mm;">
         <div class="finding-meta">
           <span><%= h finding["kind"].to_s.humanize %></span>
           <span class="status sev-<%= h sev %>"><%= h sev.humanize %></span>
@@ -84,32 +100,31 @@
         <% if refs.any? %>
           <div class="evidence-refs">
             <span class="lab">Evidence</span>
-            <% refs.each do |ref| %>
-              <code><%= h ref %></code>
-            <% end %>
+            <% refs.each do |ref| %><code><%= h ref %></code><% end %>
           </div>
         <% end %>
       </div>
     <% end %>
-  <% end %>
+    <%= render "reports/page_footer", company_name: company_name %>
+  </section>
+<% end %>
 
-  <% if section_notes.any? %>
-    <h2 style="font-size:16pt;margin:8mm 0 3mm;">Section comments</h2>
-    <% section_notes.group_by { |n| n["section_key"] }.each do |section_key, notes| %>
-      <div style="margin-bottom:4mm;">
-        <div style="font-weight:600;margin-bottom:1mm;"><%= h ReportsHelper.section_label(section_key) %></div>
+<% comment_groups = section_notes.group_by { |n| n["section_key"] }.to_a %>
+<% report_paginate(comment_groups, 6).each_with_index do |group, page_index| %>
+  <section class="page">
+    <div class="eyebrow">Appendix · Expert judgement</div>
+    <h1 class="page-title">Section comments<%= " · continued" if page_index.positive? %></h1>
+    <% group.each do |section_key, notes| %>
+      <div style="margin-bottom:5mm;">
+        <div class="exlabel" style="border-left:none;padding-left:0;margin-bottom:2mm;"><%= h ReportsHelper.section_label(section_key) %></div>
         <% notes.each do |note| %>
-          <div class="consultant-note" style="margin-bottom:2mm;">
+          <div class="consultant-note" style="margin-bottom:3mm;">
             <div class="who"><%= h note["consultant"] %></div>
             <p><%= h note["body"] %></p>
           </div>
         <% end %>
       </div>
     <% end %>
-  <% end %>
-
-  <div class="footer">
-    <div>Worktruth · <%= h company_name %> · Confidential</div>
-    <div>Expert judgement</div>
-  </div>
-</section>
+    <%= render "reports/page_footer", company_name: company_name %>
+  </section>
+<% end %>

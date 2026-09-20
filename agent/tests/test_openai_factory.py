@@ -57,3 +57,40 @@ class TestTruncationDetection:
         from app.multi_agent_llm import _truncated
 
         assert _truncated(object()) is False
+
+
+class TestBaseUrl:
+    """A blank OPENAI_BASE_URL must not become the base URL.
+
+    ChatOpenAI reads OPENAI_BASE_URL from the environment itself, so a
+    present-but-empty value -- exactly what `${OPENAI_BASE_URL:-}` yields in
+    docker-compose -- is taken as a real base and every call dies with
+    APIConnectionError("Connection error."). The true cause, "Request URL is
+    missing an 'http://' or 'https://' protocol", is buried three exceptions deep,
+    so this is expensive to diagnose and trivial to prevent. MEASURED against the
+    real API: blank env -> every call failed; explicit default -> 2.8s success.
+    """
+
+    def test_falls_back_to_the_official_api_when_unset(self, monkeypatch):
+        monkeypatch.setattr(settings, "openai_base_url", "")
+        # Set in the environment too: the point is that the library's own env
+        # lookup never gets the chance to read a blank value.
+        monkeypatch.setenv("OPENAI_BASE_URL", "")
+
+        llm = openai_factory.build_chat_openai()
+
+        assert str(llm.openai_api_base) == openai_factory.DEFAULT_CHAT_BASE
+
+    def test_keeps_an_explicit_local_base(self, monkeypatch):
+        monkeypatch.setattr(settings, "openai_base_url", "http://host.docker.internal:1234/v1")
+
+        llm = openai_factory.build_chat_openai()
+
+        assert str(llm.openai_api_base) == "http://host.docker.internal:1234/v1"
+
+    def test_strips_a_trailing_slash(self, monkeypatch):
+        monkeypatch.setattr(settings, "openai_base_url", "http://host.docker.internal:1234/v1/")
+
+        llm = openai_factory.build_chat_openai()
+
+        assert str(llm.openai_api_base) == "http://host.docker.internal:1234/v1"

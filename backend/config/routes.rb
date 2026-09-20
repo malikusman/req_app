@@ -76,6 +76,7 @@ Rails.application.routes.draw do
         post "companies/:company_id/agentic_ideas/:id/archive", to: "agentic_ideas#archive"
         post "companies/:company_id/agentic_ideas/synthesize", to: "agentic_ideas#synthesize"
         get "reports/pending", to: "reports#pending"
+        post "companies/:company_id/reports", to: "reports#create"
         post "companies/:company_id/reports/:id/approve", to: "reports#approve"
         get "companies/:company_id/reports/:id/download", to: "reports#download"
         get "companies/:company_id/reports/:id/preview", to: "reports#preview"
@@ -135,10 +136,21 @@ Rails.application.routes.draw do
           get "patterns", to: "intelligence#patterns"
           get "recommendations", to: "intelligence#recommendations"
           get "review_sync", to: "review_sync#show"
-          resources :reports, only: %i[index show], controller: "reports" do
+          # The McKinsey-style section library a consultant adds sections from.
+          get "section_templates", to: "section_templates#index"
+          # What else is worth asking this employee, and why. GET is side-effect
+          # free; POST turns a suggestion into a real requirement.
+          resources :discovery_packages, only: [], controller: "discovery_packages" do
+            resources :deep_dive_suggestions, only: %i[index create],
+                      controller: "deep_dive_suggestions"
+          end
+          resources :reports, only: %i[index show create], controller: "reports" do
             member do
               get :download
               get :preview
+              # Mint the next version when new evidence has landed. See
+              # Reports::ConsultantRefreshService for why it is a new version.
+              post :refresh
               get :workspace, to: "review_workspace#show"
             end
             resources :section_overrides, only: %i[index create update destroy], controller: "report_section_overrides"
@@ -187,6 +199,8 @@ Rails.application.routes.draw do
         get "onboarding", to: "onboarding#show"
         patch "onboarding/profile", to: "onboarding#update_profile"
         patch "onboarding/questionnaire", to: "onboarding#update_questionnaire"
+        # Autosave: answers only, none of the side effects the full save performs.
+        patch "onboarding/questionnaire/answers", to: "onboarding#update_questionnaire_answers"
         post "onboarding/complete", to: "onboarding#complete"
         resources :documents, only: %i[index show create update destroy] do
           member do
@@ -220,9 +234,12 @@ Rails.application.routes.draw do
           end
         end
         resources :agentic_ideas, only: %i[index], controller: "agentic_ideas"
-        resources :reports, only: %i[index show create] do
+        # No :create — generation is not a company action. See ReportPolicy#create?.
+        resources :reports, only: %i[index show] do
           member do
             get :download
+            # HTML for the in-portal document reader (page nav + section jumps).
+            get :read
             post :share
             post :revoke_share
           end

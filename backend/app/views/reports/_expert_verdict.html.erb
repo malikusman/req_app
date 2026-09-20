@@ -1,0 +1,92 @@
+<%# The expert's own answer, and the number they put on it.
+    Reason this page exists: consultants entered opportunity_amount /
+    opportunity_unit / opportunity_basis in the review workspace, and it reached
+    the company dashboard and NO pdf. The single figure an owner most wants,
+    validated by the exact person whose credibility we sell, was collected and
+    then dropped. It now leads the deliverable. %>
+<% company_name = snapshot.dig("company", "name") %>
+<% expert = report_expert(snapshot) %>
+<% verdict = expert && expert["verdict"] %>
+<% opportunity = expert && expert["opportunity"] %>
+<% return unless verdict || opportunity %>
+<section class="page verdict-page">
+  <div class="eyebrow">Expert assessment</div>
+  <h1 class="page-title">What an independent expert <span class="serif-accent">concluded</span></h1>
+
+  <div class="verdict-grid">
+    <div class="verdict-main">
+      <% if verdict %>
+        <% if verdict["title"].present? %>
+          <h3 class="verdict-title"><%= h verdict["title"] %></h3>
+        <% end %>
+        <div class="rich-text verdict-body"><%= report_rich_text(verdict["body"]) %></div>
+        <% if verdict["recommendation"].present? %>
+          <div class="verdict-rec">
+            <div class="exlabel">The recommended action</div>
+            <div class="rich-text"><%= report_rich_text(verdict["recommendation"]) %></div>
+          </div>
+        <% end %>
+        <%# The reviewer's overall conclusion in their own words. It used to
+            appear only in the appendix, two pages past the point where a reader
+            decides whether to trust the analysis. %>
+        <% if verdict["overall_note"].present? %>
+          <blockquote class="verdict-quote">
+            <%= h verdict["overall_note"] %>
+            <cite><%= h verdict["consultant"] %><% if verdict["consultant_credential"].present? %> · <%= h verdict["consultant_credential"] %><% end %></cite>
+          </blockquote>
+        <% end %>
+      <% end %>
+    </div>
+
+    <aside class="verdict-side">
+      <% others = report_other_validators(snapshot) %>
+      <% if opportunity %>
+        <% amount = report_amount_parts(opportunity["amount"], opportunity["unit"]) %>
+        <%# The dividing rule belongs to the block BELOW it, so it must not be
+            drawn when no validators follow — it read as a stray line. %>
+        <div class="opportunity <%= "is-divided" if others.any? %>">
+          <div class="exlabel">Identified opportunity</div>
+          <div class="opportunity-amount"><%= h amount[:figure] %></div>
+          <% if amount[:period] %><div class="opportunity-period">per <%= h amount[:period] %></div><% end %>
+          <% if opportunity["basis"].present? %>
+            <p class="opportunity-basis"><%= h opportunity["basis"] %></p>
+          <% end %>
+          <div class="opportunity-by">
+            Sized by <strong><%= h opportunity["consultant"] %></strong>
+            <% if opportunity["consultant_credential"].present? %>
+              <span class="muted"> · <%= h opportunity["consultant_credential"] %></span>
+            <% end %>
+            <% if opportunity["corroborated_by"].to_i.positive? %>
+              <div class="muted">Corroborated by <%= opportunity["corroborated_by"] %> further expert<%= "s" unless opportunity["corroborated_by"].to_i == 1 %>.</div>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+
+      <%# Only validators who are NOT the person who sized the opportunity — the
+          sizer's name and credential are already above, and printing the same
+          two lines twice on one page reads as a bug. %>
+      <% if others.any? %>
+        <div class="validators">
+          <div class="exlabel">Also validated by</div>
+          <% others.each do |v| %>
+            <div class="validator">
+              <div class="validator-name"><%= h v["name"] %></div>
+              <div class="validator-cred"><%= h v["credential"] %></div>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+
+      <% endorsed = Array(expert && expert["endorsed_section_keys"]) %>
+      <% if endorsed.any? %>
+        <div class="endorsed">
+          <div class="exlabel">Sections endorsed</div>
+          <p><%= endorsed.size %> of <%= ReportSections::KEYS.size %> reviewable sections were
+          reviewed and endorsed without a request for further evidence.</p>
+        </div>
+      <% end %>
+    </aside>
+  </div>
+  <%= render "reports/page_footer", company_name: company_name %>
+</section>

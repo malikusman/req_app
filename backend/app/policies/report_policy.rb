@@ -13,9 +13,20 @@ class ReportPolicy < ApplicationPolicy
     false
   end
 
+  # Generation belongs to the consultant, with the platform as the fallback.
+  #
+  # The consultant is the one who knows whether new evidence changes the advice,
+  # so the trigger sits with them rather than with the client. The platform needs
+  # it too: a company with no consultant assigned yet has nobody who could
+  # generate for it, and would otherwise never get a first report.
+  #
+  # The company is deliberately excluded — a client does not commission their own
+  # deliverable, and nothing reaches them without review and approval either way.
+  # Scoping to a company the consultant is actually assigned to is the
+  # controller's job, via policy_scope(Company), as it is for every other
+  # consultant action.
   def create?
-    # Company portal is view/download of shared reports only; generation is consultant/platform.
-    false
+    platform? || consultant?
   end
 
   def download?

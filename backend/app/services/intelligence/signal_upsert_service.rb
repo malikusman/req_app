@@ -23,7 +23,7 @@ module Intelligence
           label: attrs[:label]
         )
 
-        departments = canonical_departments(signal.departments + Array(@department))
+        departments = departments_for(signal, attrs)
         now = Time.current
         new_strength = attrs[:strength].to_f
         new_evidence = attrs[:evidence_count].to_i
@@ -73,6 +73,41 @@ module Intelligence
     end
 
     private
+
+    # Departments now arrive PER SIGNAL from SignalExtractor, derived from the
+    # evidence that produced it. The caller's `department:` scalar is advisory
+    # only — it used to be the sole source, applied to every signal in the batch,
+    # which meant a signal built entirely from one team's interview got tagged
+    # with whatever department the triggering document belonged to (and the
+    # interview path passed none at all, so nothing was ever tagged).
+    #
+    # A full-company run has seen all the evidence, so its derived set is
+    # authoritative and REPLACES what is stored — otherwise a department that
+    # no longer has any matching evidence sticks to the signal forever. A
+    # department-scoped run only sees a slice, so it merges.
+    def departments_for(signal, attrs)
+      derived = Array(attrs[:departments]) + Array(@department)
+      return canonical_departments(signal.departments + derived) unless @reconcile_stale
+
+      replacement = canonical_departments(derived)
+
+      # Going from "we knew which teams" to "we know nothing" is the one case
+      # where replacing is indistinguishable from losing data. It is still the
+      # right answer — no attributable evidence means no attribution — but it
+      # also happens when employee.department is blank across the board, which
+      # is a data-entry problem upstream rather than a finding. Worth being able
+      # to see, since the symptom (patterns quietly disappearing) is otherwise
+      # hard to trace back to here.
+      if replacement.empty? && signal.departments.present?
+        Rails.logger.info(
+          "[SignalUpsert] company=#{@company.id} signal=#{signal.id || 'new'} " \
+          "#{signal.signal_type} cleared departments #{signal.departments.inspect} — " \
+          "no attributable evidence in this pass"
+        )
+      end
+
+      replacement
+    end
 
     # Dedupe departments case-insensitively (keeping first-seen casing) so
     # "Finance" and "finance" don't both surface in the report.
