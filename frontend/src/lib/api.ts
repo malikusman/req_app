@@ -841,10 +841,25 @@ export const api = {
       token
     ),
 
-  approvePlatformReport: (token: string, companyId: number, reportId: number) =>
+  /** An override reason approves over blocking checks; it is audited. */
+  approvePlatformReport: (token: string, companyId: number, reportId: number, overrideReason?: string) =>
     request<{ report: PlatformReport }>(
       `/api/v1/platform/companies/${companyId}/reports/${reportId}/approve`,
-      { method: 'POST' },
+      { method: 'POST', body: JSON.stringify(overrideReason ? { override_reason: overrideReason } : {}) },
+      token
+    ),
+
+  platformReportChecks: (token: string, companyId: number, reportId: number) =>
+    request<{ checks: ReportCheck[] }>(
+      `/api/v1/platform/companies/${companyId}/reports/${reportId}/checks`,
+      {},
+      token
+    ),
+
+  consultantReportChecks: (token: string, companyId: number, reportId: number) =>
+    request<{ checks: ReportCheck[] }>(
+      `/api/v1/consultant/companies/${companyId}/reports/${reportId}/checks`,
+      {},
       token
     ),
 
@@ -2643,6 +2658,14 @@ export interface Finding {
   conversation_id: number | null;
   reviewed_at: string | null;
   reviewed_by: string | null;
+}
+
+/** One rule a Stage 1 report must keep (Reports::Critic). "block" stops approval. */
+export interface ReportCheck {
+  code: string;
+  severity: 'block' | 'warn';
+  section: string | null;
+  message: string;
 }
 
 export interface FindingEffort {

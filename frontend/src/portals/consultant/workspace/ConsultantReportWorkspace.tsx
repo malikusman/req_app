@@ -11,6 +11,7 @@ import { ConsultantAnnotationRail } from './ConsultantAnnotationRail';
 import { ConsultantChatDrawer } from './ConsultantChatDrawer';
 import { ConsultantEmployeeProfileCard } from './ConsultantEmployeeProfileCard';
 import { ConsultantPdfDrawer } from './ConsultantPdfDrawer';
+import { ConsultantReportChecksPanel } from './ConsultantReportChecksPanel';
 import { ConsultantSectionContent } from './ConsultantSectionContent';
 import { ConsultantSectionEditorPanel } from './ConsultantSectionEditorPanel';
 import { ConsultantDiscoveryPackagePanel } from './ConsultantDiscoveryPackagePanel';
@@ -1078,6 +1079,7 @@ export function ConsultantReportWorkspace() {
                   ))}
                 </ul>
               </Card>
+              <ConsultantReportChecksPanel companyId={Number(companyId)} reportId={Number(reportId)} />
               <ConsultantStructuredFindingsPanel
                 companyId={Number(companyId)}
                 reportId={Number(reportId)}

@@ -78,6 +78,7 @@ Rails.application.routes.draw do
         get "reports/pending", to: "reports#pending"
         post "companies/:company_id/reports", to: "reports#create"
         post "companies/:company_id/reports/:id/approve", to: "reports#approve"
+        get "companies/:company_id/reports/:id/checks", to: "reports#checks"
         get "companies/:company_id/reports/:id/download", to: "reports#download"
         get "companies/:company_id/reports/:id/preview", to: "reports#preview"
         post "companies/:company_id/impersonate", to: "impersonations#create"
@@ -148,6 +149,7 @@ Rails.application.routes.draw do
             member do
               get :download
               get :preview
+              get :checks
               # Mint the next version when new evidence has landed. See
               # Reports::ConsultantRefreshService for why it is a new version.
               post :refresh

@@ -15,6 +15,7 @@ import {
   type PlatformAuditLogEntry,
   type PlatformReport,
   type Recommendation,
+  type ReportCheck,
   type ReportVariant,
   type TimelineEvent,
 } from '../../lib/api';
@@ -36,7 +37,9 @@ import {
   ReadinessGauge,
   ParticipationSummary,
   DiscoveryProvenancePanel,
+  Textarea,
 } from '../../components/ui';
+import { ReportChecksList } from '../shared/ReportChecksList';
 import { label } from '../../lib/labels';
 import { allFields } from '../../lib/questionnaireOptions';
 import { PlatformCompanyConsultants } from './PlatformCompanyConsultants';
@@ -172,6 +175,10 @@ export function PlatformCompanyDetail() {
   const [tab, setTab] = useState(initialTab && TABS.includes(initialTab) ? initialTab : 'overview');
   const [loading, setLoading] = useState(true);
   const [approvingId, setApprovingId] = useState<number | null>(null);
+  // A report that fails its checks opens this, with the checks and room for an
+  // override reason (audited) if the approver judges a block a false positive.
+  const [checksFor, setChecksFor] = useState<{ reportId: number; checks: ReportCheck[] } | null>(null);
+  const [overrideReason, setOverrideReason] = useState('');
   const [selectedReportId, setSelectedReportId] = useState<number | null>(null);
   const [consultantCount, setConsultantCount] = useState<number | null>(null);
   const [generating, setGenerating] = useState(false);
@@ -334,15 +341,24 @@ export function PlatformCompanyDetail() {
     }
   };
 
-  const approveReport = async (reportId: number) => {
+  const approveReport = async (reportId: number, reason?: string) => {
     if (!token) return;
     setActionError('');
     setApprovingId(reportId);
     try {
-      await api.approvePlatformReport(token, companyId, reportId);
+      await api.approvePlatformReport(token, companyId, reportId, reason);
+      setChecksFor(null);
+      setOverrideReason('');
       await loadReports();
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Approval failed');
+      const message = err instanceof Error ? err.message : 'Approval failed';
+      // A 422 can be a failed check: fetch the list and show it rather than one line.
+      const checks =
+        err instanceof ApiRequestError && err.status === 422
+          ? await api.platformReportChecks(token, companyId, reportId).then((d) => d.checks).catch(() => [])
+          : [];
+      if (checks.some((c) => c.severity === 'block')) setChecksFor({ reportId, checks });
+      else setActionError(message);
     } finally {
       setApprovingId(null);
     }
@@ -768,6 +784,43 @@ export function PlatformCompanyDetail() {
           <AgenticIdeasPanel token={token} companyId={companyId} mode="platform" />
         </Card>
       )}
+
+      {/* Outside the tabs: it opens from the reports tab. */}
+      <Modal
+        open={!!checksFor}
+        onClose={() => setChecksFor(null)}
+        title="This report fails its checks"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setChecksFor(null)}>
+              Close
+            </Button>
+            <Button
+              variant="danger"
+              disabled={overrideReason.trim().length < 10}
+              loading={approvingId === checksFor?.reportId}
+              onClick={() => checksFor && approveReport(checksFor.reportId, overrideReason.trim())}
+            >
+              Approve anyway
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <p className="m-0 text-sm text-text-secondary">
+            A Stage 1 report must pass these before it goes to the client. Fix them — reword or review findings,
+            then regenerate — or, if a check is wrong about this report, say why and approve anyway. The reason
+            is recorded.
+          </p>
+          {checksFor && <ReportChecksList checks={checksFor.checks} />}
+          <Textarea
+            label="Why approve anyway"
+            value={overrideReason}
+            onChange={(e) => setOverrideReason(e.target.value)}
+            placeholder="e.g. “headcount” is the client's own goal, quoted"
+          />
+        </div>
+      </Modal>
 
       {tab === 'reports' && (
         <>

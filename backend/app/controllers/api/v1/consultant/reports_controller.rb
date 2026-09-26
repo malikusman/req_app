@@ -25,6 +25,14 @@ module Api
           send_report_download(report, disposition: disposition)
         end
 
+        # The rule checks the report must pass before platform approval
+        # (Reports::Critic), so the consultant can fix what they can before submitting.
+        def checks
+          report = policy_scope(::Report).find(params[:id])
+          authorize report, :show?
+          render json: { checks: Reports::Critic.call(report: report) }
+        end
+
         # WYSIWYG live preview: renders the deliverable with the consultant's pending
         # section edits + publishable findings applied (never stored).
         def preview
