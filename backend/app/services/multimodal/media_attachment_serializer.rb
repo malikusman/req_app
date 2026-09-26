@@ -29,9 +29,8 @@ module Multimodal
       return nil if request.nil? || attachment.storage_key.blank? || attachment.status != "ready"
 
       base = request.base_url
+      # No :company branch: the client never downloads what an employee sent.
       case namespace
-      when :company
-        "#{base}/api/v1/company/media_attachments/#{attachment.id}/download"
       when :platform
         cid = company_id || attachment.company_id
         "#{base}/api/v1/platform/companies/#{cid}/media_attachments/#{attachment.id}/download"

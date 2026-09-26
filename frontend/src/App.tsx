@@ -26,15 +26,11 @@ import { CompanyLayout } from './portals/company/CompanyLayout';
 import { CompanyDashboard } from './portals/company/CompanyDashboard';
 import { CompanyOnboarding } from './portals/company/CompanyOnboarding';
 import { CompanyEmployees } from './portals/company/CompanyEmployees';
-import { CompanyConversations } from './portals/company/CompanyConversations';
-import { CompanyConversationDetail } from './portals/company/CompanyConversationDetail';
 import { CompanyIntelligence } from './portals/company/CompanyIntelligence';
 import { CompanyDocuments } from './portals/company/CompanyDocuments';
 import { CompanyKnowledge } from './portals/company/CompanyKnowledge';
 import { ConsultantDocuments } from './portals/consultant/ConsultantDocuments';
 import { ConsultantDocumentAnalysis } from './portals/consultant/ConsultantDocumentAnalysis';
-import { CompanyMediaLibrary } from './portals/company/CompanyMediaLibrary';
-import { CompanyDiscoveryQuestions } from './portals/company/CompanyDiscoveryQuestions';
 import { CompanyReports } from './portals/company/CompanyReports';
 import { CompanyReportReader } from './portals/company/CompanyReportReader';
 import { CompanyConsultantsPage } from './portals/company/CompanyConsultantsPage';
@@ -185,8 +181,9 @@ export default function App() {
               <Route path="dashboard" element={<CompanyDashboard />} />
               <Route path="onboarding" element={<CompanyOnboarding />} />
               <Route path="employees" element={<CompanyEmployees />} />
-              <Route path="conversations" element={<CompanyConversations />} />
-              <Route path="conversations/:id" element={<CompanyConversationDetail />} />
+              {/* The client sees who has taken part, never what they said — see
+                  Your team. Old links land there rather than on a 404. */}
+              <Route path="conversations/*" element={<Navigate to="/company/employees" replace />} />
               <Route path="intelligence" element={<CompanyIntelligence />} />
               <Route path="intelligence/signals" element={<Navigate to="/company/intelligence#signals" replace />} />
               <Route path="intelligence/patterns" element={<Navigate to="/company/intelligence#patterns" replace />} />
@@ -194,8 +191,8 @@ export default function App() {
               <Route path="documents" element={<CompanyDocuments />} />
               <Route path="knowledge" element={<CompanyKnowledge />} />
               <Route path="outreaches" element={<CompanyOutreaches />} />
-              <Route path="media" element={<CompanyMediaLibrary />} />
-              <Route path="discovery-questions" element={<CompanyDiscoveryQuestions />} />
+              <Route path="media" element={<Navigate to="/company/employees" replace />} />
+              <Route path="discovery-questions" element={<Navigate to="/company/documents" replace />} />
               <Route path="recommendations" element={<Navigate to="/company/intelligence#recommendations" replace />} />
               <Route path="reports" element={<CompanyReports />} />
               <Route path="reports/:id/read" element={<CompanyReportReader />} />

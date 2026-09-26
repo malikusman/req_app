@@ -110,11 +110,15 @@ export function CompanyDashboard() {
       .companyExpertConsultants(token)
       .then((d) => setConsultants(d.expert_consultants || []))
       .catch(() => setConsultants([]));
+    // "Questions that need your input" are the consultant's questions to this
+    // admin — the same count, and the same destination, as the nav badge.
     api
-      .discoveryQuestions(token)
+      .companyOutreaches(token)
       .then((d) => {
-        const qs = d.questions || [];
-        setUnansweredQuestions(qs.filter((q) => !q.feedback).length);
+        const needsInput = (d.outreaches || []).filter(
+          (o) => o.status === 'pending_admin_approval' || (o.recipient_type === 'company_admin' && o.status === 'sent')
+        ).length;
+        setUnansweredQuestions(needsInput);
       })
       .catch(() => setUnansweredQuestions(0));
   }, [token]);

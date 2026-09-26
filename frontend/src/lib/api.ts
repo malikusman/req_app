@@ -404,24 +404,6 @@ export const api = {
     return data as { ok: boolean; message: string; nudge: EmployeeNudge };
   },
 
-  companyConversations: (token: string) =>
-    request<{ conversations: CompanyConversation[] }>('/api/v1/company/conversations', {}, token),
-
-  companyConversation: (token: string, conversationId: number) =>
-    request<{
-      conversation: CompanyConversation;
-      discovery_provenance: DiscoveryProvenanceEntry[];
-      messages: CompanyConversationMessage[];
-      media_attachments: MediaAttachment[];
-    }>(
-      `/api/v1/company/conversations/${conversationId}`,
-      {},
-      token
-    ),
-
-  companyMediaAttachments: (token: string) =>
-    request<{ media_attachments: MediaAttachment[] }>('/api/v1/company/media_attachments', {}, token),
-
   fetchMediaBlob: async (token: string, downloadUrl: string) => {
     let path = downloadUrl;
     if (downloadUrl.startsWith('http://') || downloadUrl.startsWith('https://')) {
@@ -912,16 +894,6 @@ export const api = {
     request<GeneratedReport>(
       `/api/v1/consultant/companies/${companyId}/reports`,
       { method: 'POST', body: JSON.stringify({ force }) },
-      token
-    ),
-
-  discoveryQuestions: (token: string) =>
-    request<{ questions: DiscoveryQuestion[] }>('/api/v1/company/discovery_questions', {}, token),
-
-  discoveryQuestionFeedback: (token: string, messageId: number, feedback: string, note?: string) =>
-    request<{ feedback: { message_id: number; feedback: string; note?: string } }>(
-      `/api/v1/company/discovery_questions/${messageId}/feedback`,
-      { method: 'POST', body: JSON.stringify({ feedback, note }) },
       token
     ),
 
@@ -2379,15 +2351,6 @@ export interface PlatformReport extends Report {
   }[];
 }
 
-export interface DiscoveryQuestion {
-  id: number;
-  body: string;
-  created_at: string;
-  employee: { id: number; display_name: string | null; department: string | null };
-  feedback: string | null;
-  feedback_note: string | null;
-}
-
 export interface Recommendation {
   id: number;
   title: string;
@@ -2632,7 +2595,8 @@ export interface EmployeeValueDigest {
   generated_at?: string | null;
   sent_at?: string | null;
   headline?: string | null;
-  content?: Record<string, unknown>;
+  /** The digest body goes to the employee only; the admin sees how many tips it holds. */
+  tip_count?: number;
 }
 
 export interface Employee {

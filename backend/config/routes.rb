@@ -226,8 +226,11 @@ Rails.application.routes.draw do
         get "intelligence/signals", to: "intelligence#signals"
         get "intelligence/patterns", to: "intelligence#patterns"
         get "intelligence/timeline", to: "intelligence#timeline"
-        get "discovery_questions", to: "discovery_questions#index"
-        post "discovery_questions/:id/feedback", to: "discovery_questions#feedback"
+        # No discovery_questions, conversations or media_attachments here. Each
+        # would hand the client what an employee said — the questions paraphrase
+        # the answers — and the consent text every employee accepts promises
+        # "only summarized insights … not raw chat logs or original files".
+        # Participation status lives on employees; consultants keep full access.
         resources :recommendations, only: %i[index] do
           member do
             patch :feedback, action: :update_feedback
@@ -268,9 +271,6 @@ Rails.application.routes.draw do
             post :send_digest
           end
         end
-        resources :conversations, only: %i[index show]
-        get "media_attachments", to: "media_attachments#index"
-        get "media_attachments/:id/download", to: "media_attachments#download"
       end
 
       namespace :public do

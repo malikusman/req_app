@@ -113,7 +113,6 @@ module Api
             department: employee.department,
             role_title: employee.role_title,
             seniority: employee.seniority,
-            profile: employee.profile_data,
             participation_status: employee.participation_status,
             onboarding_step: employee.onboarding_step,
             preferred_language: employee.preferred_language,

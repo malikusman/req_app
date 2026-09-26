@@ -1,5 +1,4 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
-import { Link } from 'react-router-dom';
 import { Users } from 'lucide-react';
 import { api, type Employee } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
@@ -181,18 +180,11 @@ export function CompanyEmployees() {
     <div className="space-y-8">
       <PageHeader
         title="Your team"
-        description="Invite people and follow their discovery — insight updates when interviews finish."
+        description="Invite people and see who has taken part. What each person says stays confidential — you receive the findings, not the conversations."
         actions={
-          <>
-            <Link to="/company/conversations">
-              <Button variant="secondary" size="sm">
-                View conversations
-              </Button>
-            </Link>
-            <Button size="sm" onClick={focusInviteForm}>
-              Invite people
-            </Button>
-          </>
+          <Button size="sm" onClick={focusInviteForm}>
+            Invite people
+          </Button>
         }
       />
 
@@ -370,11 +362,6 @@ export function CompanyEmployees() {
                 ) : e.participation_status === 'started' && e.last_nudged_at ? (
                   <span className="text-xs text-text-secondary">Cooldown (24h)</span>
                 ) : null}
-                <Link to={`/company/conversations?employee_id=${e.id}`}>
-                  <Button size="sm" variant="secondary">
-                    Conversations
-                  </Button>
-                </Link>
               </div>
             ),
           },

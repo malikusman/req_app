@@ -187,13 +187,11 @@ export function EmployeeDigestModal({
                 {latestDigest.delivery_status ? ` · ${latestDigest.delivery_status}` : ''}
               </div>
               {latestDigest.headline && <div className="mt-1">{latestDigest.headline}</div>}
-              {Array.isArray(latestDigest.content?.tips) && (
-                <ul className="mt-2 list-disc space-y-1 pl-4">
-                  {(latestDigest.content?.tips as string[]).slice(0, 3).map((t) => (
-                    <li key={t}>{t}</li>
-                  ))}
-                </ul>
-              )}
+              {latestDigest.tip_count ? (
+                <div className="mt-1 text-text-secondary">
+                  {latestDigest.tip_count} {latestDigest.tip_count === 1 ? 'tip' : 'tips'} for them
+                </div>
+              ) : null}
             </div>
           )}
           <p className="m-0 text-xs text-text-secondary">

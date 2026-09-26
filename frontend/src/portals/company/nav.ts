@@ -2,9 +2,7 @@ import {
   CreditCard,
   FileBarChart,
   FileText,
-  Image,
   LayoutDashboard,
-  MessageSquare,
   Search,
   Settings,
   ShieldCheck,
@@ -39,7 +37,6 @@ export function companyNavItems(opts: CompanyNavOpts = {}): SidebarItem[] {
 
     { to: '/company/reports', label: 'Reports', icon: FileBarChart, section: 'Insights' },
     { to: '/company/intelligence', label: 'What we found', icon: Search, section: 'Insights' },
-    { to: '/company/conversations', label: 'Conversations', icon: MessageSquare, section: 'Insights' },
 
     { to: '/company/outreaches', label: 'Consultant questions', icon: ShieldCheck, section: 'Working with you' },
     { to: '/company/consultants', label: 'Your consultant', icon: UserCircle, section: 'Working with you' },
@@ -71,5 +68,4 @@ export const SETTINGS_SECONDARY_LINKS: {
   icon: LucideIcon;
 }[] = [
   { to: '/company/billing', label: 'Billing', description: 'Trial usage and plan', icon: CreditCard },
-  { to: '/company/media', label: 'WhatsApp media', description: 'Inbound discovery media', icon: Image },
 ];
