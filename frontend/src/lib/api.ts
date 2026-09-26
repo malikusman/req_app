@@ -2622,6 +2622,13 @@ export interface Finding {
   frequency: { as_said: string | null; min: number | null; max: number | null; unit: string | null };
   duration: { as_said: string | null; min: number | null; max: number | null; unit: string | null };
   effort_type: 'active' | 'waiting' | 'mixed' | 'unknown';
+  /** A consultant's correction of the figures; null when the interview's stand. */
+  corrected_effort: FindingEffort | null;
+  /** What the report prints: the corrected figures, or the employee's words. */
+  display_frequency: string | null;
+  display_duration: string | null;
+  effective_effort_type: 'active' | 'waiting' | 'mixed' | 'unknown';
+  /** Always from whichever figures apply. */
   annual_hours: { min: number; max: number } | null;
   hours_basis: Record<string, unknown>;
   basis: 'discovery' | 'discovery_partial' | 'deep_dive' | 'consultant';
@@ -2636,6 +2643,12 @@ export interface Finding {
   conversation_id: number | null;
   reviewed_at: string | null;
   reviewed_by: string | null;
+}
+
+export interface FindingEffort {
+  frequency?: { min: number | null; max: number | null; unit: string | null };
+  duration?: { min: number | null; max: number | null; unit: string | null };
+  effort_type?: 'active' | 'waiting' | 'mixed';
 }
 
 export interface FindingsSummary {
@@ -2656,6 +2669,8 @@ export interface FindingUpdate {
   consultant_what_happens_now?: string;
   consultant_friction?: string;
   consultant_note?: string;
+  /** null clears the correction and puts the interview's figures back. */
+  consultant_effort?: FindingEffort | null;
 }
 
 export interface EmployeeValueDigest {

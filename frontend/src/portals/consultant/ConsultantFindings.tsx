@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Check, EyeOff, GitMerge, Pencil, RotateCcw, UserRound } from 'lucide-react';
+import { Calculator, Check, EyeOff, GitMerge, Pencil, RotateCcw, UserRound } from 'lucide-react';
 import {
   api,
   type Finding,
+  type FindingEffort,
   type FindingUpdate,
   type FindingsSummary,
 } from '../../lib/api';
@@ -14,6 +15,7 @@ import {
   Card,
   EmptyState,
   ErrorNotice,
+  Input,
   PageHeader,
   Select,
   Skeleton,
@@ -269,14 +271,18 @@ function FindingRow({
 }) {
   const [editing, setEditing] = useState(false);
   const [merging, setMerging] = useState(false);
+  const [correcting, setCorrecting] = useState(false);
   const [friction, setFriction] = useState(f.consultant.friction ?? f.original.friction ?? '');
   const [how, setHow] = useState(f.consultant.what_happens_now ?? f.original.what_happens_now ?? '');
   const [note, setNote] = useState(f.consultant.note ?? '');
   const [target, setTarget] = useState(duplicateOf && f.status === 'draft' ? String(duplicateOf.id) : '');
 
   const hours = hoursLabel(f);
-  const often = frequencyLabel(f);
-  const long = durationLabel(f);
+  // Corrected figures replace the employee's words in the report, so show them here too.
+  const often = f.corrected_effort ? f.display_frequency : frequencyLabel(f);
+  const long = f.corrected_effort ? f.display_duration : durationLabel(f);
+  const saidOften = frequencyLabel(f);
+  const saidLong = durationLabel(f);
   const setAside = f.status === 'hidden' || f.status === 'merged';
 
   const save = () => {
@@ -335,7 +341,14 @@ function FindingRow({
         </div>
       </dl>
 
-      {f.effort_type === 'waiting' ? (
+      {f.corrected_effort && (
+        <p className="m-0 text-xs text-muted-foreground">
+          Figures corrected by a consultant. The interview said: {saidOften ? `“${saidOften}”` : 'nothing on how often'}
+          {' · '}
+          {saidLong ? `“${saidLong}”` : 'nothing on how long'}.
+        </p>
+      )}
+      {f.effective_effort_type === 'waiting' ? (
         <p className="m-0 text-xs text-muted-foreground">
           This is time spent waiting, so it adds no hours.
         </p>
@@ -389,6 +402,18 @@ function FindingRow({
         </div>
       )}
 
+      {correcting && (
+        <FiguresForm
+          finding={f}
+          busy={busy}
+          onSave={(effort) => {
+            onUpdate({ consultant_effort: effort });
+            setCorrecting(false);
+          }}
+          onCancel={() => setCorrecting(false)}
+        />
+      )}
+
       {merging && (
         <div className="flex flex-wrap items-end gap-2 rounded-md border border-border p-3">
           <div className="min-w-[16rem] flex-1">
@@ -422,7 +447,7 @@ function FindingRow({
         </div>
       )}
 
-      {!editing && !merging && (
+      {!editing && !merging && !correcting && (
         <div className="flex flex-wrap items-center gap-2">
           {setAside ? (
             <Button
@@ -443,6 +468,9 @@ function FindingRow({
               )}
               <Button size="sm" variant="secondary" icon={<Pencil className="h-4 w-4" />} onClick={() => setEditing(true)}>
                 Edit wording
+              </Button>
+              <Button size="sm" variant="secondary" icon={<Calculator className="h-4 w-4" />} onClick={() => setCorrecting(true)}>
+                Correct figures
               </Button>
               {mergeTargets.length > 0 && (
                 <Button size="sm" variant="secondary" icon={<GitMerge className="h-4 w-4" />} onClick={() => setMerging(true)}>
@@ -472,5 +500,106 @@ function FindingRow({
         </div>
       )}
     </article>
+  );
+}
+
+const FREQUENCY_OPTIONS = [
+  { value: '', label: 'Choose…' },
+  { value: 'per_day', label: 'a day' },
+  { value: 'per_week', label: 'a week' },
+  { value: 'per_month', label: 'a month' },
+  { value: 'per_quarter', label: 'a quarter' },
+  { value: 'per_year', label: 'a year' },
+];
+
+const DURATION_OPTIONS = [
+  { value: 'minutes', label: 'minutes' },
+  { value: 'hours', label: 'hours' },
+  { value: 'days', label: 'days (8 hours)' },
+];
+
+const KIND_OPTIONS = [
+  { value: 'active', label: 'Their own working time' },
+  { value: 'mixed', label: 'Some work, some waiting' },
+  { value: 'waiting', label: 'Waiting only — adds no hours' },
+];
+
+const text = (n: number | null | undefined) => (n == null ? '' : String(n));
+const num = (v: string) => (v.trim() === '' ? null : Number(v));
+
+/**
+ * The consultant's correction of how often and how long. Stored beside the
+ * interview's figures, never over them; the hours are recomputed on the server
+ * from whichever applies, on the same basis as every other finding.
+ */
+function FiguresForm({
+  finding: f,
+  busy,
+  onSave,
+  onCancel,
+}: {
+  finding: Finding;
+  busy: boolean;
+  onSave: (effort: FindingEffort | null) => void;
+  onCancel: () => void;
+}) {
+  const start = f.corrected_effort;
+  const heardFrequency = f.frequency.unit === 'per_event' ? { ...f.frequency, unit: null } : f.frequency;
+  const [often, setOften] = useState(text(start?.frequency?.min ?? heardFrequency.min));
+  const [oftenMax, setOftenMax] = useState(text(start?.frequency?.max ?? heardFrequency.max));
+  const [oftenUnit, setOftenUnit] = useState(start?.frequency?.unit ?? heardFrequency.unit ?? '');
+  const [long, setLong] = useState(text(start?.duration?.min ?? f.duration.min));
+  const [longMax, setLongMax] = useState(text(start?.duration?.max ?? f.duration.max));
+  const [longUnit, setLongUnit] = useState(start?.duration?.unit ?? f.duration.unit ?? 'minutes');
+  const [kind, setKind] = useState<'active' | 'mixed' | 'waiting'>(
+    start?.effort_type ?? (f.effort_type === 'waiting' || f.effort_type === 'mixed' ? f.effort_type : 'active')
+  );
+
+  const waiting = kind === 'waiting';
+  const ready = waiting || (often.trim() !== '' && oftenUnit !== '' && long.trim() !== '');
+
+  const save = () =>
+    onSave({
+      frequency: often.trim() === '' ? undefined : { min: num(often), max: num(oftenMax) ?? num(often), unit: oftenUnit || null },
+      duration: long.trim() === '' ? undefined : { min: num(long), max: num(longMax) ?? num(long), unit: longUnit },
+      effort_type: kind,
+    });
+
+  return (
+    <div className="space-y-3 rounded-md border border-border p-3">
+      <div className="grid gap-3 sm:grid-cols-[1fr_1fr_1.4fr]">
+        <Input label="How often" type="number" min="0" step="any" value={often} onChange={(e) => setOften(e.target.value)} />
+        <Input label="to (optional)" type="number" min="0" step="any" value={oftenMax} onChange={(e) => setOftenMax(e.target.value)} />
+        <Select label="times" value={oftenUnit} onChange={(e) => setOftenUnit(e.target.value)} options={FREQUENCY_OPTIONS} />
+        <Input label="How long each time" type="number" min="0" step="any" value={long} onChange={(e) => setLong(e.target.value)} />
+        <Input label="to (optional)" type="number" min="0" step="any" value={longMax} onChange={(e) => setLongMax(e.target.value)} />
+        <Select label="unit" value={longUnit} onChange={(e) => setLongUnit(e.target.value)} options={DURATION_OPTIONS} />
+      </div>
+      <div className="max-w-sm">
+        <Select
+          label="What that time is"
+          value={kind}
+          onChange={(e) => setKind(e.target.value as 'active' | 'mixed' | 'waiting')}
+          options={KIND_OPTIONS}
+        />
+      </div>
+      <p className="m-0 text-xs text-muted-foreground">
+        Hours are worked out from these on the same basis as every finding — 48 working weeks, 240 working days,
+        8-hour days — and replace the interview&apos;s figures in the report. The interview&apos;s own figures are kept.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" onClick={save} loading={busy} disabled={!ready}>
+          Save figures
+        </Button>
+        <Button size="sm" variant="secondary" onClick={onCancel}>
+          Cancel
+        </Button>
+        {f.corrected_effort && (
+          <Button size="sm" variant="ghost" onClick={() => onSave(null)} loading={busy}>
+            Use the interview&apos;s figures
+          </Button>
+        )}
+      </div>
+    </div>
   );
 }

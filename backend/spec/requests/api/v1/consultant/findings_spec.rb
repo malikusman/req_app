@@ -62,6 +62,63 @@ RSpec.describe "Consultant review of findings", type: :request do
     expect(JSON.parse(response.body)["finding"]["needs_review"]).to be(false)
   end
 
+  describe "correcting the figures" do
+    let!(:po) do
+      # The interview heard "per PO" and ten to fifteen minutes: no yearly volume, no hours.
+      finding(area: "purchase orders", frequency_as_said: "per PO", frequency_unit: "per_event",
+              duration_as_said: "10 to 15 minutes", duration_min: 10, duration_max: 15, duration_unit: "minutes")
+    end
+
+    def correct(effort)
+      patch "/api/v1/consultant/companies/#{company.id}/findings/#{po.id}",
+            params: { finding: { consultant_effort: effort } }, headers: headers, as: :json
+    end
+
+    it "works out hours from the consultant's figures, and keeps the interview's beside them" do
+      expect(po.reload.hours?).to be(false)
+
+      correct(frequency: { min: "15", unit: "per_week" }, duration: { min: "10", max: "15", unit: "minutes" })
+
+      expect(response).to have_http_status(:ok)
+      body = JSON.parse(response.body)["finding"]
+      expect(body["annual_hours"]).to eq("min" => 120, "max" => 180)
+      expect(body["display_frequency"]).to eq("15 a week")
+      expect(body["display_duration"]).to eq("10–15 minutes")
+      expect(po.reload).to have_attributes(frequency_as_said: "per PO", frequency_unit: "per_event",
+                                           reviewed_by_id: consultant.id)
+      expect(po.hours_basis).to include("corrected" => true)
+    end
+
+    it "keeps the correction through a rebuild of the machine fields" do
+      correct(frequency: { min: 15, unit: "per_week" }, duration: { min: 10, max: 15, unit: "minutes" })
+      po.reload.update!(duration_min: 30, duration_max: 30) # what a rebuild from the interview does
+      expect([po.annual_hours_min, po.annual_hours_max]).to eq([120, 180])
+    end
+
+    it "refuses figures it cannot work from" do
+      correct(frequency: { min: "-2", unit: "per_week" }, duration: { min: "10", unit: "minutes" })
+      expect(response).to have_http_status(:unprocessable_entity)
+
+      correct(frequency: { min: "3", max: "2", unit: "per_week" }, duration: { min: "10", unit: "fortnights" })
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(JSON.parse(response.body)["error"]).to include("lower figure comes first", "needs a unit")
+    end
+
+    it "counts nothing when the consultant marks it as waiting" do
+      correct(frequency: { min: 15, unit: "per_week" }, duration: { min: 2, unit: "days" }, effort_type: "waiting")
+      expect(JSON.parse(response.body)["finding"]["annual_hours"]).to be_nil
+    end
+
+    it "puts the interview's figures back when the correction is cleared" do
+      correct(frequency: { min: 15, unit: "per_week" }, duration: { min: 10, unit: "minutes" })
+      correct(nil)
+      body = JSON.parse(response.body)["finding"]
+      expect(body["corrected_effort"]).to be_nil
+      expect(body["annual_hours"]).to be_nil
+      expect(body["display_frequency"]).to eq("per PO")
+    end
+  end
+
   it "does not accept merged as a plain status change" do
     patch "/api/v1/consultant/companies/#{company.id}/findings/#{a.id}", params: { finding: { status: "merged" } }, headers: headers
     expect(response).to have_http_status(:unprocessable_entity)

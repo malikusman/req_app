@@ -22,8 +22,11 @@ module Api
 
         def update
           attrs = params.require(:finding).permit(
-            :status, :consultant_title, :consultant_what_happens_now, :consultant_friction, :consultant_note
+            :status, :consultant_title, :consultant_what_happens_now, :consultant_friction, :consultant_note,
+            consultant_effort: [:effort_type, { frequency: %i[min max unit], duration: %i[min max unit] }]
           )
+          # An empty correction ({} or null) puts the interview's figures back.
+          attrs[:consultant_effort] = {} if params[:finding].key?(:consultant_effort) && attrs[:consultant_effort].blank?
           if attrs[:status].present? && !%w[draft approved hidden].include?(attrs[:status])
             return render json: { error: "Use merge to merge a finding" }, status: :unprocessable_entity
           end
@@ -112,6 +115,12 @@ module Api
             duration: { as_said: finding.duration_as_said, min: finding.duration_min&.to_f,
                         max: finding.duration_max&.to_f, unit: finding.duration_unit },
             effort_type: finding.effort_type,
+            # The consultant's correction of the figures, or null when the
+            # interview's stand. Hours below are always from whichever applies.
+            corrected_effort: finding.effort_corrected? ? finding.consultant_effort : nil,
+            display_frequency: finding.display_frequency,
+            display_duration: finding.display_duration,
+            effective_effort_type: finding.effective_effort_type,
             annual_hours: finding.hours? ? { min: finding.annual_hours_min, max: finding.annual_hours_max } : nil,
             hours_basis: finding.hours_basis,
             basis: finding.basis,

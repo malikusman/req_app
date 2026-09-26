@@ -63,12 +63,6 @@ module Findings
       # person's own time, and the wait is in the words.
       effort_type = "mixed" if effort_type == "waiting" && duration["unit"] == "minutes" && duration["min"].present?
 
-      hours = AnnualHours.call(
-        frequency_min: frequency["min"], frequency_max: frequency["max"], frequency_unit: frequency["unit"],
-        duration_min: duration["min"], duration_max: duration["max"], duration_unit: duration["unit"],
-        effort_type: effort_type
-      )
-
       finding = @company.findings.find_or_initialize_by(source_key: source_key(area))
       finding.assign_attributes(
         employee: @employee,
@@ -87,14 +81,14 @@ module Findings
         duration_max: duration["max"],
         duration_unit: Finding::DURATION_UNITS.include?(duration["unit"]) ? duration["unit"] : nil,
         effort_type: effort_type,
-        annual_hours_min: hours.min,
-        annual_hours_max: hours.max,
-        hours_basis: hours.basis.merge("reason" => hours.reason).compact,
         basis: @conversation.status == "completed" ? "discovery" : "discovery_partial",
-        confidence: confidence(friction, cost, hours),
         single_occupant_role: single_occupant?,
         evidence: evidence(area, friction, how, cost)
       )
+      # Hours come from the model (Finding#compute_annual_hours), so a consultant's
+      # corrected figures keep deciding them through every rebuild.
+      hours = finding.compute_annual_hours
+      finding.confidence = confidence(friction, cost, hours)
       finding.save!
       finding
     end

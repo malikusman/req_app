@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_09_27_110000) do
+ActiveRecord::Schema[7.1].define(version: 2026_09_27_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -972,6 +972,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_27_110000) do
     t.text "consultant_note"
     t.bigint "reviewed_by_id"
     t.datetime "reviewed_at"
+    t.jsonb "consultant_effort", default: {}, null: false
     t.index ["company_id", "source_key"], name: "index_findings_on_company_id_and_source_key", unique: true
     t.index ["company_id", "status"], name: "index_findings_on_company_id_and_status"
     t.index ["company_id"], name: "index_findings_on_company_id"
