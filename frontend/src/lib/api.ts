@@ -1001,6 +1001,27 @@ export const api = {
       token
     ),
 
+  consultantFindings: (token: string, companyId: number) =>
+    request<{ findings: Finding[]; summary: FindingsSummary }>(
+      `/api/v1/consultant/companies/${companyId}/findings`,
+      {},
+      token
+    ),
+
+  updateConsultantFinding: (token: string, companyId: number, id: number, payload: FindingUpdate) =>
+    request<{ finding: Finding }>(
+      `/api/v1/consultant/companies/${companyId}/findings/${id}`,
+      { method: 'PATCH', body: JSON.stringify({ finding: payload }) },
+      token
+    ),
+
+  mergeConsultantFinding: (token: string, companyId: number, id: number, intoId: number) =>
+    request<{ finding: Finding }>(
+      `/api/v1/consultant/companies/${companyId}/findings/${id}/merge`,
+      { method: 'POST', body: JSON.stringify({ into_id: intoId }) },
+      token
+    ),
+
   consultantAgenticIdeas: (token: string, companyId: number) =>
     request<{ agentic_ideas: AgenticIdea[] }>(
       `/api/v1/consultant/companies/${companyId}/agentic_ideas`,
@@ -2584,6 +2605,55 @@ export interface EmployeeValuePreference {
   interests: string[];
   unsubscribed_at: string | null;
   subscribed: boolean;
+}
+
+/** One piece of work, in one role, that costs the company something. */
+export interface Finding {
+  id: number;
+  department: string | null;
+  role_title: string | null;
+  area: string;
+  /** The consultant's wording where they gave one, the interview's otherwise. */
+  title: string;
+  what_happens_now: string | null;
+  friction: string | null;
+  original: { title: string | null; what_happens_now: string | null; friction: string | null };
+  consultant: { title: string | null; what_happens_now: string | null; friction: string | null; note: string | null };
+  frequency: { as_said: string | null; min: number | null; max: number | null; unit: string | null };
+  duration: { as_said: string | null; min: number | null; max: number | null; unit: string | null };
+  effort_type: 'active' | 'waiting' | 'mixed' | 'unknown';
+  annual_hours: { min: number; max: number } | null;
+  hours_basis: Record<string, unknown>;
+  basis: 'discovery' | 'discovery_partial' | 'deep_dive' | 'consultant';
+  confidence: 'high' | 'medium' | 'low';
+  single_occupant_role: boolean;
+  needs_review: boolean;
+  status: 'draft' | 'approved' | 'hidden' | 'merged';
+  merged_into_id: number | null;
+  employee: { id: number; name: string | null } | null;
+  conversation_id: number | null;
+  reviewed_at: string | null;
+  reviewed_by: string | null;
+}
+
+export interface FindingsSummary {
+  live_count: number;
+  approved_count: number;
+  merged_count: number;
+  hidden_count: number;
+  needs_review_count: number;
+  quantified_count: number;
+  /** De-duplicated: merged and hidden findings never count. */
+  annual_hours_min: number;
+  annual_hours_max: number;
+}
+
+export interface FindingUpdate {
+  status?: 'draft' | 'approved' | 'hidden';
+  consultant_title?: string;
+  consultant_what_happens_now?: string;
+  consultant_friction?: string;
+  consultant_note?: string;
 }
 
 export interface EmployeeValueDigest {

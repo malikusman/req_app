@@ -384,6 +384,18 @@ export function ConsultantCompanyOverview() {
                 )}
               </Card>
 
+              <Card title="Findings">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <p className="m-0 text-sm text-muted-foreground">
+                    Role by role, what the interviews found and the hours it costs. Approve what should reach the
+                    report, and merge findings that describe the same work.
+                  </p>
+                  <Link to={`/consultant/companies/${companyId}/findings`}>
+                    <Button icon={<ClipboardCheck className="h-4 w-4" />}>Review findings</Button>
+                  </Link>
+                </div>
+              </Card>
+
               <Card title="Evidence explorer">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <p className="m-0 text-sm text-muted-foreground">

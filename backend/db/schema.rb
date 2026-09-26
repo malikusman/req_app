@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_09_27_100000) do
+ActiveRecord::Schema[7.1].define(version: 2026_09_27_110000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -966,12 +966,19 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_27_100000) do
     t.jsonb "evidence", default: {}, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "consultant_title"
+    t.text "consultant_what_happens_now"
+    t.text "consultant_friction"
+    t.text "consultant_note"
+    t.bigint "reviewed_by_id"
+    t.datetime "reviewed_at"
     t.index ["company_id", "source_key"], name: "index_findings_on_company_id_and_source_key", unique: true
     t.index ["company_id", "status"], name: "index_findings_on_company_id_and_status"
     t.index ["company_id"], name: "index_findings_on_company_id"
     t.index ["conversation_id"], name: "index_findings_on_conversation_id"
     t.index ["employee_id"], name: "index_findings_on_employee_id"
     t.index ["merged_into_id"], name: "index_findings_on_merged_into_id"
+    t.index ["reviewed_by_id"], name: "index_findings_on_reviewed_by_id"
   end
 
   create_table "impersonation_sessions", force: :cascade do |t|
@@ -1505,6 +1512,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_27_100000) do
   add_foreign_key "employees", "companies"
   add_foreign_key "employees", "company_users", column: "invited_by_company_user_id"
   add_foreign_key "findings", "companies"
+  add_foreign_key "findings", "consultant_users", column: "reviewed_by_id"
   add_foreign_key "findings", "conversations"
   add_foreign_key "findings", "employees"
   add_foreign_key "findings", "findings", column: "merged_into_id"

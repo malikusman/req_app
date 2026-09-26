@@ -183,6 +183,11 @@ Rails.application.routes.draw do
           get "catalog/available", to: "catalog#available"
           post "catalog/add", to: "catalog#add_product"
           post "catalog/:id/endorse", to: "catalog#endorse"
+          resources :findings, only: %i[index update], controller: "findings" do
+            member do
+              post :merge
+            end
+          end
           resources :agentic_ideas, only: %i[index create update], controller: "agentic_ideas" do
             member do
               post :publish

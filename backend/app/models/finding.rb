@@ -24,9 +24,38 @@ class Finding < ApplicationRecord
   validates :frequency_unit, inclusion: { in: FREQUENCY_UNITS }, allow_nil: true
   validates :duration_unit, inclusion: { in: DURATION_UNITS }, allow_nil: true
 
+  belongs_to :reviewed_by, class_name: "ConsultantUser", optional: true
+
   scope :live, -> { where.not(status: %w[hidden merged]) }
+
+  validate :merge_target_is_a_live_sibling
 
   def hours?
     annual_hours_min.present? && annual_hours_max.present?
+  end
+
+  # What a client would read: the consultant's wording where they gave one, the
+  # interview's otherwise. The machine text itself is never changed.
+  def display_title = consultant_title.presence || title.presence || area
+  def display_what_happens_now = consultant_what_happens_now.presence || what_happens_now
+  def display_friction = consultant_friction.presence || friction
+
+  # A finding about the only person in a role identifies them, so it may not reach a
+  # client until a consultant has looked at it.
+  def needs_review? = single_occupant_role && status == "draft"
+
+  private
+
+  def merge_target_is_a_live_sibling
+    return if merged_into_id.blank?
+
+    target = merged_into
+    if target.nil? || target.company_id != company_id
+      errors.add(:merged_into, "must be a finding for the same company")
+    elsif target.id == id
+      errors.add(:merged_into, "cannot be the finding itself")
+    elsif target.status == "merged"
+      errors.add(:merged_into, "is itself merged into another finding")
+    end
   end
 end

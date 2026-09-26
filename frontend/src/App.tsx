@@ -51,6 +51,7 @@ import { PlatformCatalogCandidates } from './portals/platform/PlatformCatalogCan
 import { PlatformCatalogSources } from './portals/platform/PlatformCatalogSources';
 import { OutreachReplyPage } from './portals/public/OutreachReplyPage';
 import { ConsultantCatalog } from './portals/consultant/ConsultantCatalog';
+import { ConsultantFindings } from './portals/consultant/ConsultantFindings';
 import { DiscoverLanding } from './employee/DiscoverLanding';
 import { DiscoverChat } from './employee/DiscoverChat';
 
@@ -168,6 +169,7 @@ export default function App() {
               <Route path="companies/:companyId/documents" element={<ConsultantDocuments />} />
               <Route path="companies/:companyId/analysis" element={<ConsultantDocumentAnalysis />} />
               <Route path="companies/:companyId/catalog" element={<ConsultantCatalog />} />
+              <Route path="companies/:companyId/findings" element={<ConsultantFindings />} />
             </Route>
             <Route
               path="/company"
