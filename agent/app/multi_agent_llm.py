@@ -1,11 +1,16 @@
-"""The per-turn LLM call for the discovery interview.
+"""The talking half of a discovery turn: write what the interviewer says next.
 
-One call does the whole turn: react to the employee's reply, extract an insight
-and a reusable finding, report which dossier slots their answer supplied, park
-anything interesting it isn't asking about, and ask the next question.
+The turn used to be one call that talked AND recorded, which let the structured
+record degrade silently while the prose stayed good. Recording is now its own call
+(app/interview_capture), run first; by the time this runs, the reply has been folded
+into the dossier and area_flow has chosen the next topic from that fresh state.
 
-What to ask and when to stop is decided deterministically in app/orchestrator and
-app/area_flow — the model only asks and reports.
+So this call has one job — say the next thing well — and it returns plain text, not
+JSON. That removes JSON parse failures from the part the employee actually sees, and
+keeps the spoken reply short, which is what a voice interview needs.
+
+What to ask and when to stop is still decided deterministically in app/orchestrator
+and app/area_flow. The model only writes the words.
 """
 
 import json
@@ -18,10 +23,8 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from app import dossier
 from app.circuit_breaker import record_failure, record_success
 from app.config import settings
-from app.json_parse import LlmJsonParseError, extract_json_object
 from app.llm import OpenAIUnavailable
 from app.openai_factory import build_chat_openai, llm_configured, truncated as _truncated
-from app.orchestrator import needs_summary_refresh
 from app.personas import ORIENT_PERSONA
 
 # How many times a truncated reply may be retried with a doubled token cap.
@@ -47,6 +50,12 @@ CLOSING_MESSAGES = {
         "Danke, {name}! Fürs Discovery-Interview haben wir alles. "
         "Schreib mir jederzeit — Tipps, Tools oder Notizen aus deinem Tag. "
         "Für den Report sag \"add this to my interview\"."
+    ),
+    # Modern Standard Arabic, per the language rule: fus'ha is the default for Arabic.
+    "ar": (
+        "شكراً لك يا {name}! لدينا الآن ما نحتاجه من هذه المحادثة. "
+        "يمكنك مراسلتي في أي وقت — بنصيحة أو أداة أو ملاحظة من يومك. "
+        "وإن كان هناك ما تريد إضافته إلى مقابلتك، فقل \"add this to my interview\"."
     ),
 }
 
@@ -105,89 +114,139 @@ def _company_profile_blurb(state: dict[str, Any]) -> str:
     )
 
 
-def run_agent_turn(state: dict[str, Any]) -> dict[str, Any]:
-    """Returns the structured llm_output consumed by orchestrator.finalize_turn."""
-    if not llm_configured():
-        return _mock_agent_turn(state)
+def language_rule(language: str) -> str:
+    """English by default; Modern Standard Arabic for Arabic speakers; a dialect only
+    when the person is writing in that dialect themselves (Decision Register F4)."""
+    first = "Arabic (Modern Standard Arabic)" if language == "ar" else (language or "en")
+    return (
+        "- Reply in the language they are writing in. English is the default.\n"
+        "- If they write in Arabic, reply in Modern Standard Arabic (fus'ha). Switch to\n"
+        "  Emirati or another dialect ONLY if they are writing in that dialect themselves.\n"
+        "  System names, product codes and English business terms stay as they said them.\n"
+        f"- For your very first message, before they have written anything, use: {first}."
+    )
 
-    system = _build_system_prompt(state)
-    messages = [SystemMessage(content=system)]
-    # Wider raw window so the model can still see the interview's opening questions
-    # by Q7-8 (the truncated 6-message window was a top cause of re-asking).
+
+def write_question(state: dict[str, Any]) -> dict[str, Any]:
+    """{assistant_message, fallback_reason}. Raises OpenAIUnavailable on an outage so
+    Rails can send its delay notice and retry the whole turn."""
+    if not llm_configured():
+        return {"assistant_message": fallback_question(state), "fallback_reason": None}
+
+    text = _talk(_build_talk_prompt(state), state)
+    if text:
+        return {"assistant_message": text, "fallback_reason": None}
+    # Two empty replies in a row: ask the planned question in plain words rather than
+    # stall the employee on a delay notice. The reason travels with the message.
+    return {"assistant_message": fallback_question(state), "fallback_reason": "empty_reply"}
+
+
+def write_farewell(state: dict[str, Any]) -> str:
+    """They asked to stop. A short, warm goodbye — never a question, never pressure.
+    Never raises: the employee has done their part, and failing loudly now helps nobody."""
+    fallback = closing_message(state.get("preferred_language", "en"), state.get("employee_name", ""))
+    if not llm_configured():
+        return fallback
+    prompt = (
+        f"{_persona_line(state)}\n\nThey have just asked to stop the conversation. Reply in one "
+        "or two short sentences: thank them warmly, say what they shared is genuinely useful, and "
+        "tell them they can message again any time if something comes to mind. Do NOT ask a "
+        "question. Do NOT try to persuade them to continue. No emoji.\n"
+        f"{language_rule(state.get('preferred_language', 'en'))}\n\nWrite only your message."
+    )
+    try:
+        return _talk(prompt, state) or fallback
+    except OpenAIUnavailable:
+        return fallback
+
+
+def _talk(system_prompt: str, state: dict[str, Any]) -> str:
+    messages = [SystemMessage(content=system_prompt)]
+    # Wide enough that the model can still see the interview's opening questions by
+    # Q7-8 (a 6-message window was a top cause of re-asking).
     for item in (state.get("history") or [])[-14:]:
-        role = item.get("role", "user")
         content = item.get("content", "")
-        if role == "assistant":
+        if item.get("role") == "assistant":
             messages.append(SystemMessage(content=f"[Interviewer]: {content}"))
         else:
             messages.append(HumanMessage(content=content))
-    messages.append(HumanMessage(content=state["user_message"]))
+    if state.get("user_message"):
+        messages.append(HumanMessage(content=state["user_message"]))
 
-    # A cap that is too tight is worse than none: the reply is cut off mid-JSON,
-    # which cannot parse, and re-asking at the same cap truncates identically. So the
-    # cap escalates on truncation instead — one retry with real headroom recovers a
-    # verbose turn rather than failing the interview over it.
     cap = settings.openai_max_tokens
-    llm = build_chat_openai(temperature=0.4, json_mode=True, max_tokens=cap)
-
-    last_error = None
+    llm = build_chat_openai(temperature=0.4, json_mode=False, max_tokens=cap)
+    last_error: Exception | None = None
     truncation_retries = 0
+    empties = 0
     for attempt in range(settings.max_openai_retries + 1):
         try:
             response = llm.invoke(messages)
-            if _truncated(response):
-                if truncation_retries < MAX_TRUNCATION_RETRIES:
-                    truncation_retries += 1
-                    cap *= 2
-                    llm = build_chat_openai(temperature=0.4, json_mode=True, max_tokens=cap)
-                    continue
-                raise OpenAIUnavailable(
-                    f"model reply was still cut off mid-JSON at max_tokens={cap}; "
-                    "the prompt is asking for more output than the model will finish"
-                )
-            try:
-                payload = _parse_payload(response.content)
-            except LlmJsonParseError as parse_exc:
-                # One reformat retry — do not trip the breaker on the first bad JSON.
-                reformat = messages + [
-                    HumanMessage(
-                        content=(
-                            "Your previous reply was not valid JSON. "
-                            "Reply again with a single JSON object only, matching the schema."
-                        )
-                    )
-                ]
-                response = llm.invoke(reformat)
-                try:
-                    payload = _parse_payload(response.content)
-                except LlmJsonParseError:
-                    last_error = parse_exc
-                    record_failure()
-                    if attempt < settings.max_openai_retries:
-                        time.sleep(2**attempt)
-                        continue
-                    raise OpenAIUnavailable(str(parse_exc)) from parse_exc
-            record_success()
-            return payload
-        except OpenAIUnavailable:
-            raise
         except Exception as exc:  # noqa: BLE001 — transport / API failures
             last_error = exc
             record_failure()
             if attempt < settings.max_openai_retries:
                 time.sleep(2**attempt)
+                continue
+            raise OpenAIUnavailable(str(exc)) from exc
 
-    raise OpenAIUnavailable(str(last_error))
+        if _truncated(response) and truncation_retries < MAX_TRUNCATION_RETRIES:
+            # Reasoning models spend the budget thinking before they write; re-asking
+            # at the same cap truncates identically, so escalate instead.
+            truncation_retries += 1
+            cap *= 2
+            llm = build_chat_openai(temperature=0.4, json_mode=False, max_tokens=cap)
+            continue
+
+        record_success()
+        text = clean_reply(response.content)
+        if text:
+            return text
+        empties += 1
+        if empties >= 2:
+            return ""
+    if last_error:
+        raise OpenAIUnavailable(str(last_error))
+    return ""
 
 
+def clean_reply(content: Any) -> str:
+    """Strip what a model wraps around a plain reply: quotes, a speaker label, a JSON
+    object when it forgets it was asked for text."""
+    text = str(content or "").strip()
+    if text.startswith("{"):
+        try:
+            parsed = json.loads(text)
+            text = str(parsed.get("assistant_message") or parsed.get("message") or "").strip()
+        except (ValueError, AttributeError):
+            pass
+    text = re.sub(r"^\s*\[?(interviewer|assistant|you)\]?\s*:\s*", "", text, flags=re.I)
+    if len(text) >= 2 and text[0] == text[-1] and text[0] in "\"'“”":
+        text = text[1:-1].strip()
+    return text[:1200]
 
-def _parse_payload(content: str) -> dict[str, Any]:
-    payload = extract_json_object(content)
-    finding = payload.get("finding")
-    if finding and not finding.get("content"):
-        payload["finding"] = None
-    return payload
 
+def fallback_question(state: dict[str, Any]) -> str:
+    """The planned question in plain words — used with no model, or when the model
+    returns nothing twice. Deliberately simple; it is a safety net, not a style."""
+    if state.get("phase") == "orient" or not state.get("beat"):
+        if not state.get("question_count"):
+            name = (state.get("employee_name") or "").split(" ")[0]
+            return (f"Hi {name}! " if name else "Hi! ") + (
+                "To get a feel for your day — what are the main things you find yourself working on?"
+            )
+        return "What are the main things your work breaks into, day to day?"
+    beat = state["beat"]
+    area = beat.get("area") or "that"
+    return {
+        "how_it_works": f"How does {area} usually get done, day to day?",
+        "friction": f"What's the most frustrating part of {area}?",
+        "friction_cost": "Roughly how much of your time does that take up in a typical week?",
+        "ai_current_usage": "Do you use any AI tools in your day-to-day work at the moment?",
+        "role_potential": (
+            "If some of the routine parts of your job took care of themselves, "
+            "what would you spend that time on?"
+        ),
+    }.get(beat.get("slot"), f"Could you tell me a bit more about {area}?")
 
 def _context_blocks(state: dict[str, Any]) -> str:
     """Retrieval, knowledge and media context. These used to be assembled only for
@@ -266,10 +325,18 @@ QUESTION_SHAPE = """- ONE question, one clause. It must be answerable in a sente
 - Warm through your WORDS, not symbols — do NOT use emoji."""
 
 
-def _build_system_prompt(state: dict[str, Any]) -> str:
+def _persona_line(state: dict[str, Any]) -> str:
+    profile = (state.get("blackboard") or {}).get("profile") or {}
+    return (
+        f"You're chatting one-to-one with {profile.get('name') or 'someone'} to understand how "
+        f"they really work at {state.get('company_name', 'the company')}. Warm, curious, easy to "
+        "talk to — never an interviewer running a script, never pushy."
+    )
+
+
+def _build_talk_prompt(state: dict[str, Any]) -> str:
     bb = state["blackboard"]
     profile = bb.get("profile") or {}
-    language = state.get("preferred_language", "en")
     phase = state.get("phase")
     beat = state.get("beat") or {}
     limits = state.get("limits") or {}
@@ -281,18 +348,11 @@ def _build_system_prompt(state: dict[str, Any]) -> str:
         f"Responsibilities: {profile.get('responsibilities') or 'n/a'}\n"
         f"Tools: {', '.join(profile.get('primary_tools') or []) or 'n/a'}"
     )
-
     summary = bb.get("conversation_summary") or "(just getting started)"
     findings = bb.get("shared_findings") or []
     findings_block = "\n".join(f"- {f['finding']}" for f in findings[-5:]) or "(none yet)"
-    known_areas = [a.get("name") for a in (bb.get("role_areas") or []) if a.get("name")]
+    known_areas = dossier.area_names(bb)
     still_wanted = dossier.summary_for_prompt(bb, limits.get("slot_confidence", 0.6))
-
-    summary_field = (
-        '"refresh the running summary of the whole chat in 2-4 sentences"'
-        if needs_summary_refresh(state)
-        else "null"
-    )
 
     if phase == "orient":
         persona = ORIENT_PERSONA
@@ -300,54 +360,25 @@ def _build_system_prompt(state: dict[str, Any]) -> str:
             "Ask ONE short, friendly question that helps you learn the main areas their work "
             "breaks into — the concrete chunks of what they actually do. You're getting the lay "
             "of the land, not digging in yet.\n"
-            f"Areas you've spotted so far: {', '.join(known_areas) or 'none yet'}.\n"
-            "In role_areas, list the 2-3 main areas you can name so far (short labels), or [] "
-            "if it's still unclear."
-        )
-        slot_hint = (
-            "During orient just name the areas in role_areas — leave slots_filled empty "
-            "unless their answer already told you how something works or where it snags."
+            f"Areas you've spotted so far: {', '.join(known_areas) or 'none yet'}."
         )
     else:
         persona = (
             "You're a warm, curious colleague chatting with someone about how their work really "
-            "goes. You're genuinely interested and easy to talk to — never an interviewer, "
-            "never pushy."
+            "goes. Genuinely interested and easy to talk to — never an interviewer, never pushy."
         )
         area = beat.get("area")
         scope = f'this ONE area of their work: "{area}"' if area else "their work generally"
         task = (
             f"Your question MUST be about {scope}.\n"
             f"Get curious specifically about {beat.get('intent', '')}.\n"
-            "React warmly to their last answer first — and even if that answer drifted "
-            f"elsewhere, gently steer back so THIS question is clearly about {scope}."
+            "React warmly to their last answer first — and even if it drifted elsewhere, gently "
+            f"steer back so THIS question is clearly about {scope}."
         )
-        # `beat` here is the NEXT question's topic, not what the employee's message
-        # you're looking at right now was actually answering -- that was whatever
-        # question got asked LAST turn. Grading this turn's incoming reply against
-        # the upcoming topic instead of the one it actually addressed meant
-        # slots_filled almost never matched anything real. `last_beat`, stashed at
-        # the end of the previous turn, is the slot this reply is actually about.
-        prev_beat = bb.get("last_beat")
-        if prev_beat and prev_beat.get("slot"):
-            slot_hint = (
-                f"Their answer you're looking at now was replying to the '{prev_beat['slot']}' slot"
-                + (f" on area '{prev_beat.get('area')}'" if prev_beat.get("area") else "")
-                + ". Report it in slots_filled if their answer actually supplied it — omit it "
-                "if they didn't really address it."
-            )
-        else:
-            slot_hint = (
-                "Their answer you're looking at now wasn't replying to a specific dossier slot "
-                "yet (e.g. it followed the orient questions) — only report slots_filled if "
-                "something they said clearly maps to one of the valid slot names below."
-            )
 
     return f"""{persona}
 
-You're chatting one-to-one over WhatsApp with {profile.get('name') or 'this person'} to
-understand how they really work at {state.get('company_name', 'the company')}. Warm, curious,
-easy to talk to — never an interviewer running a script, never pushy.
+{_persona_line(state)}
 {_company_profile_blurb(state)}
 {profile_block}
 
@@ -363,83 +394,26 @@ Your job this turn:
 
 How to ask:
 {QUESTION_SHAPE}
-- Speak in {language} (ISO 639-1). Don't switch unless they do.
-- First turn (question_count is 0): a short warm hello plus one easy question that nods to
-  their role. Never mention interviewers, agents, slots or handoffs.
+- First message (question_count is {state.get('question_count', 0)}; 0 means first): a short
+  warm hello plus one easy question that nods to their role.
+- Never mention interviewers, agents, slots, reports, consultants or assessments.
+- Never suggest their work could be automated, replaced or handled by AI or software, and
+  never ask them to design a solution. You are only trying to understand the work.
+- Never judge — no "that sounds inefficient". A few neutral words, then the question.
 
-Capturing what you learn:
-- {slot_hint}
-- slots_filled reports what THEIR ANSWER supplied, not what you asked. Confidence is how
-  clearly they answered: 0.8+ if they were specific, 0.5 if vague, omit it entirely if they
-  didn't really answer.
-- If they mention something interesting that isn't what you asked about, put it in `parked`
-  and move on. Do NOT chase it — breadth first. It gets picked up later.
-- Set completed=true ONLY if they ask to stop. Do not end the chat because you think
-  you have enough; that decision is made elsewhere.
+If they asked YOU something, answer it briefly and honestly first, then ask your question:
+- Whether this is about their performance, or whether they are being assessed: no — it is
+  about understanding the work and the tools, and there are no right or wrong answers.
+- Whether it will cost jobs: be calm and honest — the purpose is to understand the work so
+  it can be made easier; you can't speak for the company's decisions, and their management
+  is the right place to ask. Never promise anything about jobs.
+- Who sees their answers: individual answers aren't shared with colleagues, and what comes
+  out of this describes how work is done, not people.
+- What AI could do for them: that's something the company will look at once the work is
+  properly understood, which is what this conversation is for. Suggest nothing.
+- If they want a break: of course — they can pick it up again any time.
 
-Valid slot names: {', '.join(sorted(dossier.SLOT_INTENT.keys()))}
+Language:
+{language_rule(state.get('preferred_language', 'en'))}
 
-Respond with JSON only:
-{{
-  "assistant_message": "your next message to the employee",
-  "insight": {{ "summary": "1-2 sentence insight from their last message", "topics": ["topic"] }},
-  "finding": {{ "content": "one concrete reusable fact about how work happens here, or null", "confidence": 0.0 }},
-  "slots_filled": [{{ "slot": "how_it_works", "area": "the area name or null", "value": "what they told you", "confidence": 0.0 }}],
-  "parked": "an interesting aside to come back to later, or null",
-  "role_areas": [],
-  "updated_summary": {summary_field},
-  "completed": false
-}}"""
-
-
-def _mock_agent_turn(state: dict[str, Any]) -> dict[str, Any]:
-    """Deterministic turn for mock mode (no model configured). Fills the beat's slot
-    so the dossier progresses and the flow's exit conditions can be exercised
-    end-to-end without an LLM."""
-    um = state.get("user_message", "")
-    phase = state.get("phase")
-    beat = state.get("beat") or {}
-
-    if phase == "orient":
-        return {
-            "assistant_message": (
-                "Nice to meet you! To get a feel for your day — what are the main things "
-                "you find yourself working on?"
-            ),
-            "insight": {"summary": f"Employee said: {um[:160]}", "topics": ["daily_workflow"]},
-            "finding": None,
-            "slots_filled": [],
-            "parked": None,
-            "role_areas": _mock_areas_from(state),
-            "updated_summary": None,
-            "completed": False,
-        }
-
-    slot = beat.get("slot", "how_it_works")
-    area = beat.get("area")
-    question = {
-        "how_it_works": f"How does {area or 'that'} usually get done day to day?",
-        "friction": f"What's the most annoying part of {area or 'that'}?",
-        "ai_openness": f"Ever thought about letting software take a slice of {area or 'that'} off your plate?",
-        "ai_current_usage": "Do you use any AI tools in your day to day work at the moment?",
-        "friction_cost": f"Roughly how much time does that side of {area or 'that'} eat up in a week?",
-    }.get(slot, f"Tell me a bit more about {area or 'your work'}?")
-
-    return {
-        "assistant_message": question,
-        "insight": {"summary": f"Employee said: {um[:160]}", "topics": [slot]},
-        "finding": ({"content": f"[{area or 'general'}] {um[:160]}", "confidence": 0.6} if len(um) > 20 else None),
-        "slots_filled": [{"slot": slot, "area": area, "value": um[:200], "confidence": 0.8 if len(um) > 20 else 0.3}],
-        "parked": None,
-        "role_areas": [],
-        "updated_summary": None,
-        "completed": False,
-    }
-
-
-def _mock_areas_from(state: dict[str, Any]) -> list[str]:
-    """Mock orientation names areas from the profile so branching has something real."""
-    profile = (state.get("blackboard") or {}).get("profile") or {}
-    resp = str(profile.get("responsibilities") or "")
-    parts = [p.strip() for p in re.split(r"[,;/]|\band\b", resp) if p.strip()]
-    return parts[:2] or (["their main work"] if not profile.get("role_title") else [str(profile["role_title"])])
+Write ONLY the message you will send them — no labels, no quotation marks, no JSON."""

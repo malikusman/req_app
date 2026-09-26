@@ -67,6 +67,15 @@ class MultiTurnState(TypedDict, total=False):
     knowledge_snippets: list[str]
     media_context: dict[str, Any] | None
     media_snippets: list[str]
+    # Company context for the talking call. These were passed in by main.py but never
+    # declared here, so LangGraph dropped them before any node ran and the "company
+    # profile context" block of the interview prompt was always empty.
+    company_profile: dict[str, Any]
+    industry: str
+    size_band: str
+    region: str
+    business_goals: Any
+    question_target: int
 
     # Orchestration decisions (prepare node).
     # NOTE: LangGraph only propagates keys declared here between nodes. A decision
@@ -79,11 +88,18 @@ class MultiTurnState(TypedDict, total=False):
     routing_decision: dict[str, Any]
     active_agent_id: str
 
+    # Recording step (record node).
+    employee_ended: bool
+    # "recorded", "skipped" (no message) or "fallback: <reason>".
+    capture_status: str
+    capture: dict[str, Any]
+
     # Outputs
     assistant_message: str
     insight: dict[str, Any]
     completed: bool
     error: str
+    error_detail: str
 
 
 def default_limits() -> dict[str, Any]:
@@ -91,18 +107,17 @@ def default_limits() -> dict[str, Any]:
     authority; these apply only when a limit is absent from the payload.
 
     max_questions is a BACKSTOP, not a target. A well-run interview closes on a
-    filled dossier several questions earlier. Raised 8 -> 12 when friction_cost
-    was added. The arithmetic: 2 orient turns, 2 static slots per area, a cost slot
-    for up to 2 areas, and ai_current_usage. That is 9 questions for a typical
-    two-area person (measured, closing on dossier_complete) and 11 for three areas.
-    A ceiling of 10 would have left a three-area interview no way to finish, and a
-    two-area one a single turn of slack for any turn that clarifies rather than
-    fills a slot. min_questions exists because without
+    filled dossier several questions earlier. Raised 8 -> 12 when friction_cost was
+    added, and 12 -> 14 when role_potential was. The arithmetic: 2 orient turns, 2
+    static slots per area, a cost slot for up to 2 areas, ai_current_usage and
+    role_potential. That is 10 questions for a typical two-area person and 12 for
+    three areas; 14 leaves a three-area interview two turns of slack for replies
+    that clarify rather than fill a slot. min_questions exists because without
     it a terse employee trips the stall detector at turn 3 and the discovery
     package gets built on almost nothing.
     """
     return {
-        "max_questions": 12,
+        "max_questions": 14,
         "min_questions": 4,
         "stall_turns": 2,
         "slot_confidence": 0.6,
