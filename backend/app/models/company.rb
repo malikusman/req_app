@@ -12,6 +12,7 @@ class Company < ApplicationRecord
   has_many :company_clarification_questions, dependent: :destroy
   has_many :media_attachments, dependent: :destroy
   has_many :company_signals, dependent: :destroy
+  has_many :findings, dependent: :destroy
   has_many :patterns, dependent: :destroy
   has_many :recommendations, dependent: :destroy
   has_many :company_systems, dependent: :destroy

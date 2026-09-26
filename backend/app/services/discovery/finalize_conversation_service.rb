@@ -48,6 +48,8 @@ module Discovery
       # employee's final message must not wait on it. Re-runs after an addendum so
       # the package reflects the extra evidence, minting a new version.
       BuildDiscoveryPackageJob.perform_later(@conversation.id)
+      # Role-by-role findings, with hours, from this interview's dossier.
+      BuildFindingsJob.perform_later(@conversation.id)
     end
   end
 end

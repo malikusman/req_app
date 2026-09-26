@@ -15,6 +15,8 @@ class MarkAbandonedConversationsJob < ApplicationJob
         abandoned_at: Time.current,
         abandon_reason: "inactivity_timeout"
       )
+      # What they did say still counts — as partial findings, at lower confidence.
+      BuildFindingsJob.perform_later(conversation.id)
     end
   end
 end
