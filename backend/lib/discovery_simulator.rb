@@ -32,13 +32,12 @@ class DiscoverySimulator
         team_size: nil,
         tools: "SAP, Excel and Outlook"
       },
-      expected_agents: %w[domain_finance process technical],
-      unexpected_agents: %w[strategic],
       answers: [
         "It starts when a vendor emails an invoice and ends when SAP shows it as paid, usually 8 days later",
         "Matching invoices to purchase orders goes wrong the most — about 1 in 5 needs rework",
         "I depend on department managers for approvals, mostly chased over email and Slack",
         "Invoices sit in managers' inboxes for 2-3 days before anyone acts on them",
+        "I do use ChatGPT sometimes to word the chase emails, nothing official",
         "Handoffs go through email with the invoice attached, no shared tracker",
         "When something upstream changes I redo the reconciliation from scratch, maybe twice a week",
         "At quarter end the approval step breaks first, the backlog doubles",
@@ -48,6 +47,7 @@ class DiscoverySimulator
         "When SAP is down I keep a paper list and batch-enter everything after",
         "A perfect version would auto-match POs and route approvals with reminders",
         "Honestly the weekly status email I compile could probably go away entirely",
+        "With more time I'd clean up the vendor master data, it's been on my list for months",
         "That covers pretty much everything about my work"
       ]
     },
@@ -62,8 +62,6 @@ class DiscoverySimulator
         team_size: "There are 5 of us",
         tools: "Workday, DocuSign and Google Sheets"
       },
-      expected_agents: %w[domain_hr technical strategic],
-      unexpected_agents: [],
       answers: [
         "Onboarding kicks off when recruiting closes a hire and is done when the person has IT access and a signed contract",
         "IT access provisioning goes wrong most — it takes two weeks because three departments must sign off",
@@ -91,8 +89,6 @@ class DiscoverySimulator
         team_size: nil,
         tools: "SAP, Excel and Outlook"
       },
-      expected_agents: %w[domain_finance process technical],
-      unexpected_agents: %w[strategic],
       answers: [
         "It starts when a vendor emails an invoice and ends when SAP shows it as paid, usually 8 days later",
         "Matching invoices to purchase orders goes wrong the most — about 1 in 5 needs rework",
@@ -120,8 +116,6 @@ class DiscoverySimulator
         team_size: nil,
         tools: "SAP, Excel and Outlook"
       },
-      expected_agents: %w[domain_finance process technical],
-      unexpected_agents: %w[strategic],
       answers: [
         "It starts when a vendor emails an invoice and ends when SAP shows it as paid",
         "Matching invoices to purchase orders goes wrong the most with manual spreadsheet work",
@@ -287,14 +281,8 @@ class DiscoverySimulator
           Array(@employee.profile_data["primary_tools"]).any?
     check "Transitioned to discovery", conversation.reload.status == "discovery"
 
-    queue_ids = (blackboard["agent_queue"] || []).map { |a| a["id"] }
-    check "Agent queue built (#{queue_ids.join(', ')})", queue_ids.any?
-    @persona[:expected_agents].each do |id|
-      check "  expected agent routed: #{id}", queue_ids.include?(id)
-    end
-    @persona[:unexpected_agents].each do |id|
-      check "  agent correctly skipped: #{id}", !queue_ids.include?(id)
-    end
+    # The specialist queue these checks used to assert is retired: the interview maps
+    # the person's own role areas instead (agent/app/area_flow.py).
     check "First discovery question delivered", last_outbound.present? && conversation.question_count >= 1
   end
 
