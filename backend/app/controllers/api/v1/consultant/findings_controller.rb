@@ -74,7 +74,9 @@ module Api
 
         def summary(findings)
           live = findings.reject { |f| %w[hidden merged].include?(f.status) }
-          with_hours = live.select(&:hours?)
+          # The same total the report prints: a probable double count is left out
+          # until the consultant approves it as separate work or merges it.
+          with_hours = live.select(&:hours?).reject { |f| f.status == "draft" && f.possible_duplicate_of_id }
           {
             live_count: live.size,
             approved_count: live.count { |f| f.status == "approved" },
@@ -82,7 +84,7 @@ module Api
             hidden_count: findings.count { |f| f.status == "hidden" },
             needs_review_count: live.count(&:needs_review?),
             quantified_count: with_hours.size,
-            # De-duplicated: merged and hidden findings never count.
+            # De-duplicated: merged, hidden and probable-duplicate findings never count.
             annual_hours_min: with_hours.sum(&:annual_hours_min),
             annual_hours_max: with_hours.sum(&:annual_hours_max)
           }
@@ -116,6 +118,7 @@ module Api
             confidence: finding.confidence,
             single_occupant_role: finding.single_occupant_role,
             needs_review: finding.needs_review?,
+            possible_duplicate_of_id: finding.possible_duplicate_of_id,
             status: finding.status,
             merged_into_id: finding.merged_into_id,
             employee: finding.employee && { id: finding.employee.id, name: finding.employee.display_name },

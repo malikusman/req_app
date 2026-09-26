@@ -34,12 +34,14 @@ module Findings
       slots = (blackboard["dossier"] || {})["slots"] || {}
       areas = Array(blackboard["role_areas"]).filter_map { |a| a["name"].presence }
 
-      areas.filter_map do |area|
+      findings = areas.filter_map do |area|
         friction = filled(slots["friction::#{area}"])
         next unless friction
 
         upsert(area, friction, filled(slots["how_it_works::#{area}"]), slots["friction_cost::#{area}"])
       end
+      flag_repeated_figures(findings)
+      findings
     end
 
     private
@@ -55,6 +57,11 @@ module Findings
       frequency = effort["frequency"] || {}
       duration = effort["duration"] || {}
       effort_type = Finding::EFFORT_TYPES.include?(effort["effort_type"]) ? effort["effort_type"] : "unknown"
+      # "Ten to fifteen minutes chasing each PO, then two or three days waiting" was
+      # recorded as waiting with a ten-minute duration, and the chase — real work,
+      # every week — counted for nothing. A wait is days, not minutes: minutes are the
+      # person's own time, and the wait is in the words.
+      effort_type = "mixed" if effort_type == "waiting" && duration["unit"] == "minutes" && duration["min"].present?
 
       hours = AnnualHours.call(
         frequency_min: frequency["min"], frequency_max: frequency["max"], frequency_unit: frequency["unit"],
@@ -90,6 +97,32 @@ module Findings
       )
       finding.save!
       finding
+    end
+
+    # One person giving two areas the very same figures is almost always one piece of
+    # work named twice — "purchase orders" and "supplier follow-up" were both the
+    # 15-a-week PO chase, and counting both doubled its hours. The later one is
+    # flagged, not merged: whether it is the same work is the consultant's call, and
+    # until they make it the finding stays out of the report (Finding#needs_review?).
+    def flag_repeated_figures(findings)
+      seen = {}
+      findings.each do |finding|
+        signature = figures(finding)
+        original = signature && seen[signature]
+        if original && finding.status == "draft"
+          finding.update!(evidence: finding.evidence.merge("possible_duplicate_of" => original.id))
+        else
+          finding.update!(evidence: finding.evidence.except("possible_duplicate_of")) if finding.evidence.key?("possible_duplicate_of")
+          seen[signature] ||= finding if signature
+        end
+      end
+    end
+
+    def figures(finding)
+      return nil unless finding.hours?
+
+      [finding.frequency_min, finding.frequency_max, finding.frequency_unit,
+       finding.duration_min, finding.duration_max, finding.duration_unit].map { |v| v.is_a?(BigDecimal) ? v.to_f : v }
     end
 
     def source_key(area)

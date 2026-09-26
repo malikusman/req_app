@@ -40,9 +40,12 @@ class Finding < ApplicationRecord
   def display_what_happens_now = consultant_what_happens_now.presence || what_happens_now
   def display_friction = consultant_friction.presence || friction
 
-  # A finding about the only person in a role identifies them, so it may not reach a
-  # client until a consultant has looked at it.
-  def needs_review? = single_occupant_role && status == "draft"
+  # Two cases may not reach a client until a consultant has looked: a finding about
+  # the only person in a role identifies them, and one carrying the same figures as
+  # another from the same interview is probably that work counted twice.
+  def needs_review? = status == "draft" && (single_occupant_role || possible_duplicate_of_id.present?)
+
+  def possible_duplicate_of_id = evidence.is_a?(Hash) ? evidence["possible_duplicate_of"] : nil
 
   private
 

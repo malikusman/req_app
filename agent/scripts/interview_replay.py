@@ -193,6 +193,28 @@ PERSONAS: list[dict[str, Any]] = [
         "expect": {"areas_min": 2, "costed_min": 0, "close_ok": {"dossier_complete", "stalled"}},
     },
     {
+        "key": "lead_time",
+        # The trap: the first number they give is how long an invoice is in flight,
+        # which must never be recorded as how long anyone works on it.
+        "true_effort": [(40, "per_day", 2), (2, "per_week", 60)],
+        "about": "gives end-to-end turnaround before effort",
+        "profile": {"name": "Omar", "role_title": "Accounts Payable Specialist", "department": "finance",
+                    "seniority": "individual_contributor",
+                    "responsibilities": "invoice matching and weekly reconciliation",
+                    "primary_tools": ["SAP", "Excel", "Outlook"]},
+        "style": "Plain and factual, two sentences. When asked how something works, you describe "
+                 "how long it takes end to end before anything else.",
+        "facts": """
+- Invoice matching: an invoice usually takes about 8 days from arriving to being paid,
+  mostly sitting with managers for approval. Your own part is matching each invoice to
+  its PO in SAP — about 40 invoices a day, 2 to 4 minutes each.
+- Reconciliation: when something upstream changes you redo the week's reconciliation in
+  Excel, about twice a week, around an hour each time.
+- AI: none, not allowed yet.
+- With more time: clean up the vendor master data.""",
+        "expect": {"areas_min": 2, "costed_min": 2},
+    },
+    {
         "key": "three_areas",
         # (how often, unit, minutes per occurrence at the low end) — what the facts say.
         "true_effort": [(1, "per_day", 60), (1, "per_week", 180), (15, "per_day", 2)],

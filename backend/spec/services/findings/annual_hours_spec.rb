@@ -52,6 +52,21 @@ RSpec.describe Findings::AnnualHours do
     expect(hours(1, "per_fortnight", 30, "minutes").hours?).to be(false)
   end
 
+  it "refuses a figure one person could not work, because the duration was elapsed time" do
+    # "Twice a week" paired with "the invoice is paid eight days later": 128 hours
+    # a week at the low end. Published, it would read as 6,000 hours a year.
+    result = hours(2, "per_week", 8, "days")
+    expect(result.hours?).to be(false)
+    expect(result.reason).to include("elapsed time")
+  end
+
+  it "stops only the impossible top of a range at a full working period" do
+    # Three to five times a day, one to two hours each: 3-10 hours a day.
+    result = hours(3, "per_day", 1, "hours", freq_max: 5, dur_max: 2)
+    expect([result.min, result.max]).to eq([720, 1920])
+    expect(result.basis).to include("capped_at_capacity" => true)
+  end
+
   it "states the basis it used" do
     expect(hours(1, "per_day", 30, "minutes").basis).to include("working_days" => 240, "hours_per_day" => 8)
   end

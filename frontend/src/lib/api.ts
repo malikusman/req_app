@@ -2628,6 +2628,8 @@ export interface Finding {
   confidence: 'high' | 'medium' | 'low';
   single_occupant_role: boolean;
   needs_review: boolean;
+  /** Same figures as this finding from the same interview: probably one piece of work counted twice. */
+  possible_duplicate_of_id: number | null;
   status: 'draft' | 'approved' | 'hidden' | 'merged';
   merged_into_id: number | null;
   employee: { id: number; name: string | null } | null;

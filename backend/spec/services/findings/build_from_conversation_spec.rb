@@ -93,6 +93,38 @@ RSpec.describe Findings::BuildFromConversation do
     expect(finding).to have_attributes(basis: "discovery_partial", confidence: "low")
   end
 
+  it "flags the same figures given for two areas as a probable double count" do
+    effort = dossier["slots"]["friction_cost::supplier price updates"]
+    dossier["slots"].merge!(
+      "friction::purchase orders" => { "value" => "Chasing confirmations", "confidence" => 0.8, "turn" => 8 },
+      "friction_cost::purchase orders" => effort.merge("turn" => 9)
+    )
+    conversation.update!(state_snapshot: conversation.state_snapshot.deep_merge("blackboard" => { "dossier" => dossier }))
+
+    first, second = described_class.call(conversation: conversation)
+    expect(first.possible_duplicate_of_id).to be_nil
+    expect(second.possible_duplicate_of_id).to eq(first.id)
+    expect(second.needs_review?).to be(true)
+
+    # Once a consultant approves it as separate work, a rebuild leaves it alone.
+    second.update!(status: "approved")
+    described_class.call(conversation: conversation)
+    expect(second.reload.needs_review?).to be(false)
+  end
+
+  it "counts minutes of chasing recorded as waiting, because a wait is never minutes long" do
+    dossier["slots"]["friction_cost::supplier price updates"]["effort"] = {
+      "frequency" => { "as_said" => "15 a week", "min" => 15, "max" => 15, "unit" => "per_week" },
+      "duration" => { "as_said" => "10 to 15 minutes, then days waiting", "min" => 10, "max" => 15, "unit" => "minutes" },
+      "effort_type" => "waiting"
+    }
+    conversation.update!(state_snapshot: conversation.state_snapshot.deep_merge("blackboard" => { "dossier" => dossier }))
+
+    finding = described_class.call(conversation: conversation).first
+    expect(finding.effort_type).to eq("mixed")
+    expect([finding.annual_hours_min, finding.annual_hours_max]).to eq([120, 180])
+  end
+
   it "builds nothing from an interview still in progress" do
     conversation.update!(status: "discovery")
     expect(described_class.call(conversation: conversation)).to eq([])

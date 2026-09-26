@@ -272,9 +272,20 @@ TIME — RECORD, NEVER CALCULATE
   each PO, then two or three days waiting for a reply" is duration 10-15 minutes,
   effort_type active; the two or three days go in the value text only. If ALL they give
   is how long they wait, leave duration null and set effort_type "waiting".
+- Start-to-finish time is not effort either. "It ends when SAP shows it paid, usually
+  8 days later" or "an invoice takes about a week to get through" is how long the work
+  is IN FLIGHT, not how long anyone spends on it: the days go in the value text only,
+  duration stays null. Duration is only the time the person themselves spends working.
+- Frequency and duration must describe the SAME task. Never pair how often one thing
+  happens ("I redo it twice a week") with how long a different thing takes. How often
+  something goes WRONG ("wrong prices reach customers about twice a month") is not how
+  often the task is done — it goes in the value text only.
 - Never compute totals, weekly or yearly hours, or percentages.
 
 PROTECTING PEOPLE
+- Write every value in neutral third person about the work — "replies from buyers take
+  days", never "waiting for their responses frustrates me most". No first person, no
+  quotes, no feelings attributed to anyone: these lines reach the client's report.
 - Describe the work, never the person. If they criticise a colleague, record only the
   work issue ("the monthly figures often arrive late"), never who they blamed.
 - Never write that a task is wasteful or should be automated. Record the facts.
@@ -348,7 +359,8 @@ def _mock_capture(state: dict[str, Any]) -> dict[str, Any]:
             "confidence": 0.8 if len(reply) > 20 else 0.3}
     if beat["slot"] == "friction_cost":
         slot["effort"] = {"frequency": {"as_said": reply[:80], "min": None, "max": None, "unit": None},
-                          "duration": None, "effort_type": "unknown"}
+                          "duration": {"as_said": reply[:80], "min": None, "max": None, "unit": None},
+                          "effort_type": "unknown"}
     capture["slots_filled"] = [slot]
     capture["insight"]["topics"] = [beat["slot"]]
     if len(reply) > 20:

@@ -9,11 +9,18 @@ LIMITS = {"max_questions": 8, "min_questions": 4, "stall_turns": 2, "slot_confid
           "orient_questions": 3, "switch_after": 3}
 
 
+# A cost answered in full (both halves, here in words) — what "filled" means for a
+# friction_cost slot.
+COMPLETE_EFFORT = {"frequency": {"as_said": "every day"}, "duration": {"as_said": "an hour"}, "effort_type": "active"}
+
+
 def filled(areas, slots):
     bb = {"role_areas": [{"name": a} for a in areas], "orient_done": True}
     dossier.ensure_dossier(bb)
     for key, conf in slots.items():
         bb["dossier"]["slots"][key] = {"value": "x", "confidence": conf, "turn": 1}
+        if key.startswith("friction_cost::"):
+            bb["dossier"]["slots"][key]["effort"] = dict(COMPLETE_EFFORT)
     return bb
 
 
@@ -76,7 +83,8 @@ class TestTermination:
         for area in ("B", "C"):
             for slot in ("how_it_works", "friction"):
                 bb["dossier"]["slots"][f"{slot}::{area}"] = {"value": "x", "confidence": 0.8, "turn": 1}
-        bb["dossier"]["slots"]["friction_cost::B"] = {"value": "x", "confidence": 0.8, "turn": 1}
+        bb["dossier"]["slots"]["friction_cost::B"] = {"value": "x", "confidence": 0.8, "turn": 1,
+                                                      "effort": dict(COMPLETE_EFFORT)}
         d = area_flow.prepare(bb, resolve_limits(LIMITS), question_count=2)
         assert d["should_close"] and d["close_reason"] == "dossier_complete"
 
@@ -214,6 +222,55 @@ class TestAskTwiceThenTakeWhatTheyGave:
         out = record_reply({"blackboard": bb, "limits": LIMITS, "question_count": 4,
                             "user_message": "It really depends on the season, hard to say."}, capture())
         assert "friction_cost::Invoicing" not in out["blackboard"]["dossier"]["slots"]
+
+
+class TestAskTwiceKeepsHalfACost:
+    def test_the_half_already_given_survives_a_second_vague_answer(self):
+        beat = {"slot": "friction_cost", "area": "Invoicing", "intent": "time"}
+        bb = {"role_areas": [{"name": "Invoicing"}], "orient_done": True,
+              "dossier": {"slots": {
+                  "friction::Invoicing": {"value": "x", "confidence": 0.8, "turn": 1},
+                  "friction_cost::Invoicing": {"value": "every morning", "confidence": 0.8, "turn": 2,
+                                               "effort": {"frequency": {"as_said": "every morning", "min": 1,
+                                                                        "unit": "per_day"}}},
+              }, "parked": []}}
+        area_flow.after_ask(bb, "branch", beat)
+        area_flow.after_ask(bb, "branch", beat)
+        out = record_reply({"blackboard": bb, "limits": LIMITS, "question_count": 5,
+                            "user_message": "Honestly it really varies from day to day."}, capture())
+        entry = out["blackboard"]["dossier"]["slots"]["friction_cost::Invoicing"]
+        assert entry["accepted_after_retry"] is True
+        assert entry["effort"]["frequency"]["min"] == 1  # not overwritten by the vague reply
+        assert prepare_turn(out)["beat"]["slot"] != "friction_cost"
+
+
+class TestFutureWorkIsNotCurrentWork:
+    def test_what_they_would_do_with_more_time_is_not_a_role_area(self):
+        last = {"slot": "role_potential", "area": None, "intent": "more time"}
+        out = record_reply(
+            branch_state(last_beat=last),
+            capture(
+                role_areas=["vendor master data"],
+                slots_filled=[
+                    {"slot": "role_potential", "value": "Clean up vendor master data", "confidence": 0.8},
+                    {"slot": "friction", "area": "vendor master data", "value": "never gets done", "confidence": 0.8},
+                ],
+            ),
+        )
+        bb = out["blackboard"]
+        assert [a["name"] for a in bb["role_areas"]] == ["Invoicing"]
+        assert "role_potential" in bb["dossier"]["slots"]
+        assert "friction::vendor master data" not in bb["dossier"]["slots"]
+
+    def test_the_ai_tools_they_use_are_not_a_role_area(self):
+        last = {"slot": "ai_current_usage", "area": None, "intent": "ai"}
+        out = record_reply(branch_state(last_beat=last), capture(role_areas=["AI tool experimentation"]))
+        assert [a["name"] for a in out["blackboard"]["role_areas"]] == ["Invoicing"]
+
+    def test_areas_named_in_answer_to_any_other_question_still_count(self):
+        last = {"slot": "friction", "area": "Invoicing", "intent": "friction"}
+        out = record_reply(branch_state(last_beat=last), capture(role_areas=["Month-end"]))
+        assert "Month-end" in [a["name"] for a in out["blackboard"]["role_areas"]]
 
 
 class TestAreasAreNotNamedTwice:

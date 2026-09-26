@@ -61,6 +61,11 @@ def ensure_blackboard(blackboard: Blackboard | None, profile: dict[str, Any]) ->
     return bb
 
 
+# Questions whose answers are not about the work itself — what they would do with
+# more time, and which AI tools they use — so they never name a new area of the job.
+NO_NEW_AREAS_FROM = {"role_potential", "ai_current_usage"}
+
+
 def record_reply(state: dict[str, Any], capture: dict[str, Any]) -> dict[str, Any]:
     """Fold what the employee's latest reply supplied into the blackboard."""
     limits = resolve_limits(state.get("limits"))
@@ -71,7 +76,14 @@ def record_reply(state: dict[str, Any], capture: dict[str, Any]) -> dict[str, An
     threshold = limits["slot_confidence"]
 
     areas_before = len(bb.get("role_areas") or [])
-    area_flow.record_reply(bb, capture.get("role_areas"))
+    # What someone would do with more time is not work they do now, and the AI tools
+    # they use are not a part of the job. Taking areas from those answers turned "I'd
+    # clean up the vendor master data" and "I tried Copilot" into parts of the job,
+    # spent questions on them, and put findings in the report about work nobody does.
+    # Per-area slots for an unknown area are already dropped by merge_slots, so
+    # nothing else from the answer is lost.
+    answering = (bb.get("last_beat") or {}).get("slot")
+    area_flow.record_reply(bb, None if answering in NO_NEW_AREAS_FROM else capture.get("role_areas"))
     progress = dossier.merge_slots(bb, capture.get("slots_filled"), turn_number, threshold)
     # Naming a new role area is progress too. Orientation replies exist to name areas,
     # not fill slots; counting them as "nothing new" let a terse interview reach the
@@ -152,6 +164,13 @@ def _accept_on_second_attempt(bb: Blackboard, reply: Any, turn: int, threshold: 
         return 0
     if (bb.get("slot_attempts") or {}).get(key, 0) < MAX_SLOT_ATTEMPTS:
         return 0
+    existing = dos["slots"].get(key)
+    if existing and existing.get("effort"):
+        # Half a cost was already given; asked twice for the other half, keep what
+        # they said rather than overwrite it with the words of this reply.
+        existing["accepted_after_retry"] = True
+        existing["confidence"] = max(float(existing.get("confidence") or 0), threshold)
+        return 1
     entry = {"value": text[:400], "confidence": threshold, "turn": turn, "accepted_after_retry": True}
     if beat["slot"] == "friction_cost":
         entry["effort"] = {

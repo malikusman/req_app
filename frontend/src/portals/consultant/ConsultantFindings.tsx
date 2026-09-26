@@ -177,7 +177,7 @@ export function ConsultantFindings() {
             suffix={summary.quantified_count > 0 ? `from ${summary.quantified_count} costed` : undefined}
           />
           <StatCard label="Findings" value={summary.live_count} suffix={`${summary.approved_count} approved`} />
-          <StatCard label="Need your review" value={summary.needs_review_count} suffix="only person in the role" />
+          <StatCard label="Need your review" value={summary.needs_review_count} suffix="before they can reach the report" />
           <StatCard label="Merged or hidden" value={summary.merged_count + summary.hidden_count} />
         </div>
       )}
@@ -224,6 +224,7 @@ export function ConsultantFindings() {
                           (t) => t.id !== f.id && t.status !== 'merged' && t.status !== 'hidden'
                         )}
                         mergedInto={f.merged_into_id ? byId.get(f.merged_into_id) : undefined}
+                        duplicateOf={f.possible_duplicate_of_id ? byId.get(f.possible_duplicate_of_id) : undefined}
                         busy={busyId === f.id}
                         companyId={companyId!}
                         onUpdate={(payload) => update(f.id, payload)}
@@ -251,6 +252,7 @@ function FindingRow({
   finding: f,
   mergeTargets,
   mergedInto,
+  duplicateOf,
   busy,
   companyId,
   onUpdate,
@@ -259,6 +261,7 @@ function FindingRow({
   finding: Finding;
   mergeTargets: Finding[];
   mergedInto?: Finding;
+  duplicateOf?: Finding;
   busy: boolean;
   companyId: string;
   onUpdate: (payload: FindingUpdate) => void;
@@ -269,7 +272,7 @@ function FindingRow({
   const [friction, setFriction] = useState(f.consultant.friction ?? f.original.friction ?? '');
   const [how, setHow] = useState(f.consultant.what_happens_now ?? f.original.what_happens_now ?? '');
   const [note, setNote] = useState(f.consultant.note ?? '');
-  const [target, setTarget] = useState('');
+  const [target, setTarget] = useState(duplicateOf && f.status === 'draft' ? String(duplicateOf.id) : '');
 
   const hours = hoursLabel(f);
   const often = frequencyLabel(f);
@@ -302,7 +305,9 @@ function FindingRow({
           {f.status === 'approved' && <Badge variant="success">Approved</Badge>}
           {f.status === 'hidden' && <Badge variant="neutral">Hidden</Badge>}
           {f.status === 'merged' && <Badge variant="neutral">Merged</Badge>}
-          {f.needs_review && <Badge variant="warning">Review before release</Badge>}
+          {f.needs_review && (
+            <Badge variant="warning">{duplicateOf && f.status === 'draft' ? 'Possible double count' : 'Review before release'}</Badge>
+          )}
         </div>
       </div>
 
@@ -346,6 +351,12 @@ function FindingRow({
         <p className="m-0 text-sm text-muted-foreground">
           <span className="font-medium text-foreground">Your note: </span>
           {f.consultant.note}
+        </p>
+      )}
+      {duplicateOf && f.status === 'draft' && (
+        <p className="m-0 rounded-md bg-warning/10 px-3 py-2 text-sm text-foreground">
+          Same figures as “{duplicateOf.title}” from the same interview — probably the same work named twice. Merge it
+          if so, or approve it as separate work. Until then it stays out of the report and the total.
         </p>
       )}
       {mergedInto && (

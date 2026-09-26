@@ -4,12 +4,18 @@ from app import dossier
 
 THRESHOLD = 0.6
 
+# A cost answered in full (both halves, here in words) — what "filled" means for a
+# friction_cost slot.
+COMPLETE_EFFORT = {"frequency": {"as_said": "every day"}, "duration": {"as_said": "an hour"}, "effort_type": "active"}
+
 
 def bb_with(areas, slots=None):
     bb = {"role_areas": [{"name": a} for a in areas]}
     dossier.ensure_dossier(bb)
     for key, conf in (slots or {}).items():
         bb["dossier"]["slots"][key] = {"value": "x", "confidence": conf, "turn": 1}
+        if key.startswith("friction_cost::"):
+            bb["dossier"]["slots"][key]["effort"] = dict(COMPLETE_EFFORT)
     return bb
 
 
@@ -397,3 +403,58 @@ class TestEffortHalvesAreCombined:
         entry = bb["dossier"]["slots"]["friction_cost::Screening"]
         assert entry["value"] == "x"  # the stronger answer's words are kept
         assert entry["effort"]["duration"]["min"] == 10  # but the missing half is added
+
+
+class TestHalfACostIsNotACost:
+    """A cost with only how often, or only how long, gives no hours — so the interview
+    asks for the other half rather than moving on."""
+
+    def _half(self, **effort):
+        bb = bb_with(["Pricing"], {"how_it_works::Pricing": 0.8, "friction::Pricing": 0.8})
+        progress = dossier.merge_slots(bb, [{"slot": "friction_cost", "area": "Pricing", "value": "x",
+                                             "confidence": 0.8, "effort": effort}], turn=2, threshold=THRESHOLD)
+        return bb, progress
+
+    def test_how_often_alone_leaves_the_cost_open_and_asks_how_long(self):
+        bb, progress = self._half(frequency={"as_said": "every morning", "min": 1, "unit": "per_day"})
+        assert progress == 0
+        assert "friction_cost::Pricing" in dossier.missing_required(bb, THRESHOLD)
+        beat = dossier.next_beat(bb, THRESHOLD, switch_after=3)
+        assert beat["slot"] == "friction_cost"
+        assert "every morning" in beat["intent"] and "how long" in beat["intent"]
+
+    def test_how_long_alone_asks_how_often(self):
+        bb, _ = self._half(duration={"as_said": "about an hour", "min": 60, "unit": "minutes"})
+        beat = dossier.next_beat(bb, THRESHOLD, switch_after=3)
+        assert "how often" in beat["intent"] and "about an hour" in beat["intent"]
+
+    def test_the_second_half_completes_it_and_counts_as_progress(self):
+        bb, _ = self._half(frequency={"as_said": "every morning", "min": 1, "unit": "per_day"})
+        progress = dossier.merge_slots(bb, [{"slot": "friction_cost", "area": "Pricing", "value": "y",
+                                             "confidence": 0.7,
+                                             "effort": {"duration": {"as_said": "forty minutes", "min": 40,
+                                                                     "unit": "minutes"}}}],
+                                       turn=3, threshold=THRESHOLD)
+        assert progress == 1
+        assert "friction_cost::Pricing" not in dossier.missing_required(bb, THRESHOLD)
+
+    def test_waiting_needs_no_duration(self):
+        bb, _ = self._half(frequency={"as_said": "each PO"}, effort_type="waiting")
+        assert "friction_cost::Pricing" not in dossier.missing_required(bb, THRESHOLD)
+
+    def test_words_for_both_halves_are_an_answer(self):
+        bb, _ = self._half(frequency={"as_said": "it depends"}, duration={"as_said": "hard to say"})
+        assert "friction_cost::Pricing" not in dossier.missing_required(bb, THRESHOLD)
+
+    def test_a_per_occurrence_phrase_is_not_how_often(self):
+        # "2 to 4 minutes per invoice" — the capture restated "per invoice" as the
+        # frequency, and the interview never asked how many invoices there are.
+        bb, _ = self._half(frequency={"as_said": "per invoice"},
+                           duration={"as_said": "2 to 4 minutes", "min": 2, "max": 4, "unit": "minutes"})
+        assert "friction_cost::Pricing" in dossier.missing_required(bb, THRESHOLD)
+        assert "how often" in dossier.next_beat(bb, THRESHOLD, switch_after=3)["intent"]
+
+    def test_a_per_event_unit_with_no_count_is_not_how_often(self):
+        bb, _ = self._half(frequency={"as_said": "each time it happens", "unit": "per_event"},
+                           duration={"as_said": "an hour", "min": 60, "unit": "minutes"})
+        assert "friction_cost::Pricing" in dossier.missing_required(bb, THRESHOLD)

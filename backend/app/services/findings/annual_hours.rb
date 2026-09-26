@@ -30,6 +30,18 @@ module Findings
 
     MINUTES = { "minutes" => 1, "hours" => 60, "days" => HOURS_PER_DAY * 60 }.freeze
 
+    # The most one person can work in each period. A finding is one person's
+    # account of their own work, so it cannot cost more than this — and when it
+    # appears to, the "how long" was almost always the time the work was in flight
+    # ("the invoice is paid eight days later"), not the time anyone spent on it.
+    CAPACITY_HOURS = {
+      "per_day" => HOURS_PER_DAY,
+      "per_week" => HOURS_PER_DAY * 5,
+      "per_month" => HOURS_PER_DAY * WORKING_DAYS / 12,
+      "per_quarter" => HOURS_PER_DAY * WORKING_DAYS / 4,
+      "per_year" => HOURS_PER_DAY * WORKING_DAYS
+    }.freeze
+
     BASIS = {
       "method" => "occurrences per year x minutes per occurrence",
       "working_weeks" => WORKING_WEEKS,
@@ -68,11 +80,23 @@ module Findings
       return empty("how often was not given as a number") if per_year.nil? || @frequency_min.nil?
       return empty("how long was not given as a number") if minutes.nil? || @duration_min.nil?
 
-      low = @frequency_min * per_year * @duration_min * minutes / 60.0
-      high = @frequency_max * per_year * @duration_max * minutes / 60.0
+      low = @frequency_min * @duration_min * minutes / 60.0
+      high = @frequency_max * @duration_max * minutes / 60.0
       low, high = [low, high].minmax
+      capacity = CAPACITY_HOURS.fetch(@frequency_unit)
 
-      Result.new(min: round_down(low), max: round_up(high), basis: BASIS, reason: nil)
+      # Impossible even at the low end: refuse rather than publish it.
+      return empty("more hours than one person works — how long is probably elapsed time, not effort") if low > capacity
+
+      # Only the top of the range is impossible: keep the range, stop it at a full
+      # working period, and say so.
+      basis = BASIS
+      if high > capacity
+        high = capacity
+        basis = BASIS.merge("capped_at_capacity" => true)
+      end
+
+      Result.new(min: round_down(low * per_year), max: round_up(high * per_year), basis: basis, reason: nil)
     end
 
     private
