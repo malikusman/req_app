@@ -107,7 +107,7 @@ strong{font-weight:600;}
 .bars{display:flex;flex-direction:column;gap:3mm;}
 .bar-row{display:grid;grid-template-columns:48mm 1fr auto;gap:4mm;align-items:center;font-size:8.5pt;}
 .bar-track{height:6mm;background:var(--paper-soft);position:relative;}
-.bar-fill{height:100%;background:var(--blue);}.bar-fill.cat-tooling{background:var(--cyan);}.bar-fill.cat-people{background:var(--magenta);}.bar-fill.cat-data{background:var(--teal);}
+.bar-fill{display:block;height:100%;background:var(--blue);}.bar-fill.cat-tooling{background:var(--cyan);}.bar-fill.cat-people{background:var(--magenta);}.bar-fill.cat-data{background:var(--teal);}
 .bar-val{font-weight:600;}
 .gauge{display:flex;gap:8mm;align-items:center;}
 .funnel{display:grid;grid-template-columns:repeat(4,1fr);gap:4mm;text-align:center;}
@@ -139,7 +139,23 @@ strong{font-weight:600;}
 .pattern-card p{font-size:8.8pt;margin:0;}
 .rec-card{border:1px solid var(--hair);padding:5mm;}
 .rec-card .pill{display:inline-block;font-size:7.5pt;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:1mm 3mm;border-radius:20px;color:#fff;}
-.pill.high{background:var(--magenta);}.pill.med{background:var(--cyan);}.pill.low{background:var(--muted);}
+.pill.high{background:var(--magenta);}.pill.med{background:var(--cyan);}.pill.low{background:var(--muted);}.pill.step{background:var(--blue);}
+/* Findings by role — the tables the report is built around. */
+.findings-table{width:100%;border-collapse:collapse;font-size:8.5pt;line-height:1.35;color:var(--body);}
+.findings-table th{text-align:left;font-size:7pt;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:1.5mm 2mm;border-bottom:1px solid var(--ink);}
+.findings-table td{padding:2mm;border-bottom:1px solid var(--hair);vertical-align:top;}
+.findings-table .num{text-align:right;white-space:nowrap;font-weight:600;}
+.findings-table th.num{font-weight:700;}
+.findings-table .task{font-weight:600;color:var(--ink);}
+.findings-table .how-now{margin-top:1mm;font-size:7.5pt;color:var(--muted);}
+.findings-mini{width:100%;border-collapse:collapse;font-size:9pt;margin-top:2mm;}
+.findings-mini td{padding:1.5mm 0;border-bottom:1px solid var(--hair);}
+.findings-mini .num{text-align:right;font-weight:600;white-space:nowrap;}
+.role-block{margin-top:4mm;break-inside:avoid;}
+.role-head{display:flex;align-items:baseline;justify-content:space-between;gap:6mm;border-top:2px solid var(--blue);padding-top:2mm;}
+.role-head h3{margin:0;font-size:12pt;}
+.role-meta{font-size:8.5pt;color:var(--muted);}
+.role-potential{margin:1.5mm 0 2mm;font-size:9pt;font-style:italic;color:var(--body);}
 .rec-card h4{font-family:var(--sans);font-weight:700;font-size:10.5pt;margin:3mm 0 2mm;}
 .rec-card p{font-size:8.8pt;margin:0;}
 .rec-card .match{font-size:8pt;color:var(--blue);font-weight:600;margin-top:3mm;}

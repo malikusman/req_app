@@ -15,6 +15,7 @@ module Reports
       docs_first = docs_oriented?
       intel = Intelligence::SnapshotBuilder.call(company: @company)
 
+      @findings_view = Findings::ForReport.new(company: @company)
       snapshot = base_snapshot(docs_first, intel)
       apply_narrative!(snapshot)
       # Roadmap is LLM-written when available, else derived from recommendation
@@ -46,6 +47,10 @@ module Reports
         },
         "participation" => intel["participation"],
         "department_coverage" => Array(intel["department_coverage"]),
+        # Role by role, task by task: the unit the report is built from. Hours are
+        # computed in Ruby and every total reconciles with its rows.
+        "findings" => findings_json,
+        "coverage" => coverage_json(intel),
         "situation" => situation_json(docs_first),
         "signals" => signals_json,
         "patterns" => patterns_json,
@@ -103,8 +108,11 @@ module Reports
     # available. The deterministic prose stays as the honest fallback and as the
     # source the writer is grounded on.
     def apply_narrative!(snapshot)
-      narrative = NarrativeWriter.call(company: @company, snapshot: snapshot)
+      narrative = NarrativeWriter.call(company: @company, snapshot: snapshot,
+                                       role_notes: @findings_view.role_potential_notes)
       return unless narrative
+
+      apply_role_potential!(snapshot, narrative["role_potential"])
 
       snapshot["narrative"] = narrative
 
@@ -122,6 +130,58 @@ module Reports
         match = statements[imp["title"].to_s.downcase]
         imp["statement"] = match if match.present?
       end
+    end
+
+    # One line per role on what it could do with time back, written from what its
+    # people said they would do with more time. Only the writer produces it: without
+    # a model the line is left out rather than quoting anyone.
+    def apply_role_potential!(snapshot, statements)
+      by_role = Array(statements).to_h { |s| [[s["department"].to_s.downcase, s["role"].to_s.downcase], s["statement"]] }
+      Array(snapshot.dig("findings", "departments")).each do |department|
+        department["roles"].each do |role|
+          role["potential"] = by_role[[department["name"].to_s.downcase, role["title"].to_s.downcase]]
+        end
+      end
+    end
+
+    def findings_json
+      return @findings_json if defined?(@findings_json)
+
+      @findings_json = begin
+        @findings_view.call
+      rescue StandardError => e
+        Rails.logger.warn("[Reports::SnapshotBuilder] findings skipped: #{e.class}: #{e.message}")
+        nil
+      end
+    end
+
+    # Scope & coverage: who was asked, who took part, and what this report does
+    # not cover — the page a client checks before trusting the rest. Counts only.
+    def coverage_json(intel)
+      participation = intel["participation"] || {}
+      employees = @company.employees
+      by_department = employees.group(Arel.sql("COALESCE(NULLIF(TRIM(department), ''), 'Not recorded')"))
+                               .group(:participation_status).count
+      departments = by_department.each_with_object({}) do |((department, status), count), acc|
+        row = acc[department] ||= { "department" => department, "invited" => 0, "completed" => 0 }
+        row["invited"] += count
+        row["completed"] += count if status == "completed"
+      end.values.sort_by { |r| [-r["completed"], r["department"]] }
+
+      interviewed = departments.select { |r| r["completed"].positive? }.map { |r| r["department"].downcase }
+      in_scope = Array(@company.company_profile["org_departments"]).map(&:to_s).reject(&:blank?)
+      {
+        "invited" => [participation["invited"].to_i, employees.count].max,
+        "completed" => participation["completed"].to_i,
+        "departments" => departments,
+        "roles_interviewed" => employees.where(participation_status: "completed")
+                                        .where.not(role_title: [nil, ""]).distinct.count(:role_title),
+        "not_interviewed" => in_scope.reject { |d| interviewed.include?(d.downcase) },
+        "documents" => @company.documents.where(status: "ready").count
+      }
+    rescue StandardError => e
+      Rails.logger.warn("[Reports::SnapshotBuilder] coverage skipped: #{e.class}: #{e.message}")
+      nil
     end
 
     # Deterministic Now/Next/Later derived from recommendation priority — the
@@ -234,7 +294,7 @@ module Reports
       max_impact = raw_impacts.max.to_f
 
       recs.each_with_index.map do |r, i|
-        matches = Array(r.catalog_matches)
+        matches = Array(r.catalog_matches).select { |m| client_worthy_fit?(m) }
         impact_score = max_impact.positive? ? (raw_impacts[i] / max_impact).round(3) : nil
         {
           "id" => r.id,
@@ -304,7 +364,7 @@ module Reports
                     "to surface where work slows, breaks, or depends on manual workarounds."
                 end
 
-      metric_lead = metric_lead_sentence
+      metric_lead = findings_headline || metric_lead_sentence
       {
         "headline" => metric_lead || (docs_first ? "Document baseline: where friction shows up today" : "Discovery findings: where work is hardest"),
         "context" => [metric_lead ? (docs_first ? "Document baseline: where friction shows up today." : "Discovery findings: where work is hardest.") : nil, context].compact.join(" "),
@@ -381,7 +441,7 @@ module Reports
       participation = Intelligence::SnapshotBuilder.call(company: @company)["participation"] || {}
       invited = participation["invited"].to_i
       completed = participation["completed"].to_i
-      parts = [profile_framing_sentence].compact
+      parts = [profile_framing_sentence, findings_sentence].compact
       parts << if completed.zero? && invited.zero?
                  "Discovery interviews have not started yet."
                elsif completed.zero? && invited.positive?
@@ -402,6 +462,35 @@ module Reports
       parts << goals_framing_sentence
       parts << departments_framing_sentence
       parts.compact.join(" ")
+    end
+
+    # "About 1,050–1,200 hours a year go into the work people described." Computed,
+    # never written by a model — the deterministic lead when the writer is off.
+    def findings_headline
+      totals = findings_json&.dig("totals") || {}
+      return nil unless totals["hours_min"]
+
+      "About #{report_hours(totals['hours_min'], totals['hours_max'])} hours a year go into the work " \
+        "#{totals['people'].to_i == 1 ? 'one person' : "#{totals['people']} people"} described"
+    end
+
+    def findings_sentence
+      totals = findings_json&.dig("totals") || {}
+      return nil if totals["findings"].to_i.zero?
+
+      sentence = "#{totals['findings']} #{'finding'.pluralize(totals['findings'])} across " \
+                 "#{totals['roles']} #{'role'.pluralize(totals['roles'])} in " \
+                 "#{totals['departments']} #{'department'.pluralize(totals['departments'])}"
+      if totals["hours_min"]
+        sentence += ", #{totals['quantified']} of them costed at about " \
+                    "#{report_hours(totals['hours_min'], totals['hours_max'])} hours a year"
+      end
+      "#{sentence}."
+    end
+
+    def report_hours(min, max)
+      fmt = ->(n) { ActiveSupport::NumberHelper.number_to_delimited(n) }
+      min == max ? fmt.call(min) : "#{fmt.call(min)}–#{fmt.call(max)}"
     end
 
     def profile_framing_sentence
@@ -510,6 +599,22 @@ module Reports
         current = acc[key]
         acc[key] = sys if current.nil? || sys.confidence.to_f > current.confidence.to_f
       end.values.sort_by { |s| s.name.to_s }
+    end
+
+    # "Bill.com · 9% fit" printed as a recommendation told a client we had matched
+    # nothing and said so anyway. Below half a fit, a machine match stays in the
+    # working papers. A match with no score is kept: it was put there by hand.
+    MIN_CLIENT_FIT = 0.5
+
+    def client_worthy_fit?(match)
+      return false unless match.is_a?(Hash)
+
+      score = match["score"] || match[:score]
+      return true if score.nil?
+
+      value = score.to_f
+      value /= 100.0 if value > 1.0
+      value >= MIN_CLIENT_FIT
     end
 
     def agentic_ideas_json
@@ -646,6 +751,11 @@ module Reports
       # list arrives ordered by score, so keeping the first occurrence of each
       # name keeps each product at its best-evidenced match.
       curated = curated.uniq { |tool| tool["name"].to_s.strip.downcase }
+      # A consultant's own pick or endorsement always stands; a machine match has to
+      # clear the bar.
+      curated = curated.select do |tool|
+        tool["consultant_added"] || Array(tool["endorsements"]).any? || client_worthy_fit?(tool)
+      end
 
       {
         "curated_matches" => curated.first(8),

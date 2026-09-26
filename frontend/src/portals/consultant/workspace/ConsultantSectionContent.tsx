@@ -10,6 +10,27 @@ type SignalItem = {
   source_excerpts?: { message_id: number; excerpt: string; employee_id?: number }[];
 };
 
+type ReportFindings = {
+  totals: { findings: number; roles: number; hours_min: number | null; hours_max: number | null };
+  withheld: number;
+  departments: {
+    name: string;
+    roles: {
+      title: string;
+      potential: string | null;
+      hours_min: number | null;
+      hours_max: number | null;
+      findings: { id: number; title: string; friction: string | null; hours_min: number | null; hours_max: number | null }[];
+    }[];
+  }[];
+};
+
+function hoursRange(min: number | null, max: number | null) {
+  if (min == null) return '';
+  const fmt = (n: number) => n.toLocaleString('en');
+  return min === max || max == null ? fmt(min) : `${fmt(min)}–${fmt(max)}`;
+}
+
 export function ConsultantSectionContent({
   section,
   snapshot,
@@ -35,37 +56,82 @@ export function ConsultantSectionContent({
     );
   }
 
-  if (section === 'readiness') {
-    const r = snapshot.readiness as { score?: number; breakdown?: Record<string, number> } | undefined;
+  if (section === 'role_findings') {
+    const view = snapshot.findings as ReportFindings | undefined;
+    const departments = view?.departments ?? [];
+    if (departments.length === 0) {
+      return (
+        <p className="text-sm text-muted-foreground">
+          No findings reached this version of the report. Findings appear as interviews finish; review them on the
+          company&apos;s Findings page, then regenerate.
+        </p>
+      );
+    }
     return (
-      <div className="space-y-3">
-        <p className="text-2xl font-semibold text-foreground">{r?.score ?? 0}%</p>
-        {r?.breakdown &&
-          Object.entries(r.breakdown).map(([k, v]) => (
-            <div key={k}>
-              <div className="mb-1 flex justify-between text-sm">
-                <span className="capitalize">{k.replace(/_/g, ' ')}</span>
-                <span>{v}%</span>
+      <div className="space-y-4">
+        <p className="m-0 text-sm text-foreground">
+          {view?.totals.findings} findings across {view?.totals.roles} roles
+          {view?.totals.hours_min != null && (
+            <>
+              {' '}
+              · <strong>{hoursRange(view.totals.hours_min, view.totals.hours_max)} hours a year</strong>
+            </>
+          )}
+        </p>
+        {view && view.withheld > 0 && (
+          <p className="m-0 rounded-md bg-warning/10 px-3 py-2 text-sm text-foreground">
+            {view.withheld} finding{view.withheld === 1 ? ' is' : 's are'} held back until reviewed — about a role one
+            person holds, or a probable double count. Review them on the Findings page, then regenerate.
+          </p>
+        )}
+        {departments.map((d) => (
+          <div key={d.name} className="space-y-2">
+            <h4 className="m-0 text-sm font-semibold text-foreground">{d.name}</h4>
+            {d.roles.map((r) => (
+              <div key={r.title} className="rounded-lg border border-border p-3">
+                <div className="flex justify-between gap-2 text-sm">
+                  <strong>{r.title}</strong>
+                  {r.hours_min != null && <span>{hoursRange(r.hours_min, r.hours_max)} h</span>}
+                </div>
+                {r.potential && <p className="m-0 mt-1 text-xs italic text-muted-foreground">{r.potential}</p>}
+                <ul className="m-0 mt-2 space-y-1 pl-4 text-sm text-muted-foreground">
+                  {r.findings.map((f) => (
+                    <li key={f.id}>
+                      <span className="text-foreground">{f.title}</span> — {f.friction}
+                      {f.hours_min != null && ` (${hoursRange(f.hours_min, f.hours_max)} h)`}
+                    </li>
+                  ))}
+                </ul>
               </div>
-              <StrengthBar strength={typeof v === 'number' ? v / 100 : 0} />
-            </div>
-          ))}
+            ))}
+          </div>
+        ))}
       </div>
     );
   }
 
-  if (section === 'participation') {
-    const p = snapshot.participation as Record<string, number> | undefined;
-    if (!p) return <p className="text-sm text-muted-foreground">No participation data.</p>;
+  if (section === 'coverage') {
+    const c = snapshot.coverage as
+      | { invited: number; completed: number; roles_interviewed: number; not_interviewed: string[];
+          departments: { department: string; invited: number; completed: number }[] }
+      | undefined;
+    if (!c) return <p className="text-sm text-muted-foreground">No coverage data in this version.</p>;
     return (
-      <ul className="space-y-2 text-sm">
-        {Object.entries(p).map(([k, v]) => (
-          <li key={k} className="flex justify-between">
-            <span className="capitalize text-muted-foreground">{k.replace(/_/g, ' ')}</span>
-            <strong>{typeof v === 'number' && v < 1 ? `${Math.round(v * 100)}%` : v}</strong>
-          </li>
-        ))}
-      </ul>
+      <div className="space-y-3 text-sm">
+        <p className="m-0">
+          {c.completed} of {c.invited} invited took part, covering {c.roles_interviewed} roles.
+        </p>
+        <ul className="m-0 space-y-1 pl-4">
+          {c.departments.map((d) => (
+            <li key={d.department}>
+              {d.department}: {d.completed} of {d.invited}
+            </li>
+          ))}
+        </ul>
+        {c.not_interviewed.length > 0 && (
+          <p className="m-0 text-muted-foreground">Not covered: {c.not_interviewed.join(', ')}.</p>
+        )}
+      </div>
     );
   }
 

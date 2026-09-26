@@ -2,7 +2,6 @@
 <% participation = snapshot["participation"] || {} %>
 <% invited = participation["invited"].to_i %>
 <% completed = participation["completed"].to_i %>
-<% readiness_score = snapshot.dig("readiness", "score").to_f.round %>
 <% patterns_count = Array(snapshot["patterns"]).size %>
 <% recs_count = Array(snapshot["recommendations"]).size %>
 <% docs_first = snapshot["docs_first_phase"] == true || snapshot["report_kind"].to_s == "baseline" %>
@@ -23,7 +22,10 @@
       <%# Drop cap only when the paragraph opens with a letter. Model prose can
           begin with a figure ("3 of 5 employees…"), and a 34pt numeral reads as
           a fault rather than as typography. %>
-      <p class="<%= narrative["executive_summary"].to_s.lstrip.match?(/\A[[:alpha:]]/) ? "dropcap" : "" %>"><%= h narrative["executive_summary"] %></p>
+      <%# The writer's summary can be dropped by the number guard; the computed one
+          stands in rather than leaving the column empty. %>
+      <% summary_text = narrative["executive_summary"].presence || summary %>
+      <p class="<%= summary_text.to_s.lstrip.match?(/\A[[:alpha:]]/) ? "dropcap" : "" %>"><%= h summary_text %></p>
       <% if support.any? %>
         <ul class="plain" style="padding-left:4mm;">
           <% support.first(3).each do |pt| %><li><%= h pt %></li><% end %>
@@ -53,15 +55,23 @@
       <p class="method"><%= h situation["ask"] %></p>
     <% end %>
   <% end %>
+  <%# The readiness score used to lead this row. It is our gate for generating a
+      report, not something a client acts on, so the row now leads with the hours. %>
+  <% findings_totals = snapshot.dig("findings", "totals") || {} %>
   <div class="stat-row" style="margin-top:7mm;">
-    <div class="stat"><div class="num"><%= readiness_score %></div><div class="lab">Readiness score, out of 100</div></div>
+    <% if findings_totals["hours_min"] %>
+      <div class="stat"><div class="num"><%= report_hours(findings_totals["hours_min"], findings_totals["hours_max"]) %></div><div class="lab">Hours a year in the work described</div></div>
+      <div class="stat"><div class="num"><%= findings_totals["findings"].to_i %></div><div class="lab">Findings across <%= pluralize(findings_totals["roles"].to_i, "role") %></div></div>
+    <% end %>
     <% if docs_first %>
       <div class="stat"><div class="num"><%= doc_count %></div><div class="lab">Internal documents analyzed</div></div>
     <% else %>
       <div class="stat"><div class="num"><%= completed %>/<%= invited %></div><div class="lab">Employees completed the interview</div></div>
     <% end %>
-    <div class="stat"><div class="num"><%= patterns_count %></div><div class="lab">Cross-team patterns identified</div></div>
-    <div class="stat"><div class="num"><%= recs_count %></div><div class="lab">Recommendations, catalog-matched</div></div>
+    <% unless findings_totals["hours_min"] %>
+      <div class="stat"><div class="num"><%= patterns_count %></div><div class="lab">Cross-team patterns identified</div></div>
+    <% end %>
+    <div class="stat"><div class="num"><%= recs_count %></div><div class="lab">Recommendations</div></div>
   </div>
   <% key_metrics = Array(snapshot["key_metrics"]).first(6) %>
   <% if key_metrics.any? %>

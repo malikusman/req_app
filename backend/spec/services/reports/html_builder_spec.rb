@@ -32,7 +32,8 @@ RSpec.describe Reports::HtmlBuilder do
 
     expect(html).to include("Discovery Report")
     expect(html).to include("Acme Corp")
-    expect(html).to include("Readiness breakdown")
+    expect(html).to include("Who took part")
+    expect(html).not_to include("Readiness breakdown")
     expect(html).to include("Manual re-entry")
     expect(html).to include("Approval bottlenecks")
     expect(html).to include("Automate invoice intake")
@@ -40,6 +41,56 @@ RSpec.describe Reports::HtmlBuilder do
     expect(html).to include("@page")
     # The evidence base is stated as method, not reproduced as content.
     expect(html).to include("3 internal documents")
+  end
+
+  describe "findings by role" do
+    let(:with_findings) do
+      finding = lambda do |title, hours, **extra|
+        { "id" => title.hash, "title" => title, "friction" => "#{title} is re-keyed by hand",
+          "what_happens_now" => nil, "frequency" => "every day", "duration" => "an hour", "effort_type" => "active",
+          "hours_min" => hours&.first, "hours_max" => hours&.last, "people" => 1 }.merge(extra)
+      end
+      snapshot.merge(
+        "findings" => {
+          "totals" => { "findings" => 3, "quantified" => 2, "roles" => 2, "departments" => 1, "people" => 2,
+                        "hours_min" => 400, "hours_max" => 480 },
+          "departments" => [{
+            "name" => "procurement", "hours_min" => 400, "hours_max" => 480,
+            "roles" => [
+              { "title" => "Procurement Officer", "people" => 2, "hours_min" => 400, "hours_max" => 420,
+                "potential" => "With time back, this role could put more into sourcing new suppliers.",
+                "findings" => [finding.call("Supplier price updates", [240, 240]), finding.call("Purchase orders", [160, 180])] },
+              { "title" => "Buyer", "people" => 1, "hours_min" => nil, "hours_max" => nil,
+                "findings" => [finding.call("Approvals", nil, "effort_type" => "waiting")] }
+            ]
+          }],
+          "delays" => [{ "title" => "Approvals", "role" => "Buyer", "department" => "procurement", "duration" => "days" }],
+          "withheld" => 1
+        },
+        "coverage" => { "invited" => 5, "completed" => 2, "roles_interviewed" => 2, "documents" => 0,
+                        "departments" => [{ "department" => "procurement", "invited" => 5, "completed" => 2 }],
+                        "not_interviewed" => ["Finance"] }
+      )
+    end
+
+    it "leads with the hours, role by role, and never prints a build outline" do
+      html = described_class.call(snapshot: with_findings)
+
+      expect(html).to include("hours a year go into the work people described")
+      expect(html).to include("400–480")
+      expect(html).to include("Procurement Officer", "described by 2 people", "400–420 hours a year")
+      expect(html).to include("With time back, this role could put more into sourcing new suppliers.")
+      expect(html).to include("Waiting — not counted")
+      expect(html).to include("No one from Finance took part")
+      expect(html).to include("Full design is available at Stage 2")
+      expect(html).not_to include("How:</strong>")
+      expect(html).not_to include("Pilot OCR.")
+    end
+
+    it "never tells the client how many findings were held back for review" do
+      html = described_class.call(snapshot: with_findings)
+      expect(html).not_to match(/held back|withheld/i)
+    end
   end
 
   it "reproduces no interview excerpt, media caption or document filename" do

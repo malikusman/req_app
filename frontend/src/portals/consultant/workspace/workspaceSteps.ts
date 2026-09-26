@@ -9,14 +9,15 @@ export const WORKSPACE_STEPS = [
 
 export type WorkspaceStepId = (typeof WORKSPACE_STEPS)[number]['id'];
 
+// Mirrors ReportSections::DEFINITIONS on the backend.
 export const REPORT_SECTIONS = [
   'executive_summary',
-  'readiness',
-  'participation',
+  'role_findings',
   'delta',
   'signals',
   'patterns',
   'recommendations',
+  'coverage',
 ] as const;
 
 export type ReportSectionKey = (typeof REPORT_SECTIONS)[number];

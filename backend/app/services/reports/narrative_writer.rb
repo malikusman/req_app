@@ -10,13 +10,17 @@ module Reports
   # OpenAI key OR a local OpenAI-compatible endpoint with a dummy key), so a
   # production instance without a key never fabricates a narrative.
   class NarrativeWriter
-    def self.call(company:, snapshot:)
-      new(company: company, snapshot: snapshot).call
+    def self.call(company:, snapshot:, role_notes: [])
+      new(company: company, snapshot: snapshot, role_notes: role_notes).call
     end
 
-    def initialize(company:, snapshot:)
+    # role_notes: what each role's people said they would do with more time
+    # (Findings::ForReport#role_potential_notes). Given to the writer only, so it can
+    # write one line about the role; never stored in the snapshot.
+    def initialize(company:, snapshot:, role_notes: [])
       @company = company
       @snapshot = snapshot
+      @role_notes = Array(role_notes)
     end
 
     def call
@@ -61,8 +65,44 @@ module Reports
         end,
         "recommendations" => Array(@snapshot["recommendations"]).map { |r| r.slice("title", "description", "priority") },
         "client_stack" => Array(@snapshot["client_stack"]).map { |s| s["name"] }.compact,
-        "document_count" => @snapshot.dig("evidence_base", "documents").to_i
+        "document_count" => @snapshot.dig("evidence_base", "documents").to_i,
+        # Role by role, with hours already computed. The only hour figures the
+        # writer may quote are these, as given.
+        "findings" => findings_context,
+        "role_potential_notes" => @role_notes
       }
+    end
+
+    def findings_context
+      view = @snapshot["findings"]
+      return nil unless view.is_a?(Hash) && view.dig("totals", "findings").to_i.positive?
+
+      {
+        "totals" => view["totals"],
+        "departments" => Array(view["departments"]).map do |d|
+          {
+            "name" => d["name"], "hours" => hours_text(d["hours_min"], d["hours_max"]),
+            "roles" => d["roles"].map do |r|
+              {
+                "role" => r["title"], "people" => r["people"], "hours" => hours_text(r["hours_min"], r["hours_max"]),
+                "findings" => r["findings"].map do |f|
+                  { "task" => f["title"], "what_snags" => f["friction"], "how_often" => f["frequency"],
+                    "how_long" => f["duration"], "waiting" => f["effort_type"] == "waiting",
+                    "hours" => hours_text(f["hours_min"], f["hours_max"]) }
+                end
+              }
+            end
+          }
+        end
+      }
+    end
+
+    # "1,050–1,200 hours a year" — the exact form the prose may repeat.
+    def hours_text(min, max)
+      return nil if min.nil?
+
+      fmt = ->(n) { ActiveSupport::NumberHelper.number_to_delimited(n) }
+      "#{min == max ? fmt.call(min) : "#{fmt.call(min)}–#{fmt.call(max)}"} hours a year"
     end
 
     # 0..1 (or 0..100) score → plain band. Keeps internal numbers out of the
@@ -90,7 +130,11 @@ module Reports
       # rather than shipping a fabricated statistic to the client.
       allowed = grounded_number_set
       governing = "" unless text_numbers_grounded?(governing, allowed)
-      summary = "" unless text_numbers_grounded?(summary, allowed)
+      # Sentence by sentence: one stray figure in a five-sentence summary used to
+      # blank the whole summary. A summary left with fewer than two sentences is
+      # dropped, and the page falls back to the computed one.
+      kept = summary.split(/(?<=[.!?])\s+/).select { |sentence| text_numbers_grounded?(sentence, allowed) }
+      summary = kept.size >= 2 ? kept.join(" ") : ""
 
       {
         "governing_thought" => governing.presence,
@@ -109,6 +153,7 @@ module Reports
           { "pattern_title" => title, "statement" => statement }
         end,
         "roadmap" => normalize_roadmap(parsed["roadmap"]),
+        "role_potential" => normalize_role_potential(parsed["role_potential"]),
         "generated_by" => "llm"
       }
     end
@@ -138,12 +183,47 @@ module Reports
         Array(context["patterns"]).flat_map { |p| [p["title"], p["description"]] },
         Array(context["recommendations"]).flat_map { |r| [r["title"], r["description"]] },
         Array(@snapshot["implications"]).map { |i| i["statement"] },
-        @snapshot.dig("situation", "context")
+        @snapshot.dig("situation", "context"),
+        findings_number_sources
       ].flatten.compact
+    end
+
+    # Every hour figure in the findings, in the forms prose writes them: the range,
+    # and each end of it, with and without thousands separators.
+    def findings_number_sources
+      view = @snapshot["findings"]
+      return [] unless view.is_a?(Hash)
+
+      rows = [view["totals"]] + Array(view["departments"]).flat_map do |d|
+        [d] + d["roles"] + d["roles"].flat_map { |r| r["findings"] }
+      end
+      rows.compact.flat_map do |row|
+        min, max = row["hours_min"], row["hours_max"]
+        next [] if min.nil?
+
+        [min, max].flat_map { |n| ["#{n} hours", "#{ActiveSupport::NumberHelper.number_to_delimited(n)} hours"] } +
+          ["#{min}-#{max} hours", hours_text(min, max)]
+      end
     end
 
     def text_numbers_grounded?(text, allowed)
       Llm::GroundedNumbers.grounded?(text, allowed)
+    end
+
+    # One line per role, about the role. No figures at all — it is written from what
+    # people hoped to do, which carries no measurement — and only for roles the
+    # writer was actually given notes for.
+    def normalize_role_potential(items)
+      known = @role_notes.to_h { |n| [[n["department"].to_s.downcase, n["role"].to_s.downcase], n] }
+      Array(items).filter_map do |item|
+        next unless item.is_a?(Hash)
+
+        note = known[[item["department"].to_s.downcase, item["role"].to_s.downcase]]
+        statement = item["statement"].to_s.strip
+        next if note.nil? || statement.blank? || statement.length > 240 || statement.match?(/\d/)
+
+        { "department" => note["department"], "role" => note["role"], "statement" => statement }
+      end
     end
 
     def normalize_roadmap(roadmap)

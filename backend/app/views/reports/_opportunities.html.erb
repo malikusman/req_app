@@ -13,18 +13,20 @@
 <% report_paginate(ideas, 3).each_with_index do |group, page_index| %>
 <section class="page">
   <div class="eyebrow">Opportunities<%= " · continued" if page_index.positive? %></div>
-  <h1 class="page-title">Agentic AI we'd build for you</h1>
+  <h1 class="page-title">Where AI could help</h1>
   <% if page_index.zero? %>
-    <p class="lead" style="margin-bottom:6mm;">Concepts we would design and build from this company's evidence — not off-the-shelf tools. Each is published only after platform or consultant review.</p>
+    <p class="lead" style="margin-bottom:6mm;">Ideas drawn from this company's findings, each reviewed before publication. They say where AI could take work off people's hands, not how it would be built — full design, cost and timeline are available at Stage 2.</p>
   <% end %>
   <div class="idea-list">
     <% group.each do |idea| %>
+      <%# No cost, timeline or money value: those are estimates of a build nobody
+          has designed yet. The hours a fix would free are in Findings by role, in
+          figures computed from what people said. %>
       <% values = [
            idea["value_time"].present? ? "Time: #{idea['value_time'].to_s.truncate(70)}" : nil,
-           idea["value_efficiency"].present? ? "Efficiency: #{idea['value_efficiency'].to_s.truncate(70)}" : nil,
-           idea["value_cost"].present? ? "Cost: #{idea['value_cost'].to_s.truncate(70)}" : nil
+           idea["value_efficiency"].present? ? "Efficiency: #{idea['value_efficiency'].to_s.truncate(70)}" : nil
          ].compact %>
-      <% terms = [idea["approx_timeline"], idea["estimated_cost"], idea["catalog_name"]].map(&:presence).compact %>
+      <% terms = [idea["catalog_name"]].map(&:presence).compact %>
       <div class="idea">
         <div class="idea-main">
           <div class="idea-title"><%= h idea["title"] %></div>

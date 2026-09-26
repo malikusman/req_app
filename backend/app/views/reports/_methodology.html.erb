@@ -15,40 +15,28 @@
           <% if doc_count.positive? %>
             (<%= doc_count %> supporting <%= doc_count == 1 ? "document" : "documents" %> cited)
           <% end %>.
-          Signals and patterns are produced by structured extraction over the document text; employee interviews (run by specialist discovery agents) can be added later to strengthen the same evidence. Recommendations are matched from those signals against the solution catalog.
+          Signals and patterns are produced by structured extraction over the document text; employee interviews can be added later to strengthen the same evidence. Recommendations are matched from those signals against the solution catalog.
           <% if participation["invited"].to_i.positive? && participation["completed"].to_i.zero? %>
-            <%= participation["invited"].to_i %> employees have been invited; readiness will reweight toward interviews as they complete discovery.
+            <%= participation["invited"].to_i %> employees have been invited; their interviews will be added as they complete.
           <% end %>
         </p>
       <% else %>
         <p class="method" style="margin-top:0;">
-          Findings draw on adaptive discovery interviews (WhatsApp and web chat) for <%= h company_name %>, conducted by specialist discovery agents — routed by role and department — with structured signal extraction over the transcripts.
+          Findings draw on confidential discovery interviews (WhatsApp and web chat) for <%= h company_name %>. Each interview maps the person's own areas of work, then asks how each works, what gets in the way, and how often and how long it takes.
           <% if participation["invited"].to_i.positive? %>
             <%= participation["completed"].to_i %> of <%= participation["invited"].to_i %> invited employees completed the full discovery flow.
           <% end %>
           <% if doc_count.positive? %>
             Interview evidence is reinforced by <%= doc_count %> internal <%= doc_count == 1 ? "document" : "documents" %>.
           <% end %>
-          Post-interview signals and patterns use structured extraction over conversation and document evidence; recommendations are catalog-matched recipes reviewed before client delivery.
+          Findings and this report are reviewed before release, and a finding about a role only one person holds is never included until a consultant has checked it. Signals and patterns are drawn from the same interviews and documents.
         </p>
       <% end %>
     </div>
     <div class="method" style="align-self:center;">
       <dl>
-        <dt>Readiness weighting</dt>
-        <% if docs_first %>
-          <dd style="font-size:9pt;color:var(--muted);">Ready documents (40%), document departments (20%), pattern confidence (25%), multimodal / document sources (15%).</dd>
-        <% else %>
-          <dd style="font-size:9pt;color:var(--muted);">Blended score: document baseline plus employee coverage, department spread, pattern confidence, and multimodal evidence as interviews accumulate.</dd>
-        <% end %>
-        <% agents = Array(snapshot["agent_activity"]) %>
-        <% if !docs_first && agents.any? %>
-          <dt>Discovery agents engaged</dt>
-          <dd style="font-size:9pt;color:var(--muted);">
-            Interviews were led by role-routed specialist agents:
-            <%= agents.map { |a| "#{a['role']} (#{a['turns']} #{a['turns'].to_i == 1 ? 'turn' : 'turns'})" }.join("; ") %>.
-          </dd>
-        <% end %>
+        <dt>How hours are worked out</dt>
+        <dd style="font-size:9pt;color:var(--muted);">From how often and how long each person said a piece of work takes, on 48 working weeks, 240 working days and 8-hour days a year. Ranges stay ranges, rounded outward. Waiting on others is never counted, no figure is larger than one person's working year, and nothing is converted to salary. Where two people described the same work, it is counted once.</dd>
         <% if evidence_sentence %>
           <dt>Evidence base</dt>
           <dd style="font-size:9pt;color:var(--muted);"><%= h evidence_sentence.upcase_first %>. Individual interview transcripts, document files and media exhibits are working papers and are deliberately excluded from this deliverable — findings are reported with the weight of evidence behind them, not the source material itself.</dd>

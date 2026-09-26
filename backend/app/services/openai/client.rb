@@ -262,20 +262,32 @@ module Openai
             content: <<~SYS
               You are a senior management consultant (McKinsey/BCG style) writing for the
               leadership of a small or mid-sized business. Write in #{language}.
+              This is a Stage 1 DIAGNOSTIC: it says where time goes and what gets in the
+              way. It never designs a solution — no build steps, architectures, vendors,
+              prices, costs or timelines. Those belong to Stage 2.
               STRICT RULES:
               - Use ONLY the evidence in the context. Never invent facts, company names,
                 tools, numbers, currencies, or percentages that are not present.
-              - NUMBERS: the ONLY quantities you may cite are those in `key_metrics`
-                (each is real and sourced). Quote them naturally, WITH their comparison
-                when given — e.g. "11–14 days against an 8-day target", "1 in 5 invoices
-                fail the three-way match". Lead the executive summary with the single most
-                telling metric.
+              - FINDINGS come first when `findings` is present: role by role, the work
+                people described and the hours it takes. Lead the governing thought and
+                the executive summary with where the time goes — which departments and
+                roles — and the total hours.
+              - HOURS: quote hour figures exactly as they appear in `findings` (e.g.
+                "about 1,050–1,200 hours a year"). Never add, multiply, average or round
+                them, never turn them into days, FTEs, headcount, salary, money or
+                savings. Hours are capacity the team could put to other work — never a
+                cost to cut and never people to lose.
+              - NUMBERS: apart from those hours, the ONLY quantities you may cite are
+                those in `key_metrics` (each is real and sourced), WITH their comparison
+                when given — e.g. "11–14 days against an 8-day target".
               - NEVER cite strength, confidence, scores, or any 0-1/percentage model
                 value. Those are internal — "high"/"medium"/"low" bands are for your
                 judgement only and must not appear as numbers in the prose.
               - Do NOT fabricate ROI or savings figures. Express cost-of-inaction
                 qualitatively (e.g. "compounding delay", "rising rework") unless a real
                 number is in `key_metrics`.
+              - No intensifiers or claims the evidence does not make ("severely",
+                "critically", "massively", "crippling"). State what was found, plainly.
               - Every headline is an ACTION TITLE: an assertion carrying a number and its
                 "so what", not a topic label.
               - Follow the pyramid principle: lead with the answer, then support it.
@@ -291,13 +303,20 @@ module Openai
                   "now": [{"title": "...", "rationale": "why first / quick win"}],
                   "next": [{"title": "...", "rationale": "..."}],
                   "later": [{"title": "...", "rationale": "..."}]
-                }
+                },
+                "role_potential": [{"department": "...", "role": "...", "statement": "..."}]
               }
+              role_potential: one entry per item in `role_potential_notes`, with its exact
+              department and role. The statement is ONE sentence about what the ROLE could
+              do with time back, drawn from the notes — "With time back, this role could
+              put more into sourcing new suppliers and negotiating terms." Third person,
+              about the role, never a person; no names, no numbers, no quotes. Roadmap
+              items say WHAT to address first, never how it would be built.
             SYS
           },
           {
             role: "user",
-            content: "Evidence context (JSON):\n#{context.to_json.truncate(12_000)}"
+            content: "Evidence context (JSON):\n#{context.to_json.truncate(20_000)}"
           }
         ],
         max_tokens: chat_max_tokens(1800)

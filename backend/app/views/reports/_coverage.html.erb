@@ -1,0 +1,77 @@
+<% company_name = snapshot.dig("company", "name") %>
+<% coverage = snapshot["coverage"] || {} %>
+<% view = snapshot["findings"] || {} %>
+<% totals = view["totals"] || {} %>
+<% rows = Array(coverage["departments"]) %>
+<% not_interviewed = Array(coverage["not_interviewed"]) %>
+<% delays = Array(view["delays"]) %>
+<% unquantified = totals["findings"].to_i - totals["quantified"].to_i - delays.size %>
+<%# Scope & coverage replaces the readiness score and the participation funnel.
+    Both were our delivery measures; a client needs to know instead who was asked,
+    who answered, and what the report therefore cannot speak to. %>
+<section class="page" id="coverage">
+  <div class="eyebrow">Scope &amp; coverage</div>
+  <h1 class="page-title">Who took part, and what this report does not cover</h1>
+  <div class="split">
+    <div>
+      <p class="lead">
+        <%= coverage["completed"].to_i %> of <%= coverage["invited"].to_i %> invited
+        <%= coverage["invited"].to_i == 1 ? "person" : "people" %> completed the interview<% if coverage["roles_interviewed"].to_i.positive? %>,
+        covering <%= pluralize(coverage["roles_interviewed"].to_i, "role") %><% end %>.
+        <% if coverage["documents"].to_i.positive? %>
+          <%= pluralize(coverage["documents"].to_i, "internal document") %> were also reviewed.
+        <% end %>
+      </p>
+      <p>Each person spoke in confidence. This report describes work and roles, never what an individual said.</p>
+      <% if rows.any? %>
+        <table class="findings-table" style="margin-top:4mm;">
+          <thead><tr><th>Department</th><th class="num">Invited</th><th class="num">Took part</th></tr></thead>
+          <tbody>
+            <% rows.first(12).each do |row| %>
+              <tr>
+                <td><%= h report_department_label(row["department"]) %></td>
+                <td class="num"><%= row["invited"].to_i %></td>
+                <td class="num"><%= row["completed"].to_i %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      <% end %>
+    </div>
+    <div class="method" style="align-self:start;">
+      <dl>
+        <dt>Not covered</dt>
+        <dd style="font-size:9pt;color:var(--muted);">
+          <% if not_interviewed.any? %>
+            No one from <%= h not_interviewed.map { |d| report_department_label(d) }.to_sentence %> took part, so the
+            report says nothing about work there.
+          <% else %>
+            Every department in scope had at least one person take part. Roles within them that were not interviewed
+            are not covered.
+          <% end %>
+        </dd>
+        <% if unquantified.positive? %>
+          <dt>Not put in hours</dt>
+          <dd style="font-size:9pt;color:var(--muted);">
+            <%= pluralize(unquantified, "finding") %> came without a clear how-often or how-long, so
+            <%= unquantified == 1 ? "it is" : "they are" %> described but not counted in the total. The real figure is
+            higher than the total, not lower.
+          </dd>
+        <% end %>
+        <% if delays.any? %>
+          <dt>Delays, not counted as hours</dt>
+          <dd style="font-size:9pt;color:var(--muted);">
+            Waiting on others is a delay, not work, so it adds nothing to the hours:
+            <%= h delays.first(4).map { |d| "#{d['title'].to_s.downcase} (#{d['role']})" }.to_sentence %>.
+          </dd>
+        <% end %>
+        <dt>What this is</dt>
+        <dd style="font-size:9pt;color:var(--muted);">
+          A diagnosis: where time goes and what gets in the way. It does not design solutions or estimate their cost —
+          that is the next stage, for the findings you choose to act on.
+        </dd>
+      </dl>
+    </div>
+  </div>
+  <%= render "reports/page_footer", company_name: company_name %>
+</section>

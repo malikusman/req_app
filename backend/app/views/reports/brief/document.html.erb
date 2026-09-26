@@ -98,7 +98,49 @@
 </section>
 
 <%# ===== PAGE 2 · WHERE IT HURTS ====================================== %>
-<% if signals.any? %>
+<%# With findings, the page shows where the time goes, role by role — the same
+    figures as the full report's Findings by role, cut to the six largest roles.
+    Without them it falls back to the ranked friction signals. %>
+<% brief_roles = Array(snapshot.dig("findings", "departments"))
+                   .flat_map { |d| d["roles"].map { |r| r.merge("department" => d["name"]) } }
+                   .select { |r| r["hours_max"] }.sort_by { |r| -r["hours_max"] }.first(6) %>
+<% brief_totals = snapshot.dig("findings", "totals") || {} %>
+<% if brief_roles.any? %>
+<section class="page">
+  <div class="eyebrow">Where it hurts</div>
+  <h1 style="font-size:20pt;margin:3mm 0 2mm;">Where the time goes</h1>
+  <p class="muted" style="font-size:9pt;margin:0 0 5mm;">
+    About <%= report_hours(brief_totals["hours_min"], brief_totals["hours_max"]) %> hours a year across
+    <%= pluralize(brief_totals["findings"].to_i, "finding") %>, from how often and how long people said the work takes.
+    Capacity, not cost: nothing here is converted to salary.
+  </p>
+  <% scale = brief_roles.first["hours_max"].to_f %>
+  <% brief_roles.each do |role| %>
+    <div class="sig">
+      <div>
+        <div class="name"><%= h role["title"] %></div>
+        <div class="where"><%= h report_department_label(role["department"]) %><% if role["people"].to_i > 1 %> · <%= role["people"] %> people<% end %></div>
+        <div class="ev"><%= h role["findings"].select { |f| f["hours_max"] }.first(2).map { |f| "#{f['title']} (#{report_hours(f['hours_min'], f['hours_max'])} h)" }.join(" · ") %></div>
+      </div>
+      <div class="band">
+        <div class="bar"><i style="width:<%= (role["hours_max"] / scale * 100).round %>%"></i></div>
+        <div class="lvl"><%= report_hours(role["hours_min"], role["hours_max"]) %> h</div>
+      </div>
+    </div>
+  <% end %>
+  <% top_pattern = patterns.max_by { |p| p["confidence"].to_f } %>
+  <% if top_pattern %>
+    <div class="pattern">
+      <div class="exlabel">Strongest cross-team pattern</div>
+      <div class="t" style="margin-top:2mm;"><%= h top_pattern["title"] %></div>
+      <% if top_pattern["description"].present? %>
+        <p><%= h top_pattern["description"].to_s.truncate(320) %></p>
+      <% end %>
+    </div>
+  <% end %>
+  <%= foot.call(2) %>
+</section>
+<% elsif signals.any? %>
 <section class="page">
   <div class="eyebrow">Where it hurts</div>
   <h1 style="font-size:20pt;margin:3mm 0 6mm;">The friction, ranked</h1>
@@ -152,7 +194,8 @@
 <% if recommendations.any? || roadmap.values.any? { |v| Array(v).any? } %>
 <section class="page">
   <div class="eyebrow">What to do about it</div>
-  <h1 style="font-size:20pt;margin:3mm 0 6mm;">Where to act first</h1>
+  <h1 style="font-size:20pt;margin:3mm 0 2mm;">Where to act first</h1>
+  <p class="muted" style="font-size:9pt;margin:0 0 5mm;">What to address first. How each would be done — its design, cost and timeline — is Stage 2.</p>
 
   <%# An owner acts on three, not nine. %>
   <% recommendations.first(3).each do |rec| %>

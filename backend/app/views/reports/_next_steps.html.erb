@@ -1,0 +1,60 @@
+<% company_name = snapshot.dig("company", "name") %>
+<% not_interviewed = Array(snapshot.dig("coverage", "not_interviewed")) %>
+<% totals = snapshot.dig("findings", "totals") || {} %>
+<%# Stage 1 ends here. What a client can do next, stated plainly — the report
+    diagnoses; the design, cost and timeline of any fix are Stage 2's job. %>
+<section class="page" id="next-steps">
+  <div class="eyebrow">Next steps</div>
+  <h1 class="page-title">What happens after this report</h1>
+  <div class="card-grid-3" style="margin-top:6mm;">
+    <div class="rec-card">
+      <span class="pill step">1 · Review</span>
+      <h4>Walk through the findings with us</h4>
+      <p>
+        We go through the findings with you<% if totals["roles"].to_i.positive? %>, role by role<% end %>. You know
+        your business: anything we have wrong, or have counted too high or too low, we correct before anything else
+        is built on it.
+      </p>
+    </div>
+    <div class="rec-card">
+      <span class="pill step">2 · Choose</span>
+      <h4>Pick the findings to act on</h4>
+      <p>
+        Stage 2 takes the findings you choose and designs the change for each: how it would work, what it would take,
+        what it would cost and how long it would run. Full design is available at Stage 2.
+      </p>
+    </div>
+    <div class="rec-card">
+      <span class="pill step">3 · Extend</span>
+      <h4>Widen the picture where it is thin</h4>
+      <p>
+        <% if not_interviewed.any? %>
+          No one from <%= h not_interviewed.map { |d| report_department_label(d) }.to_sentence %> took part yet.
+          Interviewing a few people there would bring those teams into the picture.
+        <% else %>
+          More interviews in the roles with the most hours would firm up the figures, and new roles can be added at
+          any time.
+        <% end %>
+      </p>
+    </div>
+  </div>
+  <% largest = Array(snapshot.dig("findings", "departments")).flat_map { |d| d["roles"].flat_map { |r| r["findings"] } }
+                                                                .select { |f| f["hours_max"] }.sort_by { |f| -f["hours_max"] }.first(5) %>
+  <% if largest.any? %>
+    <h3 style="margin-top:8mm;">The largest findings by hours</h3>
+    <p class="muted" style="margin:1mm 0 2mm;font-size:9pt;">A natural place to start choosing — size is not the only reason to act, but it is the easiest to check.</p>
+    <table class="findings-table">
+      <thead><tr><th>Work</th><th>Role</th><th class="num">Hours a year</th></tr></thead>
+      <tbody>
+        <% largest.each do |finding| %>
+          <tr>
+            <td class="task"><%= h finding["title"] %></td>
+            <td><%= h finding["role"] %> <span class="muted">· <%= h report_department_label(finding["department"]) %></span></td>
+            <td class="num"><%= report_hours(finding["hours_min"], finding["hours_max"]) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+  <%= render "reports/page_footer", company_name: company_name %>
+</section>

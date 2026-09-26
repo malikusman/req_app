@@ -76,14 +76,16 @@ RSpec.describe "Report variants" do
     expect(pages).to be_between(1, 4)
   end
 
-  it "drops readiness, participation and methodology from the brief but keeps them in the full report" do
+  it "keeps scope, coverage and method out of the brief but in the full report" do
     brief = html_for("exec_brief")
     full = html_for("full")
 
     expect(brief).not_to include("Readiness score, out of 100")
     expect(brief).not_to include("Participation")
-    expect(full).to include("Readiness")
+    expect(full).to include("Who took part, and what this report does not cover")
     expect(full).to include("Methodology")
+    # The readiness score is our gate for generating a report, not a client finding.
+    expect(full).not_to include("Readiness score")
   end
 
   it "rejects an unknown variant rather than silently rendering the full report" do

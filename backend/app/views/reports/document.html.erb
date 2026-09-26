@@ -58,6 +58,27 @@
 <% end %>
 <%= custom_after.call("company_context") %>
 
+<%# Findings by role: the unit the report is built from — role by role, task by
+    task, with the hours each costs. Everything after it (patterns, actions) is read
+    against it. %>
+<% role_findings = snapshot.dig("findings", "totals", "findings").to_i.positive? %>
+<% if role_findings && !report_section_hidden?(snapshot, "role_findings") %>
+  <% findings_totals = snapshot.dig("findings", "totals") || {} %>
+  <% findings_hours = report_hours(findings_totals["hours_min"], findings_totals["hours_max"]) %>
+  <%= render "reports/divider",
+        accent_label: "Findings",
+        accent_bg: "var(--magenta)",
+        eyebrow: "Findings by role",
+        title: "Where the time goes",
+        lead: "Role by role: the work people described as slower, more manual or more repetitive than it needs to be, how often it happens, how long it takes, and the hours a year that adds up to.",
+        highlights: [
+          findings_hours ? "About <strong>#{findings_hours}</strong> hours a year across the work described.".html_safe : nil,
+          "<strong>#{findings_totals['findings']}</strong> #{'finding'.pluralize(findings_totals['findings'].to_i)} across <strong>#{findings_totals['roles']}</strong> #{'role'.pluralize(findings_totals['roles'].to_i)}.".html_safe
+        ].compact %>
+  <%= ai_or_edit.call("role_findings", true, -> { render "reports/role_findings", snapshot: snapshot, report_version: report_version }) %>
+<% end %>
+<%= custom_after.call("role_findings") %>
+
 <% if report_has_delta?(delta) && recommendations.empty? && !report_section_hidden?(snapshot, "delta") %>
   <%= render "reports/delta", snapshot: snapshot, report_version: report_version %>
 <% end %>
@@ -113,11 +134,16 @@
 <% end %>
 <%= custom_after.call("tools_catalog") %>
 
-<%# ---- Back matter: how the work was done, for a reader who wants to audit it ---- %>
-<% participation = snapshot["participation"] || {} %>
-<% docs_only_report = snapshot["report_kind"].to_s == "baseline" || snapshot["docs_first_phase"] == true %>
-<% show_participation = participation["completed"].to_i.positive? || (participation["invited"].to_i.positive? && !docs_only_report) %>
-<% back_matter = !report_section_hidden?(snapshot, "readiness") || show_participation || !report_section_hidden?(snapshot, "methodology") %>
+<%# Stage 1 ends by saying what happens next; the design of any fix is Stage 2. %>
+<% unless report_section_hidden?(snapshot, "next_steps") %>
+  <%= render "reports/next_steps", snapshot: snapshot, report_version: report_version %>
+<% end %>
+<%= custom_after.call("next_steps") %>
+
+<%# ---- Back matter: how the work was done, for a reader who wants to audit it ----
+    Scope & coverage replaced the readiness score and the participation funnel:
+    those were our delivery measures, not something a client acts on. %>
+<% back_matter = !report_section_hidden?(snapshot, "coverage") || !report_section_hidden?(snapshot, "methodology") %>
 <% if back_matter %>
   <%= render "reports/divider",
         accent_label: "How we know",
@@ -131,17 +157,10 @@
         ].compact %>
 <% end %>
 
-<% unless report_section_hidden?(snapshot, "readiness") %>
-  <%= ai_or_edit.call("readiness", snapshot.dig("readiness", "score").present?, -> { render "reports/readiness", snapshot: snapshot, report_version: report_version }) %>
+<% unless report_section_hidden?(snapshot, "coverage") %>
+  <%= ai_or_edit.call("coverage", snapshot["coverage"].present?, -> { render "reports/coverage", snapshot: snapshot, report_version: report_version }) %>
 <% end %>
-<%= custom_after.call("readiness") %>
-
-<% unless report_section_hidden?(snapshot, "participation") %>
-  <%# The interview funnel only when interviews actually happened, or a hybrid
-      engagement is mid-flight — never on a pure document baseline. %>
-  <%= ai_or_edit.call("participation", show_participation, -> { render "reports/participation", snapshot: snapshot, report_version: report_version }) %>
-<% end %>
-<%= custom_after.call("participation") %>
+<%= custom_after.call("coverage") %>
 
 <% unless report_section_hidden?(snapshot, "methodology") %>
   <%= render "reports/methodology", snapshot: snapshot, report_version: report_version %>

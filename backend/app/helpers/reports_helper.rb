@@ -279,8 +279,9 @@ module ReportsHelper
   # drops out of the contents page too.
   TOC_TITLE_TO_KEY = {
     "Executive summary" => "executive_summary", "Expert assessment" => "expert_verdict",
-    "Readiness" => "readiness",
-    "Company context" => "company_context", "Participation" => "participation",
+    "Findings by role" => "role_findings", "Next steps" => "next_steps",
+    "Scope & coverage" => "coverage",
+    "Company context" => "company_context",
     "What changed" => "delta", "Signals" => "signals", "Patterns" => "patterns",
     "Implications" => "patterns", "Recommendations" => "recommendations",
     "Roadmap" => "roadmap", "Opportunities" => "opportunities",
@@ -310,6 +311,9 @@ module ReportsHelper
     if profile.present? || stack.any? || website.present?
       add.call("Company context", "Firmographics, systems, and public research", "rule-blue")
     end
+    if snapshot.dig("findings", "totals", "findings").to_i.positive?
+      add.call("Findings by role", "Where the time goes, role by role, in hours", "rule-magenta")
+    end
     add.call("What changed", "Delta versus the previous version", "rule-teal") if report_has_delta?(snapshot["delta_from_previous"])
     add.call("Signals", "Recurring pain points, ranked by weight of evidence", "rule-magenta") if Array(snapshot["signals"]).any?
     add.call("Patterns", "Cross-team themes and confidence", "rule-magenta") if Array(snapshot["patterns"]).any?
@@ -320,15 +324,10 @@ module ReportsHelper
     if Array(snapshot.dig("tools_catalog", "curated_matches")).any?
       add.call("Capabilities", "Catalog matches assessed for fit", "rule-teal")
     end
+    add.call("Next steps", "What happens after this report", "rule-blue")
     # Back matter, matching the render order in document.html.erb.
-    if snapshot.dig("readiness", "score").present?
-      add.call("Readiness", "Score and its weighted breakdown", "rule-teal")
-    end
-    participation = snapshot["participation"] || {}
-    if participation["invited"].to_i.positive? || participation["completed"].to_i.positive?
-      add.call("Participation", "Invited, started, completed, by department", "rule-teal")
-    end
-    add.call("Methodology", "How readiness and findings were measured", "rule-teal")
+    add.call("Scope & coverage", "Who took part, and what this report does not cover", "rule-teal")
+    add.call("Methodology", "How the findings and hours were worked out", "rule-teal")
     entries
   end
 
@@ -372,6 +371,8 @@ module ReportsHelper
 
   SECTION_LABELS = {
     "executive_summary" => "Executive summary",
+    "role_findings" => "Findings by role",
+    "coverage" => "Scope & coverage",
     "readiness" => "Readiness",
     "participation" => "Participation",
     "signals" => "Signals",
@@ -560,6 +561,76 @@ module ReportsHelper
   # browser to break them somewhere sensible.
   def report_paginate(list, per_page)
     Array(list).each_slice([per_page.to_i, 1].max).to_a
+  end
+
+  # --- Findings -------------------------------------------------------------
+
+  # "160–240", "240", or nil — hours as a range, never more precise than computed.
+  def report_hours(min, max)
+    return nil if min.nil?
+
+    fmt = ->(n) { number_with_delimiter(n) }
+    min == max ? fmt.call(min) : "#{fmt.call(min)}–#{fmt.call(max)}"
+  end
+
+  # "hr" → "HR", "finance" → "Finance"; anything already cased is left alone.
+  def report_department_label(name)
+    value = name.to_s
+    return value if value != value.downcase
+
+    value.length <= 3 ? value.upcase : value.upcase_first
+  end
+
+  # The role tables, packed onto pages, in units of one table row (about 13mm). A
+  # role's rows stay together unless the role alone is longer than a page; a role
+  # heading with its column headers costs about two rows, and a row whose text runs
+  # to extra lines costs more. Measured against the rendered sheet, with margin.
+  FINDINGS_PAGE_CAPACITY = 12.0
+  FINDINGS_HEADING_COST = 1.8
+  FINDINGS_POTENTIAL_COST = 0.5
+
+  def report_findings_pages(view)
+    pages = []
+    page = []
+    room = FINDINGS_PAGE_CAPACITY
+    Array(view&.dig("departments")).each do |department|
+      department["roles"].each do |role|
+        heading = FINDINGS_HEADING_COST + (role["potential"].present? ? FINDINGS_POTENTIAL_COST : 0)
+        whole = heading + role["findings"].sum { |f| report_finding_row_cost(f) }
+        if whole > room && page.any?
+          pages << page
+          page = []
+          room = FINDINGS_PAGE_CAPACITY
+        end
+
+        chunk = []
+        used = heading
+        continued = false
+        role["findings"].each do |finding|
+          cost = report_finding_row_cost(finding)
+          if chunk.any? && used + cost > room
+            page << { "department" => department, "role" => role, "findings" => chunk, "continued" => continued }
+            pages << page
+            page = []
+            room = FINDINGS_PAGE_CAPACITY
+            chunk = []
+            used = FINDINGS_HEADING_COST
+            continued = true
+          end
+          chunk << finding
+          used += cost
+        end
+        page << { "department" => department, "role" => role, "findings" => chunk, "continued" => continued }
+        room -= used
+      end
+    end
+    pages << page if page.any?
+    pages
+  end
+
+  def report_finding_row_cost(finding)
+    text = finding["friction"].to_s.length + [finding["what_happens_now"].to_s.length, 160].min
+    text > 200 ? 1.4 : 1.0
   end
 
   # --- Expert layer -------------------------------------------------------
