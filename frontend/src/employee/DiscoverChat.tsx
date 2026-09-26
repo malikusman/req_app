@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { Paperclip, X } from 'lucide-react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Mic, Paperclip, Send, Volume2, VolumeX, X } from 'lucide-react';
 import { ChatMessageList, type ChatMessageItem } from '../components/motion';
 import { Button, Textarea } from '../components/ui';
 import {
@@ -10,6 +10,8 @@ import {
   type DiscoverState,
   type DiscoverMessage,
 } from './discoverApi';
+import { useVoiceRecorder, voiceRecordingSupported } from './useVoiceRecorder';
+import { useReadAloud } from './useReadAloud';
 
 const ACCEPTED_TYPES = 'image/jpeg,image/png,image/webp,application/pdf';
 
@@ -17,25 +19,58 @@ const ACCEPTED_TYPES = 'image/jpeg,image/png,image/webp,application/pdf';
 // voice, so consultant follow-ups carry a label above the message body.
 const CONSULTANT_LABEL = 'Question from the expert reviewing your company';
 
-function mapMessages(messages: DiscoverMessage[]): ChatMessageItem[] {
-  return messages.map((m) => ({
-    id: m.id,
-    direction: m.direction,
-    body: m.body,
-    timestamp: m.created_at,
-    meta:
-      m.track === 'consultant_followup' && m.direction === 'outbound' ? (
+function formatSeconds(total: number) {
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+}
+
+function mapMessages(
+  messages: DiscoverMessage[],
+  voice: { onPlay?: (m: DiscoverMessage) => void; speakingId: number | null }
+): ChatMessageItem[] {
+  return messages.map((m) => {
+    const spoken = m.message_type === 'audio' && m.direction === 'inbound';
+    const consultant = m.track === 'consultant_followup' && m.direction === 'outbound';
+    return {
+      id: m.id,
+      direction: m.direction,
+      // A spoken answer shows its transcript once it has one — what the interview heard.
+      body: spoken && !m.body?.trim() ? 'Transcribing your answer…' : m.body,
+      timestamp: m.created_at,
+      meta: consultant ? (
         <span className="text-xs font-semibold text-primary">{CONSULTANT_LABEL}</span>
+      ) : spoken ? (
+        <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
+          <Mic className="h-3 w-3" /> Spoken answer
+        </span>
+      ) : voice.speakingId === m.id ? (
+        <span className="inline-flex items-center gap-1 text-xs font-medium text-primary">
+          <Volume2 className="h-3 w-3" /> Reading aloud
+        </span>
       ) : undefined,
-  }));
+      actions:
+        voice.onPlay && m.direction === 'outbound' && m.body?.trim() ? (
+          <button
+            type="button"
+            onClick={() => voice.onPlay?.(m)}
+            className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+            aria-label="Read this aloud"
+          >
+            <Volume2 className="h-4 w-4" />
+          </button>
+        ) : undefined,
+    };
+  });
 }
 
 export function DiscoverChat() {
   const { token = '' } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  // Chosen on the landing page: the waiting question is read out on arrival.
+  const startedInVoice = searchParams.get('voice') === '1';
   const jwt = getStoredDiscoverToken(token);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [messages, setMessages] = useState<ChatMessageItem[]>([]);
+  const [raw, setRaw] = useState<DiscoverMessage[]>([]);
   const [state, setState] = useState<DiscoverState | null>(null);
   const [draft, setDraft] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -43,11 +78,40 @@ export function DiscoverChat() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [processingMedia, setProcessingMedia] = useState(false);
+  const [voiceUpload, setVoiceUpload] = useState(false);
+  const recorder = useVoiceRecorder();
+  const readAloud = useReadAloud(jwt, state);
+  // The newest interviewer message already heard (or already on screen when the
+  // page opened), so each question is read out once, when it arrives.
+  const lastSpokenRef = useRef<number | null>(null);
+
+  const messages = useMemo(
+    () =>
+      mapMessages(raw, {
+        onPlay: (m) => void readAloud.speak(m.id, m.body),
+        speakingId: readAloud.speakingId,
+      }),
+    [raw, readAloud]
+  );
+
+  useEffect(() => {
+    const latest = [...raw].reverse().find((m) => m.direction === 'outbound' && m.body?.trim());
+    if (!latest) return;
+    if (lastSpokenRef.current === null) {
+      lastSpokenRef.current = latest.id;
+      if (readAloud.enabled && startedInVoice) void readAloud.speak(latest.id, latest.body);
+      return;
+    }
+    if (latest.id > lastSpokenRef.current) {
+      lastSpokenRef.current = latest.id;
+      if (readAloud.enabled && !recorder.recording) void readAloud.speak(latest.id, latest.body);
+    }
+  }, [raw, readAloud, recorder.recording, startedInVoice]);
 
   const load = useCallback(async () => {
     if (!jwt) return;
     const data = await discoverApi.messages(jwt);
-    setMessages(mapMessages(data.messages));
+    setRaw(data.messages);
     setState(data.state);
     return data;
   }, [jwt]);
@@ -69,14 +133,16 @@ export function DiscoverChat() {
       for (let attempt = 0; attempt < 30; attempt += 1) {
         await new Promise((resolve) => setTimeout(resolve, 2000));
         const data = await discoverApi.messages(jwt);
-        setMessages(mapMessages(data.messages));
+        setRaw(data.messages);
         setState(data.state);
         if (data.messages.length > baselineCount) {
           setProcessingMedia(false);
+          setVoiceUpload(false);
           return;
         }
       }
       setProcessingMedia(false);
+      setVoiceUpload(false);
     },
     [jwt]
   );
@@ -94,7 +160,7 @@ export function DiscoverChat() {
       setSelectedFile(null);
       try {
         const data = await discoverApi.sendAttachment(jwt, file, caption || undefined);
-        setMessages(mapMessages(data.messages));
+        setRaw(data.messages);
         setState(data.state);
         setProcessingMedia(true);
         void pollForFollowUp(data.messages.length);
@@ -115,11 +181,39 @@ export function DiscoverChat() {
     setDraft('');
     try {
       const data = await discoverApi.sendMessage(jwt, text);
-      setMessages(mapMessages(data.messages));
+      setRaw(data.messages);
       setState(data.state);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send message');
       setDraft(text);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  // Answering out loud: the recording goes up like any attachment, is transcribed,
+  // and the transcript is the answer the interview works from.
+  const startRecording = async () => {
+    readAloud.stop();
+    setError('');
+    await recorder.start();
+  };
+
+  const sendRecording = async () => {
+    const file = await recorder.stop();
+    if (!file || !jwt) return;
+    setError('');
+    setSending(true);
+    setVoiceUpload(true);
+    try {
+      const data = await discoverApi.sendAttachment(jwt, file);
+      setRaw(data.messages);
+      setState(data.state);
+      setProcessingMedia(true);
+      void pollForFollowUp(data.messages.length);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not send your answer');
+      setVoiceUpload(false);
     } finally {
       setSending(false);
     }
@@ -135,16 +229,19 @@ export function DiscoverChat() {
   const canAttach =
     state?.conversation_status === 'discovery' || Boolean(state?.completed);
   const canSend = Boolean(selectedFile || draft.trim());
+  const canRecord = Boolean(state?.voice?.recording) && voiceRecordingSupported();
+  const canReadAloud =
+    Boolean(state?.voice?.speech) || (typeof window !== 'undefined' && 'speechSynthesis' in window);
 
   const statusLabel = useMemo(() => {
     if (!state) return null;
-    if (processingMedia) return 'Processing your file…';
+    if (processingMedia) return voiceUpload ? 'Listening to your answer…' : 'Processing your file…';
     if (state.completed) return 'Interview complete — you can always add more anytime';
     if (state.conversation_status === 'discovery') return 'Discovery in progress';
     if (state.conversation_status === 'profiling') return 'Getting to know your role';
     if (state.onboarding_step === 'awaiting_consent') return 'Please review consent and reply YES to continue';
     return 'Getting started';
-  }, [state, processingMedia]);
+  }, [state, processingMedia, voiceUpload]);
 
   if (loading) {
     return (
@@ -162,24 +259,38 @@ export function DiscoverChat() {
             <h1 className="truncate text-lg font-semibold text-foreground">Discovery interview</h1>
             {statusLabel && <p className="truncate text-sm text-muted-foreground">{statusLabel}</p>}
           </div>
+          <div className="flex shrink-0 items-center gap-1">
+            {canReadAloud && (
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-pressed={readAloud.enabled}
+                onClick={() => readAloud.setEnabled(!readAloud.enabled)}
+                icon={readAloud.enabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+              >
+                <span className="hidden sm:inline">{readAloud.enabled ? 'Reading aloud' : 'Read aloud'}</span>
+              </Button>
+            )}
           <Button
             variant="ghost"
             size="sm"
             className="shrink-0"
             onClick={() => {
+              readAloud.stop();
               clearDiscoverToken();
               navigate(`/discover/${token}`, { replace: true });
             }}
           >
             Sign out
           </Button>
+          </div>
         </div>
       </header>
 
       <div className="mx-auto flex w-full max-w-3xl min-h-0 flex-1 flex-col px-3 py-3 sm:px-4">
-        {error && (
+        {(error || recorder.error) && (
           <p className="mb-2 shrink-0 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            {error}
+            {error || recorder.error}
           </p>
         )}
 
@@ -214,6 +325,25 @@ export function DiscoverChat() {
               </div>
             )}
 
+            {recorder.recording ? (
+              <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-3">
+                <span className="h-3 w-3 shrink-0 animate-pulse rounded-full bg-destructive" aria-hidden />
+                <span className="text-sm font-medium text-foreground">
+                  Recording {formatSeconds(recorder.seconds)}
+                </span>
+                <span className="hidden text-xs text-muted-foreground sm:inline">
+                  Say your answer, then send it.
+                </span>
+                <div className="ml-auto flex gap-2">
+                  <Button type="button" variant="ghost" onClick={recorder.cancel}>
+                    Cancel
+                  </Button>
+                  <Button type="button" onClick={() => void sendRecording()} icon={<Send className="h-4 w-4" />}>
+                    Send answer
+                  </Button>
+                </div>
+              </div>
+            ) : (
             <div className="flex items-end gap-2">
               <input
                 ref={fileInputRef}
@@ -254,6 +384,19 @@ export function DiscoverChat() {
                 />
               </div>
 
+              {canRecord && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={!canAttach || sending || processingMedia}
+                  onClick={() => void startRecording()}
+                  aria-label="Answer out loud"
+                  title={canAttach ? 'Answer out loud' : 'You can answer out loud once the interview starts'}
+                  className="h-11 w-11 shrink-0 p-0"
+                  icon={<Mic className="h-5 w-5" />}
+                />
+              )}
+
               <Button
                 type="submit"
                 disabled={sending || processingMedia || !canSend}
@@ -262,8 +405,10 @@ export function DiscoverChat() {
                 Send
               </Button>
             </div>
+            )}
             <p className="mt-2 hidden text-xs text-muted-foreground sm:block">
               Enter to send · Shift+Enter for a new line
+              {canAttach && canRecord ? ' · Press the microphone to answer out loud' : ''}
               {canAttach ? ' · Attach images or PDFs during discovery' : ''}
             </p>
           </form>

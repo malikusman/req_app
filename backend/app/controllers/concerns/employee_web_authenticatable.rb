@@ -90,7 +90,14 @@ module EmployeeWebAuthenticatable
       participation_status: employee.participation_status,
       conversation_status: conversation.status,
       question_count: conversation.question_count,
-      completed: conversation.status == "completed"
+      completed: conversation.status == "completed",
+      # For the browser's own voice when the questions cannot be spoken server-side.
+      language: employee.preferred_language.presence || employee.company.locale,
+      voice: {
+        # Spoken answers ride on the media path, so they follow its setting.
+        recording: employee.company.merged_settings["discovery_multimodal_enabled"] == true,
+        speech: Openai::Client.new.speech_available?
+      }
     }
   end
 end

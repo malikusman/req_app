@@ -29,6 +29,8 @@ class DemoCompanyInterviews
     },
     settings: {
       "allow_early_report" => true, "discovery_profiling_enabled" => true,
+      # Voice answers and uploads in the web interview ride on the media path.
+      "discovery_multimodal_enabled" => true,
       "discovery_multi_agent_enabled" => true, "discovery_memory_retrieval_enabled" => true
     }
   }.freeze

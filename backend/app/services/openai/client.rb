@@ -18,16 +18,44 @@ module Openai
       Integer(ENV.fetch("EMBEDDING_DIMENSIONS", DEFAULT_EMBEDDING_DIMENSIONS.to_s))
     end
 
-    def transcribe_audio(file_path:, language: "en")
+    # language nil lets the model detect it. Forcing the company's language made an
+    # employee who answered in Arabic come back transcribed as English.
+    def transcribe_audio(file_path:, language: nil)
       ensure_configured_or_mock!("OpenAI")
-      return mock_transcript(language) unless configured?
+      return mock_transcript(language || "en") unless configured?
 
       uri = URI("#{chat_base_url}/audio/transcriptions")
-      multipart_request(uri, {
-        model: ENV.fetch("OPENAI_WHISPER_MODEL", "whisper-1"),
-        language: language,
-        file: File.open(file_path)
-      })["text"].to_s.strip
+      fields = { model: ENV.fetch("OPENAI_WHISPER_MODEL", "whisper-1") }
+      fields[:language] = language if language.present?
+      fields[:file] = File.open(file_path)
+      multipart_request(uri, fields)["text"].to_s.strip
+    end
+
+    # A spoken version of an interview question, for the web interview's
+    # read-aloud. MP3 bytes, or nil when there is no speech endpoint to call (no
+    # key, or a local model server) — the browser then speaks the question itself.
+    def speech(text:)
+      return nil unless speech_available?
+
+      model = ENV.fetch("OPENAI_TTS_MODEL", "gpt-4o-mini-tts")
+      body = { model: model, voice: ENV.fetch("OPENAI_TTS_VOICE", "alloy"),
+               input: text.to_s.truncate(2000), response_format: "mp3" }
+      # Only the gpt-4o speech models take a delivery note.
+      body[:instructions] = "Speak warmly and at an unhurried pace, like a friendly interviewer." if model.start_with?("gpt-4o")
+
+      uri = URI("#{chat_base_url}/audio/speech")
+      request = Net::HTTP::Post.new(uri)
+      request["Authorization"] = "Bearer #{api_key}"
+      request["Content-Type"] = "application/json"
+      request.body = body.to_json
+      response = build_http(uri).request(request)
+      raise Error, "speech failed (HTTP #{response.code})" unless response.is_a?(Net::HTTPSuccess)
+
+      response.body
+    end
+
+    def speech_available?
+      configured? && (official_openai_host?(chat_base_url) || ENV["OPENAI_TTS_ENABLED"] == "true")
     end
 
     def describe_image(file_path:, language: "en")
