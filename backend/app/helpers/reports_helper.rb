@@ -280,6 +280,7 @@ module ReportsHelper
   TOC_TITLE_TO_KEY = {
     "Executive summary" => "executive_summary", "Expert assessment" => "expert_verdict",
     "Findings by role" => "role_findings", "Next steps" => "next_steps",
+    "Where to act first" => "recommendations",
     "Scope & coverage" => "coverage",
     "Company context" => "company_context",
     "What changed" => "delta", "Signals" => "signals", "Patterns" => "patterns",
@@ -318,7 +319,11 @@ module ReportsHelper
     add.call("Signals", "Recurring pain points, ranked by weight of evidence", "rule-magenta") if Array(snapshot["signals"]).any?
     add.call("Patterns", "Cross-team themes and confidence", "rule-magenta") if Array(snapshot["patterns"]).any?
     add.call("Implications", "What the findings mean if left unaddressed", "rule-magenta") if Array(snapshot["implications"]).any?
-    add.call("Recommendations", "Prioritized actions, catalog-matched", "rule-blue") if Array(snapshot["recommendations"]).any?
+    if Array(snapshot["priorities"]).any?
+      add.call("Where to act first", "The findings grouped into priorities, ranked by hours", "rule-blue")
+    elsif Array(snapshot["recommendations"]).any?
+      add.call("Recommendations", "Prioritized actions, catalog-matched", "rule-blue")
+    end
     add.call("Roadmap", "Sequenced now / next / later", "rule-blue") if snapshot["roadmap"].present?
     add.call("Opportunities", "Published agentic ideas for this company", "rule-blue") if Array(snapshot["agentic_ideas"]).any?
     if Array(snapshot.dig("tools_catalog", "curated_matches")).any?

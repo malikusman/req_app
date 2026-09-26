@@ -87,6 +87,19 @@ RSpec.describe Reports::HtmlBuilder do
       expect(html).not_to include("Pilot OCR.")
     end
 
+    it "puts the priorities grouped from the findings where the catalog recommendations used to be" do
+      priorities = [{ "rank" => 1, "title" => "Supplier data re-keyed by hand", "what" => "Prices are typed twice.",
+                      "roles" => ["Procurement Officer"], "departments" => ["procurement"], "serves_goal" => nil,
+                      "hours_min" => 400, "hours_max" => 420, "finding_ids" => [1, 2],
+                      "findings" => [{ "title" => "Supplier price updates", "role" => "Procurement Officer",
+                                       "hours_min" => 240, "hours_max" => 240 }] }]
+      html = described_class.call(snapshot: with_findings.merge("priorities" => priorities))
+
+      expect(html).to include("Where to act first", "Start with", "supplier data re-keyed by hand", "400–420")
+      expect(html).not_to include("Automate invoice intake") # the catalog-era card
+      expect(html).not_to include("Impact vs feasibility")
+    end
+
     it "never tells the client how many findings were held back for review" do
       html = described_class.call(snapshot: with_findings)
       expect(html).not_to match(/held back|withheld/i)

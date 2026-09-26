@@ -324,6 +324,50 @@ module Openai
       parse_model_json(chat_json_content(body))
     end
 
+    # Groups a company's findings into a few themes of what to address first.
+    # Returns parsed JSON or raises; Findings::Priorities checks every id, computes
+    # every number, and falls back to the largest findings.
+    def finding_priorities(context:, language: "en")
+      ensure_configured_or_mock!("OpenAI")
+      return nil unless configured?
+
+      body = {
+        model: ENV.fetch("REPORT_MODEL", ENV.fetch("OPENAI_MODEL", "gpt-4o-mini")),
+        messages: [
+          {
+            role: "system",
+            content: <<~SYS
+              You are a senior operations consultant preparing a Stage 1 DIAGNOSTIC for the
+              owners of a small or mid-sized business. Write in #{language}.
+              You are given findings: pieces of work, in named roles, that people described
+              as slower, more manual or more repetitive than they need to be.
+              Group them into 3 to 5 priorities — what the business should address first.
+              RULES:
+              - A priority groups findings that share one underlying problem, across roles
+                where they genuinely do ("supplier and customer data re-keyed by hand"). A
+                finding that fits no group can stand alone, or be left out.
+              - Each finding id appears in at most one priority. Use only ids given.
+              - Say WHAT to address, never HOW. No tools, software, vendors, automation,
+                AI, integrations or build steps — that design is Stage 2.
+              - No numbers or figures of any kind in title or what; the hours are added
+                later from the findings themselves.
+              - title: a short statement of the problem to address, 4-10 words.
+              - what: one or two plain sentences on what the problem is and where it shows
+                up, in terms of the work and the roles. Never about a person.
+              - serves_goal: one of `business_goals`, copied exactly, if the priority
+                clearly serves it; otherwise null.
+              - Put the largest problems first. Waiting (a delay) can be a priority too.
+              Respond as JSON only:
+              {"priorities": [{"title": "...", "what": "...", "finding_ids": [1, 2], "serves_goal": null}]}
+            SYS
+          },
+          { role: "user", content: "Findings (JSON):\n#{context.to_json.truncate(16_000)}" }
+        ],
+        max_tokens: chat_max_tokens(1400)
+      }
+      parse_model_json(chat_json_content(body))
+    end
+
     # Tailored agentic-AI opportunity concepts, grounded strictly in the supplied
     # evidence. Returns parsed JSON or raises; callers fall back to the rule-based
     # synthesizer. Works with local OpenAI-compatible models.

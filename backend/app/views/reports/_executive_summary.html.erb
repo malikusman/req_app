@@ -71,7 +71,11 @@
     <% unless findings_totals["hours_min"] %>
       <div class="stat"><div class="num"><%= patterns_count %></div><div class="lab">Cross-team patterns identified</div></div>
     <% end %>
-    <div class="stat"><div class="num"><%= recs_count %></div><div class="lab">Recommendations</div></div>
+    <% if Array(snapshot["priorities"]).any? %>
+      <div class="stat"><div class="num"><%= Array(snapshot["priorities"]).size %></div><div class="lab">Priorities to act on first</div></div>
+    <% else %>
+      <div class="stat"><div class="num"><%= recs_count %></div><div class="lab">Recommendations</div></div>
+    <% end %>
   </div>
   <% key_metrics = Array(snapshot["key_metrics"]).first(6) %>
   <% if key_metrics.any? %>

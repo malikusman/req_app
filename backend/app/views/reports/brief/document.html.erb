@@ -191,14 +191,27 @@
 <% end %>
 
 <%# ===== PAGE 3 · WHAT TO DO ABOUT IT ================================= %>
-<% if recommendations.any? || roadmap.values.any? { |v| Array(v).any? } %>
+<% if Array(snapshot["priorities"]).any? || recommendations.any? || roadmap.values.any? { |v| Array(v).any? } %>
 <section class="page">
   <div class="eyebrow">What to do about it</div>
   <h1 style="font-size:20pt;margin:3mm 0 2mm;">Where to act first</h1>
   <p class="muted" style="font-size:9pt;margin:0 0 5mm;">What to address first. How each would be done — its design, cost and timeline — is Stage 2.</p>
 
-  <%# An owner acts on three, not nine. %>
-  <% recommendations.first(3).each do |rec| %>
+  <%# An owner acts on three, not nine. With findings, the three are the top
+      priorities grouped from them, with the hours they add up to. %>
+  <% Array(snapshot["priorities"]).first(3).each do |priority| %>
+    <div class="rec">
+      <div class="top">
+        <h3><%= priority["rank"] %>. <%= h priority["title"] %></h3>
+        <% if priority["hours_min"] %>
+          <span class="muted" style="font-weight:700;white-space:nowrap;"><%= report_hours(priority["hours_min"], priority["hours_max"]) %> h a year</span>
+        <% end %>
+      </div>
+      <p><%= h priority["what"].to_s.truncate(260) %></p>
+      <div class="fit"><%= h priority["roles"].first(4).to_sentence %></div>
+    </div>
+  <% end %>
+  <% (Array(snapshot["priorities"]).any? ? [] : recommendations.first(3)).each do |rec| %>
     <div class="rec">
       <div class="top">
         <h3><%= h rec["title"] %></h3>

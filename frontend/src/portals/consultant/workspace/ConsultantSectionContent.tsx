@@ -253,6 +253,29 @@ export function ConsultantSectionContent({
   }
 
   if (section === 'recommendations') {
+    // With findings, the report's "Where to act first" is the priorities grouped from them.
+    const priorities =
+      (snapshot.priorities as
+        | { rank: number; title: string; what: string; roles: string[]; hours_min: number | null; hours_max: number | null }[]
+        | undefined) ?? [];
+    if (priorities.length > 0) {
+      return (
+        <ol className="m-0 space-y-3 pl-0">
+          {priorities.map((p) => (
+            <li key={p.rank} className="list-none rounded-lg border border-border p-4">
+              <div className="flex justify-between gap-2 text-sm">
+                <strong>
+                  {p.rank}. {p.title}
+                </strong>
+                {p.hours_min != null && <span>{hoursRange(p.hours_min, p.hours_max)} h a year</span>}
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">{p.what}</p>
+              <p className="m-0 text-xs text-muted-foreground">{p.roles.join(', ')}</p>
+            </li>
+          ))}
+        </ol>
+      );
+    }
     const recs = (snapshot.recommendations as { title: string; description?: string; priority?: string }[]) || [];
     return (
       <ul className="space-y-3">

@@ -1,0 +1,56 @@
+<% company_name = snapshot.dig("company", "name") %>
+<% priorities = Array(snapshot["priorities"]) %>
+<%# Where to act first, grouped from the findings (Findings::Priorities). The words
+    say what to address; every figure is summed from the findings each names, so a
+    priority's hours reconcile with Findings by role. How each would be done is
+    Stage 2's design. %>
+<% report_paginate(priorities, 3).each_with_index do |group, page_index| %>
+<section class="page" id="<%= 'priorities' if page_index.zero? %>">
+  <div class="eyebrow">Where to act first<%= " · continued" if page_index.positive? %></div>
+  <h1 class="page-title">
+    <% if page_index.zero? %>
+      Start with <span class="serif-accent"><%= h priorities.first["title"].to_s.downcase_first %></span>
+    <% else %>
+      Where to act first
+    <% end %>
+  </h1>
+  <% if page_index.zero? %>
+    <p class="lead" style="margin-bottom:5mm;">
+      The findings, grouped by the problem underneath them and ranked by the hours they take. Each says what to
+      address — how it would be done, and what that would cost, is worked out in Stage 2.
+    </p>
+  <% end %>
+  <div class="card-grid-3">
+    <% group.each do |priority| %>
+      <div class="rec-card priority-card">
+        <div class="priority-top">
+          <span class="pill step"><%= priority["rank"] %></span>
+          <% if priority["hours_min"] %>
+            <span class="priority-hours"><%= report_hours(priority["hours_min"], priority["hours_max"]) %> <small>h a year</small></span>
+          <% end %>
+        </div>
+        <h4><%= h priority["title"] %></h4>
+        <p><%= h priority["what"] %></p>
+        <p class="priority-where">
+          <%= h priority["roles"].first(4).to_sentence %><% if priority["departments"].size > 1 %> · <%= priority["departments"].size %> departments<% end %>
+        </p>
+        <% if priority["serves_goal"].present? %>
+          <p class="priority-goal">Serves: <%= h priority["serves_goal"] %></p>
+        <% end %>
+        <ul class="priority-findings">
+          <% priority["findings"].first(4).each do |finding| %>
+            <li>
+              <span><%= h finding["title"] %> <span class="muted">· <%= h finding["role"] %></span></span>
+              <span class="num"><%= report_hours(finding["hours_min"], finding["hours_max"]) || "—" %></span>
+            </li>
+          <% end %>
+          <% if priority["findings"].size > 4 %>
+            <li class="muted">and <%= priority["findings"].size - 4 %> more</li>
+          <% end %>
+        </ul>
+      </div>
+    <% end %>
+  </div>
+  <%= render "reports/page_footer", company_name: company_name %>
+</section>
+<% end %>

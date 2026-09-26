@@ -50,6 +50,8 @@ module Reports
         # Role by role, task by task: the unit the report is built from. Hours are
         # computed in Ruby and every total reconciles with its rows.
         "findings" => findings_json,
+        # Where to act first, grouped from the findings; hours summed from them.
+        "priorities" => priorities_json,
         "coverage" => coverage_json(intel),
         "situation" => situation_json(docs_first),
         "signals" => signals_json,
@@ -144,6 +146,13 @@ module Reports
       end
     end
 
+    def priorities_json
+      Findings::Priorities.call(company: @company, view: findings_json)
+    rescue StandardError => e
+      Rails.logger.warn("[Reports::SnapshotBuilder] priorities skipped: #{e.class}: #{e.message}")
+      []
+    end
+
     def findings_json
       return @findings_json if defined?(@findings_json)
 
@@ -187,6 +196,14 @@ module Reports
     # Deterministic Now/Next/Later derived from recommendation priority — the
     # honest fallback when the LLM narrative writer is unavailable.
     def deterministic_roadmap(snapshot)
+      priorities = Array(snapshot["priorities"])
+      if priorities.any?
+        # Already ranked by the hours behind them: the first two now, then next.
+        to_items = ->(list) { list.map { |p| { "title" => p["title"], "rationale" => p["what"].to_s.truncate(140).presence } } }
+        return { "now" => to_items.call(priorities.first(2)), "next" => to_items.call(priorities[2, 2] || []),
+                 "later" => to_items.call(priorities[4..] || []) }
+      end
+
       recs = Array(snapshot["recommendations"])
       return nil if recs.empty?
 

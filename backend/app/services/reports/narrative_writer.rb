@@ -63,7 +63,9 @@ module Reports
           { "title" => p["title"], "description" => p["description"], "confidence" => band(p["confidence"]),
             "departments" => p["departments"], "linked_signal_labels" => p["linked_signal_labels"] }
         end,
-        "recommendations" => Array(@snapshot["recommendations"]).map { |r| r.slice("title", "description", "priority") },
+        # With findings, what to act on is the priorities grouped from them; the
+        # catalog-era recommendations only stand in when there are none.
+        "recommendations" => recommendations_context,
         "client_stack" => Array(@snapshot["client_stack"]).map { |s| s["name"] }.compact,
         "document_count" => @snapshot.dig("evidence_base", "documents").to_i,
         # Role by role, with hours already computed. The only hour figures the
@@ -71,6 +73,18 @@ module Reports
         "findings" => findings_context,
         "role_potential_notes" => @role_notes
       }
+    end
+
+    def recommendations_context
+      priorities = Array(@snapshot["priorities"])
+      if priorities.any?
+        return priorities.map do |p|
+          { "title" => p["title"], "description" => p["what"], "priority" => p["rank"] <= 2 ? "high" : "medium",
+            "hours" => hours_text(p["hours_min"], p["hours_max"]), "roles" => p["roles"] }
+        end
+      end
+
+      Array(@snapshot["recommendations"]).map { |r| r.slice("title", "description", "priority") }
     end
 
     def findings_context
@@ -194,7 +208,7 @@ module Reports
       view = @snapshot["findings"]
       return [] unless view.is_a?(Hash)
 
-      rows = [view["totals"]] + Array(view["departments"]).flat_map do |d|
+      rows = [view["totals"]] + Array(@snapshot["priorities"]) + Array(view["departments"]).flat_map do |d|
         [d] + d["roles"] + d["roles"].flat_map { |r| r["findings"] }
       end
       rows.compact.flat_map do |row|
