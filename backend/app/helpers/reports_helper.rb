@@ -310,7 +310,7 @@ module ReportsHelper
     stack = Array(snapshot["client_stack"])
     website = snapshot.dig("company", "website_url").presence || profile["website_url"].presence
     if profile.present? || stack.any? || website.present?
-      add.call("Company context", "Firmographics, systems, and public research", "rule-blue")
+      add.call("Company context", Array(snapshot["web_research"]).any? ? "Firmographics, systems, and public research" : "Firmographics and systems in use", "rule-blue")
     end
     if snapshot.dig("findings", "totals", "findings").to_i.positive?
       add.call("Findings by role", "Where the time goes, role by role, in hours", "rule-magenta")

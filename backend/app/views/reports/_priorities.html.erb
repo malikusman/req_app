@@ -32,7 +32,7 @@
         <h4><%= h priority["title"] %></h4>
         <p><%= h priority["what"] %></p>
         <p class="priority-where">
-          <%= h priority["roles"].first(4).to_sentence %><% if priority["departments"].size > 1 %> · <%= priority["departments"].size %> departments<% end %>
+          <%= h priority["roles"].any? ? priority["roles"].first(4).to_sentence : "Several roles" %><% if priority["departments"].size > 1 %> · <%= priority["departments"].size %> departments<% end %>
         </p>
         <% if priority["serves_goal"].present? %>
           <p class="priority-goal">Serves: <%= h priority["serves_goal"] %></p>
@@ -40,7 +40,7 @@
         <ul class="priority-findings">
           <% priority["findings"].first(4).each do |finding| %>
             <li>
-              <span><%= h finding["title"] %> <span class="muted">· <%= h finding["role"] %></span></span>
+              <span><%= h finding["title"] %><% if finding["role"].present? %> <span class="muted">· <%= h finding["role"] %></span><% end %></span>
               <span class="num"><%= report_hours(finding["hours_min"], finding["hours_max"]) || "—" %></span>
             </li>
           <% end %>

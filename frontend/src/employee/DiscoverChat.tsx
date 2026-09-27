@@ -32,7 +32,10 @@ function mapMessages(
     const consultant = m.track === 'consultant_followup' && m.direction === 'outbound';
     return {
       id: m.id,
-      direction: m.direction,
+      // Drawn from the employee's side, as in any messaging app: their own words
+      // on the right, the interviewer's on the left. The stored direction is the
+      // system's (inbound = from the employee), which the operator views keep.
+      direction: m.direction === 'inbound' ? 'outbound' : 'inbound',
       // A spoken answer shows its transcript once it has one — what the interview heard.
       body: spoken && !m.body?.trim() ? 'Transcribing your answer…' : m.body,
       timestamp: m.created_at,
@@ -179,12 +182,25 @@ export function DiscoverChat() {
     setSending(true);
     const text = draft.trim();
     setDraft('');
+    // Shown the moment it is sent; the server's copy replaces it with the reply.
+    setRaw((prev) => [
+      ...prev,
+      {
+        id: -Date.now(),
+        direction: 'inbound',
+        message_type: 'text',
+        body: text,
+        is_discovery_question: false,
+        created_at: new Date().toISOString(),
+      },
+    ]);
     try {
       const data = await discoverApi.sendMessage(jwt, text);
       setRaw(data.messages);
       setState(data.state);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send message');
+      setRaw((prev) => prev.filter((m) => m.id >= 0));
       setDraft(text);
     } finally {
       setSending(false);

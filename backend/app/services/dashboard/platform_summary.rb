@@ -119,7 +119,9 @@ module Dashboard
           subscription: {
             plan: company.subscription.plan,
             trial_ends_at: company.subscription.trial_ends_at,
-            days_remaining: [((company.subscription.trial_ends_at - Time.current) / 1.day).ceil, 0].max
+            # Negative once it has ended: "0 days" for a trial that expired two weeks
+            # ago told the operator it was still running.
+            days_remaining: ((company.subscription.trial_ends_at - Time.current) / 1.day).ceil
           }
         }
       end

@@ -7,21 +7,22 @@ import { MjadiMark } from '../brand/MjadiLogo';
 
 export type AuthPortal = 'platform' | 'company' | 'consultant';
 
+// In the site's own voice: what each person does here, in their words.
 const portalFeatures: Record<AuthPortal, string[]> = {
   platform: [
-    'Manage all companies and trials',
-    'Review and approve reports',
-    'Monitor system health',
+    'Companies, trials and reports in one place',
+    'Approve a report once it passes its checks',
+    'See how every company’s interviews are going',
   ],
   company: [
-    'Track discovery progress',
-    'View signals, patterns, and recommendations',
-    'Generate governed transformation reports',
+    'See who has taken part, department by department',
+    'Read where your team’s time goes, role by role',
+    'Talk to the consultant reviewing your findings',
   ],
   consultant: [
-    'Annotate and review reports',
-    'Request employee follow-ups',
-    'Collaborate with co-consultants',
+    'Review each company’s findings before the client sees them',
+    'Correct, merge and approve what the interviews found',
+    'Ask an employee a follow-up when something is unclear',
   ],
 };
 
@@ -41,11 +42,11 @@ export function AuthLayout({ portal, portalName, tagline, children }: AuthLayout
       <div
         className={cn(
           'relative flex w-full flex-col justify-between overflow-hidden md:w-[40%]',
-          'border-r border-border bg-accent-muted px-8 py-10 text-foreground md:px-10 md:py-12'
+          'border-b border-border bg-accent-muted px-5 py-4 text-foreground md:border-b-0 md:border-r md:px-10 md:py-12'
         )}
       >
         <div
-          className="pointer-events-none absolute inset-0 opacity-[0.4] animate-grid-drift bg-[length:64px_64px] bg-[linear-gradient(hsl(var(--border))_1px,transparent_1px),linear-gradient(90deg,hsl(var(--border))_1px,transparent_1px)]"
+          className="pointer-events-none absolute inset-0 hidden opacity-[0.4] bg-[length:64px_64px] md:block bg-[linear-gradient(hsl(var(--border))_1px,transparent_1px),linear-gradient(90deg,hsl(var(--border))_1px,transparent_1px)]"
           aria-hidden
         />
         <div
@@ -60,24 +61,26 @@ export function AuthLayout({ portal, portalName, tagline, children }: AuthLayout
           variants={staggerContainer(0.08)}
         >
           <motion.div variants={fadeUp} transition={transition.reveal} className="flex items-center gap-2">
-            <MjadiMark className="h-9 w-9" />
-            <span className="text-3xl font-bold tracking-tight text-foreground">Mjadi</span>
+            <MjadiMark className="h-7 w-7 md:h-9 md:w-9" />
+            <span className="text-xl font-bold tracking-tight text-foreground md:text-3xl">Mjadi</span>
+            {/* On a phone the portal name rides in the header; the rest waits for room. */}
+            <span className="ml-1 text-sm text-muted-foreground md:hidden">· {portalName.replace(/^Mjadi\s*—\s*/, "")}</span>
           </motion.div>
           <motion.p
             variants={fadeUp}
             transition={transition.reveal}
-            className="mt-8 max-w-sm text-lg font-medium text-foreground"
+            className="mt-8 hidden max-w-sm text-lg font-medium text-foreground md:block"
           >
             {portalName}
           </motion.p>
           <motion.p
             variants={fadeUp}
             transition={transition.reveal}
-            className="mt-2 max-w-sm text-sm text-muted-foreground"
+            className="mt-2 hidden max-w-sm text-sm text-muted-foreground md:block"
           >
             {tagline}
           </motion.p>
-          <motion.ul className="mt-8 space-y-3" variants={staggerContainer(0.06)}>
+          <motion.ul className="mt-8 hidden space-y-3 md:block" variants={staggerContainer(0.06)}>
             {features.map((item) => (
               <motion.li
                 key={item}
@@ -92,17 +95,9 @@ export function AuthLayout({ portal, portalName, tagline, children }: AuthLayout
           </motion.ul>
         </motion.div>
 
-        <motion.blockquote
-          className="relative z-10 mt-10 text-sm italic text-muted-foreground md:mt-0"
-          initial={reduced ? false : { opacity: 0 }}
-          animate={reduced ? undefined : { opacity: 1 }}
-          transition={{ ...transition.reveal, delay: 0.35 }}
-        >
-          &ldquo;Documents and conversations on one evidence graph — so leadership sees how work actually happens.&rdquo;
-        </motion.blockquote>
       </div>
 
-      <div className="flex min-h-screen w-full flex-col items-center justify-center bg-background px-6 py-10 md:w-[60%] md:px-8 md:py-12">
+      <div className="flex w-full flex-1 flex-col items-center justify-start bg-background px-5 py-8 md:min-h-screen md:w-[60%] md:justify-center md:px-8 md:py-12">
         <motion.div
           className="w-full max-w-md"
           initial={reduced ? false : 'hidden'}

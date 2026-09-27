@@ -22,7 +22,9 @@
           <%= pluralize(coverage["documents"].to_i, "internal document") %> were also reviewed.
         <% end %>
       </p>
-      <p>Each person spoke in confidence. This report describes work and roles, never what an individual said.</p>
+      <p>
+        Each person spoke in confidence. This report describes work and roles, never what an individual said<% if Array(view["departments"]).any? { |d| d["roles"].any? { |r| r["pooled"] } } %>, and a role held by one person is grouped with others so no one can be identified<% end %>.
+      </p>
       <% if rows.any? %>
         <table class="findings-table" style="margin-top:4mm;">
           <thead><tr><th>Department</th><th class="num">Invited</th><th class="num">Took part</th></tr></thead>

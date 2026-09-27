@@ -70,6 +70,9 @@ class Company < ApplicationRecord
     # (after the findings), "appendix" (after the method) or "hidden". A report
     # without findings always keeps them in the body.
     "report_signals_placement" => "appendix",
+    # "pool": a role held by one person never appears by name in a report; its
+    # findings pool with others (Findings::ForReport). "show" keeps roles as-is.
+    "report_small_roles" => "pool",
     "report_thresholds" => {
       "min_employees_interviewed" => 3,
       "min_departments" => 2,
@@ -102,6 +105,26 @@ class Company < ApplicationRecord
   def merged_settings
     DEFAULT_SETTINGS.deep_merge(self[:settings] || {})
   end
+
+  # How many people were invited, started and finished — counted from the people
+  # themselves, once, for every screen. The stored counters drifted: completed_count
+  # went up per finished conversation, so someone who finished twice counted twice
+  # and the client home read "7 of 5"; invited_count never went down.
+  def participation
+    counts = employees.group(:participation_status).count
+    invited = counts.values.sum
+    completed = counts.fetch("completed", 0)
+    started = completed + counts.fetch("started", 0)
+    {
+      "invited" => invited,
+      "started" => started,
+      "completed" => completed,
+      "completion_rate" => invited.positive? ? (completed.to_f / invited).round(2) : 0
+    }
+  end
+
+  def invited_count = participation["invited"]
+  def completed_count = participation["completed"]
 
   def profile_value(key)
     (self[:company_profile] || {})[key.to_s].presence

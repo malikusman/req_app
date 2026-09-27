@@ -39,6 +39,7 @@ module Findings
         roles.sort_by! { |r| [-r["hours_max"].to_i, r["title"]] }
         { "name" => name, "roles" => roles }.merge(range(roles.flat_map { |r| r["findings"] }))
       end
+      departments = pool_small_roles(departments) if @company.merged_settings["report_small_roles"] != "show"
       departments.sort_by! { |d| [-d["hours_max"].to_i, d["name"]] }
 
       all = departments.flat_map { |d| d["roles"] }.flat_map { |r| r["findings"] }
@@ -65,8 +66,11 @@ module Findings
     # snapshot is served to the client over the API.
     def role_potential_notes
       shown = shown_findings
+      pooling = @company.merged_settings["report_small_roles"] != "show"
       shown.group_by { |f| [f.department.presence || "Other", f.role_title.presence || "Role not recorded"] }
            .filter_map do |(department, role), items|
+        # A line about a role one person holds is a line about that person.
+        next if pooling && items.map(&:employee_id).compact.uniq.size < POOL_MIN
         notes = items.map(&:conversation).compact.uniq.filter_map do |conversation|
           entry = conversation.blackboard.dig("dossier", "slots", "role_potential")
           entry["value"].to_s.strip.presence if entry.is_a?(Hash) && entry["confidence"].to_f >= CONFIDENCE
@@ -109,6 +113,45 @@ module Findings
       findings.sort_by! { |f| [-f["hours_max"].to_i, f["title"]] }
       people = items.flat_map { |f| [f.employee_id] + Array(merged_into[f.id]) }.compact.uniq.size
       { "title" => title, "people" => people, "findings" => findings, "potential" => nil }.merge(range(findings))
+    end
+
+    # A role held by one person describes that person, approved or not. So a
+    # report never shows one: those roles pool into "Other roles" in their
+    # department when that brings at least two people together, and otherwise
+    # into one pool across the company. Role titles and role-potential lines go;
+    # the findings and their hours stay, so every total still adds up.
+    POOL_MIN = 2
+
+    def pool_small_roles(departments)
+      company_pool = []
+      kept = departments.filter_map do |department|
+        shared, solo = department["roles"].partition { |r| r["people"].to_i >= POOL_MIN }
+        if solo.sum { |r| r["people"].to_i } >= POOL_MIN
+          shared << pooled_role("Other roles", solo)
+        else
+          company_pool.concat(solo)
+        end
+        next if shared.empty?
+
+        shared.sort_by! { |r| [-r["hours_max"].to_i, r["title"]] }
+        department.merge("roles" => shared).merge(range(shared.flat_map { |r| r["findings"] }))
+      end
+      if company_pool.any?
+        # Across the company the department goes too: a department of one names
+        # its person as surely as a role does.
+        role = pooled_role("Roles across the company", company_pool, drop_department: true)
+        kept << { "name" => "Across the company", "roles" => [role], "pooled" => true }.merge(range(role["findings"]))
+      end
+      kept
+    end
+
+    def pooled_role(title, roles, drop_department: false)
+      findings = roles.flat_map { |r| r["findings"] }.map do |f|
+        f.merge("role" => nil).merge(drop_department ? { "department" => nil } : {})
+      end
+      findings.sort_by! { |f| [-f["hours_max"].to_i, f["title"]] }
+      { "title" => title, "people" => roles.sum { |r| r["people"].to_i }, "findings" => findings,
+        "potential" => nil, "pooled" => true }.merge(range(findings))
     end
 
     def range(findings)

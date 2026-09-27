@@ -243,14 +243,18 @@ module Reports
     def normalize_roadmap(roadmap)
       return nil unless roadmap.is_a?(Hash)
 
+      allowed = grounded_number_set
+
       phases = %w[now next later].to_h do |phase|
         items = Array(roadmap[phase]).filter_map do |item|
           next unless item.is_a?(Hash)
 
           title = item["title"].to_s.strip
-          next if title.blank?
+          next if title.blank? || !text_numbers_grounded?(title, allowed)
 
-          { "title" => title, "rationale" => item["rationale"].to_s.strip.presence }
+          rationale = item["rationale"].to_s.strip.presence
+          rationale = nil if rationale && !text_numbers_grounded?(rationale, allowed)
+          { "title" => title, "rationale" => rationale }
         end
         [phase, items.first(5)]
       end

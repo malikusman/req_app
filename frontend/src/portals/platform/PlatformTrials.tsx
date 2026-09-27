@@ -1,3 +1,4 @@
+import { trialDaysLabel } from './PlatformDashboard';
 import { useEffect, useState } from 'react';
 import { api, type PlatformTrialRow } from '../../lib/api';
 import { usePlatformToken } from '../../lib/auth';
@@ -60,8 +61,8 @@ export function PlatformTrials() {
             key: 'days',
             header: 'Trial ends',
             render: (r) => (
-              <Badge variant={r.subscription.days_remaining <= 3 ? 'warning' : 'neutral'}>
-                {r.subscription.days_remaining} days left
+              <Badge variant={r.subscription.days_remaining < 0 ? 'error' : r.subscription.days_remaining <= 3 ? 'warning' : 'neutral'}>
+                {trialDaysLabel(r.subscription.days_remaining)}
               </Badge>
             ),
           },

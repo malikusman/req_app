@@ -643,7 +643,7 @@ export function ConsultantReportWorkspace() {
             <div className="space-y-4">
               <Card title="Engagement context">
                 <div className="grid gap-4 md:grid-cols-3">
-                  <StatCard label="Readiness" value={<AnimatedNumber value={readiness?.score ?? 0} suffix="%" />} />
+                  <StatCard label="Readiness at this version" value={<AnimatedNumber value={readiness?.score ?? 0} suffix="%" />} />
                   <StatCard label="Completed" value={<AnimatedNumber value={participation?.completed ?? workspace.conversations.filter((c) => c.status === 'completed').length} />} />
                   <StatCard label="Invited" value={<AnimatedNumber value={participation?.invited ?? workspace.conversations.length} />} />
                 </div>

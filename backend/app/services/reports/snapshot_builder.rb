@@ -124,7 +124,10 @@ module Reports
         snapshot["executive_summary"] = narrative["executive_summary"]
       end
 
-      snapshot["roadmap"] = narrative["roadmap"] if narrative["roadmap"].present?
+      # With priorities, the roadmap is built from them (deterministic_roadmap), so
+      # it can only repeat hours the priorities hold. The writer's roadmap invented
+      # its own ("over 1,100 hours" beside a priority of 685–770).
+      snapshot["roadmap"] = narrative["roadmap"] if narrative["roadmap"].present? && Array(snapshot["priorities"]).empty?
 
       # Override each implication's "so what" with the LLM statement when it
       # clearly maps to the same pattern; otherwise keep the deterministic one.

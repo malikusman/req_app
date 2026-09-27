@@ -4,6 +4,8 @@ require "rails_helper"
 
 RSpec.describe Findings::ForReport do
   let(:company) { create(:company, :onboarded) }
+  # These examples are about grouping and totals; pooling has its own below.
+  before { company.update!(settings: company.settings.merge("report_small_roles" => "show")) }
 
   def finding(role:, department: "Procurement", hours: nil, **attrs)
     employee = attrs.delete(:employee) || create(:employee, company: company, role_title: role, department: department)
@@ -62,5 +64,27 @@ RSpec.describe Findings::ForReport do
     expect(view["delays"]).to eq([{ "title" => view["delays"].first["title"], "role" => "HR Officer",
                                     "department" => "HR", "duration" => "sometimes for weeks" }])
     expect(view["totals"]["hours_min"]).to be_nil
+  end
+
+  describe "roles held by one person" do
+    before { company.update!(settings: company.settings.merge("report_small_roles" => "pool")) }
+
+    it "never shows one by name: pooled in the department, else across the company" do
+      finding(role: "Procurement Officer", hours: [160, 240])
+      finding(role: "Procurement Officer", hours: [120, 180])
+      finding(role: "AP Clerk", department: "Finance", hours: [240, 240])
+      finding(role: "Finance Manager", department: "Finance", hours: [190, 195])
+      finding(role: "HR Officer", department: "HR", hours: [95, 100])
+
+      view = described_class.call(company: company)
+      titles = view["departments"].to_h { |d| [d["name"], d["roles"].map { |r| r["title"] }] }
+
+      expect(titles).to eq("Procurement" => ["Procurement Officer"], "Finance" => ["Other roles"],
+                           "Across the company" => ["Roles across the company"])
+      across = view["departments"].find { |d| d["name"] == "Across the company" }["roles"].first["findings"].first
+      expect(across.values_at("role", "department")).to eq([nil, nil])
+      expect(view["totals"].values_at("hours_min", "hours_max")).to eq([805, 955])
+      expect(view.to_json).not_to include("HR Officer", "AP Clerk", "Finance Manager")
+    end
   end
 end

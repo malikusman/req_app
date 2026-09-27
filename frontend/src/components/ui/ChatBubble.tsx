@@ -55,7 +55,7 @@ export function ChatBubble({
         {timeLabel ? (
           <span
             className={cn(
-              'text-xs tabular-nums text-muted-foreground',
+              'whitespace-nowrap text-xs tabular-nums text-muted-foreground',
               outbound ? 'text-right' : 'text-left'
             )}
           >

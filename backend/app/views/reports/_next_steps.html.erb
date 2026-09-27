@@ -49,7 +49,7 @@
         <% largest.each do |finding| %>
           <tr>
             <td class="task"><%= h finding["title"] %></td>
-            <td><%= h finding["role"] %> <span class="muted">· <%= h report_department_label(finding["department"]) %></span></td>
+            <td><%= h finding["role"] || "Several roles" %><% if finding["department"].present? %> <span class="muted">· <%= h report_department_label(finding["department"]) %></span><% end %></td>
             <td class="num"><%= report_hours(finding["hours_min"], finding["hours_max"]) %></td>
           </tr>
         <% end %>

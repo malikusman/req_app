@@ -11,11 +11,8 @@ module Intelligence
     end
 
     def call
-      invited = @company.invited_count
-      started = @company.employees.where(participation_status: %w[started completed]).count
-      completed = @company.employees.where(participation_status: "completed").count
-      # Never show "N of 0" when completed employees exist but invited_count drifted.
-      invited = [invited, completed].max
+      participation = @company.participation
+      invited, started, completed = participation.values_at("invited", "started", "completed")
 
       dept_targets = @company.merged_settings.fetch("department_targets", {})
       custom_depts = @company.merged_settings.fetch("custom_departments", [])

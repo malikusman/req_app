@@ -17,7 +17,7 @@
   <h1 class="page-title">Who this organization is</h1>
   <div class="split">
     <div>
-      <p class="lead">Firmographics, stated goals, systems in use, and public research grounding this report.</p>
+      <p class="lead">Firmographics, stated goals<% if Array(snapshot["client_stack"]).any? %>, systems in use<% end %><% if Array(snapshot["web_research"]).any? %> and public research<% end %> grounding this report.</p>
       <% if has_firmographics || website.present? %>
         <ul class="plain" style="margin:3mm 0;padding-left:4mm;">
           <% industry_label = report_industry_label(profile["industry"]) %>

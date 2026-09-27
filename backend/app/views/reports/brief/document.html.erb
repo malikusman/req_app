@@ -208,7 +208,7 @@
         <% end %>
       </div>
       <p><%= h priority["what"].to_s.truncate(260) %></p>
-      <div class="fit"><%= h priority["roles"].first(4).to_sentence %></div>
+      <div class="fit"><%= h priority["roles"].any? ? priority["roles"].first(4).to_sentence : "Several roles" %></div>
     </div>
   <% end %>
   <% (Array(snapshot["priorities"]).any? ? [] : recommendations.first(3)).each do |rec| %>
@@ -250,7 +250,8 @@
 <%# ===== PAGE 4 · HOW WE KNOW, AND WHO CHECKED ======================== %>
 <section class="page">
   <div class="eyebrow">How we know</div>
-  <h1 style="font-size:20pt;margin:3mm 0 6mm;">Method, and independent validation</h1>
+  <%# "Independent validation" only when someone validated this version. %>
+  <h1 style="font-size:20pt;margin:3mm 0 6mm;"><%= Array(expert && expert["validators"]).any? ? "Method, and independent validation" : "How this was worked out" %></h1>
 
   <div class="fill">
   <% evidence_sentence = report_evidence_base_sentence(snapshot) %>

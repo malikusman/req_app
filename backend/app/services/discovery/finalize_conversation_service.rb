@@ -31,8 +31,6 @@ module Discovery
           completed_at: Time.current,
           last_active_at: Time.current
         )
-
-        @company.increment!(:completed_count)
         @company.increment!(:conversation_count)
         Intelligence::TimelineRecorder.interview_completed!(company: @company, employee: @employee)
         NotificationService.notify_interview_completed(company: @company, employee: @employee)

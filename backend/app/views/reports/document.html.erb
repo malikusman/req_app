@@ -171,7 +171,9 @@
         lead: "The pages that follow document coverage, weighting and method so the findings above can be audited rather than taken on trust.",
         highlights: [
           report_evidence_base_sentence(snapshot).to_s.upcase_first.presence,
-          "Independent expert review is recorded in the appendix.".html_safe
+          # Only when there is a review to point to.
+          (review_notes.present? || Array(local_assigns[:review_overlay]&.dig("structured_findings")).any? ?
+            "Independent expert review is recorded in the appendix.".html_safe : nil)
         ].compact %>
 <% end %>
 
