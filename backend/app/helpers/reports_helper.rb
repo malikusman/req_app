@@ -316,9 +316,13 @@ module ReportsHelper
       add.call("Findings by role", "Where the time goes, role by role, in hours", "rule-magenta")
     end
     add.call("What changed", "Delta versus the previous version", "rule-teal") if report_has_delta?(snapshot["delta_from_previous"])
-    add.call("Signals", "Recurring pain points, ranked by weight of evidence", "rule-magenta") if Array(snapshot["signals"]).any?
-    add.call("Patterns", "Cross-team themes and confidence", "rule-magenta") if Array(snapshot["patterns"]).any?
-    add.call("Implications", "What the findings mean if left unaddressed", "rule-magenta") if Array(snapshot["implications"]).any?
+    placement = snapshot.dig("layout", "signals") || "main"
+    themes = lambda do
+      add.call("Signals", "Recurring pain points, ranked by weight of evidence", "rule-magenta") if Array(snapshot["signals"]).any?
+      add.call("Patterns", "Cross-team themes and confidence", "rule-magenta") if Array(snapshot["patterns"]).any?
+      add.call("Implications", "What the findings mean if left unaddressed", "rule-magenta") if Array(snapshot["implications"]).any?
+    end
+    themes.call if placement == "main"
     if Array(snapshot["priorities"]).any?
       add.call("Where to act first", "The findings grouped into priorities, ranked by hours", "rule-blue")
     elsif Array(snapshot["recommendations"]).any?
@@ -333,6 +337,7 @@ module ReportsHelper
     # Back matter, matching the render order in document.html.erb.
     add.call("Scope & coverage", "Who took part, and what this report does not cover", "rule-teal")
     add.call("Methodology", "How the findings and hours were worked out", "rule-teal")
+    themes.call if placement == "appendix"
     entries
   end
 

@@ -53,6 +53,7 @@ module Reports
         # Where to act first, grouped from the findings; hours summed from them.
         "priorities" => priorities_json,
         "coverage" => coverage_json(intel),
+        "layout" => { "signals" => signals_placement },
         "situation" => situation_json(docs_first),
         "signals" => signals_json,
         "patterns" => patterns_json,
@@ -144,6 +145,15 @@ module Reports
           role["potential"] = by_role[[department["name"].to_s.downcase, role["title"].to_s.downcase]]
         end
       end
+    end
+
+    SIGNALS_PLACEMENTS = %w[main appendix hidden].freeze
+
+    def signals_placement
+      return "main" if findings_json&.dig("totals", "findings").to_i.zero?
+
+      placement = @company.merged_settings["report_signals_placement"].to_s
+      SIGNALS_PLACEMENTS.include?(placement) ? placement : "appendix"
     end
 
     def priorities_json

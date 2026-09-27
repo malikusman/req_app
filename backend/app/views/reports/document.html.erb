@@ -79,19 +79,30 @@
 <% end %>
 <%= custom_after.call("role_findings") %>
 
-<% if report_has_delta?(delta) && recommendations.empty? && !report_section_hidden?(snapshot, "delta") %>
+<%# The catalog-era recommendations page carried the delta beside its matrix; a
+    report without that page (none, or priorities in its place) shows it here. %>
+<% if report_has_delta?(delta) && (recommendations.empty? || Array(snapshot["priorities"]).any?) && !report_section_hidden?(snapshot, "delta") %>
   <%= render "reports/delta", snapshot: snapshot, report_version: report_version %>
 <% end %>
 <%= custom_after.call("delta") %>
 
+<%# Signals and patterns are the keyword-era view: recurring themes across
+    interviews and documents. With findings by role they support the findings
+    rather than lead, so by default they move to an appendix; a company setting
+    (report_signals_placement: main | appendix | hidden) decides, and a report
+    without findings keeps them in the body, where they are all it has. %>
+<% signals_placement = snapshot.dig("layout", "signals") || "main" %>
+<% signals_block = lambda do %>
 <% docs_first = snapshot["docs_first_phase"] == true || snapshot["report_kind"].to_s == "baseline" %>
 <% if signals.any? && !report_section_hidden?(snapshot, "signals") %>
   <%= render "reports/divider",
-        accent_label: "Signals & Patterns",
+        accent_label: signals_placement == "appendix" ? "Appendix" : "Signals & Patterns",
         accent_bg: "var(--magenta)",
-        eyebrow: "Signals & patterns",
-        title: docs_first ? "What the documents revealed" : "What the interviews revealed",
-        lead: docs_first ?
+        eyebrow: signals_placement == "appendix" ? "Appendix · Signals & patterns" : "Signals & patterns",
+        title: signals_placement == "appendix" ? "Supporting themes" : (docs_first ? "What the documents revealed" : "What the interviews revealed"),
+        lead: signals_placement == "appendix" ?
+          "Recurring themes across the interviews and documents, ranked by the weight of evidence behind them. They support the findings by role; they are not a second set of findings." :
+          docs_first ?
           "Signals are recurring friction themes drawn from internal documents. Patterns connect those themes across departments and file types." :
           "Signals are recurring pain points drawn from employee interviews. Patterns are the themes that connect them across departments. Findings are reported with the weight of evidence behind them; the source material stays in the working papers.",
         highlights: [
@@ -113,6 +124,8 @@
   <%= ai_or_edit.call("patterns", true, -> { render "reports/patterns", snapshot: snapshot, patterns: patterns, report_version: report_version }) %>
 <% end %>
 <%= custom_after.call("patterns") %>
+<% end %>
+<% if signals_placement == "main" %><%= capture(&signals_block) %><% end %>
 
 <%# With findings, "recommendations" are the priorities grouped from them; the
     catalog-era recommendation cards only stand in for a report without findings. %>
@@ -171,6 +184,8 @@
   <%= render "reports/methodology", snapshot: snapshot, report_version: report_version %>
 <% end %>
 <%= custom_after.call("methodology") %>
+
+<% if signals_placement == "appendix" %><%= capture(&signals_block) %><% end %>
 
 <% review_overlay = local_assigns.fetch(:review_overlay, nil) %>
 <% structured_findings = local_assigns.fetch(:structured_findings) { Array(review_overlay&.dig("structured_findings")) } %>

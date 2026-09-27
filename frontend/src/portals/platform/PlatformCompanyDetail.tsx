@@ -37,6 +37,7 @@ import {
   ReadinessGauge,
   ParticipationSummary,
   DiscoveryProvenancePanel,
+  Select,
   Textarea,
 } from '../../components/ui';
 import { ReportChecksList } from '../shared/ReportChecksList';
@@ -835,6 +836,27 @@ export function PlatformCompanyDetail() {
                 ? 'No consultant is assigned yet, so nobody else can generate for this company.'
                 : 'Generation normally belongs to the assigned consultant. Use this to re-cut a version yourself.'}
             </p>
+            <div className="flex flex-wrap items-end gap-3">
+              {/* Where the keyword-era signals and patterns pages go in a report
+                  built around findings. Takes effect on the next generation. */}
+              <div className="w-64">
+                <Select
+                  label="Signals & patterns pages"
+                  value={String(company?.settings?.report_signals_placement ?? 'appendix')}
+                  onChange={(e) => {
+                    if (!token || !companyId) return;
+                    api
+                      .updatePlatformCompanySettings(token, companyId, { report_signals_placement: e.target.value })
+                      .then((d) => setCompany(d.company))
+                      .catch((err) => setActionError(err instanceof Error ? err.message : 'Could not save'));
+                  }}
+                  options={[
+                    { value: 'appendix', label: 'In an appendix' },
+                    { value: 'main', label: 'In the main report' },
+                    { value: 'hidden', label: 'Left out' },
+                  ]}
+                />
+              </div>
             <Button
               variant="secondary"
               loading={generating}
@@ -843,6 +865,7 @@ export function PlatformCompanyDetail() {
             >
               Generate report
             </Button>
+            </div>
           </div>
 
           {generateNotice && (

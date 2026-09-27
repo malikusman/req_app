@@ -76,7 +76,11 @@ module Api
 
         def update
           company = ::Company.find(params[:id])
-          company.update!(company_update_params)
+          attrs = company_update_params
+          # Settings are merged, not replaced: saving one setting must not wipe
+          # every other one the company has.
+          attrs[:settings] = (company.settings || {}).merge(attrs[:settings].to_h) if attrs.key?(:settings)
+          company.update!(attrs)
           PlatformAuditService.log!(
             platform_user: current_platform_user,
             action: "company_updated",

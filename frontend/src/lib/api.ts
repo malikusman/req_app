@@ -197,6 +197,14 @@ export const api = {
   platformCompany: (token: string, companyId: number) =>
     request<{ company: CompanyDetail }>(`/api/v1/platform/companies/${companyId}`, {}, token),
 
+  /** Settings are merged into the company's, never replaced. */
+  updatePlatformCompanySettings: (token: string, companyId: number, settings: Record<string, unknown>) =>
+    request<{ company: CompanyDetail }>(
+      `/api/v1/platform/companies/${companyId}`,
+      { method: 'PATCH', body: JSON.stringify({ company: { settings } }) },
+      token
+    ),
+
   createPlatformCompany: (
     token: string,
     payload: { name: string; display_name?: string; company_admin: { email: string; name: string; password: string } }

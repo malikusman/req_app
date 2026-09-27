@@ -66,6 +66,10 @@ class Company < ApplicationRecord
     # WhatsApp follow-up) during report review. Company admins can turn this off
     # to require their approval for any consultant→employee contact.
     "consultant_can_contact_employees" => true,
+    # Where a report with findings puts the signals and patterns pages: "main"
+    # (after the findings), "appendix" (after the method) or "hidden". A report
+    # without findings always keeps them in the body.
+    "report_signals_placement" => "appendix",
     "report_thresholds" => {
       "min_employees_interviewed" => 3,
       "min_departments" => 2,

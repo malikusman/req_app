@@ -100,6 +100,21 @@ RSpec.describe Reports::HtmlBuilder do
       expect(html).not_to include("Impact vs feasibility")
     end
 
+    it "puts signals and patterns where the company's setting says" do
+      body = ->(placement) { described_class.call(snapshot: with_findings.merge("layout" => { "signals" => placement })) }
+      method_page = "How we measured"
+
+      appendix = body.call("appendix")
+      expect(appendix).to include("Supporting themes", "Manual re-entry")
+      expect(appendix.index("Manual re-entry")).to be > appendix.index(method_page)
+
+      main = body.call("main")
+      expect(main.index("Manual re-entry")).to be < main.index(method_page)
+      expect(main).not_to include("Supporting themes")
+
+      expect(body.call("hidden")).not_to include("Manual re-entry")
+    end
+
     it "never tells the client how many findings were held back for review" do
       html = described_class.call(snapshot: with_findings)
       expect(html).not_to match(/held back|withheld/i)
