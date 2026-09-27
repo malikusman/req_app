@@ -197,6 +197,9 @@ export const api = {
   platformCompany: (token: string, companyId: number) =>
     request<{ company: CompanyDetail }>(`/api/v1/platform/companies/${companyId}`, {}, token),
 
+  interviewHealth: (token: string, days = 30) =>
+    request<{ days: number; companies: InterviewHealthRow[] }>(`/api/v1/platform/interview_health?days=${days}`, {}, token),
+
   /** Settings are merged into the company's, never replaced. */
   updatePlatformCompanySettings: (token: string, companyId: number, settings: Record<string, unknown>) =>
     request<{ company: CompanyDetail }>(
@@ -2666,6 +2669,18 @@ export interface Finding {
   conversation_id: number | null;
   reviewed_at: string | null;
   reviewed_by: string | null;
+}
+
+/** How one company's interviews are going (Platform::InterviewHealth). Counts only. */
+export interface InterviewHealthRow {
+  company: { id: number; name: string; slug: string };
+  interviews: { invited: number; started: number; completed: number; abandoned: number; in_progress: number; quiet: number };
+  closes: Record<string, number>;
+  median_questions: number | null;
+  capture: { turns: number; fallbacks: number };
+  findings: { live: number; with_hours: number; to_review: number };
+  voice: { answers: number; failed: number };
+  flags: string[];
 }
 
 /** One rule a Stage 1 report must keep (Reports::Critic). "block" stops approval. */

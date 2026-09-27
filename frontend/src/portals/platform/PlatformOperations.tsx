@@ -4,10 +4,12 @@ import { PlatformSystem } from './PlatformSystem';
 import { PlatformMonitoringPage } from './PlatformMonitoring';
 import { PlatformTrials } from './PlatformTrials';
 import { PlatformAuditLog } from './PlatformAuditLog';
+import { PlatformInterviewHealth } from './PlatformInterviewHealth';
 
 const TABS = [
   { value: 'system', label: 'System' },
   { value: 'monitoring', label: 'Monitoring' },
+  { value: 'interviews', label: 'Interviews' },
   { value: 'trials', label: 'Trials' },
   { value: 'audit', label: 'Audit log' },
 ];
@@ -27,6 +29,7 @@ export function PlatformOperations() {
       <Tabs tabs={TABS} value={tab} onChange={setTab} />
       {tab === 'system' && <PlatformSystem />}
       {tab === 'monitoring' && <PlatformMonitoringPage />}
+      {tab === 'interviews' && <PlatformInterviewHealth />}
       {tab === 'trials' && <PlatformTrials />}
       {tab === 'audit' && <PlatformAuditLog />}
     </div>

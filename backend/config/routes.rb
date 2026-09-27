@@ -83,6 +83,7 @@ Rails.application.routes.draw do
         get "companies/:company_id/reports/:id/preview", to: "reports#preview"
         post "companies/:company_id/impersonate", to: "impersonations#create"
         get "monitoring", to: "monitoring#show"
+        get "interview_health", to: "interview_health#index"
         get "dashboard", to: "dashboard#show"
         get "audit_logs", to: "audit_logs#index"
         get "registrations", to: "registrations#index"
