@@ -12,6 +12,12 @@ module Intelligence
     ].freeze
 
     MAX_EVIDENCE = 10
+    # An interview left unfinished still told us something, once the person got
+    # past the opening: three answered questions is past the opening. What it
+    # says counts at half the weight of a finished interview's — it was never
+    # followed up or closed out.
+    PARTIAL_MIN_QUESTIONS = 3
+    PARTIAL_WEIGHT = 0.5
     MAX_CHUNKS_PER_DOC = 8
     CHUNK_TRUNCATE = 500
 
@@ -47,7 +53,8 @@ module Intelligence
 
         # Saturating absolute-evidence curve so strong signals actually reach
         # "High" (the old hits/whole-corpus ratio jammed everything to ~0.35–0.45).
-        weighted = evidence_count + 0.3 * derived_hits
+        partial = source_excerpts.count { |e| e[:partial] }
+        weighted = evidence_count - partial * (1 - PARTIAL_WEIGHT) + 0.3 * derived_hits
         strength = (1.0 - Math.exp(-weighted / 6.0)).round(2)
         strength = 0.2 if strength < 0.2 && weighted.positive?
 
@@ -125,9 +132,12 @@ module Intelligence
     end
 
     def gather_message_sources
+      finished = Conversation.where(company_id: @company.id, status: "completed")
+      unfinished = Conversation.where(company_id: @company.id, status: "abandoned")
+                               .where("question_count >= ?", PARTIAL_MIN_QUESTIONS)
       @message_sources ||= Message.joins(:conversation)
                                   .includes(conversation: :employee)
-                                  .where(conversations: { company_id: @company.id, status: "completed" })
+                                  .where(conversation_id: finished.or(unfinished).select(:id))
                                   .where(direction: "inbound")
                                   .where.not(body: [nil, ""])
                                   .order(created_at: :desc)
@@ -137,7 +147,8 @@ module Intelligence
           message_id: message.id,
           employee_id: message.conversation.employee_id,
           conversation_id: message.conversation_id,
-          body: message.body.to_s
+          body: message.body.to_s,
+          partial: message.conversation.status == "abandoned"
         }
       end
     end
@@ -163,6 +174,7 @@ module Intelligence
           employee_id: source[:employee_id],
           conversation_id: source[:conversation_id],
           excerpt: sentence.truncate(200),
+          partial: source[:partial],
           score: score
         }
       end.sort_by { |e| -e[:score] }.first(MAX_EVIDENCE).map { |e| e.except(:score) }

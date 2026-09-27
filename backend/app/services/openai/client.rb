@@ -419,6 +419,8 @@ module Openai
               - Prefer solutions that extend the systems they already run.
               - Do NOT invent cost/ROI figures. Value must be qualitative.
               - confidence in 0..1 reflects how well the evidence supports the idea.
+              - `existing_ideas` are ideas already on file. When an idea is the same as one of
+                them, use that title EXACTLY — never rename an idea that already exists.
               Respond as JSON only:
               {"ideas":[{
                 "title":"short product-style name",

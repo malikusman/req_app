@@ -15,8 +15,12 @@ class MarkAbandonedConversationsJob < ApplicationJob
         abandoned_at: Time.current,
         abandon_reason: "inactivity_timeout"
       )
-      # What they did say still counts — as partial findings, at lower confidence.
+      # What they did say still counts — as partial findings, at lower confidence,
+      # and in the company's signals once they got past the opening questions.
       BuildFindingsJob.perform_later(conversation.id)
+      if conversation.question_count >= Intelligence::SignalExtractor::PARTIAL_MIN_QUESTIONS
+        AggregateIntelligenceJob.perform_later(company.id)
+      end
     end
   end
 end
