@@ -390,10 +390,12 @@ module Openai
               - direction: one sentence on the direction of the change, about the work —
                 "Bring supplier prices in one consistent format instead of retyping them".
                 Never a product or vendor name, never build steps, cost or timescale.
-              NOT RECOMMENDED: up to 3 things a reader might expect you to suggest that you
-              advise against for this company, each tied to finding ids, with why — e.g.
-              automating a step whose rules nobody has agreed yet. Same rules: no numbers,
-              no products, no build detail. Omit rather than invent.
+              NOT RECOMMENDED: 1 to 3 things an owner reading these findings might expect
+              you to suggest, but that you advise against for now — each tied to the finding
+              ids it concerns, with why. Typical cases: automating a step whose rules nobody
+              owns yet; buying a new system when the one they have is under-used; speeding
+              up work that is mostly waiting on someone else. Same rules: no numbers, no
+              products, no build detail. Leave one out only if no finding supports it.
               Respond as JSON only:
               {"priorities": [{"title": "...", "what": "...", "finding_ids": [1, 2], "serves_goal": null,
                                "intervention_type": "process_change", "direction": "..."}],
@@ -580,7 +582,24 @@ module Openai
     end
 
     def chat_completion(body)
-      post_json("#{chat_base_url}/chat/completions", body)
+      post_json("#{chat_base_url}/chat/completions", openai_compatible(body))
+    end
+
+    # OpenAI's newer models (gpt-6-luna, the o-series) reject `max_tokens` and
+    # take `max_completion_tokens`, which every current OpenAI chat model accepts.
+    # Local OpenAI-compatible servers still expect the old name, so only the
+    # official endpoint gets the rename.
+    def openai_compatible(body)
+      return body unless official_openai_host?(chat_base_url)
+
+      out = body.key?(:max_tokens) ? body.except(:max_tokens).merge(max_completion_tokens: body[:max_tokens]) : body
+      # Reasoning-family models accept only their default temperature.
+      out = out.except(:temperature) if self.class.fixed_temperature?(out[:model])
+      out
+    end
+
+    def self.fixed_temperature?(model)
+      model.to_s.strip.downcase.match?(/\A(o\d|gpt-5|gpt-6)/)
     end
 
     # Local reasoning models (Gemma-4 via LM Studio) spend completion tokens on

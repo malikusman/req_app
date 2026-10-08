@@ -88,14 +88,14 @@ RSpec.describe Findings::Priorities do
   end
 
   it "says what kind of change each priority needs, from a fixed list, and never names a product" do
-    allow(SolutionCatalogEntry).to receive(:pluck).with(:name, :vendor).and_return([["DocFlow", "Acme Soft"]])
+    allow(SolutionCatalogEntry).to receive(:pluck).with(:name, :vendor).and_return([["DocFlow", "Acme Soft"], ["Make", nil]])
     service = described_class.new(company: company, view: view)
     allow(client).to receive(:finding_priorities).and_return(
       "priorities" => [
         { "title" => "Customer orders retyped by hand", "what" => "Orders arrive as photos.", "finding_ids" => [3],
-          "intervention_type" => "ready_made_tool", "direction" => "Take orders in one structured form instead of photos" },
+          "intervention_type" => "ready_made_tool", "direction" => "Make orders arrive in one structured form instead of photos" },
         { "title" => "Month-end figures assembled by hand", "what" => "Consolidation is manual.", "finding_ids" => [4],
-          "intervention_type" => "magic", "direction" => "Roll out DocFlow across finance" }
+          "intervention_type" => "magic", "direction" => "Connect the ledgers with Make across finance" }
       ],
       "not_recommended" => [
         { "title" => "Automating approvals before the rules are agreed", "why" => "Nobody owns the approval rules yet.", "finding_ids" => [2] },
@@ -107,7 +107,7 @@ RSpec.describe Findings::Priorities do
     first, second = service.call
 
     expect(first).to include("intervention_type" => "ready_made_tool", "intervention_label" => "A ready-made tool",
-                             "direction" => "Take orders in one structured form instead of photos")
+                             "direction" => "Make orders arrive in one structured form instead of photos")
     expect(second).to include("intervention_type" => nil, "direction" => nil)
     expect(service.not_recommended.map { |n| n["title"] }).to eq(["Automating approvals before the rules are agreed"])
   end

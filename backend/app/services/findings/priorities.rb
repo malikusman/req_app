@@ -140,11 +140,22 @@ module Findings
       end.first(NOT_RECOMMENDED_MAX)
     end
 
+    # Product names are proper nouns, so they match as written. A product named
+    # with an everyday word — "Make", "Notion" — counts only mid-sentence, where
+    # the capital marks it as a name; "Make customer orders clear" is the verb.
+    COMMON_WORD_PRODUCTS = %w[make notion monday asana basecamp].freeze
+
     def names_a_product?(text)
       @product_names ||= SolutionCatalogEntry.pluck(:name, :vendor).flatten.compact
-                                             .map { |n| n.to_s.strip.downcase }.select { |n| n.length >= 3 }.uniq
-      down = text.downcase
-      @product_names.any? { |n| down.match?(/\b#{Regexp.escape(n)}\b/) }
+                                             .map { |n| n.to_s.strip }.select { |n| n.length >= 3 }.uniq
+      @product_names.any? do |name|
+        pattern = /\b#{Regexp.escape(name)}\b/
+        if COMMON_WORD_PRODUCTS.include?(name.downcase)
+          text.to_s.split(/(?<=[.!?])\s+/).any? { |sentence| sentence.sub(/\A\s*\S+/, "").match?(pattern) }
+        else
+          text.to_s.match?(pattern)
+        end
+      end
     end
 
     def one_per_finding

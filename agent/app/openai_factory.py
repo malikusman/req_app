@@ -1,6 +1,8 @@
 # Shared ChatOpenAI factory so local LM Studio and production OpenAI share one switch.
 from __future__ import annotations
 
+import re
+
 from urllib.parse import urlparse
 
 from langchain_openai import ChatOpenAI
@@ -48,6 +50,11 @@ def truncated(response) -> bool:
     return meta.get("finish_reason") == "length"
 
 
+def fixed_temperature(model: str) -> bool:
+    """True for models that accept only the default temperature."""
+    return bool(re.match(r"^(o\d|gpt-5|gpt-6)", (model or "").strip().lower()))
+
+
 def build_chat_openai(
     *,
     model: str | None = None,
@@ -62,12 +69,16 @@ def build_chat_openai(
     and returned the canned fallback — while also recording a circuit-breaker
     failure. The companion never once used the model.
     """
+    name = model or settings.openai_model
     kwargs: dict = {
-        "model": model or settings.openai_model,
+        "model": name,
         "api_key": settings.openai_api_key.strip() or "lm-studio",
-        "temperature": temperature,
         "max_tokens": max_tokens or settings.openai_max_tokens,
     }
+    # Reasoning-family models (gpt-5, gpt-6 such as gpt-6-luna, the o-series)
+    # accept only their default temperature and reject any other value.
+    if not fixed_temperature(name):
+        kwargs["temperature"] = temperature
     base = settings.openai_base_url.strip()
     kwargs["base_url"] = base.rstrip("/") if base else DEFAULT_CHAT_BASE
     model_kwargs: dict = {}
