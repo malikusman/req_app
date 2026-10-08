@@ -52,6 +52,8 @@ module Reports
         "findings" => findings_json,
         # Where to act first, grouped from the findings; hours summed from them.
         "priorities" => priorities_json,
+        # What a reader might expect us to suggest, and why we don't, for this company.
+        "not_recommended" => @not_recommended || [],
         "coverage" => coverage_json(intel),
         "layout" => { "signals" => signals_placement },
         "situation" => situation_json(docs_first),
@@ -160,9 +162,13 @@ module Reports
     end
 
     def priorities_json
-      Findings::Priorities.call(company: @company, view: findings_json)
+      service = Findings::Priorities.new(company: @company, view: findings_json)
+      priorities = service.call
+      @not_recommended = service.not_recommended
+      priorities
     rescue StandardError => e
       Rails.logger.warn("[Reports::SnapshotBuilder] priorities skipped: #{e.class}: #{e.message}")
+      @not_recommended = []
       []
     end
 

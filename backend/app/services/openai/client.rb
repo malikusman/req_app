@@ -385,8 +385,19 @@ module Openai
               - serves_goal: one of `business_goals`, copied exactly, if the priority
                 clearly serves it; otherwise null.
               - Put the largest problems first. Waiting (a delay) can be a priority too.
+              - intervention_type: the KIND of change, one of process_change, existing_system,
+                ready_made_tool, connect_systems, automation, ai_assistant, standards_training.
+              - direction: one sentence on the direction of the change, about the work —
+                "Bring supplier prices in one consistent format instead of retyping them".
+                Never a product or vendor name, never build steps, cost or timescale.
+              NOT RECOMMENDED: up to 3 things a reader might expect you to suggest that you
+              advise against for this company, each tied to finding ids, with why — e.g.
+              automating a step whose rules nobody has agreed yet. Same rules: no numbers,
+              no products, no build detail. Omit rather than invent.
               Respond as JSON only:
-              {"priorities": [{"title": "...", "what": "...", "finding_ids": [1, 2], "serves_goal": null}]}
+              {"priorities": [{"title": "...", "what": "...", "finding_ids": [1, 2], "serves_goal": null,
+                               "intervention_type": "process_change", "direction": "..."}],
+               "not_recommended": [{"title": "...", "why": "...", "finding_ids": [3]}]}
             SYS
           },
           { role: "user", content: "Findings (JSON):\n#{context.to_json.truncate(16_000)}" }

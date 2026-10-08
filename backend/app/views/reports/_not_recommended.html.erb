@@ -1,0 +1,19 @@
+<% company_name = snapshot.dig("company", "name") %>
+<% items = Array(snapshot["not_recommended"]) %>
+<%# What a reader might expect us to suggest, and why we don't. Tied to this
+    company's findings (Findings::Priorities), never general advice. %>
+<section class="page" id="not-recommended">
+  <div class="eyebrow">What we are not recommending</div>
+  <h1 class="page-title">And what we advise against</h1>
+  <p class="lead" style="margin-bottom:6mm;">Things you might expect us to suggest, and why we don't — at least not yet, and not for this work.</p>
+  <div class="card-grid-3">
+    <% items.each do |item| %>
+      <div class="rec-card">
+        <span class="pill low">Not now</span>
+        <h4><%= h item["title"] %></h4>
+        <p><%= h item["why"] %></p>
+      </div>
+    <% end %>
+  </div>
+  <%= render "reports/page_footer", company_name: company_name %>
+</section>

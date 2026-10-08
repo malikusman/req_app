@@ -48,15 +48,20 @@ module Findings
         "totals" => {
           "findings" => all.size,
           "quantified" => all.count { |f| f["hours_min"] },
-          "roles" => departments.sum { |d| d["roles"].size },
-          "departments" => departments.size,
+          # Counted from the findings, not the groups: pooling one-person roles
+          # must not make "6 roles in 5 departments" read as "3 in 3".
+          "roles" => shown.map { |f| [f.department.to_s.downcase, f.role_title.to_s.downcase] }.uniq.size,
+          "departments" => shown.map { |f| f.department.to_s.downcase }.uniq.size,
           "people" => shown.map(&:employee_id).compact.uniq.size
         }.merge(range(all)),
         "delays" => all.select { |f| f["effort_type"] == "waiting" }.map do |f|
           f.slice("title", "role", "department", "duration")
         end,
         "withheld" => @withheld_count,
-        "basis" => AnnualHours::BASIS
+        "basis" => AnnualHours::BASIS,
+        # The benchmark rates the values were worked out with, printed in the
+        # report. Empty means no rates are agreed, and the report shows hours only.
+        "rates" => @rates_used.to_a.map { |r| { "version" => r.version, "role_family" => r.role_family, "currency" => r.currency } }
       }
     end
 
@@ -105,6 +110,7 @@ module Findings
           "effort_type" => f.effective_effort_type,
           "hours_min" => f.annual_hours_min,
           "hours_max" => f.annual_hours_max,
+          **value_for(f),
           "people" => people,
           "confidence" => f.confidence,
           "basis" => f.basis
@@ -158,7 +164,36 @@ module Findings
       quantified = findings.select { |f| f["hours_min"] }
       return { "hours_min" => nil, "hours_max" => nil } if quantified.empty?
 
-      { "hours_min" => quantified.sum { |f| f["hours_min"] }, "hours_max" => quantified.sum { |f| f["hours_max"] } }
+      out = { "hours_min" => quantified.sum { |f| f["hours_min"] }, "hours_max" => quantified.sum { |f| f["hours_max"] } }
+      valued = quantified.select { |f| f["value_min"] }
+      if valued.any?
+        out.merge!("value_min" => valued.sum { |f| f["value_min"] }, "value_max" => valued.sum { |f| f["value_max"] },
+                   "currency" => valued.first["currency"])
+      end
+      out
+    end
+
+    # Capacity, valued: the finding's hours at a benchmark loaded rate for the role
+    # family (its department, or "default") — never anyone's salary. Rounded
+    # outward to the hundred, like the hours. Nothing when no rate is agreed.
+    def value_for(finding)
+      return {} unless finding.hours?
+
+      rate = rate_for(finding.department)
+      return {} unless rate
+
+      (@rates_used ||= Set.new) << rate
+      { "value_min" => (finding.annual_hours_min * rate.hourly_rate_min / 100).floor * 100,
+        "value_max" => (finding.annual_hours_max * rate.hourly_rate_max / 100).ceil * 100,
+        "currency" => rate.currency }
+    end
+
+    def rate_for(department)
+      @rates ||= {}
+      key = department.to_s.strip.downcase
+      return @rates[key] if @rates.key?(key)
+
+      @rates[key] = BenchmarkRate.for(key) || BenchmarkRate.for("default")
     end
   end
 end

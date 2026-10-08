@@ -73,6 +73,9 @@ class Company < ApplicationRecord
     # "pool": a role held by one person never appears by name in a report; its
     # findings pool with others (Findings::ForReport). "show" keeps roles as-is.
     "report_small_roles" => "pool",
+    # Mjadi is sold as a fixed-fee engagement, not a subscription, so the client
+    # portal shows no billing, plans or trials unless this is turned on.
+    "client_billing_visible" => false,
     "report_thresholds" => {
       "min_employees_interviewed" => 3,
       "min_departments" => 2,

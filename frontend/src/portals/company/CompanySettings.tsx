@@ -17,6 +17,9 @@ export function CompanySettings() {
   const [consultantCanContact, setConsultantCanContact] = useState(true);
   const [savingConsultant, setSavingConsultant] = useState(false);
 
+  // Billing shows only for a company sold as a subscription (client_billing_visible).
+  const [billingVisible, setBillingVisible] = useState(false);
+
   const load = () => {
     if (!token) return;
     setLoadError('');
@@ -26,6 +29,7 @@ export function CompanySettings() {
         setDisplayName(d.company.display_name || '');
         setLocale(d.company.locale);
         setConsultantCanContact(d.settings?.consultant_can_contact_employees !== false);
+        setBillingVisible(d.settings?.client_billing_visible === true);
       })
       .catch(() => setLoadError('Could not load settings.'));
     api
@@ -127,9 +131,10 @@ export function CompanySettings() {
         </div>
       </Card>
 
-      <Card title="Other tools">
+{(billingVisible || SETTINGS_SECONDARY_LINKS.some((item) => item.to !== '/company/billing')) && (
+            <Card title="Other tools">
         <div className="grid gap-3 sm:grid-cols-2">
-          {SETTINGS_SECONDARY_LINKS.map((item) => {
+          {SETTINGS_SECONDARY_LINKS.filter((item) => billingVisible || item.to !== '/company/billing').map((item) => {
             const Icon = item.icon;
             return (
               <Link
@@ -147,6 +152,7 @@ export function CompanySettings() {
           })}
         </div>
       </Card>
+      )}
 
       <Card title="Security">
         {!security ? (

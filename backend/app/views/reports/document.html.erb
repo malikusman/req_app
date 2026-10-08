@@ -132,6 +132,9 @@
 <% priorities = Array(snapshot["priorities"]) %>
 <% if priorities.any? && !report_section_hidden?(snapshot, "recommendations") %>
   <%= ai_or_edit.call("recommendations", true, -> { render "reports/priorities", snapshot: snapshot, report_version: report_version }) %>
+  <% if Array(snapshot["not_recommended"]).any? && !section_edited.call("recommendations") %>
+    <%= render "reports/not_recommended", snapshot: snapshot %>
+  <% end %>
 <% elsif recommendations.any? && !report_section_hidden?(snapshot, "recommendations") %>
   <%= ai_or_edit.call("recommendations", true, -> { render "reports/recommendations", snapshot: snapshot, recommendations: recommendations, report_version: report_version }) %>
 <% end %>

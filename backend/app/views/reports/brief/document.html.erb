@@ -208,6 +208,7 @@
         <% end %>
       </div>
       <p><%= h priority["what"].to_s.truncate(260) %></p>
+      <% if priority["intervention_label"].present? %><p style="font-size:8.5pt;margin-top:1mm;"><b><%= h priority["intervention_label"] %>.</b> <%= h priority["direction"] %></p><% end %>
       <div class="fit"><%= h priority["roles"].any? ? priority["roles"].first(4).to_sentence : "Several roles" %></div>
     </div>
   <% end %>

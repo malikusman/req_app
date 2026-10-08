@@ -87,4 +87,30 @@ RSpec.describe Findings::ForReport do
       expect(view.to_json).not_to include("HR Officer", "AP Clerk", "Finance Manager")
     end
   end
+
+  describe "value at benchmark rates" do
+    it "shows nothing in money while no rate is agreed" do
+      finding(role: "Buyer", hours: [100, 150])
+      view = described_class.call(company: company)
+      expect(view["totals"]).not_to have_key("value_min")
+      expect(view["rates"]).to eq([])
+    end
+
+    it "values capacity at the role family's rate, or the default, rounded outward" do
+      BenchmarkRate.create!(version: "2026-10", market: "AE", role_family: "procurement", currency: "AED",
+                            hourly_rate_min: 90, hourly_rate_max: 110, effective_from: Date.current - 1)
+      BenchmarkRate.create!(version: "2026-10", market: "AE", role_family: "default", currency: "AED",
+                            hourly_rate_min: 60, hourly_rate_max: 80, effective_from: Date.current - 1)
+      finding(role: "Buyer", hours: [100, 150])
+      finding(role: "Clerk", department: "Finance", hours: [240, 240])
+
+      view = described_class.call(company: company)
+      rows = view["departments"].flat_map { |d| d["roles"].flat_map { |r| r["findings"] } }.index_by { |f| f["role"] }
+
+      expect(rows["Buyer"].values_at("value_min", "value_max", "currency")).to eq([9000, 16_500, "AED"])
+      expect(rows["Clerk"].values_at("value_min", "value_max")).to eq([14_400, 19_200])
+      expect(view["totals"].values_at("value_min", "value_max")).to eq([23_400, 35_700])
+      expect(view["rates"].map { |r| r["role_family"] }).to contain_exactly("procurement", "default")
+    end
+  end
 end

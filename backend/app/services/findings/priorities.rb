@@ -21,6 +21,27 @@ module Findings
     # solution — which is Stage 2's job — so the priority is dropped.
     BUILD_WORDS = /\b(implement\w*|deploy\w*|build\w*|install\w*|integrat\w*|automat\w*|rpa|api|bot|chatbot|agent|software|platform|tool|vendor|ai)\b/i
 
+    # The kind of change a priority calls for, in the client's words. A fixed list,
+    # so Stage 1 can say "a ready-made tool" without ever naming one — product
+    # names belong to Stage 2's design.
+    INTERVENTIONS = {
+      "process_change" => "Change how the work is done",
+      "existing_system" => "Make better use of a system you already have",
+      "ready_made_tool" => "A ready-made tool",
+      "connect_systems" => "Connect systems that don't talk to each other",
+      "automation" => "Automate a repetitive step",
+      "ai_assistant" => "An AI assistant for the task",
+      "standards_training" => "A clear standard, and training on it"
+    }.freeze
+
+    # Direction and "not recommended" lines may say what kind of change (so
+    # "automate" is fine) but never how it is built, what it costs or how long.
+    BUILD_DETAIL = /\b(implement\w*|deploy\w*|build\w*|install\w*|api|vendor\w*|licen[cs]\w*|subscription\w*|cost\w*|price\w*|budget\w*|weeks?|months?)\b/i
+
+    NOT_RECOMMENDED_MAX = 3
+
+    attr_reader :not_recommended
+
     def self.call(company:, view:)
       new(company: company, view: view).call
     end
@@ -31,6 +52,7 @@ module Findings
         department["roles"].flat_map { |role| role["findings"] }
       end
       @by_id = @findings.index_by { |f| f["id"] }
+      @not_recommended = []
     end
 
     def call
@@ -50,6 +72,7 @@ module Findings
       return nil unless client.configured?
 
       parsed = client.finding_priorities(context: context, language: @company.locale.presence || "en")
+      @not_recommended = normalise_not_recommended(parsed)
       normalise(parsed)
     rescue StandardError => e
       Rails.logger.warn("[Findings::Priorities] using the largest findings instead: #{e.class}: #{e.message}")
@@ -84,7 +107,44 @@ module Findings
 
         goal = item["serves_goal"].to_s.strip
         theme(title: title, what: what, ids: ids, goal: goals.find { |g| g.casecmp?(goal) })
+          .merge(direction(item))
       end.first(MAX)
+    end
+
+    # The kind of change, from the fixed list, and one sentence on its direction.
+    # A direction that names a product, a build step, a cost or a timescale is
+    # dropped; the type alone still stands.
+    def direction(item)
+      type = INTERVENTIONS.key?(item["intervention_type"].to_s) ? item["intervention_type"].to_s : nil
+      text = item["direction"].to_s.strip
+      text = "" if text.length > 240 || text.match?(/\d/) || text.match?(BUILD_DETAIL) || names_a_product?(text)
+      { "intervention_type" => type, "intervention_label" => type && INTERVENTIONS[type],
+        "direction" => text.presence }
+    end
+
+    # What was considered and is not recommended, and why — tied to findings, so
+    # it is about this company's work and not general advice.
+    def normalise_not_recommended(parsed)
+      Array(parsed.is_a?(Hash) ? parsed["not_recommended"] : nil).filter_map do |item|
+        next unless item.is_a?(Hash)
+
+        title = item["title"].to_s.strip
+        why = item["why"].to_s.strip
+        next if title.blank? || why.blank? || title.length > 120 || why.length > 300
+        next if [title, why].any? { |t| t.match?(/\d/) || t.match?(BUILD_DETAIL) || names_a_product?(t) }
+
+        ids = Array(item["finding_ids"]).map(&:to_i).select { |id| @by_id.key?(id) }
+        next if ids.empty?
+
+        { "title" => title, "why" => why, "finding_ids" => ids }
+      end.first(NOT_RECOMMENDED_MAX)
+    end
+
+    def names_a_product?(text)
+      @product_names ||= SolutionCatalogEntry.pluck(:name, :vendor).flatten.compact
+                                             .map { |n| n.to_s.strip.downcase }.select { |n| n.length >= 3 }.uniq
+      down = text.downcase
+      @product_names.any? { |n| down.match?(/\b#{Regexp.escape(n)}\b/) }
     end
 
     def one_per_finding

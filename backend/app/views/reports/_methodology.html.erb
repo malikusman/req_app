@@ -37,6 +37,11 @@
       <dl>
         <dt>How hours are worked out</dt>
         <dd style="font-size:9pt;color:var(--muted);">From how often and how long each person said a piece of work takes, on 48 working weeks, 240 working days and 8-hour days a year. Ranges stay ranges, rounded outward. Waiting on others is never counted, no figure is larger than one person's working year, and nothing is converted to salary. Where two people described the same work, it is counted once.</dd>
+        <% rates = Array(snapshot.dig("findings", "rates")) %>
+        <% if rates.any? %>
+          <dt>How value is worked out</dt>
+          <dd style="font-size:9pt;color:var(--muted);">Hours multiplied by a benchmark loaded hourly rate for the role family in the UAE market — never anyone's salary. Rates used: <%= h rates.map { |r| "#{r['role_family']} (#{r['version']})" }.uniq.to_sentence %>.</dd>
+        <% end %>
         <% if evidence_sentence %>
           <dt>Evidence base</dt>
           <dd style="font-size:9pt;color:var(--muted);"><%= h evidence_sentence.upcase_first %>. Individual interview transcripts, document files and media exhibits are working papers and are deliberately excluded from this deliverable — findings are reported with the weight of evidence behind them, not the source material itself.</dd>

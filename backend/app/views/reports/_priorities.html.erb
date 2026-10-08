@@ -31,6 +31,12 @@
         </div>
         <h4><%= h priority["title"] %></h4>
         <p><%= h priority["what"] %></p>
+        <% if priority["intervention_label"].present? || priority["direction"].present? %>
+          <p class="priority-direction">
+            <% if priority["intervention_label"].present? %><b><%= h priority["intervention_label"] %>.</b><% end %>
+            <%= h priority["direction"] %>
+          </p>
+        <% end %>
         <p class="priority-where">
           <%= h priority["roles"].any? ? priority["roles"].first(4).to_sentence : "Several roles" %><% if priority["departments"].size > 1 %> · <%= priority["departments"].size %> departments<% end %>
         </p>

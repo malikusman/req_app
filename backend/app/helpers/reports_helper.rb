@@ -280,7 +280,7 @@ module ReportsHelper
   TOC_TITLE_TO_KEY = {
     "Executive summary" => "executive_summary", "Expert assessment" => "expert_verdict",
     "Findings by role" => "role_findings", "Next steps" => "next_steps",
-    "Where to act first" => "recommendations",
+    "Where to act first" => "recommendations", "What we advise against" => "recommendations",
     "Scope & coverage" => "coverage",
     "Company context" => "company_context",
     "What changed" => "delta", "Signals" => "signals", "Patterns" => "patterns",
@@ -325,6 +325,7 @@ module ReportsHelper
     themes.call if placement == "main"
     if Array(snapshot["priorities"]).any?
       add.call("Where to act first", "The findings grouped into priorities, ranked by hours", "rule-blue")
+      add.call("What we advise against", "What we are not recommending, and why", "rule-blue") if Array(snapshot["not_recommended"]).any?
     elsif Array(snapshot["recommendations"]).any?
       add.call("Recommendations", "Prioritized actions, catalog-matched", "rule-blue")
     end

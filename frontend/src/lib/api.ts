@@ -2070,6 +2070,8 @@ export interface BillingSnapshot {
   usage: { conversations_used: number; conversation_limit: number | null; remaining: number | null; limit_reached: boolean };
   plans: { id: string; conversations: number; amount_cents: number }[];
   stripe_configured: boolean;
+  /** The client portal shows billing only when the company is sold as a subscription. */
+  billing_visible?: boolean;
 }
 
 export interface ImpersonationResponse {
@@ -2171,6 +2173,8 @@ export interface CompanyDashboardPayload {
   integrations?: {
     openai_configured: boolean;
     stripe_configured: boolean;
+  /** The client portal shows billing only when the company is sold as a subscription. */
+  billing_visible?: boolean;
     gotenberg_ok: boolean;
     mocks_allowed: boolean;
   };

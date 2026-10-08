@@ -95,7 +95,8 @@ module Dashboard
         openai_configured: ENV["OPENAI_API_KEY"].present?,
         stripe_configured: ENV["STRIPE_SECRET_KEY"].present?,
         gotenberg_ok: gotenberg_healthy?,
-        mocks_allowed: MocksAllowed.allowed?
+        mocks_allowed: MocksAllowed.allowed?,
+        billing_visible: @company.merged_settings["client_billing_visible"] == true
       }
     end
 

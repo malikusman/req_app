@@ -32,6 +32,10 @@
       <p>
         These hours are capacity: time the team spends today that could go to other work. They are not a cost to
         cut, and they are not converted to salary.
+        <% if totals["value_min"] %>
+          At benchmark rates for these roles, that capacity is worth about
+          <strong><%= totals["currency"] %> <%= report_hours(totals["value_min"], totals["value_max"]) %></strong> a year.
+        <% end %>
       </p>
       <% if roles.any? { |r| r["hours_max"] } %>
         <h3 style="margin-top:5mm;">Most time, by role</h3>
@@ -88,7 +92,7 @@
       <% end %>
       <table class="findings-table">
         <thead>
-          <tr><th style="width:17%;">Work</th><th>What gets in the way</th><th style="width:14%;">How often</th><th style="width:14%;">How long</th><th class="num" style="width:11%;">Hours a year</th></tr>
+          <tr><th style="width:17%;">Work</th><th>What gets in the way</th><th style="width:14%;">How often</th><th style="width:14%;">How long</th><th class="num" style="width:11%;">Hours a year</th><% if totals["value_min"] %><th class="num" style="width:12%;">Worth a year</th><% end %></tr>
         </thead>
         <tbody>
           <% block["findings"].each do |finding| %>
@@ -109,6 +113,9 @@
                   <%= report_hours(finding["hours_min"], finding["hours_max"]) || "—" %>
                 <% end %>
               </td>
+              <% if totals["value_min"] %>
+                <td class="num"><%= finding["value_min"] ? "#{finding['currency']} #{report_hours(finding['value_min'], finding['value_max'])}" : "—" %></td>
+              <% end %>
             </tr>
           <% end %>
         </tbody>

@@ -115,6 +115,19 @@ RSpec.describe Reports::HtmlBuilder do
       expect(body.call("hidden")).not_to include("Manual re-entry")
     end
 
+    it "shows the kind of change and what we advise against, without vendors" do
+      priorities = [{ "rank" => 1, "title" => "Supplier data re-keyed by hand", "what" => "Prices are typed twice.",
+                      "intervention_label" => "A ready-made tool", "direction" => "Bring prices in one format",
+                      "roles" => ["Procurement Officer"], "departments" => ["procurement"], "hours_min" => 400,
+                      "hours_max" => 420, "finding_ids" => [1], "findings" => [] }]
+      html = described_class.call(snapshot: with_findings.merge(
+        "priorities" => priorities,
+        "not_recommended" => [{ "title" => "Automating approvals first", "why" => "Nobody owns the rules yet.", "finding_ids" => [1] }]
+      ))
+      expect(html).to include("A ready-made tool.", "Bring prices in one format", "And what we advise against",
+                              "Automating approvals first")
+    end
+
     it "never tells the client how many findings were held back for review" do
       html = described_class.call(snapshot: with_findings)
       expect(html).not_to match(/held back|withheld/i)

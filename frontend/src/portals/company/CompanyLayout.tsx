@@ -68,7 +68,8 @@ export function CompanyLayout() {
           : 'PDF service (Gotenberg) is down — report generation will fail.'
       );
     }
-    if (!integrations.stripe_configured) {
+    // Billing is hidden from clients unless switched on, so its warning is too.
+    if (!integrations.stripe_configured && integrations.billing_visible) {
       warnings.push(
         integrations.mocks_allowed
           ? 'Stripe is not configured — billing uses mock checkout (dev only).'
