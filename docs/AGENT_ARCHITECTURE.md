@@ -5,7 +5,7 @@
 > exists in the codebase. The interview now maps the person's own role areas and ends on
 > a filled role dossier rather than a question counter.
 >
-> **Current architecture:
+> **Current architecture: [`AGENTS.md`](AGENTS.md)** (every agent and flow, October 2026), and
 > [`TECHNICAL_REVIEW_AGENTS_AND_REPORTING.md`](TECHNICAL_REVIEW_AGENTS_AND_REPORTING.md)**
 > — verified against the code, September 2026.
 >
