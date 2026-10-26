@@ -618,10 +618,12 @@ module ReportsHelper
 
   # The role tables, packed onto pages, in units of one table row (about 13mm). A
   # role's rows stay together unless the role alone is longer than a page; a role
-  # heading with its column headers costs about two rows, and a row whose text runs
-  # to extra lines costs more. Measured against the rendered sheet, with margin.
+  # heading with its column headers and the Stage 2 note under its table costs
+  # about two rows, and a row whose text runs to extra lines costs more. Each row
+  # carries its basis and confidence under the task. Measured against the rendered
+  # sheet, with margin.
   FINDINGS_PAGE_CAPACITY = 12.0
-  FINDINGS_HEADING_COST = 1.8
+  FINDINGS_HEADING_COST = 2.2
   FINDINGS_POTENTIAL_COST = 0.5
 
   def report_findings_pages(view)
@@ -665,7 +667,26 @@ module ReportsHelper
 
   def report_finding_row_cost(finding)
     text = finding["friction"].to_s.length + [finding["what_happens_now"].to_s.length, 160].min
-    text > 200 ? 1.4 : 1.0
+    text > 200 ? 1.55 : 1.15
+  end
+
+  FINDING_BASIS_LABELS = {
+    "discovery" => "Discovery conversation",
+    "discovery_partial" => "Unfinished conversation",
+    "deep_dive" => "Deep dive",
+    "consultant" => "Added by the consultant"
+  }.freeze
+
+  # Plain labels only; the internal grade is never shown (Doc 15 §8.3).
+  FINDING_CONFIDENCE_LABELS = {
+    "high" => "High confidence", "medium" => "Moderate confidence", "low" => "Requires validation"
+  }.freeze
+
+  # Where a finding comes from and how far to trust it, in the client's words:
+  # "Discovery conversation · Moderate confidence".
+  def report_finding_basis(finding)
+    [FINDING_BASIS_LABELS[finding["basis"].to_s], FINDING_CONFIDENCE_LABELS[finding["confidence"].to_s]]
+      .compact.join(" · ").presence
   end
 
   # --- Expert layer -------------------------------------------------------

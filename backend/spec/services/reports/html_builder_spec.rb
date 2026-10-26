@@ -87,6 +87,18 @@ RSpec.describe Reports::HtmlBuilder do
       expect(html).not_to include("Pilot OCR.")
     end
 
+    it "says where each finding comes from and how far to trust it, in plain words" do
+      role = with_findings.dig("findings", "departments", 0, "roles", 0)
+      role["findings"][0].merge!("basis" => "discovery", "confidence" => "medium")
+      role["findings"][1].merge!("basis" => "discovery_partial", "confidence" => "low")
+      html = described_class.call(snapshot: with_findings)
+
+      expect(html).to include("Discovery conversation · Moderate confidence")
+      expect(html).to include("Unfinished conversation · Requires validation")
+      expect(html).not_to include(">medium<")
+      expect(html.scan("A deep dive and full design are available at Stage 2.").size).to be >= 2
+    end
+
     it "puts the priorities grouped from the findings where the catalog recommendations used to be" do
       priorities = [{ "rank" => 1, "title" => "Supplier data re-keyed by hand", "what" => "Prices are typed twice.",
                       "roles" => ["Procurement Officer"], "departments" => ["procurement"], "serves_goal" => nil,

@@ -97,7 +97,12 @@
         <tbody>
           <% block["findings"].each do |finding| %>
             <tr>
-              <td class="task"><%= h finding["title"] %></td>
+              <td class="task">
+                <%= h finding["title"] %>
+                <% if (basis = report_finding_basis(finding)) %>
+                  <div class="basis"><%= h basis %></div>
+                <% end %>
+              </td>
               <td>
                 <%= h finding["friction"] %>
                 <% if finding["what_happens_now"].present? %>
@@ -120,6 +125,8 @@
           <% end %>
         </tbody>
       </table>
+      <%# Stage 1 withholds the build and says so, never leaving a blank (Doc 15 §5). %>
+      <p class="stage2-note">A deep dive and full design are available at Stage 2.</p>
     </div>
   <% end %>
   <%= render "reports/page_footer", company_name: company_name %>
