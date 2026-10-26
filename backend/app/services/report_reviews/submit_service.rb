@@ -54,12 +54,39 @@ module ReportReviews
               "Section #{key} marked needs_info requires an explanatory comment"
       end
 
-      return unless defined?(ReportReviewFinding) && ReportReviewFinding.table_exists?
-
-      findings = @report_review.report_review_findings
-      unless findings.where(finding_type: "executive_conclusion", publishable: true).exists?
-        raise IncompleteReviewError, "A publishable executive conclusion finding is required"
+      if defined?(ReportReviewFinding) && ReportReviewFinding.table_exists?
+        findings = @report_review.report_review_findings
+        unless findings.where(finding_type: "executive_conclusion", publishable: true).exists?
+          raise IncompleteReviewError, "A publishable executive conclusion finding is required"
+        end
       end
+
+      validate_flagged_findings!
+      validate_checks!
+    end
+
+    # A finding about a role one person holds, or a probable double count, stays
+    # out of the report until a consultant decides it. Submitting past one would
+    # let real work silently drop out of the client's report (Doc 15 §11.5 rule 5).
+    def validate_flagged_findings!
+      flagged = @company.findings.where(status: "draft").select(&:needs_review?)
+      return if flagged.empty?
+
+      raise IncompleteReviewError,
+            "#{flagged.size} #{'finding'.pluralize(flagged.size)} #{flagged.size == 1 ? 'needs' : 'need'} your review " \
+            "on the Findings page (a role one person holds, or a possible double count). " \
+            "Approve, reword, hide or merge #{flagged.size == 1 ? 'it' : 'them'}, then regenerate if the report should include them."
+    end
+
+    # The checks platform approval runs, so a report that cannot be approved is not
+    # handed on as reviewed (rule 6). Same render path as approval, same result.
+    def validate_checks!
+      blocking = Reports::Critic.call(report: @report).select { |c| c[:severity] == "block" }
+      return if blocking.empty?
+
+      raise IncompleteReviewError,
+            "The report fails #{blocking.size} required #{'check'.pluralize(blocking.size)}: " \
+            "#{blocking.map { |c| c[:message] }.join(' ')}"
     end
 
     def needs_info?
