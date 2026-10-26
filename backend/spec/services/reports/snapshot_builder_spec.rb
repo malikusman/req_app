@@ -14,6 +14,24 @@ RSpec.describe Reports::SnapshotBuilder do
     expect(snapshot.dig("company", "name")).to eq("Acme Corp")
   end
 
+  describe "ideas and products (Stage 2's)" do
+    before { company.agentic_ideas.create!(title: "Invoice Intake Agent", summary: "s", status: "published", source: "generated", confidence: 0.8) }
+
+    it "leaves them out of the snapshot by default" do
+      snapshot = described_class.call(company: company, delta: {})
+      expect(snapshot["agentic_ideas"]).to eq([])
+      expect(snapshot["tools_catalog"]).to eq("curated_matches" => [], "endorsements" => [])
+      expect(snapshot.dig("layout", "stage2_previews")).to eq("hidden")
+    end
+
+    it "includes them when the company setting shows them" do
+      company.update!(settings: company.settings.merge("report_stage2_previews" => "shown"))
+      snapshot = described_class.call(company: company, delta: {})
+      expect(snapshot["agentic_ideas"].map { |i| i["title"] }).to eq(["Invoice Intake Agent"])
+      expect(snapshot.dig("layout", "stage2_previews")).to eq("shown")
+    end
+  end
+
   it "uses docs-oriented framing when engagement_mode is documents" do
     company.update!(settings: (company.settings || {}).merge("engagement_mode" => "documents"))
     Document.create!(

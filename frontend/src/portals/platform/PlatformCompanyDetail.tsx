@@ -857,6 +857,25 @@ export function PlatformCompanyDetail() {
                   ]}
                 />
               </div>
+              {/* Published ideas and vendor matches name what would do the work —
+                  Stage 2's. Shown, they fail the report checks at approval. */}
+              <div className="w-64">
+                <Select
+                  label="Ideas & products"
+                  value={String(company?.settings?.report_stage2_previews ?? 'hidden')}
+                  onChange={(e) => {
+                    if (!token || !companyId) return;
+                    api
+                      .updatePlatformCompanySettings(token, companyId, { report_stage2_previews: e.target.value })
+                      .then((d) => setCompany(d.company))
+                      .catch((err) => setActionError(err instanceof Error ? err.message : 'Could not save'));
+                  }}
+                  options={[
+                    { value: 'hidden', label: 'Left out (Stage 2)' },
+                    { value: 'shown', label: 'In the report' },
+                  ]}
+                />
+              </div>
             <Button
               variant="secondary"
               loading={generating}

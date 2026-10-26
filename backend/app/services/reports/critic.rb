@@ -221,12 +221,22 @@ module Reports
           "Only #{totals['quantified']} of #{totals['findings']} findings carry hours, so the total understates the time.")
     end
 
+    # Products and ideas name what would do the work, which is Stage 2's. They reach
+    # a report only when report_stage2_previews is "shown", and then they block.
     def check_vendors
       named = Array(@snapshot.dig("tools_catalog", "curated_matches")).map { |t| t["name"] }.compact
-      return if named.empty?
+      if named.any?
+        add("names_vendors", "block", "tools_catalog",
+            "Names products (#{named.first(3).join(', ')}). Stage 1 says what to address, not which product; " \
+            "set report_stage2_previews to hidden and regenerate.")
+      end
 
-      add("names_vendors", "warn", "tools_catalog",
-          "Names products (#{named.first(3).join(', ')}). Whether vendors belong in Stage 1 is still to be decided.")
+      ideas = Array(@snapshot["agentic_ideas"]).map { |i| i["title"] }.compact
+      return if ideas.empty?
+
+      add("shows_ideas", "block", "opportunities",
+          "Publishes ideas (#{ideas.first(3).map { |t| "“#{t}”" }.join(', ')}). Stage 1 does not publish ideas; " \
+          "set report_stage2_previews to hidden and regenerate.")
     end
   end
 end

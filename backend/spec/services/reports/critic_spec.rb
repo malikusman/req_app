@@ -64,6 +64,14 @@ RSpec.describe Reports::Critic do
     expect(codes).to include("findings_changed")
   end
 
+  it "blocks products and published ideas, which are Stage 2's" do
+    snapshot["tools_catalog"] = { "curated_matches" => [{ "name" => "Bill.com" }] }
+    snapshot["agentic_ideas"] = [{ "title" => "Invoice Intake Agent" }]
+    checks = described_class.call(report: report)
+    expect(checks.map { |c| c[:code] }).to include("names_vendors", "shows_ideas")
+    expect(described_class.blocking?(checks)).to be(true)
+  end
+
   it "warns, without blocking, about overreach and few quantified findings" do
     snapshot["narrative"] = { "governing_thought" => "Manual work severely limits growth." }
     findings_view["totals"].merge!("findings" => 4, "quantified" => 1)

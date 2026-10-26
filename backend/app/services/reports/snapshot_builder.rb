@@ -55,7 +55,7 @@ module Reports
         # What a reader might expect us to suggest, and why we don't, for this company.
         "not_recommended" => @not_recommended || [],
         "coverage" => coverage_json(intel),
-        "layout" => { "signals" => signals_placement },
+        "layout" => { "signals" => signals_placement, "stage2_previews" => stage2_previews },
         "situation" => situation_json(docs_first),
         "signals" => signals_json,
         "patterns" => patterns_json,
@@ -75,8 +75,10 @@ module Reports
         # the one context block a client can independently verify.
         "web_research" => web_research_json,
         "client_stack" => client_stack_json,
-        "tools_catalog" => tools_catalog_json,
-        "agentic_ideas" => agentic_ideas_json,
+        # Left out, not just unrendered, when hidden: the snapshot is served to the
+        # company over the API too. The ideas and matches themselves are untouched.
+        "tools_catalog" => stage2_previews == "shown" ? tools_catalog_json : EMPTY_TOOLS_CATALOG.deep_dup,
+        "agentic_ideas" => stage2_previews == "shown" ? agentic_ideas_json : [],
         "agent_activity" => agent_activity_json,
         "narrative" => nil,
         "roadmap" => nil
@@ -159,6 +161,14 @@ module Reports
 
       placement = @company.merged_settings["report_signals_placement"].to_s
       SIGNALS_PLACEMENTS.include?(placement) ? placement : "appendix"
+    end
+
+    EMPTY_TOOLS_CATALOG = { "curated_matches" => [], "endorsements" => [] }.freeze
+
+    # Agentic ideas and vendor matches name what would do the work, which is
+    # Stage 2's. Hidden unless the company setting says otherwise.
+    def stage2_previews
+      @company.merged_settings["report_stage2_previews"].to_s == "shown" ? "shown" : "hidden"
     end
 
     def priorities_json
