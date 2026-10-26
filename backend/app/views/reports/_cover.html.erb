@@ -1,7 +1,7 @@
 <% company_name = snapshot.dig("company", "name") %>
-<%# Prefer the answer-first governing thought (carries the metric); fall back to
-    the first sentence of the summary. %>
-<% subtitle = snapshot.dig("narrative", "governing_thought").presence || snapshot["executive_summary"].to_s.split(/(?<=\.)\s/).first.presence %>
+<%# The consultant's own summary when they rewrote it, else the answer-first
+    governing thought, else the first sentence of the summary. %>
+<% subtitle = report_governing_message(snapshot) %>
 <section class="page bleed cover">
   <div class="art-panel"><%= render "reports/cover_art" %></div>
   <div class="meta-panel">

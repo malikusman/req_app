@@ -460,8 +460,11 @@ module Reports
         "#{depts.any? ? " across #{depts.join(', ')}" : ""}."
       ].compact
 
-      top_patterns = @company.patterns.order(confidence: :desc).limit(2).pluck(:title)
-      top_signals = @company.company_signals.order(strength: :desc).limit(3).pluck(:label)
+      # A partial interview can leave findings before the baseline turns over;
+      # once there are any, they say what we found, not the themes.
+      top_patterns = findings? ? [] : @company.patterns.order(confidence: :desc).limit(2).pluck(:title)
+      top_signals = findings? ? [] : @company.company_signals.order(strength: :desc).limit(3).pluck(:label)
+      parts << findings_sentence if findings?
       if top_patterns.any?
         parts << "The strongest cross-cutting themes are #{top_patterns.join(' and ')}."
       elsif top_signals.any?
@@ -472,7 +475,7 @@ module Reports
         parts << "Underlying friction shows up as #{top_signals.first(2).join(' and ')}."
       end
 
-      pattern_count = @company.patterns.count
+      pattern_count = findings? ? 0 : @company.patterns.count
       if pattern_count.positive?
         parts << "#{pattern_count} cross-cutting #{'pattern'.pluralize(pattern_count)} inform the recommendations below."
       end
@@ -499,11 +502,15 @@ module Reports
       doc_count = @company.documents.where(status: "ready").count
       parts << "Findings are reinforced by #{doc_count} internal #{'document'.pluralize(doc_count)}." if doc_count.positive?
 
-      top_signals = @company.company_signals.order(strength: :desc).limit(3).pluck(:label)
-      parts << "Top friction areas include #{top_signals.join(', ')}." if top_signals.any?
+      # With findings, the signals and patterns are a second, vaguer account of
+      # the same interviews; the findings sentence above already says what we found.
+      unless findings?
+        top_signals = @company.company_signals.order(strength: :desc).limit(3).pluck(:label)
+        parts << "Top friction areas include #{top_signals.join(', ')}." if top_signals.any?
 
-      pattern_count = @company.patterns.count
-      parts << "#{pattern_count} cross-team #{'pattern'.pluralize(pattern_count)} inform the recommendations below." if pattern_count.positive?
+        pattern_count = @company.patterns.count
+        parts << "#{pattern_count} cross-team #{'pattern'.pluralize(pattern_count)} inform the recommendations below." if pattern_count.positive?
+      end
 
       parts << goals_framing_sentence
       parts << departments_framing_sentence
@@ -518,6 +525,10 @@ module Reports
 
       "About #{report_hours(totals['hours_min'], totals['hours_max'])} hours a year go into the work " \
         "#{totals['people'].to_i == 1 ? 'one person' : "#{totals['people']} people"} described"
+    end
+
+    def findings?
+      findings_json&.dig("totals", "findings").to_i.positive?
     end
 
     def findings_sentence

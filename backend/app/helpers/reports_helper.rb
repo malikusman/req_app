@@ -46,6 +46,23 @@ module ReportsHelper
     edits.is_a?(Hash) ? edits[key.to_s] : nil
   end
 
+  # The one-sentence answer the cover and the brief lead with. A consultant who
+  # rewrote the executive summary is quoted, not the writer they replaced — else
+  # the report says one thing on the cover and another on page three.
+  def report_governing_message(snapshot)
+    edited = report_first_sentence(report_section_edit(snapshot, "executive_summary")&.dig("body"))
+    edited || snapshot.dig("narrative", "governing_thought").presence ||
+      report_first_sentence(snapshot["executive_summary"])
+  end
+
+  # First sentence of prose that may carry the consultant's light formatting:
+  # headings are skipped, list markers and emphasis dropped.
+  def report_first_sentence(text)
+    prose = text.to_s.lines.map(&:strip).reject { |l| l.blank? || l.start_with?("#") }
+                .map { |l| l.sub(/\A(?:[-*]|\d+\.)\s+/, "").delete("*_") }.join(" ")
+    prose.split(/(?<=[.!?])\s+/).first.presence
+  end
+
   # Custom sections a consultant added, anchored after a given built-in section
   # (or, when anchor is blank, only when `anchor` itself is nil — i.e. trailing).
   def report_custom_sections(snapshot, after: nil)
@@ -690,6 +707,17 @@ module ReportsHelper
   # Deterministic stand-in for the LLM narrative's supporting points, so the
   # brief's first page is honest rather than sparse when no model is configured.
   def report_deterministic_support(snapshot, limit: 3)
+    # With findings, the points are where to act first and the hours behind each —
+    # the same figures as the priorities page — not the keyword-era signals.
+    if snapshot.dig("findings", "totals", "findings").to_i.positive?
+      return Array(snapshot["priorities"]).first(limit).filter_map do |priority|
+        next if priority["title"].blank?
+
+        hours = report_hours(priority["hours_min"], priority["hours_max"])
+        hours ? "#{priority['title']} — about #{hours} hours a year" : priority["title"]
+      end
+    end
+
     Array(snapshot["signals"]).sort_by { |s| -s["strength"].to_f }.first(limit).filter_map do |signal|
       label = signal["label"].to_s.strip
       next if label.blank?

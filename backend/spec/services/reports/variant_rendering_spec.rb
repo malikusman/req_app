@@ -68,6 +68,18 @@ RSpec.describe "Report variants" do
     end
   end
 
+  it "leads the cover and the brief with the consultant's summary when they rewrote it" do
+    snapshot["section_overrides"] = {
+      "edits" => { "executive_summary" => { "body" => "## Summary\n\nInvoice re-keying is the place to start. It touches every team." } }
+    }
+    cover = Nokogiri::HTML(html_for("full")).at_css(".cover").text
+    brief_answer = Nokogiri::HTML(html_for("exec_brief")).at_css("h1.answer").text
+
+    expect(cover).to include("Invoice re-keying is the place to start.")
+    expect(brief_answer).to eq("Invoice re-keying is the place to start.")
+    expect(cover).not_to include("against an 8-day target")
+  end
+
   it "quotes the same governing thought and the same metric in both" do
     both = %w[full exec_brief].map { |v| html_for(v) }
 

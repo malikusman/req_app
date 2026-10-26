@@ -32,6 +32,23 @@ RSpec.describe Reports::SnapshotBuilder do
     end
   end
 
+  it "leaves the signals and patterns out of the summary once there are findings" do
+    company.update!(report_readiness_breakdown: company.report_readiness_breakdown.merge("employees_interviewed" => 1))
+    employee = create(:employee, company: company, role_title: "AP Clerk", department: "finance",
+                                 participation_status: "completed")
+    company.findings.create!(employee: employee, source_key: "k1", area: "invoice entry", department: "finance",
+                             role_title: "AP Clerk", friction: "Invoices are re-keyed", status: "approved",
+                             frequency_min: 1, frequency_max: 1, frequency_unit: "per_day",
+                             duration_min: 30, duration_max: 30, duration_unit: "minutes", effort_type: "active")
+    create(:company_signal, company: company, label: "Manual spreadsheet handoffs")
+
+    summary = described_class.call(company: company, delta: {})["executive_summary"]
+
+    expect(summary).to include("1 finding across 1 role")
+    expect(summary).not_to include("Manual spreadsheet handoffs")
+    expect(summary).not_to include("cross-team")
+  end
+
   it "uses docs-oriented framing when engagement_mode is documents" do
     company.update!(settings: (company.settings || {}).merge("engagement_mode" => "documents"))
     Document.create!(
