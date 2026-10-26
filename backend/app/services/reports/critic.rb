@@ -59,6 +59,7 @@ module Reports
                     "Claims more than the evidence shows (%<hit>s).")
       check_coverage
       check_vendors
+      check_stage2_sections
       @issues.map(&:to_h)
     end
 
@@ -219,6 +220,20 @@ module Reports
 
       add("few_hours", "warn", "role_findings",
           "Only #{totals['quantified']} of #{totals['findings']} findings carry hours, so the total understates the time.")
+    end
+
+    # A consultant section built from a Stage 2 template — an implementation plan —
+    # describes how the fix is delivered. The template is no longer offered, but a
+    # report reviewed before that may still carry one forward.
+    def check_stage2_sections
+      titles = @report.report_section_overrides.published
+                      .where(action: "add", section_key: ReportSectionTemplates::STAGE2_KEYS)
+                      .pluck(:title)
+      return if titles.empty?
+
+      add("stage2_section", "block", nil,
+          "Includes a Stage 2 section (#{titles.first(3).map { |t| "“#{t}”" }.join(', ')}). " \
+          "Owners, effort and milestones belong to the design; remove the section.")
     end
 
     # Products and ideas name what would do the work, which is Stage 2's. They reach

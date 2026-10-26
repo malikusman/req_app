@@ -72,6 +72,13 @@ RSpec.describe Reports::Critic do
     expect(described_class.blocking?(checks)).to be(true)
   end
 
+  it "blocks a section added from a Stage 2 template" do
+    report.report_section_overrides.create!(consultant_user: create(:consultant_user), action: "add",
+                                            section_key: "implementation", title: "Implementation plan",
+                                            body: "## Owners and effort", published: true)
+    expect(codes).to include("stage2_section")
+  end
+
   it "warns, without blocking, about overreach and few quantified findings" do
     snapshot["narrative"] = { "governing_thought" => "Manual work severely limits growth." }
     findings_view["totals"].merge!("findings" => 4, "quantified" => 1)
