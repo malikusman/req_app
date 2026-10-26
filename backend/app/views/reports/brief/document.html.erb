@@ -23,7 +23,9 @@
 <% recommendations = Array(snapshot["recommendations"]).sort_by { |r| -r["impact_score"].to_f } %>
 <% roadmap = snapshot["roadmap"].is_a?(Hash) ? snapshot["roadmap"] : {} %>
 <% docs_first = snapshot["docs_first_phase"] == true || snapshot["report_kind"].to_s == "baseline" %>
-<% foot = ->(n) { %(<div class="foot"><span class="brand">#{h report_brand_footer(company_name)}</span><span>#{n} / 4</span></div>).html_safe } %>
+<% @_report_version = report_version %>
+<% @_generated_label = generated_label %>
+<% foot = ->(n) { %(<div class="foot"><span class="brand">#{h report_brand_footer(company_name, snapshot)}</span><span>#{h report_footer_meta} · #{n} / 4</span></div>).html_safe } %>
 
 <%# ===== PAGE 1 · THE ANSWER, AND WHAT IT'S WORTH ===================== %>
 <section class="page">

@@ -30,7 +30,7 @@ RSpec.describe Reports::HtmlBuilder do
   it "renders snapshot sections from the ERB template" do
     html = described_class.call(snapshot: snapshot)
 
-    expect(html).to include("Discovery Report")
+    expect(html).to include("Diagnostic Report")
     expect(html).to include("Acme Corp")
     expect(html).to include("Who took part")
     expect(html).not_to include("Readiness breakdown")

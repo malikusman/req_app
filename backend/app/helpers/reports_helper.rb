@@ -100,10 +100,17 @@ module ReportsHelper
     "Mjadi · #{company_name} #{report_kind_noun(snapshot || @_report_snapshot)} Report"
   end
 
-  # "Baseline" for docs-only companies, "Discovery" once interviews contribute.
+  # Every page carries its version, date and marking, so a forwarded page can never
+  # be mistaken for a current one (Doc 15 §9.3). The templates set the version and
+  # date once, as they do the snapshot.
+  def report_footer_meta
+    [@_report_version.present? ? "v#{@_report_version}" : nil, @_generated_label.presence, "Confidential"].compact.join(" · ")
+  end
+
+  # "Baseline" for docs-only companies, "Diagnostic" once interviews contribute.
   def report_kind_noun(snapshot)
     kind = snapshot.is_a?(Hash) ? snapshot["report_kind"].to_s : ""
-    kind == "baseline" ? "Baseline" : "Discovery"
+    kind == "baseline" ? "Baseline" : "Diagnostic"
   end
 
   # Plain-language band for a 0..1 (or 0..100) score. Consulting readers want
@@ -377,7 +384,7 @@ module ReportsHelper
 
   def report_source_caption(company_name, version: nil)
     ver = version.present? ? "v#{version}" : "snapshot"
-    "Source: Mjadi discovery #{ver} · #{company_name}"
+    "Source: Mjadi diagnostic #{ver} · #{company_name}"
   end
 
   SECTION_LABELS = {

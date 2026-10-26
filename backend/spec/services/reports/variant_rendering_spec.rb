@@ -59,6 +59,15 @@ RSpec.describe "Report variants" do
     expect(html_for("exec_brief")).to include("A4 portrait")
   end
 
+  it "marks every page of both with the version, date and confidentiality" do
+    date = Time.current.strftime("%B %d, %Y")
+    %w[full exec_brief].each do |variant|
+      footers = Nokogiri::HTML(html_for(variant)).css(".footer, .foot").map { |f| f.text.squish }
+      expect(footers).not_to be_empty
+      expect(footers).to all(include("Diagnostic Report", "v2", date, "Confidential"))
+    end
+  end
+
   it "quotes the same governing thought and the same metric in both" do
     both = %w[full exec_brief].map { |v| html_for(v) }
 

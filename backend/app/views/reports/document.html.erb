@@ -8,6 +8,8 @@
 <body>
 <% report_reset_page! %>
 <% @_report_snapshot = snapshot %>
+<% @_report_version = report_version %>
+<% @_generated_label = generated_label %>
 <% company_name = snapshot.dig("company", "name") %>
 <% signals = Array(snapshot["signals"]) %>
 <% patterns = Array(snapshot["patterns"]) %>
