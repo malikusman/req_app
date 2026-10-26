@@ -1,5 +1,9 @@
 FROM ruby:3.1.2-slim
 
+# ruby:3.1.2-slim is Debian 11 (bullseye), whose LTS ended Aug 2026; its packages
+# moved off deb.debian.org (apt 404s), so install from archive.debian.org.
+RUN printf "deb http://archive.debian.org/debian bullseye main\ndeb http://archive.debian.org/debian-security bullseye-security main\ndeb http://archive.debian.org/debian bullseye-updates main\n" > /etc/apt/sources.list
+
 RUN apt-get update -qq && \
     apt-get install -y build-essential libpq-dev curl git && \
     rm -rf /var/lib/apt/lists/*
