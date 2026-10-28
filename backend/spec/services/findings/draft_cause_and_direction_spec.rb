@@ -48,6 +48,13 @@ RSpec.describe Findings::DraftCauseAndDirection do
     expect(finding.draft_digest).to be_present
   end
 
+  it "drops a direction that names a catalogue product" do
+    SolutionCatalogEntry.create!(name: "Rossum", category: "automation", active: true, first_party: false)
+    reply("direction" => "Read supplier sheets with Rossum and flag only exceptions.")
+    described_class.call(findings: [finding])
+    expect(finding.reload.direction).to be_nil
+  end
+
   it "redrafts only when the wording it was drafted from changes" do
     reply
     described_class.call(findings: [finding])

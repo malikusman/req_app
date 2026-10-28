@@ -579,9 +579,13 @@ function DirectionForm({
 
   const save = () => {
     const ownCause = cause.trim() === (f.drafted.cause ?? '').trim() ? '' : cause.trim();
+    // Who said it is stored only when it differs from what would be shown anyway:
+    // the draft's reading for the draft's cause, analysis for the consultant's own.
+    const saidByPeople = stated === 'stated';
+    const implied = ownCause ? false : f.drafted.cause_stated;
     onSave({
       consultant_cause: ownCause,
-      consultant_cause_stated: ownCause ? stated === 'stated' : null,
+      consultant_cause_stated: saidByPeople === implied ? null : saidByPeople,
       consultant_intervention_type: type === (f.drafted.intervention_type ?? '') ? '' : type,
       consultant_direction: direction.trim() === (f.drafted.direction ?? '').trim() ? '' : direction.trim(),
     });

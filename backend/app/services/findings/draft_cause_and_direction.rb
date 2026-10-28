@@ -14,6 +14,8 @@ module Findings
   # Fails safe: without a model, or on any error, findings keep what they had and
   # the report prints no cause or direction for them.
   class DraftCauseAndDirection
+    include ProductNames
+
     BATCH = 12
     MAX_LENGTH = 300
     # "Lack of automation" names a missing fix, not why the work is slow.
@@ -90,6 +92,7 @@ module Findings
       return nil if sentence.blank? || sentence.length > MAX_LENGTH
       return nil if sentence.match?(/\d/) || sentence.match?(/["“”]/)
       return nil if [Reports::Critic::BUILD, Reports::Critic::PAYROLL, Reports::Critic::FIRST_PERSON].any? { |p| sentence.match?(p) }
+      return nil if names_a_product?(sentence)
 
       sentence
     end

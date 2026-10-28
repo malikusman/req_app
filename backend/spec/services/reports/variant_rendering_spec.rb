@@ -97,7 +97,7 @@ RSpec.describe "Report variants" do
     expect(pages[whats_new - 1].at_css(".contents-land")).to be_present
     expect(pages[whats_new - 1].text).to include("What's new")
     expect(pages[whats_new].text).to include("Stock counts", "40–60 hours a year", "Statement checks",
-                                             "merged into “Invoice entry”", "Newly covered: warehouse")
+                                             "merged into “Invoice entry”", "Newly covered: Warehouse")
     expect(doc.text).not_to include("Delta from the previous version")
   end
 

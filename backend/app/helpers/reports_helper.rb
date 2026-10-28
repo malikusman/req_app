@@ -642,6 +642,7 @@ module ReportsHelper
 
     value.length <= 3 ? value.upcase : value.upcase_first
   end
+  module_function :report_department_label
 
   # The role tables, packed onto pages, in units of one table row (about 13mm). A
   # role's rows stay together unless the role alone is longer than a page; a role

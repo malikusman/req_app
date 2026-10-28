@@ -72,6 +72,19 @@ RSpec.describe "Consultant review of findings", type: :request do
     expect(DraftFindingCausesJob).not_to have_been_enqueued
   end
 
+  it "lets the consultant say who gave the cause without rewording it" do
+    a.update!(cause: "Each supplier's sheet has its own layout", cause_stated: true, draft_digest: a.draft_inputs_digest)
+    patch "/api/v1/consultant/companies/#{company.id}/findings/#{a.id}",
+          params: { finding: { consultant_cause_stated: false } }, headers: headers, as: :json
+
+    json = JSON.parse(response.body)["finding"]
+    expect(json.values_at("cause", "cause_stated")).to eq(["Each supplier's sheet has its own layout", false])
+
+    patch "/api/v1/consultant/companies/#{company.id}/findings/#{a.id}",
+          params: { finding: { consultant_cause_stated: nil } }, headers: headers, as: :json
+    expect(JSON.parse(response.body)["finding"]["cause_stated"]).to be(true)
+  end
+
   it "redrafts the cause and direction when the wording changes" do
     a.update!(draft_digest: a.draft_inputs_digest)
     expect do

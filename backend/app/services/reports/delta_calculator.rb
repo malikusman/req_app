@@ -141,7 +141,7 @@ module Reports
         parts << "#{n} #{word} #{'finding'.pluralize(n)}" if n.positive?
       end
       fresh = changes["new_departments"]
-      parts << "#{fresh.to_sentence} newly covered" if fresh.any?
+      parts << "#{fresh.map { |d| ReportsHelper.report_department_label(d) }.to_sentence} newly covered" if fresh.any?
       return "No changes to the findings since Report v#{@previous_report.version}" if parts.empty?
 
       "#{parts.to_sentence.upcase_first} since Report v#{@previous_report.version}"

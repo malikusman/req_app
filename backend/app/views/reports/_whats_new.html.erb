@@ -20,7 +20,7 @@
   <h1 class="page-title">What moved since the last version</h1>
   <p class="lead" style="max-width:200mm;"><%= h delta["summary"] %>.</p>
   <% if Array(changes["new_departments"]).any? %>
-    <p class="muted" style="margin-top:2mm;">Newly covered: <%= h Array(changes["new_departments"]).to_sentence %>.</p>
+    <p class="muted" style="margin-top:2mm;">Newly covered: <%= h Array(changes["new_departments"]).map { |d| report_department_label(d) }.to_sentence %>.</p>
   <% end %>
   <div class="delta" style="margin-top:6mm;">
     <div class="col add">

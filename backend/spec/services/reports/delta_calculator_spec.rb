@@ -41,7 +41,7 @@ RSpec.describe Reports::DeltaCalculator do
       expect(changes["updated"].map { |f| [f["id"], f["change"]] }).to eq([[reworked.id, "hours 80–90, were 50"]])
       expect(changes["superseded"].map { |f| [f["id"], f["reason"]] }).to eq([[dropped.id, "merged into “Invoice entry”"]])
       expect(changes["new_departments"]).to eq(["warehouse"])
-      expect(delta["summary"]).to eq("1 new finding, 1 updated finding, 1 superseded finding, and warehouse newly covered since Report v1")
+      expect(delta["summary"]).to eq("1 new finding, 1 updated finding, 1 superseded finding, and Warehouse newly covered since Report v1")
     end
 
     it "says nothing moved when the findings are unchanged" do

@@ -65,11 +65,14 @@ class Finding < ApplicationRecord
   def display_intervention_type = consultant_intervention_type.presence || intervention_type
   def display_direction = consultant_direction.presence || direction
 
-  # Whether the cause is the employee's own account or analysis. A consultant who
-  # rewrote the cause says which (analysis unless they say otherwise); otherwise the
-  # draft's reading stands.
+  # Whether the cause is the employee's own account or analysis. The consultant's
+  # say wins, whether or not they reworded the cause — the draft can be right in
+  # substance and wrong about who said it. A cause they wrote without saying is
+  # analysis; otherwise the draft's reading stands.
   def display_cause_stated
-    consultant_cause.present? ? consultant_cause_stated == true : cause_stated
+    return consultant_cause_stated unless consultant_cause_stated.nil?
+
+    consultant_cause.present? ? false : cause_stated
   end
 
   # What the cause and direction draft is written from. When the wording a client
