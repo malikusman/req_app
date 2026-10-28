@@ -80,6 +80,15 @@ RSpec.describe "Report variants" do
     expect(cover).not_to include("against an 8-day target")
   end
 
+  it "does not end the consultant's sentence at an abbreviation like Co." do
+    snapshot["section_overrides"] = {
+      "edits" => { "executive_summary" => { "body" => "Buyers at Nimbus Trading Co. spend 490 hours a year re-keying. It touches every team." } }
+    }
+    brief_answer = Nokogiri::HTML(html_for("exec_brief")).at_css("h1.answer").text
+
+    expect(brief_answer).to eq("Buyers at Nimbus Trading Co. spend 490 hours a year re-keying.")
+  end
+
   it "quotes the same governing thought and the same metric in both" do
     both = %w[full exec_brief].map { |v| html_for(v) }
 

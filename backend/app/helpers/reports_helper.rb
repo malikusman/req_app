@@ -55,12 +55,25 @@ module ReportsHelper
       report_first_sentence(snapshot["executive_summary"])
   end
 
+  # A full stop after these ends a word, not a sentence — "Gulf Trading Co. spend…".
+  SENTENCE_ABBREVIATIONS = %w[co ltd inc corp llc plc bros est mr mrs ms dr st no vs etc approx e.g i.e].freeze
+
   # First sentence of prose that may carry the consultant's light formatting:
   # headings are skipped, list markers and emphasis dropped.
   def report_first_sentence(text)
     prose = text.to_s.lines.map(&:strip).reject { |l| l.blank? || l.start_with?("#") }
                 .map { |l| l.sub(/\A(?:[-*]|\d+\.)\s+/, "").delete("*_") }.join(" ")
-    prose.split(/(?<=[.!?])\s+/).first.presence
+    pieces = prose.split(/(?<=[.!?])\s+/)
+    sentence = pieces.shift
+    while pieces.any? && sentence_continues?(sentence, pieces.first)
+      sentence = "#{sentence} #{pieces.shift}"
+    end
+    sentence.presence
+  end
+
+  def sentence_continues?(before, after)
+    last_word = before[/(\S+)\.\z/, 1].to_s.downcase
+    SENTENCE_ABBREVIATIONS.include?(last_word) || after.match?(/\A[a-z]/)
   end
 
   # Custom sections a consultant added, anchored after a given built-in section
