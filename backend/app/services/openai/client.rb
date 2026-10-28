@@ -409,6 +409,63 @@ module Openai
       parse_model_json(chat_json_content(body))
     end
 
+    # Drafts, for each finding, why the work costs what it does and the kind of
+    # change that would address it. Returns parsed JSON or raises;
+    # Findings::DraftCauseAndDirection checks every field and keeps only what
+    # passes. A consultant reviews every draft before it reaches a client.
+    def finding_causes(context:, language: "en")
+      ensure_configured_or_mock!("OpenAI")
+      return nil unless configured?
+
+      body = {
+        model: ENV.fetch("REPORT_MODEL", ENV.fetch("OPENAI_MODEL", "gpt-4o-mini")),
+        messages: [
+          {
+            role: "system",
+            content: <<~SYS
+              You are a senior operations consultant preparing a Stage 1 DIAGNOSTIC for the
+              owners of a small or mid-sized business. Write in #{language}.
+              You are given findings: pieces of work, in one role, that people described as
+              slower, more manual or more repetitive than they need to be. For EACH finding:
+              - cause: one sentence on the CONDITION in the work that makes it slow — the
+                inconsistent input, the unclear rule, the data kept in two places, the
+                hand-off nobody owns, the dependency on someone outside. About the work and
+                its systems, never a person. Plain words.
+                NOT a cause: restating the symptom ("manual follow-up takes time"), or the
+                absence of a solution ("lack of automation", "no system for it").
+                When the text does not support a real cause, set cause to null.
+              - cause_stated: true ONLY when the employee's words (`what_snags`,
+                `what_happens_now`) name that condition themselves — "each supplier's sheet
+                has a different layout". If you reasoned your way to it, false. When in
+                doubt, false.
+              - intervention_type: the KIND of change, one of #{Finding::INTERVENTION_TYPES.keys.join(', ')}.
+                Prefer the simplest change that fits: remove_work, process_change, training or
+                configure_existing before ready_made_tool, automation or anything AI. It must
+                match the direction: a process_change changes how people work, not software.
+              - direction: one sentence on what the change would do for the work, as an
+                outcome — "Bring supplier price sheets into the ERP in one consistent form, so
+                only new items and unmatched codes need a person". WHAT it does, never HOW it
+                is built: no product or vendor names, no triggers, rules, thresholds, fields,
+                steps, cost, effort or timescale, and never the words implement, deploy,
+                install or build. Where the cause sits outside the business (a government
+                office, a supplier's own pace), aim the direction at what the business
+                controls — or set intervention_type and direction to null if it controls
+                nothing.
+              - For waiting (`waiting` true), the direction addresses the wait, not the work.
+              RULES: no numbers or figures of any kind; no quotes; never "I", "me", "my";
+              never mention salary, headcount, jobs or savings.
+              Respond as JSON only, one entry per id given:
+              {"findings": [{"id": 1, "cause": "...", "cause_stated": false,
+                             "intervention_type": "integration_data_fix", "direction": "..."}]}
+            SYS
+          },
+          { role: "user", content: "Findings (JSON):\n#{context.to_json.truncate(12_000)}" }
+        ],
+        max_tokens: chat_max_tokens(1600)
+      }
+      parse_model_json(chat_json_content(body))
+    end
+
     # Tailored agentic-AI opportunity concepts, grounded strictly in the supplied
     # evidence. Returns parsed JSON or raises; callers fall back to the rule-based
     # synthesizer. Works with local OpenAI-compatible models.

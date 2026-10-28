@@ -57,6 +57,35 @@ RSpec.describe "Consultant review of findings", type: :request do
     expect(json["status"]).to eq("approved")
   end
 
+  it "keeps the consultant's cause and direction over the draft, as analysis unless they say otherwise" do
+    a.update!(cause: "No import route", cause_stated: true, intervention_type: "integration_data_fix",
+              direction: "Bring sheets in directly", draft_digest: a.draft_inputs_digest)
+    patch "/api/v1/consultant/companies/#{company.id}/findings/#{a.id}",
+          params: { finding: { consultant_cause: "Layouts differ by supplier", consultant_intervention_type: "process_change",
+                               consultant_direction: "Agree one sheet layout with suppliers" } },
+          headers: headers
+
+    json = JSON.parse(response.body)["finding"]
+    expect(json.values_at("cause", "cause_stated", "intervention_type", "direction"))
+      .to eq(["Layouts differ by supplier", false, "process_change", "Agree one sheet layout with suppliers"])
+    expect(json["drafted"]["cause"]).to eq("No import route")
+    expect(DraftFindingCausesJob).not_to have_been_enqueued
+  end
+
+  it "redrafts the cause and direction when the wording changes" do
+    a.update!(draft_digest: a.draft_inputs_digest)
+    expect do
+      patch "/api/v1/consultant/companies/#{company.id}/findings/#{a.id}",
+            params: { finding: { consultant_friction: "Price sheets are retyped line by line" } }, headers: headers
+    end.to have_enqueued_job(DraftFindingCausesJob).with([a.id])
+  end
+
+  it "refuses a kind of change that is not on the list" do
+    patch "/api/v1/consultant/companies/#{company.id}/findings/#{a.id}",
+          params: { finding: { consultant_intervention_type: "blockchain" } }, headers: headers
+    expect(response).to have_http_status(:unprocessable_entity)
+  end
+
   it "clears the review flag once a single-occupant finding is approved" do
     patch "/api/v1/consultant/companies/#{company.id}/findings/#{c.id}", params: { finding: { status: "approved" } }, headers: headers
     expect(JSON.parse(response.body)["finding"]["needs_review"]).to be(false)

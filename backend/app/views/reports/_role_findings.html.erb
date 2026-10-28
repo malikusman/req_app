@@ -122,6 +122,21 @@
                 <td class="num"><%= finding["value_min"] ? "#{finding['currency']} #{report_hours(finding['value_min'], finding['value_max'])}" : "—" %></td>
               <% end %>
             </tr>
+            <%# Why it happens, and the kind of change — what, never how (Doc 15 §4.5.2).
+                A cause the employee did not give is labelled as analysis (§8.2). %>
+            <% if finding["cause"].present? || finding["direction"].present? %>
+              <tr class="finding-detail">
+                <td></td>
+                <td colspan="<%= totals["value_min"] ? 5 : 4 %>">
+                  <% if finding["cause"].present? %>
+                    <div><span class="label">Why it happens<%= " (our analysis)" unless finding["cause_stated"] %>:</span> <%= h finding["cause"] %></div>
+                  <% end %>
+                  <% if finding["direction"].present? %>
+                    <div><span class="label">Direction<%= " · #{finding['intervention']}" if finding["intervention"] %>:</span> <%= h finding["direction"] %></div>
+                  <% end %>
+                </td>
+              </tr>
+            <% end %>
           <% end %>
         </tbody>
       </table>

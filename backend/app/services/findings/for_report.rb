@@ -113,12 +113,29 @@ module Findings
           **value_for(f),
           "people" => people,
           "confidence" => f.confidence,
-          "basis" => f.basis
+          "basis" => f.basis,
+          # Only a cause and direction drafted from the wording shown here, or the
+          # consultant's own; a draft for wording since changed is left out.
+          **cause_and_direction(f)
         }
       end
       findings.sort_by! { |f| [-f["hours_max"].to_i, f["title"]] }
       people = items.flat_map { |f| [f.employee_id] + Array(merged_into[f.id]) }.compact.uniq.size
       { "title" => title, "people" => people, "findings" => findings, "potential" => nil }.merge(range(findings))
+    end
+
+    def cause_and_direction(finding)
+      fresh = !finding.draft_stale?
+      cause = finding.consultant_cause.presence || (fresh ? finding.cause : nil)
+      direction = finding.consultant_direction.presence || (fresh ? finding.direction : nil)
+      type = finding.consultant_intervention_type.presence || (fresh ? finding.intervention_type : nil)
+      {
+        "cause" => cause,
+        "cause_stated" => cause.present? && finding.display_cause_stated,
+        "intervention_type" => type,
+        "intervention" => Finding::INTERVENTION_TYPES[type],
+        "direction" => direction
+      }
     end
 
     # A role held by one person describes that person, approved or not. So a

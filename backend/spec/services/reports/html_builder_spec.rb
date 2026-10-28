@@ -99,6 +99,18 @@ RSpec.describe Reports::HtmlBuilder do
       expect(html.scan("A deep dive and full design are available at Stage 2.").size).to be >= 2
     end
 
+    it "says why each finding happens and the kind of change, labelling analysis as analysis" do
+      role = with_findings.dig("findings", "departments", 0, "roles", 0)
+      role["findings"][0].merge!("cause" => "Sheets differ by supplier.", "cause_stated" => true,
+                                 "intervention" => "Integration or data fix", "direction" => "Bring sheets in directly.")
+      role["findings"][1].merge!("cause" => "Nobody owns the supplier list.", "cause_stated" => false)
+      text = Nokogiri::HTML(described_class.call(snapshot: with_findings)).text.squish
+
+      expect(text).to include("Why it happens: Sheets differ by supplier.")
+      expect(text).to include("Direction · Integration or data fix: Bring sheets in directly.")
+      expect(text).to include("Why it happens (our analysis): Nobody owns the supplier list.")
+    end
+
     it "puts the priorities grouped from the findings where the catalog recommendations used to be" do
       priorities = [{ "rank" => 1, "title" => "Supplier data re-keyed by hand", "what" => "Prices are typed twice.",
                       "roles" => ["Procurement Officer"], "departments" => ["procurement"], "serves_goal" => nil,

@@ -17,12 +17,14 @@ module Api
         def index
           findings = @company.findings.includes(:employee, :reviewed_by, :merged_into)
                              .order(:department, :role_title, :area, :id)
-          render json: { findings: findings.map { |f| finding_json(f) }, summary: summary(findings) }
+          render json: { findings: findings.map { |f| finding_json(f) }, summary: summary(findings),
+                         intervention_types: Finding::INTERVENTION_TYPES.map { |key, label| { key: key, label: label } } }
         end
 
         def update
           attrs = params.require(:finding).permit(
             :status, :consultant_title, :consultant_what_happens_now, :consultant_friction, :consultant_note,
+            :consultant_cause, :consultant_cause_stated, :consultant_intervention_type, :consultant_direction,
             consultant_effort: [:effort_type, { frequency: %i[min max unit], duration: %i[min max unit] }]
           )
           # An empty correction ({} or null) puts the interview's figures back.
@@ -37,6 +39,8 @@ module Api
           @finding.assign_attributes(attrs)
           stamp_review!
           @finding.save!
+          # Reworded: the drafted cause and direction no longer fit it.
+          DraftFindingCausesJob.perform_later([@finding.id]) if @finding.draft_stale?
           render json: { finding: finding_json(@finding.reload) }
         rescue ActiveRecord::RecordInvalid => e
           render json: { error: e.record.errors.full_messages.join(", ") }, status: :unprocessable_entity
@@ -108,8 +112,21 @@ module Api
               title: finding.consultant_title,
               what_happens_now: finding.consultant_what_happens_now,
               friction: finding.consultant_friction,
-              note: finding.consultant_note
+              note: finding.consultant_note,
+              cause: finding.consultant_cause,
+              cause_stated: finding.consultant_cause_stated,
+              intervention_type: finding.consultant_intervention_type,
+              direction: finding.consultant_direction
             },
+            # Why it happens and the kind of change: the draft, and what the report
+            # prints (the consultant's where they wrote one).
+            drafted: { cause: finding.cause, cause_stated: finding.cause_stated,
+                       intervention_type: finding.intervention_type, direction: finding.direction },
+            cause: finding.display_cause,
+            cause_stated: finding.display_cause_stated,
+            intervention_type: finding.display_intervention_type,
+            direction: finding.display_direction,
+            draft_pending: finding.draft_stale?,
             frequency: { as_said: finding.frequency_as_said, min: finding.frequency_min&.to_f,
                          max: finding.frequency_max&.to_f, unit: finding.frequency_unit },
             duration: { as_said: finding.duration_as_said, min: finding.duration_min&.to_f,

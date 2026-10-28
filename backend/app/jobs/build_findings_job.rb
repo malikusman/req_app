@@ -10,7 +10,8 @@ class BuildFindingsJob < ApplicationJob
     conversation = Conversation.find_by(id: conversation_id)
     return unless conversation
 
-    Findings::BuildFromConversation.call(conversation: conversation)
+    findings = Findings::BuildFromConversation.call(conversation: conversation)
+    DraftFindingCausesJob.perform_later(findings.map(&:id)) if findings.any?
   rescue StandardError => e
     Rails.logger.error("[BuildFindingsJob] conversation=#{conversation_id} #{e.class}: #{e.message}")
   end

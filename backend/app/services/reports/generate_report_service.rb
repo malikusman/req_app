@@ -15,6 +15,10 @@ module Reports
       @report.update!(status: "generating")
 
       previous = @report.previous_report
+      # Any finding whose cause and direction were never drafted, or were drafted
+      # from wording that has since changed, is drafted now, so the report never
+      # prints a draft that no longer fits its finding.
+      Findings::DraftCauseAndDirection.call(findings: @company.findings.live.includes(:company).to_a)
       delta = DeltaCalculator.call(company: @company, previous_report: previous)
       snapshot = SnapshotBuilder.call(company: @company, delta: delta)
       # One snapshot, N renderings. A variant is a section allowlist and a paper

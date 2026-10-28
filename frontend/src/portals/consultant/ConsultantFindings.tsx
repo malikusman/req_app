@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Calculator, Check, EyeOff, GitMerge, Pencil, RotateCcw, UserRound } from 'lucide-react';
+import { Calculator, Check, Compass, EyeOff, GitMerge, Pencil, RotateCcw, UserRound } from 'lucide-react';
 import {
   api,
   type Finding,
@@ -89,6 +89,7 @@ export function ConsultantFindings() {
   const [error, setError] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [interventionTypes, setInterventionTypes] = useState<{ key: string; label: string }[]>([]);
 
   const load = useCallback(() => {
     if (!token || !companyId) return;
@@ -97,6 +98,7 @@ export function ConsultantFindings() {
       .then((d) => {
         setFindings(d.findings);
         setSummary(d.summary);
+        setInterventionTypes(d.intervention_types ?? []);
         setError('');
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Could not load findings'))
@@ -229,6 +231,7 @@ export function ConsultantFindings() {
                         duplicateOf={f.possible_duplicate_of_id ? byId.get(f.possible_duplicate_of_id) : undefined}
                         busy={busyId === f.id}
                         companyId={companyId!}
+                        interventionTypes={interventionTypes}
                         onUpdate={(payload) => update(f.id, payload)}
                         onMerge={(intoId) => merge(f.id, intoId)}
                       />
@@ -257,6 +260,7 @@ function FindingRow({
   duplicateOf,
   busy,
   companyId,
+  interventionTypes,
   onUpdate,
   onMerge,
 }: {
@@ -266,12 +270,15 @@ function FindingRow({
   duplicateOf?: Finding;
   busy: boolean;
   companyId: string;
+  interventionTypes: { key: string; label: string }[];
   onUpdate: (payload: FindingUpdate) => void;
   onMerge: (intoId: number) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [merging, setMerging] = useState(false);
   const [correcting, setCorrecting] = useState(false);
+  const [directing, setDirecting] = useState(false);
+  const interventionLabel = interventionTypes.find((t) => t.key === f.intervention_type)?.label;
   const [friction, setFriction] = useState(f.consultant.friction ?? f.original.friction ?? '');
   const [how, setHow] = useState(f.consultant.what_happens_now ?? f.original.what_happens_now ?? '');
   const [note, setNote] = useState(f.consultant.note ?? '');
@@ -321,6 +328,34 @@ function FindingRow({
         <p className="m-0 text-sm text-muted-foreground">
           <span className="font-medium text-foreground">What happens now: </span>
           {f.what_happens_now}
+        </p>
+      )}
+
+      {(f.cause || f.direction) && (
+        <div className="m-0 space-y-1 text-sm text-muted-foreground">
+          {f.cause && (
+            <p className="m-0">
+              <span className="font-medium text-foreground">
+                Why it happens{f.cause_stated ? '' : ' (our analysis)'}:{' '}
+              </span>
+              {f.cause}
+            </p>
+          )}
+          {f.direction && (
+            <p className="m-0">
+              <span className="font-medium text-foreground">
+                Direction{interventionLabel ? ` · ${interventionLabel}` : ''}:{' '}
+              </span>
+              {f.direction}
+            </p>
+          )}
+        </div>
+      )}
+      {f.draft_pending && !setAside && (
+        <p className="m-0 text-xs text-muted-foreground">
+          {f.cause || f.direction
+            ? 'The wording changed since why it happens and the direction were drafted; they are being redrafted.'
+            : 'Why it happens and the direction are drafted shortly, and at the latest when the report is generated.'}
         </p>
       )}
 
@@ -414,6 +449,19 @@ function FindingRow({
         />
       )}
 
+      {directing && (
+        <DirectionForm
+          finding={f}
+          busy={busy}
+          interventionTypes={interventionTypes}
+          onSave={(payload) => {
+            onUpdate(payload);
+            setDirecting(false);
+          }}
+          onCancel={() => setDirecting(false)}
+        />
+      )}
+
       {merging && (
         <div className="flex flex-wrap items-end gap-2 rounded-md border border-border p-3">
           <div className="min-w-[16rem] flex-1">
@@ -447,7 +495,7 @@ function FindingRow({
         </div>
       )}
 
-      {!editing && !merging && !correcting && (
+      {!editing && !merging && !correcting && !directing && (
         <div className="flex flex-wrap items-center gap-2">
           {setAside ? (
             <Button
@@ -471,6 +519,9 @@ function FindingRow({
               </Button>
               <Button size="sm" variant="secondary" icon={<Calculator className="h-4 w-4" />} onClick={() => setCorrecting(true)}>
                 Correct figures
+              </Button>
+              <Button size="sm" variant="secondary" icon={<Compass className="h-4 w-4" />} onClick={() => setDirecting(true)}>
+                Cause and direction
               </Button>
               {mergeTargets.length > 0 && (
                 <Button size="sm" variant="secondary" icon={<GitMerge className="h-4 w-4" />} onClick={() => setMerging(true)}>
@@ -500,6 +551,74 @@ function FindingRow({
         </div>
       )}
     </article>
+  );
+}
+
+/**
+ * Why the work costs what it does, and the kind of change that would address it.
+ * Starts from the draft; saving the draft's own words back stores nothing, so the
+ * finding keeps following its draft until the consultant really rewrites it.
+ */
+function DirectionForm({
+  finding: f,
+  busy,
+  interventionTypes,
+  onSave,
+  onCancel,
+}: {
+  finding: Finding;
+  busy: boolean;
+  interventionTypes: { key: string; label: string }[];
+  onSave: (payload: FindingUpdate) => void;
+  onCancel: () => void;
+}) {
+  const [cause, setCause] = useState(f.consultant.cause ?? f.drafted.cause ?? '');
+  const [stated, setStated] = useState(f.cause_stated ? 'stated' : 'analysis');
+  const [type, setType] = useState(f.consultant.intervention_type ?? f.drafted.intervention_type ?? '');
+  const [direction, setDirection] = useState(f.consultant.direction ?? f.drafted.direction ?? '');
+
+  const save = () => {
+    const ownCause = cause.trim() === (f.drafted.cause ?? '').trim() ? '' : cause.trim();
+    onSave({
+      consultant_cause: ownCause,
+      consultant_cause_stated: ownCause ? stated === 'stated' : null,
+      consultant_intervention_type: type === (f.drafted.intervention_type ?? '') ? '' : type,
+      consultant_direction: direction.trim() === (f.drafted.direction ?? '').trim() ? '' : direction.trim(),
+    });
+  };
+
+  return (
+    <div className="space-y-3 rounded-md border border-border p-3">
+      <Textarea label="Why it happens" value={cause} onChange={(e) => setCause(e.target.value)} />
+      <Select
+        label="Where the cause comes from"
+        value={stated}
+        onChange={(e) => setStated(e.target.value)}
+        options={[
+          { value: 'analysis', label: 'Our analysis — the report says so' },
+          { value: 'stated', label: 'The people doing the work said it' },
+        ]}
+      />
+      <Select
+        label="Kind of change"
+        value={type}
+        onChange={(e) => setType(e.target.value)}
+        options={[{ value: '', label: 'Choose…' }, ...interventionTypes.map((t) => ({ value: t.key, label: t.label }))]}
+      />
+      <Textarea label="Direction" value={direction} onChange={(e) => setDirection(e.target.value)} />
+      <p className="m-0 text-xs text-muted-foreground">
+        Say what the change would do for the work, never how it is built: no products, steps, rules, cost or
+        timescale. That design is Stage 2. Leave a box as drafted to keep following the draft.
+      </p>
+      <div className="flex gap-2">
+        <Button size="sm" onClick={save} loading={busy}>
+          Save
+        </Button>
+        <Button size="sm" variant="secondary" onClick={onCancel}>
+          Cancel
+        </Button>
+      </div>
+    </div>
   );
 }
 

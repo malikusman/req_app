@@ -694,7 +694,19 @@ module ReportsHelper
 
   def report_finding_row_cost(finding)
     text = finding["friction"].to_s.length + [finding["what_happens_now"].to_s.length, 160].min
-    text > 200 ? 1.55 : 1.15
+    row = text > 200 ? 1.55 : 1.15
+    row + report_finding_detail_cost(finding)
+  end
+
+  # The cause and direction line beneath a finding: about a third of a row a line,
+  # at some 140 characters a line across the table.
+  FINDING_DETAIL_LINE_COST = 0.32
+
+  def report_finding_detail_cost(finding)
+    lines = [["cause", 30], ["direction", 45]].sum do |key, label|
+      finding[key].present? ? ((finding[key].to_s.length + label) / 140.0).ceil : 0
+    end
+    lines.zero? ? 0 : 0.1 + lines * FINDING_DETAIL_LINE_COST
   end
 
   FINDING_BASIS_LABELS = {

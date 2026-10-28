@@ -114,3 +114,29 @@ RSpec.describe Findings::ForReport do
     end
   end
 end
+
+RSpec.describe Findings::ForReport, "cause and direction" do
+  let(:company) { create(:company, :onboarded) }
+  let(:employee) { create(:employee, company: company, role_title: "Buyer", department: "Procurement") }
+  let!(:finding) do
+    company.findings.create!(employee: employee, source_key: "k1", department: "Procurement", role_title: "Buyer",
+                             area: "price updates", friction: "Sheets differ", annual_hours_min: 10, annual_hours_max: 20,
+                             cause: "No import route", cause_stated: false, intervention_type: "integration_data_fix",
+                             direction: "Bring sheets in directly")
+  end
+
+  before { company.update!(settings: company.settings.merge("report_small_roles" => "show")) }
+
+  def row = described_class.call(company: company)["departments"].first["roles"].first["findings"].first
+
+  it "carries a draft written from the wording shown, with the kind of change named plainly" do
+    finding.update!(draft_digest: finding.draft_inputs_digest)
+    expect(row).to include("cause" => "No import route", "cause_stated" => false,
+                           "intervention" => "Integration or data fix", "direction" => "Bring sheets in directly")
+  end
+
+  it "leaves out a draft for wording that has since changed, but never the consultant's own" do
+    finding.update!(draft_digest: "old", consultant_direction: "Agree one sheet layout")
+    expect(row).to include("cause" => nil, "intervention" => nil, "direction" => "Agree one sheet layout")
+  end
+end
