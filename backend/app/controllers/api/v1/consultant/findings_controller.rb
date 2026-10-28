@@ -25,10 +25,17 @@ module Api
           attrs = params.require(:finding).permit(
             :status, :consultant_title, :consultant_what_happens_now, :consultant_friction, :consultant_note,
             :consultant_cause, :consultant_cause_stated, :consultant_intervention_type, :consultant_direction,
+            :consultant_dependency, consultant_depends_on_ids: [],
             consultant_effort: [:effort_type, { frequency: %i[min max unit], duration: %i[min max unit] }]
           )
           # An empty correction ({} or null) puts the interview's figures back.
           attrs[:consultant_effort] = {} if params[:finding].key?(:consultant_effort) && attrs[:consultant_effort].blank?
+          # Links: null follows the drafted links again; a list, even empty, is the
+          # consultant's own.
+          if params[:finding].key?(:consultant_depends_on_ids)
+            ids = params[:finding][:consultant_depends_on_ids]
+            attrs[:consultant_depends_on_ids] = ids.nil? ? nil : Array(ids).map(&:to_i).uniq
+          end
           if attrs[:status].present? && !%w[draft approved hidden].include?(attrs[:status])
             return render json: { error: "Use merge to merge a finding" }, status: :unprocessable_entity
           end
@@ -116,16 +123,22 @@ module Api
               cause: finding.consultant_cause,
               cause_stated: finding.consultant_cause_stated,
               intervention_type: finding.consultant_intervention_type,
-              direction: finding.consultant_direction
+              direction: finding.consultant_direction,
+              dependency: finding.consultant_dependency,
+              # null while the drafted links stand; a list (even empty) once set.
+              depends_on_ids: finding.consultant_depends_on_ids
             },
-            # Why it happens and the kind of change: the draft, and what the report
-            # prints (the consultant's where they wrote one).
+            # Why it happens, the kind of change and what must come first: the draft,
+            # and what the report prints (the consultant's where they wrote one).
             drafted: { cause: finding.cause, cause_stated: finding.cause_stated,
-                       intervention_type: finding.intervention_type, direction: finding.direction },
+                       intervention_type: finding.intervention_type, direction: finding.direction,
+                       dependency: finding.dependency, depends_on_ids: finding.depends_on_ids },
             cause: finding.display_cause,
             cause_stated: finding.display_cause_stated,
             intervention_type: finding.display_intervention_type,
             direction: finding.display_direction,
+            dependency: finding.display_dependency,
+            depends_on_ids: finding.effective_depends_on_ids,
             draft_pending: finding.draft_stale?,
             frequency: { as_said: finding.frequency_as_said, min: finding.frequency_min&.to_f,
                          max: finding.frequency_max&.to_f, unit: finding.frequency_unit },

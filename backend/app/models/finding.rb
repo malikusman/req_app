@@ -39,6 +39,7 @@ class Finding < ApplicationRecord
 
   validate :merge_target_is_a_live_sibling
   validate :consultant_effort_is_coherent
+  validate :consultant_links_are_sound, if: :consultant_depends_on_ids_changed?
 
   # Hours are worked out here and nowhere else, from the consultant's figures when
   # they corrected them and the interview's otherwise — whenever either changes.
@@ -64,6 +65,11 @@ class Finding < ApplicationRecord
   def display_cause = consultant_cause.presence || cause
   def display_intervention_type = consultant_intervention_type.presence || intervention_type
   def display_direction = consultant_direction.presence || direction
+  def display_dependency = consultant_dependency.presence || dependency
+
+  # The findings that must be addressed before this one: the consultant's list
+  # once they set one (even empty), the draft's otherwise.
+  def effective_depends_on_ids = consultant_depends_on_ids.nil? ? depends_on_ids : consultant_depends_on_ids
 
   # Whether the cause is the employee's own account or analysis. The consultant's
   # say wins, whether or not they reworded the cause — the draft can be right in
@@ -76,9 +82,12 @@ class Finding < ApplicationRecord
   end
 
   # What the cause and direction draft is written from. When the wording a client
-  # would read changes, the draft no longer fits it.
+  # would read changes, the draft no longer fits it. DRAFT_VERSION is part of it so
+  # that when the draft gains a field every finding is drafted again, once.
+  DRAFT_VERSION = 2
+
   def draft_inputs_digest
-    Digest::SHA256.hexdigest([display_title, display_what_happens_now, display_friction, role_title,
+    Digest::SHA256.hexdigest([DRAFT_VERSION, display_title, display_what_happens_now, display_friction, role_title,
                               effective_effort_type].join("|"))[0, 16]
   end
 
@@ -219,5 +228,20 @@ class Finding < ApplicationRecord
     elsif target.status == "merged"
       errors.add(:merged_into, "is itself merged into another finding")
     end
+  end
+
+  # The consultant's links must point at live findings of the same company, never
+  # at the finding itself, and never close a loop.
+  def consultant_links_are_sound
+    ids = Array(consultant_depends_on_ids).map(&:to_i)
+    return errors.add(:consultant_depends_on_ids, "cannot include the finding itself") if ids.include?(id)
+
+    targets = Finding.live.where(company_id: company_id, id: ids).index_by(&:id)
+    return errors.add(:consultant_depends_on_ids, "must be live findings of the same company") if (ids - targets.keys).any?
+
+    edges = Finding.live.where(company_id: company_id).where.not(id: id)
+                   .to_h { |f| [f.id, f.effective_depends_on_ids] }
+    looped = ids.find { |target| Findings::DependencyGraph.loop?(edges, id, target) }
+    errors.add(:consultant_depends_on_ids, "would make a loop with “#{targets[looped].display_title}”") if looped
   end
 end

@@ -41,6 +41,7 @@ module Findings
       end
       departments = pool_small_roles(departments) if @company.merged_settings["report_small_roles"] != "show"
       departments.sort_by! { |d| [-d["hours_max"].to_i, d["name"]] }
+      attach_links(departments)
 
       all = departments.flat_map { |d| d["roles"] }.flat_map { |r| r["findings"] }
       {
@@ -124,17 +125,35 @@ module Findings
       { "title" => title, "people" => people, "findings" => findings, "potential" => nil }.merge(range(findings))
     end
 
+    # The findings each one must come after, as the report shows them: a link to a
+    # merged finding follows it to the one it was merged into, and a link to
+    # anything not shown — hidden, or held back for review — is dropped, since
+    # naming it would reveal it. Rows are read after pooling, so a target in the
+    # company-wide pool carries no department, exactly as it is shown.
+    def attach_links(departments)
+      rows = departments.flat_map { |d| d["roles"].flat_map { |r| r["findings"] } }
+      by_id = rows.index_by { |r| r["id"] }
+      records = shown_findings.index_by(&:id)
+      merged = @company.findings.where(status: "merged").pluck(:id, :merged_into_id).to_h
+      rows.each do |row|
+        ids = Array(records[row["id"]]&.effective_depends_on_ids).map { |id| merged.fetch(id, id) }.uniq - [row["id"]]
+        row["depends_on"] = ids.filter_map { |id| by_id[id]&.slice("id", "title", "department") }
+      end
+    end
+
     def cause_and_direction(finding)
       fresh = !finding.draft_stale?
       cause = finding.consultant_cause.presence || (fresh ? finding.cause : nil)
       direction = finding.consultant_direction.presence || (fresh ? finding.direction : nil)
       type = finding.consultant_intervention_type.presence || (fresh ? finding.intervention_type : nil)
+      dependency = finding.consultant_dependency.presence || (fresh ? finding.dependency : nil)
       {
         "cause" => cause,
         "cause_stated" => cause.present? && finding.display_cause_stated,
         "intervention_type" => type,
         "intervention" => Finding::INTERVENTION_TYPES[type],
-        "direction" => direction
+        "direction" => direction,
+        "dependency" => dependency
       }
     end
 

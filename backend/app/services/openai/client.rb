@@ -452,16 +452,64 @@ module Openai
                 controls — or set intervention_type and direction to null if it controls
                 nothing.
               - For waiting (`waiting` true), the direction addresses the wait, not the work.
+              - dependency: one sentence on what must already be true in the business for
+                that change to work — "Supplier item codes are kept consistent in the ERP",
+                "One person owns the leave balance sheet and keeps it current". A condition,
+                never a build step or a task list. null when nothing must come first, or
+                when there is no direction.
               RULES: no numbers or figures of any kind; no quotes; never "I", "me", "my";
               never mention salary, headcount, jobs or savings.
               Respond as JSON only, one entry per id given:
               {"findings": [{"id": 1, "cause": "...", "cause_stated": false,
-                             "intervention_type": "integration_data_fix", "direction": "..."}]}
+                             "intervention_type": "integration_data_fix", "direction": "...",
+                             "dependency": "..."}]}
             SYS
           },
           { role: "user", content: "Findings (JSON):\n#{context.to_json.truncate(12_000)}" }
         ],
         max_tokens: chat_max_tokens(1600)
+      }
+      parse_model_json(chat_json_content(body))
+    end
+
+    # Proposes which findings must be addressed before which, across the company.
+    # Returns ids only; Findings::DraftDependencies keeps the links that point at
+    # shown findings and never close a loop.
+    def finding_dependencies(context:, language: "en")
+      ensure_configured_or_mock!("OpenAI")
+      return nil unless configured?
+
+      body = {
+        model: ENV.fetch("REPORT_MODEL", ENV.fetch("OPENAI_MODEL", "gpt-4o-mini")),
+        messages: [
+          {
+            role: "system",
+            content: <<~SYS
+              You are a senior operations consultant preparing a Stage 1 DIAGNOSTIC for the
+              owners of a small or mid-sized business. Language: #{language}.
+              You are given findings: pieces of work, in named roles, with why each happens,
+              the direction of the change that would address it, and what must be true first.
+              Say which findings depend on which: A depends on B only when A's
+              `must_be_true_first` IS what addressing B's work achieves — A needs leave balances
+              kept current, and B is the work of keeping the leave balance sheet; A needs one
+              trusted ERP report, and B is building that report each week.
+              RULES:
+              - A and B are always two DIFFERENT findings, with different ids. A finding never
+                depends on itself.
+              - A's own words must name B's work. If you have to explain the link, there is none.
+              - Never link findings because they are similar, share a system, or sit in the
+                same team. Similar work is a duplicate, not a dependency.
+              - At most two links per finding. Most findings depend on nothing; returning no
+                links is a good answer.
+              - Never a loop: if A depends on B, B does not depend on A.
+              - Use only ids given.
+              Respond as JSON only:
+              {"links": [{"id": 1, "depends_on": 2}]}
+            SYS
+          },
+          { role: "user", content: "Findings (JSON):\n#{context.to_json.truncate(16_000)}" }
+        ],
+        max_tokens: chat_max_tokens(600)
       }
       parse_model_json(chat_json_content(body))
     end

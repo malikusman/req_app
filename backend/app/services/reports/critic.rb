@@ -44,10 +44,6 @@ module Reports
     COMMERCIAL = /\b((?:our|mjadi(?:'s)?) (?:margins?|mark-?ups?|fees?|commissions?|internal costs?|delivery costs?)|referral fees?|partner(?:ship)? tiers?|(?:internal )?cost basis)\b/i
     HOURLY_RATE = /(?:\bAED|\bUSD|\bSAR|\$|€|£)\s?\d[\d,.]*\s*(?:an|per|\/)\s*h(?:ou)?r\b/i
 
-    # Words that say nothing about which work a finding is, for comparing two.
-    STOPWORDS = %w[a an and the of to for in on with by from at is are be it its this that as or into than
-                   their they them each every manual manually work process].freeze
-
     # A finding written in the first person is a quote, and a quote identifies.
     FIRST_PERSON = /\b(I|I'm|I've|I'd|me|my|mine)\b/
 
@@ -305,7 +301,7 @@ module Reports
       if same_work.any?
         add("possible_duplicate", "warn", "role_findings",
             "One person's findings may be the same work named twice: " \
-            "#{same_work.first(3).map { |a, b| "“#{a.display_title}” and “#{b.display_title}”" }.to_sentence}. " \
+            "#{same_work.first(3).map { |a, b| "“#{a.display_title}” and “#{b.display_title}”" }.join("; ")}. " \
             "If they describe the same effort, merge them on the Findings page; if not, approve both.")
       end
 
@@ -315,19 +311,12 @@ module Reports
 
       add("possible_duplicate", "warn", "role_findings",
           "Several findings give the same cause: " \
-          "#{same_cause.first(3).map { |a, b| "“#{a['title']}” and “#{b['title']}”" }.to_sentence}. " \
+          "#{same_cause.first(3).map { |a, b| "“#{a['title']}” and “#{b['title']}”" }.join("; ")}. " \
           "If they describe the same effort, merge them; if each person does their own, keep both.")
     end
 
-    def words(text)
-      (text.to_s.downcase.scan(/[a-z]+/) - STOPWORDS).map { |w| w.length > 3 ? w.sub(/s\z/, "") : w }.to_set
-    end
-
-    def overlap(one, other)
-      return 0.0 if one.empty? || other.empty?
-
-      (one & other).size.to_f / (one | other).size
-    end
+    def words(text) = Findings::Words.of(text)
+    def overlap(one, other) = Findings::Words.overlap(one, other)
 
     def same_duration?(one, other)
       a = one.effective_effort.values_at(:duration_min, :duration_max, :duration_unit)

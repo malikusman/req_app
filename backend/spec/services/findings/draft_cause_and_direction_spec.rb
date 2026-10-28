@@ -48,6 +48,26 @@ RSpec.describe Findings::DraftCauseAndDirection do
     expect(finding.draft_digest).to be_present
   end
 
+  it "keeps what must be true first beside a direction, and drops it without one" do
+    reply("dependency" => "Supplier item codes are kept consistent in the ERP.")
+    described_class.call(findings: [finding])
+    expect(finding.reload.dependency).to eq("Supplier item codes are kept consistent in the ERP.")
+
+    finding.update!(draft_digest: nil)
+    reply("direction" => nil, "dependency" => "Supplier item codes are kept consistent in the ERP.")
+    described_class.call(findings: [finding])
+    expect(finding.reload.dependency).to be_nil
+  end
+
+  it "drafts every finding again, once, when the draft gains a field" do
+    reply
+    described_class.call(findings: [finding])
+    expect(finding.reload.draft_stale?).to be(false)
+
+    stub_const("Finding::DRAFT_VERSION", Finding::DRAFT_VERSION + 1)
+    expect(finding.draft_stale?).to be(true)
+  end
+
   it "drops a direction that names a catalogue product" do
     SolutionCatalogEntry.create!(name: "Rossum", category: "automation", active: true, first_party: false)
     reply("direction" => "Read supplier sheets with Rossum and flag only exceptions.")

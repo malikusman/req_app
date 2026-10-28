@@ -1,8 +1,9 @@
 # frozen_string_literal: true
 
 module Findings
-  # Drafts why each finding costs what it does, and the kind of change that would
-  # address it (Doc 15 §4.5.2), for the consultant to check on the Findings page.
+  # Drafts why each finding costs what it does, the kind of change that would
+  # address it, and what must be true before that change can work (Doc 15 §4.5.2),
+  # for the consultant to check on the Findings page.
   #
   # The model reads only what the finding already says — the task, what happens
   # now, what snags and how often — never the transcript. Every field it returns is
@@ -63,6 +64,8 @@ module Findings
           cause_stated: cause.present? && item["cause_stated"] == true,
           intervention_type: direction && Finding::INTERVENTION_TYPES.key?(item["intervention_type"]) ? item["intervention_type"] : nil,
           direction: direction,
+          # What must be true first only means something beside a direction.
+          dependency: direction && clean(item["dependency"])&.then { |d| d.match?(DELIVERY) ? nil : d },
           draft_digest: finding.draft_inputs_digest
         )
         finding

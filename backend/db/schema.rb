@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_10_28_100000) do
+ActiveRecord::Schema[7.1].define(version: 2026_10_29_100000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -982,6 +982,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_28_100000) do
     t.boolean "consultant_cause_stated"
     t.string "consultant_intervention_type"
     t.text "consultant_direction"
+    t.text "dependency"
+    t.text "consultant_dependency"
+    t.bigint "depends_on_ids", default: [], null: false, array: true
+    t.bigint "consultant_depends_on_ids", array: true
     t.index ["company_id", "source_key"], name: "index_findings_on_company_id_and_source_key", unique: true
     t.index ["company_id", "status"], name: "index_findings_on_company_id_and_status"
     t.index ["company_id"], name: "index_findings_on_company_id"

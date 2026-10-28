@@ -85,6 +85,44 @@ RSpec.describe "Consultant review of findings", type: :request do
     expect(JSON.parse(response.body)["finding"]["cause_stated"]).to be(true)
   end
 
+  describe "what must come first" do
+    def save(**finding_params)
+      patch "/api/v1/consultant/companies/#{company.id}/findings/#{a.id}",
+            params: { finding: finding_params }, headers: headers, as: :json
+      JSON.parse(response.body)
+    end
+
+    it "keeps the consultant's dependency and links over the draft" do
+      a.update!(dependency: "Codes are consistent", depends_on_ids: [b.id], draft_digest: a.draft_inputs_digest)
+      json = save(consultant_dependency: "One sheet layout is agreed", consultant_depends_on_ids: [])["finding"]
+
+      expect(json.values_at("dependency", "depends_on_ids")).to eq(["One sheet layout is agreed", []])
+      expect(json["drafted"].values_at("dependency", "depends_on_ids")).to eq(["Codes are consistent", [b.id]])
+    end
+
+    it "follows the drafted links again when the consultant's are cleared" do
+      a.update!(depends_on_ids: [b.id], consultant_depends_on_ids: [])
+      expect(save(consultant_depends_on_ids: nil)["finding"]["depends_on_ids"]).to eq([b.id])
+    end
+
+    it "refuses a link that would close a loop" do
+      b.update!(consultant_depends_on_ids: [a.id])
+      body = save(consultant_depends_on_ids: [b.id])
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(body["error"]).to include("would make a loop")
+    end
+
+    it "refuses a link to the finding itself, or to one set aside" do
+      save(consultant_depends_on_ids: [a.id])
+      expect(response).to have_http_status(:unprocessable_entity)
+
+      b.update!(status: "hidden")
+      save(consultant_depends_on_ids: [b.id])
+      expect(response).to have_http_status(:unprocessable_entity)
+    end
+  end
+
   it "redrafts the cause and direction when the wording changes" do
     a.update!(draft_digest: a.draft_inputs_digest)
     expect do

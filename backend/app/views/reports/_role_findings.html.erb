@@ -122,9 +122,10 @@
                 <td class="num"><%= finding["value_min"] ? "#{finding['currency']} #{report_hours(finding['value_min'], finding['value_max'])}" : "—" %></td>
               <% end %>
             </tr>
-            <%# Why it happens, and the kind of change — what, never how (Doc 15 §4.5.2).
-                A cause the employee did not give is labelled as analysis (§8.2). %>
-            <% if finding["cause"].present? || finding["direction"].present? %>
+            <%# Why it happens, the kind of change — what, never how — and what must come
+                first (Doc 15 §4.5.2). A cause the employee did not give is labelled as
+                analysis (§8.2). %>
+            <% if %w[cause direction dependency].any? { |k| finding[k].present? } || Array(finding["depends_on"]).any? %>
               <tr class="finding-detail">
                 <td></td>
                 <td colspan="<%= totals["value_min"] ? 5 : 4 %>">
@@ -133,6 +134,13 @@
                   <% end %>
                   <% if finding["direction"].present? %>
                     <div><span class="label">Direction<%= " · #{finding['intervention']}" if finding["intervention"] %>:</span> <%= h finding["direction"] %></div>
+                  <% end %>
+                  <% if finding["dependency"].present? %>
+                    <div><span class="label">Must be true first:</span> <%= h finding["dependency"] %></div>
+                  <% end %>
+                  <% if Array(finding["depends_on"]).any? %>
+                    <div><span class="label">Comes after:</span>
+                      <%= safe_join(Array(finding["depends_on"]).map { |d| "“#{d['title']}”#{" (#{report_department_label(d['department'])})" if d['department'].present?}" }, "; ") %></div>
                   <% end %>
                 </td>
               </tr>

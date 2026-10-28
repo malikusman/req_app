@@ -140,3 +140,43 @@ RSpec.describe Findings::ForReport, "cause and direction" do
     expect(row).to include("cause" => nil, "intervention" => nil, "direction" => "Agree one sheet layout")
   end
 end
+
+RSpec.describe Findings::ForReport, "what each finding comes after" do
+  let(:company) { create(:company, :onboarded) }
+  let(:employee) { create(:employee, company: company, role_title: "Clerk", department: "HR") }
+
+  def finding(key, **attrs)
+    company.findings.create!({ employee: employee, source_key: key, department: "HR", role_title: "Clerk",
+                               area: key, title: key.humanize, friction: "Done by hand", status: "approved",
+                               annual_hours_min: 10, annual_hours_max: 20 }.merge(attrs))
+  end
+
+  let!(:balances) { finding("leave balances") }
+  let!(:requests) { finding("leave requests") }
+
+  before { company.update!(settings: company.settings.merge("report_small_roles" => "show")) }
+
+  def rows = described_class.call(company: company)["departments"].flat_map { |d| d["roles"].flat_map { |r| r["findings"] } }
+  def row_for(record) = rows.find { |r| r["id"] == record.id }
+
+  it "names the findings it comes after, through a merge, and only ones the report shows" do
+    old = finding("old balances")
+    held = finding("solo work", status: "draft", single_occupant_role: true)
+    requests.update!(depends_on_ids: [old.id, held.id])
+    old.update!(status: "merged", merged_into: balances)
+
+    expect(row_for(requests)["depends_on"]).to eq([{ "id" => balances.id, "title" => "Leave balances", "department" => "HR" }])
+  end
+
+  it "follows the consultant's list over the draft, even when they emptied it" do
+    requests.update!(depends_on_ids: [balances.id], consultant_depends_on_ids: [])
+    expect(row_for(requests)["depends_on"]).to eq([])
+  end
+
+  it "names a target pooled across the company by its title alone" do
+    company.update!(settings: company.settings.merge("report_small_roles" => "pool"))
+    requests.update!(depends_on_ids: [balances.id])
+
+    expect(row_for(requests)["depends_on"].first.slice("title", "department")).to eq("title" => "Leave balances", "department" => nil)
+  end
+end

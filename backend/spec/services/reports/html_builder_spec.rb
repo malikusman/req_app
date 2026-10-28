@@ -111,6 +111,17 @@ RSpec.describe Reports::HtmlBuilder do
       expect(text).to include("Why it happens (our analysis): Nobody owns the supplier list.")
     end
 
+    it "says what must be true first, and which findings come before" do
+      role = with_findings.dig("findings", "departments", 0, "roles", 0)
+      role["findings"][0].merge!("dependency" => "Supplier codes are consistent.",
+                                 "depends_on" => [{ "id" => 9, "title" => "Supplier set-up", "department" => "hr" },
+                                                  { "id" => 10, "title" => "Pooled work", "department" => nil }])
+      text = Nokogiri::HTML(described_class.call(snapshot: with_findings)).text.squish
+
+      expect(text).to include("Must be true first: Supplier codes are consistent.")
+      expect(text).to include("Comes after: “Supplier set-up” (HR); “Pooled work”")
+    end
+
     it "puts the priorities grouped from the findings where the catalog recommendations used to be" do
       priorities = [{ "rank" => 1, "title" => "Supplier data re-keyed by hand", "what" => "Prices are typed twice.",
                       "roles" => ["Procurement Officer"], "departments" => ["procurement"], "serves_goal" => nil,

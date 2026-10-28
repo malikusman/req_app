@@ -699,13 +699,14 @@ module ReportsHelper
     row + report_finding_detail_cost(finding)
   end
 
-  # The cause and direction line beneath a finding: about a third of a row a line,
+  # The cause, direction and dependency lines beneath a finding: about a third of a row a line,
   # at some 140 characters a line across the table.
   FINDING_DETAIL_LINE_COST = 0.32
 
   def report_finding_detail_cost(finding)
-    lines = [["cause", 30], ["direction", 45]].sum do |key, label|
-      finding[key].present? ? ((finding[key].to_s.length + label) / 140.0).ceil : 0
+    after = Array(finding["depends_on"]).map { |d| "“#{d['title']}” (#{d['department']}); " }.join
+    lines = [[finding["cause"], 30], [finding["direction"], 45], [finding["dependency"], 20], [after, 12]].sum do |text, label|
+      text.present? ? ((text.to_s.length + label) / 140.0).ceil : 0
     end
     lines.zero? ? 0 : 0.1 + lines * FINDING_DETAIL_LINE_COST
   end
