@@ -268,10 +268,26 @@ never a signal, never a recommendation.
 
 From [document.html.erb](backend/app/views/reports/document.html.erb), in render order:
 
-Cover · Contents · Executive summary · **Expert assessment** · Company context ·
-Delta *(only when there are no recommendations)* · Divider · Signals · Patterns ·
-Implications · Recommendations · Roadmap · Opportunities · Capabilities ·
-Divider · Readiness · Participation · Methodology · Appendix divider · Review appendix.
+Cover · Contents · **What's new** *(from version 2, when findings moved)* ·
+Executive summary · **Expert assessment** · Company context · Divider ·
+**Findings by role** · Delta *(signal-era reports only)* · Signals · Patterns
+*(in the body, an appendix, or hidden: `report_signals_placement`)* ·
+Where to act first (priorities) · What we advise against · Recommendations
+*(catalog-era, only without priorities)* · Roadmap · Opportunities · Capabilities
+*(both only when `report_stage2_previews` is `shown`, and then the critic blocks)* ·
+Next steps · Divider · Scope & coverage · Methodology · Review appendix.
+
+Under each finding, one detail row carries what the consultant checked on the
+Findings page (Doc 15 §4.5.2): **why it happens** (labelled "our analysis" unless
+the people doing the work said it), the **direction** with its kind of change
+(`Finding::INTERVENTION_TYPES`), what **must be true first**, and which findings
+it **comes after**. Each line is drafted by a model and printed only when it was
+drafted from the wording shown, or written by the consultant.
+
+**What's new** (`Reports::DeltaCalculator#findings_delta`) lists the findings
+added, updated (hours or wording) and superseded since the previous version —
+with the reason one left: merged, withdrawn, held for review — and the
+departments newly covered. It compares against the latest ready version.
 
 Consultant-authored sections are injected after whichever section they are
 anchored to, so they interleave with the above rather than being appended.
