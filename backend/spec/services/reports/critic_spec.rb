@@ -79,6 +79,35 @@ RSpec.describe Reports::Critic do
     expect(codes).to include("stage2_section")
   end
 
+  it "blocks an hours figure in the consultant's text that the findings do not carry" do
+    consultant = create(:consultant_user)
+    report.report_section_overrides.create!(consultant_user: consultant, action: "edit", section_key: "executive_summary",
+                                            body: "Clerks spend 240–490 hours a year re-keying, about 2 hours a day.",
+                                            published: true)
+    checks = described_class.call(report: report)
+    figures = checks.find { |c| c[:code] == "unreconciled_figures" }
+    expect(figures[:severity]).to eq("block")
+    expect(figures[:message]).to include("490 hours")
+    expect(figures[:message]).not_to include("240 hours")
+  end
+
+  it "passes consultant text that quotes the findings' own figures" do
+    report.report_section_overrides.create!(consultant_user: create(:consultant_user), action: "edit",
+                                            section_key: "executive_summary",
+                                            body: "Clerks spend 240 hours a year re-keying invoices.", published: true)
+    expect(codes).not_to include("unreconciled_figures")
+  end
+
+  it "warns when a role claims more hours than its people work in a year" do
+    role = findings_view["departments"].first["roles"].first
+    role.merge!("people" => 1, "hours_min" => 2000, "hours_max" => 2000)
+    row.merge!("hours_min" => 2000, "hours_max" => 2000)
+    findings_view["departments"].first.merge!("hours_min" => 2000, "hours_max" => 2000)
+    findings_view["totals"].merge!("hours_min" => 2000, "hours_max" => 2000)
+    checks = described_class.call(report: report)
+    expect(checks.find { |c| c[:code] == "role_over_capacity" }&.dig(:severity)).to eq("warn")
+  end
+
   it "warns, without blocking, about overreach and few quantified findings" do
     snapshot["narrative"] = { "governing_thought" => "Manual work severely limits growth." }
     findings_view["totals"].merge!("findings" => 4, "quantified" => 1)

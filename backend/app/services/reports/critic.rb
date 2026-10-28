@@ -28,6 +28,10 @@ module Reports
     # Claims the evidence cannot make.
     OVERREACH = /\b(severely|critically|massive(?:ly)?|crippling|dramatic(?:ally)?|guarantee[sd]?|will (?:save|eliminate|double|triple|transform)|eliminat\w* (?:all|every|the need))\b/i
 
+    # An hours figure in prose — "325–490 hours", "300 hours a year" — unless it is
+    # plainly per day, week or month, which is how long one piece of work takes.
+    HOURS_FIGURE = /(\d[\d,]*)(?:\s*(?:–|—|-|to)\s*(\d[\d,]*))?\s*(?:hours|hrs?)\b(?!\s+(?:a|an|per|each|every)\s+(?:day|week|month|quarter|shift|time|instance))/i
+
     # A finding written in the first person is a quote, and a quote identifies.
     FIRST_PERSON = /\b(I|I'm|I've|I'd|me|my|mine)\b/
 
@@ -47,6 +51,8 @@ module Reports
 
       text, text_without_expert = deliverable_text
       check_totals
+      check_consultant_hours
+      check_role_capacity
       check_findings_since_generation
       check_first_person
       check_names(text)
@@ -156,6 +162,51 @@ module Reports
 
       add("unreconciled_totals", "block", "role_findings",
           "Hours do not add up for #{broken.first(4).to_sentence}. Regenerate the report.")
+    end
+
+    # The writer may quote only the computed figures; a consultant types freely. An
+    # hours figure in their text must be one the findings, roles, departments,
+    # totals or priorities actually carry — else the cover says 490 where the
+    # findings add up to 470 (Doc 15 §12, Reconciliation).
+    def check_consultant_hours
+      known = known_hours
+      @report.report_section_overrides.published.where(action: %w[edit add]).find_each do |override|
+        stray = override.body.to_s.scan(HOURS_FIGURE).flatten.compact
+                        .map { |n| n.delete(",").to_i }.reject { |n| known.include?(n) }.uniq
+        next if stray.empty?
+
+        where = override.title.presence || ReportsHelper.section_label(override.section_key)
+        add("unreconciled_figures", "block", override.section_key,
+            "“#{where}” states #{stray.first(3).map { |n| "#{n} hours" }.to_sentence}, which no finding, role or total " \
+            "adds up to. Quote the findings' figures, or correct the finding on the Findings page and regenerate.")
+      end
+    end
+
+    def known_hours
+      view = @snapshot["findings"]
+      return Set.new unless view.is_a?(Hash)
+
+      departments = Array(view["departments"])
+      rows = [view["totals"]].compact + departments + departments.flat_map { |d| d["roles"] } +
+             departments.flat_map { |d| d["roles"].flat_map { |r| r["findings"] } } + Array(@snapshot["priorities"])
+      rows.flat_map { |r| [r["hours_min"], r["hours_max"]] }.compact.map(&:to_i).to_set
+    end
+
+    # Each finding is capped at what one person can work; a role's findings together
+    # can still pass what its people work in a year. When they do, the same work
+    # was most likely counted twice, or elapsed time was taken for effort.
+    def check_role_capacity
+      year = Findings::AnnualHours::WORKING_DAYS * Findings::AnnualHours::HOURS_PER_DAY
+      over = Array(@snapshot.dig("findings", "departments")).flat_map { |d| d["roles"] }.select do |role|
+        people = [role["people"].to_i, 1].max
+        role["hours_max"].to_i > people * year
+      end
+      return if over.empty?
+
+      add("role_over_capacity", "warn", "role_findings",
+          "#{over.map { |r| "“#{r['title']}”" }.first(3).to_sentence} #{over.size == 1 ? 'claims' : 'claim'} more hours " \
+          "than #{over.size == 1 ? 'its' : 'their'} people work in a year (#{year} each). Look for the same work counted " \
+          "twice, or a wait counted as effort, on the Findings page.")
     end
 
     # The report is a snapshot; the findings keep moving. Anything shown that a
