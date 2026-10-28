@@ -80,6 +80,27 @@ RSpec.describe "Report variants" do
     expect(cover).not_to include("against an 8-day target")
   end
 
+  it "leads with what's new, from the findings, right after the contents" do
+    snapshot["delta_from_previous"] = {
+      "summary" => "1 new finding and 1 superseded finding since Report v1",
+      "findings" => {
+        "added" => [{ "id" => 7, "title" => "Stock counts", "hours_min" => 40, "hours_max" => 60 }],
+        "updated" => [],
+        "superseded" => [{ "id" => 3, "title" => "Statement checks", "reason" => "merged into “Invoice entry”" }],
+        "new_departments" => ["warehouse"]
+      }
+    }
+    doc = Nokogiri::HTML(html_for("full"))
+    pages = doc.css("section.page")
+    whats_new = pages.index { |p| p.text.include?("What's new in this version") }
+
+    expect(pages[whats_new - 1].at_css(".contents-land")).to be_present
+    expect(pages[whats_new - 1].text).to include("What's new")
+    expect(pages[whats_new].text).to include("Stock counts", "40–60 hours a year", "Statement checks",
+                                             "merged into “Invoice entry”", "Newly covered: warehouse")
+    expect(doc.text).not_to include("Delta from the previous version")
+  end
+
   it "does not end the consultant's sentence at an abbreviation like Co." do
     snapshot["section_overrides"] = {
       "edits" => { "executive_summary" => { "body" => "Buyers at Nimbus Trading Co. spend 490 hours a year re-keying. It touches every team." } }

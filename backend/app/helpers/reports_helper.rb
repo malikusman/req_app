@@ -246,10 +246,21 @@ module ReportsHelper
     [[v.round, 0].max, 100].min
   end
 
+  # The signal-era "What changed" view. A findings-era delta is "What's new"
+  # instead, and renders up front (report_whats_new?).
   def report_has_delta?(delta)
     delta = delta || {}
+    return false if delta["findings"].is_a?(Hash)
+
     summary = delta["summary"].to_s
     summary.present? && summary != "Initial discovery report"
+  end
+
+  # From version 2 onward, when any finding was added, updated or superseded, or a
+  # department newly covered (Doc 15 §4.0).
+  def report_whats_new?(delta)
+    changes = (delta || {})["findings"]
+    changes.is_a?(Hash) && changes.values.any? { |v| Array(v).any? }
   end
 
   def report_priority_pill(priority)
@@ -320,7 +331,7 @@ module ReportsHelper
     "Where to act first" => "recommendations", "What we advise against" => "recommendations",
     "Scope & coverage" => "coverage",
     "Company context" => "company_context",
-    "What changed" => "delta", "Signals" => "signals", "Patterns" => "patterns",
+    "What changed" => "delta", "What's new" => "delta", "Signals" => "signals", "Patterns" => "patterns",
     "Implications" => "patterns", "Recommendations" => "recommendations",
     "Roadmap" => "roadmap", "Opportunities" => "opportunities",
     "Capabilities" => "tools_catalog",
@@ -338,6 +349,9 @@ module ReportsHelper
       entries << { n: format("%02d", n), title: title, description: description, rule: rule }
     end
 
+    if report_whats_new?(snapshot["delta_from_previous"])
+      add.call("What's new", "Findings added, updated or superseded since the last version", "rule-teal")
+    end
     add.call("Executive summary", "The headline story in one read", "rule-blue") if snapshot["executive_summary"].present?
     expert = report_expert(snapshot)
     if expert && (expert["verdict"] || expert["opportunity"])

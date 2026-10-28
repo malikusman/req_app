@@ -12,6 +12,8 @@ module Reports
     end
 
     def call
+      return findings_delta if findings_era?
+
       current_signals = @company.company_signals.pluck(:id, :label, :strength)
       current_patterns = @company.patterns.pluck(:id, :title)
       current_recs = @company.recommendations.published.pluck(:id, :title)
@@ -47,6 +49,103 @@ module Reports
     end
 
     private
+
+    # "What's new in this version" (Doc 15 §4.0, §13.1): the findings added,
+    # updated and superseded since the version before, and the departments newly
+    # covered. Read from the findings as the report shows them, so a finding held
+    # back for review is not announced, and one that leaves the report is marked
+    # superseded with the reason, never dropped silently.
+    def findings_delta
+      return empty_delta if @previous_report.blank?
+
+      before = rows(@previous_report.report_snapshot&.dig("findings"))
+      after = rows(current_findings)
+      added = after.keys - before.keys
+      kept = after.keys & before.keys
+      gone = before.keys - after.keys
+
+      updated = kept.filter_map do |id|
+        change = change_between(before[id], after[id])
+        entry(after[id]).merge("change" => change) if change
+      end
+      changes = {
+        "added" => added.map { |id| entry(after[id]) },
+        "updated" => updated,
+        "superseded" => superseded(gone.map { |id| before[id] }),
+        "new_departments" => departments(current_findings) - departments(@previous_report.report_snapshot&.dig("findings"))
+      }
+      empty_delta.merge("findings" => changes, "summary" => findings_summary(changes))
+    end
+
+    # A report built after findings existed — before them, the delta is still about
+    # signals.
+    def findings_era?
+      current_findings["totals"].to_h["findings"].to_i.positive? ||
+        @previous_report&.report_snapshot&.dig("findings", "totals", "findings").to_i.positive?
+    end
+
+    def current_findings
+      @current_findings ||= Findings::ForReport.call(company: @company)
+    end
+
+    def rows(view)
+      return {} unless view.is_a?(Hash)
+
+      Array(view["departments"]).flat_map { |d| Array(d["roles"]).flat_map { |r| Array(r["findings"]) } }.index_by { |f| f["id"] }
+    end
+
+    def departments(view)
+      return [] unless view.is_a?(Hash)
+
+      # A pool across the company has no department of its own to announce.
+      Array(view["departments"]).reject { |d| d["pooled"] }.map { |d| d["name"] }
+    end
+
+    def entry(row)
+      row.slice("id", "title", "department", "hours_min", "hours_max")
+    end
+
+    def change_between(was, now)
+      if [was["hours_min"], was["hours_max"]] != [now["hours_min"], now["hours_max"]]
+        "hours #{hours(now) || 'not yet quantified'}, were #{hours(was) || 'not quantified'}"
+      elsif %w[title what_happens_now friction].any? { |k| was[k] != now[k] }
+        "reworded on review"
+      end
+    end
+
+    def hours(row)
+      return nil unless row["hours_min"]
+
+      row["hours_min"] == row["hours_max"] ? row["hours_min"].to_s : "#{row['hours_min']}–#{row['hours_max']}"
+    end
+
+    def superseded(rows)
+      return [] if rows.empty?
+
+      current = @company.findings.where(id: rows.map { |r| r["id"] }).includes(:merged_into).index_by(&:id)
+      rows.map do |row|
+        finding = current[row["id"]]
+        reason = case finding&.status
+                 when "merged" then "merged into “#{finding.merged_into&.display_title.to_s.upcase_first}”"
+                 when "hidden", nil then "withdrawn on review"
+                 else "held for review"
+                 end
+        entry(row).merge("reason" => reason)
+      end
+    end
+
+    def findings_summary(changes)
+      parts = []
+      { "added" => "new", "updated" => "updated", "superseded" => "superseded" }.each do |key, word|
+        n = changes[key].size
+        parts << "#{n} #{word} #{'finding'.pluralize(n)}" if n.positive?
+      end
+      fresh = changes["new_departments"]
+      parts << "#{fresh.to_sentence} newly covered" if fresh.any?
+      return "No changes to the findings since Report v#{@previous_report.version}" if parts.empty?
+
+      "#{parts.to_sentence.upcase_first} since Report v#{@previous_report.version}"
+    end
 
     def empty_delta
       {

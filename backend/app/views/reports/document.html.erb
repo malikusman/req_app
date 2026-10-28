@@ -27,6 +27,11 @@
 <%= render "reports/cover", snapshot: snapshot, generated_label: generated_label, report_version: report_version %>
 <%= render "reports/contents", snapshot: snapshot, toc_entries: toc_entries %>
 
+<%# What's new: up front, from version 2, so a returning reader starts with what moved. %>
+<% if report_whats_new?(delta) && !report_section_hidden?(snapshot, "delta") %>
+  <%= render "reports/whats_new", snapshot: snapshot, report_version: report_version %>
+<% end %>
+
 <%# Consultant overrides: an "edit" REPLACES the AI section with the expert's text
     (not a note beside it); "hide" drops it; "add" injects a custom section after
     its anchor. ai_or_edit picks the expert's body when present, else the AI render. %>
