@@ -28,9 +28,25 @@ module Reports
     # Claims the evidence cannot make.
     OVERREACH = /\b(severely|critically|massive(?:ly)?|crippling|dramatic(?:ally)?|guarantee[sd]?|will (?:save|eliminate|double|triple|transform)|eliminat\w* (?:all|every|the need))\b/i
 
-    # An hours figure in prose — "325–490 hours", "300 hours a year" — unless it is
-    # plainly per day, week or month, which is how long one piece of work takes.
-    HOURS_FIGURE = /(\d[\d,]*)(?:\s*(?:–|—|-|to)\s*(\d[\d,]*))?\s*(?:hours|hrs?)\b(?!\s+(?:a|an|per|each|every)\s+(?:day|week|month|quarter|shift|time|instance))/i
+    # Hours "a day", "per invoice": how long one piece of work takes, which the
+    # consultant may quote from the conversation. Only yearly hours must be ones the
+    # findings carry.
+    PER_PERIOD_HOURS = /\d[\d,.]*(?:\s*(?:–|—|-|to)\s*\d[\d,.]*)?\s*(?:hours?|hrs?)\s+(?:a|an|per|each|every)\s+(?!year)\w+/i
+
+    # A conclusion about the whole company, which partial coverage cannot support
+    # (Doc 15 §13.3).
+    COMPANY_WIDE = /\b(across the (?:company|business|organi[sz]ation)|company[- ]wide|organi[sz]ation[- ]wide|every (?:department|team)|all (?:departments|teams)|the whole (?:company|business))\b/i
+
+    # Mjadi's own commercial terms and the rates behind a value. The value of
+    # capacity is shown; the hourly rate it was worked out with is not. Worded as
+    # ours on purpose: a client's own "margins" or "sales commission" are their
+    # business and may well be a finding.
+    COMMERCIAL = /\b((?:our|mjadi(?:'s)?) (?:margins?|mark-?ups?|fees?|commissions?|internal costs?|delivery costs?)|referral fees?|partner(?:ship)? tiers?|(?:internal )?cost basis)\b/i
+    HOURLY_RATE = /(?:\bAED|\bUSD|\bSAR|\$|€|£)\s?\d[\d,.]*\s*(?:an|per|\/)\s*h(?:ou)?r\b/i
+
+    # Words that say nothing about which work a finding is, for comparing two.
+    STOPWORDS = %w[a an and the of to for in on with by from at is are be it its this that as or into than
+                   their they them each every manual manually work process].freeze
 
     # A finding written in the first person is a quote, and a quote identifies.
     FIRST_PERSON = /\b(I|I'm|I've|I'd|me|my|mine)\b/
@@ -51,8 +67,10 @@ module Reports
 
       text, text_without_expert = deliverable_text
       check_totals
-      check_consultant_hours
+      check_consultant_figures
       check_role_capacity
+      check_specificity
+      check_duplicates
       check_findings_since_generation
       check_first_person
       check_names(text)
@@ -63,6 +81,11 @@ module Reports
                     "Carries build detail (%<hit>s). Stage 1 says what to address; the design is Stage 2.")
       check_pattern(narrative_text, OVERREACH, "overreach", "warn",
                     "Claims more than the evidence shows (%<hit>s).")
+      check_coverage_reach
+      check_pattern(text, HOURLY_RATE, "commercial_data", "block",
+                    "Shows an hourly rate (%<hit>s). The value of capacity is shown; the rate behind it stays internal.")
+      check_pattern(text, COMMERCIAL, "commercial_data", "block",
+                    "Carries commercial terms (%<hit>s). Internal rates, margins and fees are not for the client.")
       check_coverage
       check_vendors
       check_stage2_sections
@@ -164,32 +187,179 @@ module Reports
           "Hours do not add up for #{broken.first(4).to_sentence}. Regenerate the report.")
     end
 
-    # The writer may quote only the computed figures; a consultant types freely. An
-    # hours figure in their text must be one the findings, roles, departments,
-    # totals or priorities actually carry — else the cover says 490 where the
-    # findings add up to 470 (Doc 15 §12, Reconciliation).
-    def check_consultant_hours
-      known = known_hours
-      @report.report_section_overrides.published.where(action: %w[edit add]).find_each do |override|
-        stray = override.body.to_s.scan(HOURS_FIGURE).flatten.compact
-                        .map { |n| n.delete(",").to_i }.reject { |n| known.include?(n) }.uniq
+    # The writer may quote only the computed figures (NarrativeWriter grounds it
+    # sentence by sentence); a consultant types freely. Their figures are read the
+    # same way, with Llm::GroundedNumbers, against everything the report carries
+    # (Doc 15 §12, Reconciliation):
+    #   - a yearly hours figure must be one the findings, roles, departments, totals
+    #     or priorities add up to, else the cover says 490 where the findings say
+    #     470 — that blocks;
+    #   - any other figure — "25 orders", "2 hours a day", "30%" — may be what
+    #     someone said in an interview, which the report does not carry, so it is
+    #     shown to the consultant to check, not blocked.
+    def check_consultant_figures
+      allowed = allowed_figures
+      consultant_texts.each do |where, section_key, body|
+        stray = Llm::GroundedNumbers.figures(body) - allowed
         next if stray.empty?
 
-        where = override.title.presence || ReportsHelper.section_label(override.section_key)
-        add("unreconciled_figures", "block", override.section_key,
-            "“#{where}” states #{stray.first(3).map { |n| "#{n} hours" }.to_sentence}, which no finding, role or total " \
-            "adds up to. Quote the findings' figures, or correct the finding on the Findings page and regenerate.")
+        per_period = Llm::GroundedNumbers.figures(body.scan(PER_PERIOD_HOURS).join(" "))
+        yearly, other = stray.partition { |f| f.match?(/\A[\d.]+(?:hour|hr)\z/) && !per_period.include?(f) }
+        other.select! { |f| f.match?(/\A[\d.]+[a-z]+\z|%\z|\A(?:aed|\$)/) }
+        if yearly.any?
+          add("unreconciled_figures", "block", section_key,
+              "“#{where}” states #{figure_words(yearly)}, which no finding, role or total adds up to. " \
+              "Quote the findings' figures, or correct the finding on the Findings page and regenerate.")
+        end
+        next if other.empty?
+
+        add("ungrounded_figures", "warn", section_key,
+            "“#{where}” quotes #{figure_words(other)}, which nothing in the report carries. Check it against what " \
+            "was said, and that it reads as the people's account, not a measurement.")
       end
     end
 
-    def known_hours
-      view = @snapshot["findings"]
-      return Set.new unless view.is_a?(Hash)
+    # The consultant's own text the client will read: published edits and added
+    # sections, less edits to sections they hid.
+    def consultant_texts
+      @consultant_texts ||= begin
+        overrides = @report.report_section_overrides.published.to_a
+        hidden = overrides.select { |o| o.action == "hide" }.map(&:section_key)
+        overrides.select { |o| %w[edit add].include?(o.action) }
+                 .reject { |o| o.action == "edit" && hidden.include?(o.section_key) }
+                 .map { |o| [o.title.presence || ReportsHelper.section_label(o.section_key), o.section_key, o.body.to_s] }
+      end
+    end
 
+    # Every figure the report itself carries, written the ways it prints them.
+    def allowed_figures
+      view = @snapshot["findings"].is_a?(Hash) ? @snapshot["findings"] : {}
       departments = Array(view["departments"])
-      rows = [view["totals"]].compact + departments + departments.flat_map { |d| d["roles"] } +
-             departments.flat_map { |d| d["roles"].flat_map { |r| r["findings"] } } + Array(@snapshot["priorities"])
-      rows.flat_map { |r| [r["hours_min"], r["hours_max"]] }.compact.map(&:to_i).to_set
+      roles = departments.flat_map { |d| d["roles"] }
+      rows = [view["totals"]].compact + departments + roles + shown_rows + Array(@snapshot["priorities"])
+      written = ->(n) { [n.to_s, ActiveSupport::NumberHelper.number_to_delimited(n)].uniq }
+      sources = rows.flat_map do |row|
+        figures = []
+        if row["hours_min"]
+          written.call(row["hours_min"]).product(written.call(row["hours_max"])).each do |low, high|
+            figures << "#{low} hours" << "#{high} hours" << "#{low}–#{high} hours"
+          end
+        end
+        if row["value_min"]
+          figures << "#{row['currency']} #{row['value_min']}" << "#{row['currency']} #{row['value_max']}"
+          figures << "#{row['currency']} #{ActiveSupport::NumberHelper.number_to_delimited(row['value_min'])}–" \
+                     "#{ActiveSupport::NumberHelper.number_to_delimited(row['value_max'])}"
+        end
+        figures + [row["frequency"], row["duration"]].compact
+      end
+      coverage = @snapshot["coverage"].is_a?(Hash) ? @snapshot["coverage"] : {}
+      counts = [coverage["invited"], coverage["completed"], coverage["roles_interviewed"]] +
+               Array(coverage["departments"]).flat_map { |d| [d["invited"], d["completed"]] }
+      sources += counts.compact.flat_map { |n| ["#{n} people", "#{n} employees", "#{n} staff"] }
+      sources += Array(@snapshot["key_metrics"]).flat_map { |m| [m["headline"], m["comparison"]] }
+      Llm::GroundedNumbers.allowed_numbers(sources.compact)
+    end
+
+    # "490hour" → "490 hours", as GroundedNumbers keys a quantity.
+    def figure_words(figures)
+      figures.first(3).map { |f| f.sub(/\A([\d.]+)([a-z]+)\z/) { "#{Regexp.last_match(1)} #{Regexp.last_match(2).pluralize}" } }
+             .to_sentence
+    end
+
+    def shown_rows
+      @shown_rows ||= Array(@snapshot.dig("findings", "departments")).flat_map { |d| d["roles"].flat_map { |r| r["findings"] } }
+    end
+
+    # A finding names a piece of work: the role that does it, and how often or how
+    # long it takes. Without either it is a theme dressed as a finding (Doc 15 §12,
+    # Specificity). A wait is exempt — how long it lasts is the finding.
+    def check_specificity
+      return if shown_rows.empty?
+
+      roles = @company.findings.where(id: shown_rows.map { |f| f["id"] }).pluck(:id, :role_title).to_h
+      vague = shown_rows.select do |f|
+        roles[f["id"]].blank? ||
+          (f["frequency"].blank? && f["duration"].blank? && f["effort_type"] != "waiting")
+      end
+      return if vague.empty?
+
+      add("not_specific", "block", "role_findings",
+          "#{vague.size} #{'finding'.pluralize(vague.size)} #{vague.size == 1 ? 'reads' : 'read'} as a theme, not a " \
+          "piece of work (#{vague.first(3).map { |f| "“#{f['title']}”" }.join(', ')}): each needs a role, and how often " \
+          "or how long. Correct figures or hide it on the Findings page, then regenerate.")
+    end
+
+    # Two findings for one piece of work (Doc 15 §12, Duplication). Heuristic, so it
+    # warns: the consultant decides. Two people each doing their own share of a task
+    # is not a duplicate — merging would drop real hours — so only the same person's
+    # findings are compared for the same work, and any findings for the same cause.
+    def check_duplicates
+      return if shown_rows.size < 2
+
+      records = @company.findings.where(id: shown_rows.map { |f| f["id"] }).index_by(&:id)
+      same_work = records.values.select(&:employee_id).group_by(&:employee_id).values.flat_map do |mine|
+        mine.combination(2).select do |a, b|
+          overlap(words(a.display_title), words(b.display_title)) >= 0.5 || same_duration?(a, b)
+        end
+      end
+      if same_work.any?
+        add("possible_duplicate", "warn", "role_findings",
+            "One person's findings may be the same work named twice: " \
+            "#{same_work.first(3).map { |a, b| "“#{a.display_title}” and “#{b.display_title}”" }.to_sentence}. " \
+            "If they describe the same effort, merge them on the Findings page; if not, approve both.")
+      end
+
+      caused = shown_rows.select { |f| f["cause"].present? }
+      same_cause = caused.combination(2).select { |a, b| overlap(words(a["cause"]), words(b["cause"])) >= 0.7 }
+      return if same_cause.empty?
+
+      add("possible_duplicate", "warn", "role_findings",
+          "Several findings give the same cause: " \
+          "#{same_cause.first(3).map { |a, b| "“#{a['title']}” and “#{b['title']}”" }.to_sentence}. " \
+          "If they describe the same effort, merge them; if each person does their own, keep both.")
+    end
+
+    def words(text)
+      (text.to_s.downcase.scan(/[a-z]+/) - STOPWORDS).map { |w| w.length > 3 ? w.sub(/s\z/, "") : w }.to_set
+    end
+
+    def overlap(one, other)
+      return 0.0 if one.empty? || other.empty?
+
+      (one & other).size.to_f / (one | other).size
+    end
+
+    def same_duration?(one, other)
+      a = one.effective_effort.values_at(:duration_min, :duration_max, :duration_unit)
+      b = other.effective_effort.values_at(:duration_min, :duration_max, :duration_unit)
+      a.first.present? && a.map(&:to_s) == b.map(&:to_s)
+    end
+
+    # A report may be released from partial coverage, but then no company-wide
+    # conclusion may be drawn (Doc 15 §13.3), and a department nobody spoke for is
+    # not described. Read on the written prose and the consultant's own text — the
+    # report's own labels ("Roles across the company") are not conclusions.
+    def check_coverage_reach
+      coverage = @snapshot["coverage"]
+      return unless coverage.is_a?(Hash)
+
+      uncovered = (Array(coverage["departments"]).select { |d| d["completed"].to_i.zero? }.map { |d| d["department"] } +
+                   Array(coverage["not_interviewed"])).map(&:to_s).reject { |d| d.blank? || d == "Not recorded" }
+                                                     .uniq(&:downcase)
+      return if uncovered.empty?
+
+      prose = ([narrative_text] + consultant_texts.map(&:last)).join(" ")
+      names = uncovered.map { |d| ReportsHelper.report_department_label(d) }.to_sentence
+      check_pattern(prose, COMPANY_WIDE, "overreach_coverage", "block",
+                    "Draws a company-wide conclusion (%<hit>s), but nobody in #{names.gsub('%', '%%')} was interviewed. " \
+                    "Say what the evidence covers.")
+
+      with_findings = Array(@snapshot.dig("findings", "departments")).map { |d| d["name"].to_s.downcase }
+      unspoken = uncovered.reject { |d| with_findings.include?(d.downcase) }
+      return if unspoken.empty?
+
+      check_pattern(prose, /\b(#{unspoken.map { |d| Regexp.escape(d) }.join('|')})\b/i, "uncovered_department", "warn",
+                    "Describes %<hit>s, where nobody was interviewed and no finding sits. Check the claim stands.")
     end
 
     # Each finding is capped at what one person can work; a role's findings together
