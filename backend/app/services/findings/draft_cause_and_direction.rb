@@ -33,7 +33,7 @@ module Findings
     end
 
     def call
-      return [] if @findings.empty? || !enabled?
+      return [] if @findings.empty? || !Llm::ReportNarrative.enabled?
 
       client = Openai::Client.new
       return [] unless client.configured?
@@ -42,10 +42,6 @@ module Findings
     end
 
     private
-
-    def enabled?
-      ENV.fetch("AI_REPORT_NARRATIVE", "true").to_s.downcase != "false"
-    end
 
     def draft(client, batch)
       language = batch.first.company.locale.presence || "en"

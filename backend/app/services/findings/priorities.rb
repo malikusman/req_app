@@ -68,7 +68,7 @@ module Findings
     private
 
     def themed
-      return nil if ENV.fetch("AI_REPORT_NARRATIVE", "true").to_s.downcase == "false"
+      return nil unless Llm::ReportNarrative.enabled?
 
       client = Openai::Client.new
       return nil unless client.configured?

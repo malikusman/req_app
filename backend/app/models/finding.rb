@@ -59,6 +59,10 @@ class Finding < ApplicationRecord
 
   # What a client would read: the consultant's wording where they gave one, the
   # interview's otherwise. The machine text itself is never changed.
+  # { merged finding id => the finding it was merged into }, so a link or a
+  # reference to a merged finding follows it to the one that stands.
+  def self.merge_targets = where(status: "merged").pluck(:id, :merged_into_id).to_h
+
   def display_title = consultant_title.presence || title.presence || area
   def display_what_happens_now = consultant_what_happens_now.presence || what_happens_now
   def display_friction = consultant_friction.presence || friction

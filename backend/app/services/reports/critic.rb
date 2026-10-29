@@ -371,7 +371,7 @@ module Reports
     # The report is a snapshot; the findings keep moving. Anything shown that a
     # consultant has since hidden, merged or flagged must not ship.
     def check_findings_since_generation
-      shown = Array(@snapshot.dig("findings", "departments")).flat_map { |d| d["roles"].flat_map { |r| r["findings"] } }
+      shown = shown_rows
       return if shown.empty?
 
       current = @company.findings.where(id: shown.map { |f| f["id"] }).index_by(&:id)
@@ -395,8 +395,7 @@ module Reports
     end
 
     def check_first_person
-      quoted = Array(@snapshot.dig("findings", "departments")).flat_map { |d| d["roles"].flat_map { |r| r["findings"] } }
-                                                             .select { |f| "#{f['friction']} #{f['what_happens_now']}".match?(FIRST_PERSON) }
+      quoted = shown_rows.select { |f| "#{f['friction']} #{f['what_happens_now']}".match?(FIRST_PERSON) }
       return if quoted.empty?
 
       add("reads_as_quote", "block", "role_findings",

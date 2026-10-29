@@ -134,7 +134,7 @@ module Findings
       rows = departments.flat_map { |d| d["roles"].flat_map { |r| r["findings"] } }
       by_id = rows.index_by { |r| r["id"] }
       records = shown_findings.index_by(&:id)
-      merged = @company.findings.where(status: "merged").pluck(:id, :merged_into_id).to_h
+      merged = @company.findings.merge_targets
       rows.each do |row|
         ids = Array(records[row["id"]]&.effective_depends_on_ids).map { |id| merged.fetch(id, id) }.uniq - [row["id"]]
         row["depends_on"] = ids.filter_map { |id| by_id[id]&.slice("id", "title", "department") }

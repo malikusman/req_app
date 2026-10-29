@@ -33,7 +33,7 @@ module Findings
 
     def call
       shown = @company.findings.live.order(:id).to_a.reject(&:needs_review?)
-      return {} if shown.size < 2 || !enabled?
+      return {} if shown.size < 2 || !Llm::ReportNarrative.enabled?
 
       client = Openai::Client.new
       return {} unless client.configured?
@@ -51,10 +51,6 @@ module Findings
     end
 
     private
-
-    def enabled?
-      ENV.fetch("AI_REPORT_NARRATIVE", "true").to_s.downcase != "false"
-    end
 
     def context(finding)
       {
@@ -86,7 +82,7 @@ module Findings
     def sound_links(parsed, shown)
       by_id = shown.index_by(&:id)
       shown_ids = by_id.keys.to_set
-      merged = @company.findings.where(status: "merged").pluck(:id, :merged_into_id).to_h
+      merged = @company.findings.merge_targets
       # The consultant's links count when looking for a loop: a draft must not
       # close one through a link they made.
       edges = shown.to_h { |f| [f.id, Array(f.consultant_depends_on_ids)] }
