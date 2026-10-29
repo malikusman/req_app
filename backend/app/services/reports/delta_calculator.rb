@@ -110,8 +110,14 @@ module Reports
         "hours #{hours(now) || 'not yet quantified'}, were #{hours(was) || 'not quantified'}"
       elsif %w[title what_happens_now friction].any? { |k| was[k] != now[k] }
         "reworded on review"
+      elsif DIRECTION_KEYS.any? { |k| was.key?(k) && was[k] != now[k] }
+        "cause or direction revised on review"
       end
     end
+
+    # A version from before these were drafted carries none of them, so their first
+    # appearance is not an update.
+    DIRECTION_KEYS = %w[cause cause_stated intervention_type direction dependency].freeze
 
     def hours(row)
       return nil unless row["hours_min"]

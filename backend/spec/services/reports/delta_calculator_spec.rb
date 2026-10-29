@@ -50,5 +50,23 @@ RSpec.describe Reports::DeltaCalculator do
       expect(delta["findings"].values).to all(be_empty)
       expect(delta["summary"]).to eq("No changes to the findings since Report v1")
     end
+
+    it "counts a revised cause or direction as an update" do
+      previous
+      kept.update!(consultant_cause: "Invoices arrive as scans", consultant_direction: "Read invoices as they arrive")
+
+      updated = described_class.call(company: company, previous_report: previous)["findings"]["updated"]
+
+      expect(updated.map { |f| [f["id"], f["change"]] }).to eq([[kept.id, "cause or direction revised on review"]])
+    end
+
+    it "does not count a cause appearing for the first time in a version that had none" do
+      old = Findings::ForReport.call(company: company)
+      old["departments"].each { |d| d["roles"].each { |r| r["findings"].each { |f| f.except!(*described_class::DIRECTION_KEYS) } } }
+      before = create(:report, company: company, version: 1, report_snapshot: { "findings" => old })
+      kept.update!(consultant_cause: "Invoices arrive as scans")
+
+      expect(described_class.call(company: company, previous_report: before)["findings"]["updated"]).to be_empty
+    end
   end
 end

@@ -285,9 +285,14 @@ it **comes after**. Each line is drafted by a model and printed only when it was
 drafted from the wording shown, or written by the consultant.
 
 **What's new** (`Reports::DeltaCalculator#findings_delta`) lists the findings
-added, updated (hours or wording) and superseded since the previous version —
-with the reason one left: merged, withdrawn, held for review — and the
-departments newly covered. It compares against the latest ready version.
+added, updated (hours, wording, or cause and direction) and superseded since the
+previous version — with the reason one left: merged, withdrawn, held for review —
+and the departments newly covered. It compares against the latest ready version.
+
+A new version can be generated once there is something new to say
+(`Reports::EnqueueService#stale?`): new interviews, or a finding a consultant has
+reviewed since the last version — approved, reworded, corrected or linked.
+Otherwise the consultant is asked to confirm with "Generate anyway".
 
 Consultant-authored sections are injected after whichever section they are
 anchored to, so they interleave with the above rather than being appended.
