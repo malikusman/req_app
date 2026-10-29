@@ -85,15 +85,17 @@ module Reports
       @latest_ready ||= @company.reports.ready.order(version: :desc).first
     end
 
-    # The same staleness test the company portal shows as "report stale", so the
-    # surfaces can never disagree about whether there is anything new.
+    # New interviews (the same test the company portal shows as "report stale"),
+    # or a consultant's review of a finding since — rewording it, correcting its
+    # cause, linking it — which the report cannot show until it is re-cut.
     def stale?
       return false if latest.nil?
 
+      since = latest.generated_at || latest.created_at
       intel_at = @company.intelligence_updated_at
-      return false if intel_at.blank?
+      return true if intel_at.present? && intel_at > since
 
-      intel_at > (latest.generated_at || latest.created_at)
+      @company.findings.where("reviewed_at > ?", since).exists?
     end
   end
 end
