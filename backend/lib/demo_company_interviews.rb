@@ -24,7 +24,6 @@ class DemoCompanyInterviews
     locale: "en",
     company_profile: {
       "industry" => "Wholesale distribution", "size_band" => "51-200", "region" => "UAE",
-      "business_goals" => ["Grow without adding back-office headcount", "Faster month-end close"],
       "org_departments" => %w[Procurement Finance Operations Sales HR]
     },
     settings: {

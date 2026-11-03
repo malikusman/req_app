@@ -35,25 +35,16 @@ module Documents
         summaries << { "document_id" => doc["id"], "summary" => text.truncate(280) }
       end
 
-      goals = Array(profile.dig("questionnaire_answers", "q40_desired_outcomes")).presence ||
-              Array(profile.dig("company_profile", "business_goals"))
-      if goals.any? && knowledge.any?
-        questions << {
-          "body" => "How do your current documents and processes support these goals: #{goals.first(3).join(', ')}?",
-          "rationale" => "Profile goals vs uploaded documentation"
-        }
-      end
       if docs.none? { |d| d["document_type"].to_s.in?(%w[sop policy process]) }
         questions << {
           "body" => "Can you share a written SOP or policy for your most critical operational workflow?",
           "rationale" => "Missing process documentation"
         }
       end
-      # Q22 stores a system per category; an ERP named there is the signal that
-      # used to come from the standalone erp_system question.
-      named_erp = profile.dig("questionnaire_answers", "q22_business_systems")
-      named_erp = named_erp.is_a?(Hash) ? named_erp["erp"] : nil
-      if named_erp.blank? && knowledge.none? { |k| k["entry_type"] == "system" }
+      # A known ERP among the company's systems means the core-systems question
+      # would only re-ask what the client already told us.
+      named_erp = Array(profile["known_systems"]).any? { |s| s.is_a?(Hash) && s["category"] == "erp" }
+      if !named_erp && knowledge.none? { |k| k["entry_type"] == "system" }
         questions << {
           "body" => "Which core systems (ERP, CRM, accounting) does your team rely on day to day?",
           "rationale" => "Systems not evident from documents or profile"

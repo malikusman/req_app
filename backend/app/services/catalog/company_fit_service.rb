@@ -2,6 +2,10 @@
 
 module Catalog
   class CompanyFitService
+    # Bands from Company::SIZE_BANDS treated as large (above 200 people), as the
+    # old 201-1000 / 1000+ pair was.
+    LARGE_SIZES = %w[201-500 501-1000 1000+].freeze
+
     def self.call(company:)
       new(company: company).call
     end
@@ -85,7 +89,7 @@ module Catalog
       # Prefer lighter tools for small orgs, broader platforms for larger ones.
       if size.in?(%w[1-10 11-50]) && entry.name.to_s.match?(/enterprise|suite/i)
         score -= 0.04
-      elsif size.in?(%w[201-1000 1000+]) && entry.name.to_s.match?(/starter|smb|small/i)
+      elsif size.in?(LARGE_SIZES) && entry.name.to_s.match?(/starter|smb|small/i)
         score -= 0.03
       elsif size.present?
         score += 0.02
@@ -96,7 +100,7 @@ module Catalog
 
     def effort_for_size
       size = @company.profile_value("size_band").to_s
-      return "high" if size.in?(%w[201-1000 1000+])
+      return "high" if size.in?(LARGE_SIZES)
       return "low" if size.in?(%w[1-10 11-50])
 
       "medium"

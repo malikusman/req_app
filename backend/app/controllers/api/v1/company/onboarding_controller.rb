@@ -29,9 +29,11 @@ module Api
 
         def update_profile
           authorize :onboarding, :update_profile?
+          # A field left out of the request keeps its value: saving only the
+          # website used to reset the language to English and the display name.
           attrs = {
-            display_name: params[:display_name].presence || current_company.name,
-            locale: params[:locale].presence || "en"
+            display_name: params[:display_name].presence || current_company.display_name.presence || current_company.name,
+            locale: params[:locale].presence || current_company.locale.presence || "en"
           }
           current_company.update!(attrs)
 
@@ -125,17 +127,7 @@ module Api
         private
 
         def profile_params
-          raw = params.fetch(:company_profile, {})
-          permitted = raw.permit(
-            :industry, :sub_industry, :size_band, :region, :country,
-            :annual_revenue_band,
-            business_goals: [],
-            org_departments: []
-          )
-          if raw[:business_goals].is_a?(String)
-            permitted[:business_goals] = raw[:business_goals]
-          end
-          permitted.to_h
+          Companies::ProfileUpdater.permit(params.fetch(:company_profile, {}))
         end
 
         def known_systems_param

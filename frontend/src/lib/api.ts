@@ -1836,10 +1836,10 @@ export interface ConsultantCompanyDetail extends ConsultantCompanySummary {
   questionnaire_summary?: {
     industry?: string;
     size_band?: string;
-    business_goals?: string | string[];
     org_departments?: string[];
     systems?: string[];
   };
+  legacy_profile?: LegacyProfile;
 }
 
 export interface ConsultantReportDetail {
@@ -2324,15 +2324,28 @@ export interface PlatformSystemHealth {
   };
 }
 
+/** Confirmed company facts only (Doc 07 §13). Goals and revenue are never here. */
 export interface CompanyProfile {
   industry?: string;
+  industry_detail?: string;
   sub_industry?: string;
   size_band?: string;
   region?: string;
   country?: string;
-  annual_revenue_band?: string;
-  business_goals?: string | string[];
+  locations?: string[];
+  business_model?: string[];
+  products_services?: string;
   org_departments?: string[];
+  customer_channels?: string[];
+  data_storage?: string[];
+  current_ai_use?: string[];
+  security_constraints?: string;
+}
+
+/** What the old questionnaire held that the profile no longer may. Consultants only. */
+export interface LegacyProfile {
+  business_goals?: string | string[];
+  annual_revenue_band?: string;
 }
 
 export interface IntelligenceSnapshot {

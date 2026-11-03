@@ -54,13 +54,16 @@ module Companies
       }.compact
     end
 
+    # What document analysis may know about the company: the confirmed profile and
+    # its systems. Never the questionnaire answers — those held management's goals
+    # and pain points, and analysis output becomes knowledge that employee
+    # interviews read.
     def self.docs_profile_snapshot(company)
       {
         "name" => company.name,
         "display_name" => company.display_name,
         "website_url" => company.try(:website_url).presence,
         "company_profile" => profile_slice(company),
-        "questionnaire_answers" => company.questionnaire_answers || {},
         "known_systems" => known_systems(company),
         "locale" => company.locale
       }.compact
@@ -75,11 +78,18 @@ module Companies
         "questionnaire_summary" => {
           "industry" => company.profile_value("industry"),
           "size_band" => company.profile_value("size_band"),
-          "business_goals" => company.profile_value("business_goals"),
           "org_departments" => company.profile_value("org_departments"),
           "systems" => known_systems(company).map { |s| s["name"] }
-        }.compact
-      }
+        }.compact,
+        # The old questionnaire's goals and revenue band, kept for consultants only.
+        # Nothing the AI reads draws on this.
+        "legacy_profile" => legacy_for_consultant(company)
+      }.compact
+    end
+
+    def self.legacy_for_consultant(company)
+      legacy = (company.try(:legacy_profile) || {}).slice("business_goals", "annual_revenue_band")
+      legacy.presence
     end
   end
 end

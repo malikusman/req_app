@@ -16,7 +16,8 @@ export const SIZE_BAND_OPTIONS = [
   { value: '11-50', label: '11–50' },
   { value: '51-200', label: '51–200' },
   { value: '201-500', label: '201–500' },
-  { value: '500+', label: '500+' },
+  { value: '501-1000', label: '501–1,000' },
+  { value: '1000+', label: '1,000+' },
 ] as const;
 
 export const REGION_OPTIONS = [
@@ -30,15 +31,6 @@ export const REGION_OPTIONS = [
   { value: 'Other', label: 'Other' },
 ] as const;
 
-export const REVENUE_BAND_OPTIONS = [
-  { value: '', label: 'Prefer not to say' },
-  { value: 'under_1m', label: 'Under $1M' },
-  { value: '1m_10m', label: '$1M–$10M' },
-  { value: '10m_50m', label: '$10M–$50M' },
-  { value: '50m_250m', label: '$50M–$250M' },
-  { value: '250m_plus', label: '$250M+' },
-] as const;
-
 export const DEPARTMENT_OPTIONS = [
   'Finance',
   'Operations',
@@ -48,15 +40,6 @@ export const DEPARTMENT_OPTIONS = [
   'Procurement',
   'Warehouse',
   'Customer success',
-] as const;
-
-export const BUSINESS_GOAL_OPTIONS = [
-  { value: 'cut_cycle_time', label: 'Cut cycle time' },
-  { value: 'reduce_manual_work', label: 'Reduce manual work' },
-  { value: 'audit_readiness', label: 'Audit readiness' },
-  { value: 'scale_ops', label: 'Scale operations' },
-  { value: 'cost_visibility', label: 'Cost visibility' },
-  { value: 'other', label: 'Other' },
 ] as const;
 
 export const ENGAGEMENT_MODE_OPTIONS = [

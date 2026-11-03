@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_10_29_100000) do
+ActiveRecord::Schema[7.1].define(version: 2026_11_03_100100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -208,6 +208,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_29_100000) do
     t.datetime "docs_profile_stale_at"
     t.datetime "intelligence_updated_at"
     t.string "website_url"
+    t.jsonb "profile_provenance", default: {}, null: false
+    t.jsonb "legacy_profile", default: {}, null: false
     t.index ["approval_status"], name: "index_companies_on_approval_status"
     t.index ["slug"], name: "index_companies_on_slug", unique: true
   end

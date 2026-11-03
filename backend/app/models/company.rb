@@ -108,7 +108,9 @@ class Company < ApplicationRecord
 
   ENGAGEMENT_MODES = %w[hybrid documents interview].freeze
 
-  SIZE_BANDS = %w[1-10 11-50 51-200 201-500 500+].freeze
+  # The one company-size vocabulary: onboarding (O2), the catalogue fit and the
+  # report all read these strings.
+  SIZE_BANDS = %w[1-10 11-50 51-200 201-500 501-1000 1000+].freeze
 
   def merged_settings
     DEFAULT_SETTINGS.deep_merge(self[:settings] || {})

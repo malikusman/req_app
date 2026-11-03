@@ -146,6 +146,10 @@ export function ConsultantCompanyOverview() {
   const generatingInFlight = company.report_generating === true;
   const hasCoConsultants = company.co_consultant_count >= 1;
   const completedInterviews = conversations.filter((c) => c.status === 'completed').length;
+  const rawLegacyGoals = company.legacy_profile?.business_goals;
+  const legacyGoals = (Array.isArray(rawLegacyGoals) ? rawLegacyGoals : rawLegacyGoals ? [rawLegacyGoals] : [])
+    .map(String)
+    .filter(Boolean);
   const roster =
     employees.length > 0
       ? employees
@@ -196,7 +200,6 @@ export function ConsultantCompanyOverview() {
                   ['Sub-industry', company.company_profile?.sub_industry],
                   ['Size', company.company_profile?.size_band],
                   ['Region', company.company_profile?.region || company.company_profile?.country],
-                  ['Revenue band', company.company_profile?.annual_revenue_band],
                   ['Website', company.website_url],
                 ].map(([label, value]) =>
                   value ? (
@@ -223,20 +226,28 @@ export function ConsultantCompanyOverview() {
             )}
           </Card>
 
-          {(Array.isArray(company.company_profile?.business_goals)
-            ? company.company_profile.business_goals.length > 0
-            : Boolean(company.company_profile?.business_goals)) && (
-            <Card title="Business goals">
-              <ul className="m-0 list-disc space-y-1 pl-5 text-sm">
-                {(Array.isArray(company.company_profile?.business_goals)
-                  ? company.company_profile!.business_goals!
-                  : [String(company.company_profile?.business_goals)]
-                ).map((g) => (
-                  <li key={g}>{g}</li>
-                ))}
-              </ul>
+          {legacyGoals.length > 0 || company.legacy_profile?.annual_revenue_band ? (
+            <Card title="From the old questionnaire">
+              <p className="m-0 mb-3 text-sm text-muted-foreground">
+                Answers the earlier onboarding collected. Kept for you only — the AI does not use them.
+              </p>
+              {legacyGoals.length > 0 && (
+                <>
+                  <p className="m-0 text-sm font-medium">Stated goals</p>
+                  <ul className="m-0 mb-3 list-disc space-y-1 pl-5 text-sm">
+                    {legacyGoals.map((g) => (
+                      <li key={g}>{g}</li>
+                    ))}
+                  </ul>
+                </>
+              )}
+              {company.legacy_profile?.annual_revenue_band && (
+                <p className="m-0 text-sm">
+                  <span className="text-muted-foreground">Revenue band:</span> {company.legacy_profile.annual_revenue_band}
+                </p>
+              )}
             </Card>
-          )}
+          ) : null}
 
           {Array.isArray(company.company_profile?.org_departments) &&
             company.company_profile!.org_departments!.length > 0 && (

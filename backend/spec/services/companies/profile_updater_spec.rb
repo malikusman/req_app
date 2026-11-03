@@ -24,4 +24,44 @@ RSpec.describe Companies::ProfileUpdater do
     expect(company.company_systems.find_by(normalized_name: "sap").source).to eq("manual")
     expect(company.company_systems.find_by(normalized_name: "sap").category).to eq("erp")
   end
+
+  it "never stores goals or revenue, whatever the caller sends" do
+    described_class.call(company: company,
+                         profile_params: { "industry" => "retail", "business_goals" => ["Grow"],
+                                           "annual_revenue_band" => "1m_10m" })
+
+    expect(company.reload.company_profile.keys).to eq(["industry"])
+  end
+
+  it "records where each value came from, and who gave it" do
+    user = create(:company_user, company: company)
+    described_class.call(company: company, profile_params: { "industry" => "retail" },
+                         provenance: "PREFILL_CONFIRMED", actor: user)
+
+    entry = company.reload.profile_provenance["industry"]
+    expect(entry).to include("source" => "PREFILL_CONFIRMED", "by_type" => "CompanyUser", "by_id" => user.id)
+  end
+
+  it "records Not sure as an answer without storing it as a value" do
+    company.update!(company_profile: { "size_band" => "51-200" })
+    described_class.call(company: company, profile_params: { "size_band" => "UNKNOWN" })
+
+    company.reload
+    expect(company.company_profile).not_to have_key("size_band")
+    expect(company.profile_provenance["size_band"]).to include("unknown" => true)
+  end
+
+  it "keeps a system's original source when the client names it too" do
+    company.company_systems.create!(name: "SAP", normalized_name: "sap", category: "erp",
+                                    source: "inferred_document", confidence: 0.6, active: true)
+    described_class.call(company: company, known_systems: ["SAP"])
+
+    sap = company.company_systems.find_by(normalized_name: "sap")
+    expect(sap.source).to eq("inferred_document")
+    expect(sap.confidence).to eq(1.0)
+  end
+
+  it "rejects an unknown provenance" do
+    expect { described_class.call(company: company, provenance: "GUESSED") }.to raise_error(ArgumentError)
+  end
 end

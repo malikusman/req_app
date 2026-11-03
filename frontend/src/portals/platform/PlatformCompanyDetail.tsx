@@ -106,7 +106,6 @@ function CompanyProfileSummary({ company }: { company: CompanyDetail }) {
     { key: 'size_band', label: 'Size band' },
     { key: 'region', label: 'Region' },
     { key: 'country', label: 'Country' },
-    { key: 'annual_revenue_band', label: 'Revenue band' },
   ];
   for (const { key, label } of profileFallbacks) {
     if (rows.some((r) => r.label.startsWith(label.split(' ')[0]))) continue;
@@ -114,10 +113,6 @@ function CompanyProfileSummary({ company }: { company: CompanyDetail }) {
     if (value) rows.push({ label, value });
   }
 
-  const goals = formatProfileValue(profile.business_goals);
-  if (goals && !rows.some((r) => r.label === 'Primary goals')) {
-    rows.push({ label: 'Primary goals', value: goals });
-  }
   const depts = formatProfileValue(profile.org_departments);
   if (depts && !rows.some((r) => r.label === 'Departments')) {
     rows.push({ label: 'Departments', value: depts });
