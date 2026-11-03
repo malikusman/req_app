@@ -1,12 +1,6 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
 import { api, ApiRequestError } from '../../lib/api';
-import type {
-  AnswerValue,
-  FieldType,
-  QuestionnaireAnswers,
-  QuestionnaireField,
-  QuestionnaireStep,
-} from '../../lib/questionnaireOptions';
+import type { AnswerValue, FieldType, QuestionnaireAnswers, QuestionnaireField } from '../../lib/formFields';
 
 export type AutosaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -50,15 +44,11 @@ function diffAnswers(current: QuestionnaireAnswers, base: QuestionnaireAnswers):
 }
 
 /**
- * Autosave for the onboarding questionnaire. There is no Save button: answers
+ * Autosave for the onboarding form. There is no Save button: answers
  * persist as they are given, and the browser warns before a close that would lose
  * anything still in flight.
  */
-export function useQuestionnaireAutosave(
-  token: string | null,
-  answers: QuestionnaireAnswers,
-  steps: QuestionnaireStep[]
-) {
+export function useFormAutosave(token: string | null, answers: QuestionnaireAnswers, fields: QuestionnaireField[]) {
   const enabled = true;
   const [status, setStatus] = useState<AutosaveStatus>('idle');
 
@@ -83,11 +73,9 @@ export function useQuestionnaireAutosave(
 
   const fieldsById = useMemo(() => {
     const map = new Map<string, QuestionnaireField>();
-    steps.forEach((step) =>
-      step.screens.forEach((screen) => screen.fields.forEach((field) => map.set(field.id, field)))
-    );
+    fields.forEach((field) => map.set(field.id, field));
     return map;
-  }, [steps]);
+  }, [fields]);
 
   const inFlightRef = useRef(false);
   const queuedRef = useRef(false);

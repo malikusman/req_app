@@ -6,6 +6,7 @@ export type DashboardActionId =
   | 'answer-questions'
   | 'nudge-stalled'
   | 'add-profile'
+  | 'participant-counts'
   | 'running';
 
 export interface DashboardAction {
@@ -48,7 +49,9 @@ export function nextBestAction(
   const completed = payload.company.completed_count ?? 0;
   const totalDocs = payload.intel_counts?.total_documents ?? 0;
   const stalled = payload.employees_summary.stalled_count ?? 0;
-  const qPercent = Math.round(payload.questionnaire_completion_percent ?? 0);
+  const profileSubmitted = Boolean(payload.onboarding_submitted_at);
+  // Counts may be left "Not sure" at onboarding; they are needed before the fee is agreed.
+  const countsNeeded = payload.engagement_status === 'KEY_PERSON_DISCOVERY' && payload.planned_participant_count == null;
   const report = payload.latest_report;
   const reportReady = Boolean(report && (report.status === 'ready' || report.status === 'shared'));
   const consultant = consultantName || 'your consultant';
@@ -138,19 +141,31 @@ export function nextBestAction(
     });
   }
 
-  // (e) Incomplete profile (optional)
-  if (qPercent < 100) {
+  // (e) Company profile not submitted yet
+  if (!profileSubmitted) {
     candidates.push({
       id: 'add-profile',
-      eyebrow: 'Optional next step',
-      title: 'Add your company profile',
-      description: 'Industry, systems and goals sharpen every insight we produce. It takes about 2 minutes.',
-      primaryLabel: 'Add profile',
+      eyebrow: 'Next step',
+      title: 'Finish your company profile',
+      description: 'A few facts about the company and who should take part. It takes about five minutes.',
+      primaryLabel: 'Finish profile',
       to: '/company/onboarding',
-      tone: 'neutral',
-      attnTitle: 'Add your company profile',
-      attnDetail: `Sharpens every future insight · ${qPercent}% done`,
-      optionalLabel: 'Optional',
+      tone: 'attention',
+      attnTitle: 'Finish your company profile',
+      attnDetail: 'About five minutes',
+    });
+  } else if (countsNeeded) {
+    candidates.push({
+      id: 'participant-counts',
+      eyebrow: 'Before we agree the fee',
+      title: 'How many people will take part?',
+      description:
+        'Some departments are still marked “Not sure”. We need a number for each before we can agree the fee — a rough one is fine.',
+      primaryLabel: 'Add the numbers',
+      to: '/company/onboarding',
+      tone: 'attention',
+      attnTitle: 'Participant numbers needed',
+      attnDetail: 'Needed before the fee is agreed',
     });
   }
 

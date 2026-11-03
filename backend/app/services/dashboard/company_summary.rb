@@ -42,6 +42,7 @@ module Dashboard
         # Onboarding is one short form, submitted or not; there is no percentage.
         onboarding_submitted_at: @company.current_engagement&.onboarding_submitted_at,
         engagement_status: @company.current_engagement&.status,
+        planned_participant_count: @company.current_engagement&.planned_participant_count,
         usage: enforcer.usage_summary,
         latest_report: latest_report_json(latest_report),
         opportunity_estimate: opportunity_estimate_json,

@@ -141,7 +141,9 @@ module Companies
 
     def self.clean_value(field, value)
       return nil if value.nil?
-      return NOT_SURE if not_sure?(value) && !field[:no_unknown]
+      # Kept in the shape it came in — ["Not sure"] for a multi-select — so the
+      # form shows the choice the key user made.
+      return value.is_a?(Array) ? [NOT_SURE] : NOT_SURE if not_sure?(value) && !field[:no_unknown]
 
       case field[:type]
       when :single

@@ -256,23 +256,7 @@ export const api = {
     request<CompanyDashboardPayload>('/api/v1/company/dashboard', {}, token),
 
   companyOnboarding: (token: string) =>
-    request<{
-      step: number;
-      portal_onboarding_completed_at?: string | null;
-      questionnaire_completed_at?: string | null;
-      questionnaire_answers?: QuestionnaireAnswerMap;
-      completion_percent?: number;
-      section_status?: Record<string, { touched: boolean; complete: boolean }>;
-      company: {
-        display_name: string;
-        locale: string;
-        engagement_mode?: string;
-        company_profile?: CompanyProfile;
-        known_systems?: string[];
-        website_url?: string | null;
-      };
-      invited_count: number;
-    }>('/api/v1/company/onboarding', {}, token),
+    request<OnboardingState>('/api/v1/company/onboarding', {}, token),
 
   updateOnboardingProfile: (
     token: string,
@@ -300,38 +284,22 @@ export const api = {
       token
     ),
 
-  updateOnboardingQuestionnaire: (
-    token: string,
-    payload: {
-      questionnaire_answers: QuestionnaireAnswerMap;
-      questionnaire_step?: number;
-    }
-  ) =>
-    request<{
-      ok: boolean;
-      questionnaire_answers: QuestionnaireAnswerMap;
-      questionnaire_step: number;
-      questionnaire_completed_at?: string | null;
-      completion_percent: number;
-      section_status?: Record<string, { touched: boolean; complete: boolean }>;
-    }>('/api/v1/company/onboarding/questionnaire', { method: 'PATCH', body: JSON.stringify(payload) }, token),
-
   /**
-   * Autosave. Persists answers and nothing else — no profile sync, no completion
-   * stamping, no step tracking. Those run on step change and on finish, via
-   * updateOnboardingQuestionnaire.
+   * Autosave. Stores answers and nothing else; the profile is updated on submit
+   * (or when a group is saved), not on every keystroke.
    */
   updateQuestionnaireAnswers: (token: string, answers: QuestionnaireAnswerMap) =>
     request<{ ok: boolean }>(
       '/api/v1/company/onboarding/questionnaire/answers',
-      { method: 'PATCH', body: JSON.stringify({ questionnaire_answers: answers }) },
+      { method: 'PATCH', body: JSON.stringify({ answers }) },
       token
     ),
 
-  completeOnboarding: (token: string, payload?: { mark_questionnaire_complete?: boolean }) =>
-    request<{ ok: boolean; redirect_to?: string; completion_percent?: number }>(
-      '/api/v1/company/onboarding/complete',
-      { method: 'POST', body: JSON.stringify(payload || {}) },
+  /** Submits onboarding the first time; afterwards, saves edits to the facts. */
+  submitOnboarding: (token: string, payload: { answers: QuestionnaireAnswerMap; confidentiality_acknowledged: boolean }) =>
+    request<OnboardingState & { redirect_to?: string }>(
+      '/api/v1/company/onboarding/submit',
+      { method: 'POST', body: JSON.stringify(payload) },
       token
     ),
 
@@ -2145,8 +2113,10 @@ export interface CompanyDashboardPayload {
   report_readiness_breakdown: Record<string, number>;
   engagement_mode?: string;
   docs_first_phase?: boolean;
-  questionnaire_completed_at?: string | null;
-  questionnaire_completion_percent?: number;
+  onboarding_submitted_at?: string | null;
+  engagement_status?: EngagementStatus | null;
+  /** Null while any department's count is still "Not sure". */
+  planned_participant_count?: number | null;
   usage: { conversations_used: number; conversation_limit: number | null; remaining: number | null; limit_reached: boolean };
   latest_report: Report | null;
   opportunity_estimate: {
@@ -2598,6 +2568,32 @@ export interface EngagementSetupInput {
   proposal_reference?: string;
 }
 
+/** The onboarding screen's state (Api::V1::Company::OnboardingController#state_json). */
+export interface OnboardingState {
+  answers: QuestionnaireAnswerMap;
+  step: number | null;
+  submitted_at: string | null;
+  missing_for_submit: string[];
+  company: {
+    display_name: string | null;
+    locale: string;
+    website_url: string | null;
+    company_profile: CompanyProfile;
+    profile_provenance: Record<string, { source: string; at: string; unknown?: boolean }>;
+  };
+  key_user: { name: string; phone: string | null; job_title: string | null; preferred_language: string | null };
+  engagement: {
+    status: EngagementStatus;
+    scope_type: 'COMPANY' | 'DEPARTMENT';
+    departments_in_scope: string[];
+    languages: string[];
+    planned_departments: { name: string; count: number | 'UNKNOWN' }[];
+    planned_participant_count: number | null;
+    confidentiality_acknowledged_at: string | null;
+  } | null;
+  confidentiality: { version: string; text: string };
+}
+
 export interface Engagement {
   id: number;
   company_id: number;
@@ -2655,10 +2651,8 @@ export interface CompanyDetail extends Company {
   completed_count?: number;
   invited_count?: number;
   company_profile?: Record<string, unknown>;
-  questionnaire_answers?: Record<string, unknown>;
-  questionnaire_step?: number;
-  questionnaire_completed_at?: string | null;
-  questionnaire_completion_percent?: number;
+  profile_provenance?: Record<string, { source: string; at: string; unknown?: boolean }>;
+  onboarding_answers?: Record<string, unknown>;
   company_users?: { id: number; email: string; name: string; role: string; status: string }[];
   engagement?: Engagement | null;
 }

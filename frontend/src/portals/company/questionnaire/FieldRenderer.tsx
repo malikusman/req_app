@@ -3,13 +3,14 @@ import { Check, Search, X } from 'lucide-react';
 import { Input, Textarea } from '../../../components/ui';
 import { cn } from '../../../lib/cn';
 import {
+  NOT_SURE,
   detailKey,
   fieldIsVisible,
   otherKey,
   type AnswerValue,
   type QuestionnaireAnswers,
   type QuestionnaireField,
-} from '../../../lib/questionnaireOptions';
+} from '../../../lib/formFields';
 
 export type SetAnswer = (id: string, value: AnswerValue) => void;
 
@@ -57,6 +58,15 @@ function Legend({ field }: { field: QuestionnaireField }) {
       </legend>
       {field.helper && <p className="m-0 mt-1 text-xs text-muted-foreground">{field.helper}</p>}
     </>
+  );
+}
+
+function NotSureToggle({ active, onChange }: { active: boolean; onChange: (on: boolean) => void }) {
+  return (
+    <label className="flex w-fit items-center gap-2 text-xs text-muted-foreground">
+      <input type="checkbox" checked={active} onChange={(e) => onChange(e.target.checked)} />
+      {NOT_SURE}
+    </label>
   );
 }
 
@@ -552,31 +562,24 @@ export function FieldRenderer({
       );
 
     case 'text':
+    case 'textarea': {
+      const unknown = asString(raw) === NOT_SURE;
+      const Control = field.type === 'text' ? Input : Textarea;
       return (
         <div className="space-y-1">
-          <Input
+          <Control
             label={field.label}
-            value={asString(raw)}
+            {...(field.type === 'textarea' ? { rows: 3 } : {})}
+            value={unknown ? '' : asString(raw)}
             placeholder={field.placeholder}
+            disabled={unknown}
             onChange={(e) => setAnswer(field.id, e.target.value)}
           />
           {field.helper && <p className="m-0 text-xs text-muted-foreground">{field.helper}</p>}
+          {field.allowUnknown && <NotSureToggle active={unknown} onChange={(on) => setAnswer(field.id, on ? NOT_SURE : '')} />}
         </div>
       );
-
-    case 'textarea':
-      return (
-        <div className="space-y-1">
-          <Textarea
-            label={field.label}
-            rows={4}
-            value={asString(raw)}
-            placeholder={field.placeholder}
-            onChange={(e) => setAnswer(field.id, e.target.value)}
-          />
-          {field.helper && <p className="m-0 text-xs text-muted-foreground">{field.helper}</p>}
-        </div>
-      );
+    }
 
     case 'searchable_select':
       return (
@@ -631,12 +634,15 @@ export function FieldRenderer({
     default: {
       // multi_select, including the grouped variant
       const selected = asArray(raw);
+      const exclusive = field.exclusiveOptions || [];
       const toggle = (opt: string) => {
         const next = selected.includes(opt)
           ? selected.filter((s) => s !== opt)
-          : field.maxSelections && selected.length >= field.maxSelections
-            ? selected
-            : [...selected, opt];
+          : exclusive.includes(opt)
+            ? [opt]
+            : field.maxSelections && selected.length >= field.maxSelections
+              ? selected
+              : [...selected.filter((s) => !exclusive.includes(s)), opt];
         setAnswer(field.id, next);
         if (!next.some(isOtherOption)) setAnswer(otherKey(field.id), undefined);
       };

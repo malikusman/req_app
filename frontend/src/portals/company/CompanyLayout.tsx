@@ -15,7 +15,7 @@ export function CompanyLayout() {
   usePageMeta('Company');
   const [integrations, setIntegrations] = useState<CompanyDashboardPayload['integrations']>();
   const [navCounts, setNavCounts] = useState<{
-    profilePercent?: number;
+    profileSubmitted?: boolean;
     reportVersion?: number | null;
     consultantQuestions?: number;
   }>({});
@@ -30,7 +30,7 @@ export function CompanyLayout() {
         setIntegrations(d.integrations);
         setNavCounts((prev) => ({
           ...prev,
-          profilePercent: d.questionnaire_completion_percent,
+          profileSubmitted: Boolean(d.onboarding_submitted_at),
           reportVersion: d.latest_report?.version ?? null,
         }));
       })

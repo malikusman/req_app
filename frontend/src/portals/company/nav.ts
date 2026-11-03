@@ -14,7 +14,7 @@ import type { LucideIcon } from 'lucide-react';
 
 export interface CompanyNavOpts {
   /** Company-profile completion percent; shows an amber badge while < 100. */
-  profilePercent?: number;
+  profileSubmitted?: boolean;
   /** Latest report version; shows a `v{n}` badge when a report exists. */
   reportVersion?: number | null;
   /** Unanswered consultant questions; shows an amber count badge when > 0. */
@@ -26,7 +26,7 @@ export interface CompanyNavOpts {
  * already fetches the dashboard payload) to light up the badges.
  */
 export function companyNavItems(opts: CompanyNavOpts = {}): SidebarItem[] {
-  const { profilePercent, reportVersion, consultantQuestions } = opts;
+  const { profileSubmitted, reportVersion, consultantQuestions } = opts;
 
   const items: SidebarItem[] = [
     { to: '/company/dashboard', label: 'Home', icon: LayoutDashboard },
@@ -45,8 +45,8 @@ export function companyNavItems(opts: CompanyNavOpts = {}): SidebarItem[] {
   ];
 
   return items.map((item) => {
-    if (item.to === '/company/onboarding' && profilePercent != null && profilePercent < 100) {
-      return { ...item, badge: `${Math.round(profilePercent)}%`, badgeTone: 'attention' };
+    if (item.to === '/company/onboarding' && profileSubmitted === false) {
+      return { ...item, badge: 'To do', badgeTone: 'attention' };
     }
     if (item.to === '/company/reports' && reportVersion != null) {
       return { ...item, badge: `v${reportVersion}` };

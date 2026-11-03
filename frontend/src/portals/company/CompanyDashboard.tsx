@@ -37,6 +37,7 @@ function iconFor(id: DashboardActionId): ReactNode {
     case 'answer-questions':
       return <HelpCircle className="h-[18px] w-[18px]" />;
     case 'nudge-stalled':
+    case 'participant-counts':
       return <Users className="h-[18px] w-[18px]" />;
     case 'add-profile':
       return <UserCircle className="h-[18px] w-[18px]" />;
@@ -151,8 +152,7 @@ export function CompanyDashboard() {
   const docsFirstActive = docsFirstPhase && (readyDocs > 0 || score > 0 || signalCount > 0);
   const processingDocs = docsFirstPhase && readyDocs === 0 && score === 0 && signalCount === 0;
   const docsOnlyView = docsFirstPhase && docsFirstActive;
-  const qPercent = Math.round(data.questionnaire_completion_percent ?? 0);
-  const qComplete = Boolean(data.questionnaire_completed_at) || qPercent >= 100;
+  const qComplete = Boolean(data.onboarding_submitted_at);
 
   const invited = data.company.invited_count ?? 0;
   const completed = data.company.completed_count ?? 0;
@@ -198,7 +198,7 @@ export function CompanyDashboard() {
   const journeySteps: JourneyStep[] = [
     {
       label: 'Profile',
-      sublabel: qComplete ? 'complete' : 'optional',
+      sublabel: qComplete ? 'complete' : 'to do',
       status: qComplete ? 'done' : 'optional',
     },
     {

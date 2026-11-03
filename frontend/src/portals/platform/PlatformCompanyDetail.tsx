@@ -41,23 +41,35 @@ import {
 } from '../../components/ui';
 import { ReportChecksList } from '../shared/ReportChecksList';
 import { label } from '../../lib/labels';
-import { allFields } from '../../lib/questionnaireOptions';
 import { PlatformCompanyConsultants } from './PlatformCompanyConsultants';
 import { ConversationMediaCard, ConversationMediaList } from '../../components/ConversationMediaCard';
 import { CompanyStackPanel } from './CompanyStackPanel';
 import { ENGAGEMENT_STATUS_LABELS } from './engagementStatus';
 import { AgenticIdeasPanel } from '../shared/AgenticIdeasPanel';
 
-/**
- * Labels come from the questionnaire itself rather than a list kept here. The
- * previous hardcoded map drifted the moment a question was reworded, and silently
- * dropped any question added after it was written.
- */
-const QUESTION_FIELDS = allFields().filter((f) => f.type !== 'static');
-const PROFILE_FIELD_LABELS: Record<string, string> = Object.fromEntries(
-  QUESTION_FIELDS.map((f) => [f.id, f.label])
-);
-const PROFILE_FIELD_ORDER = QUESTION_FIELDS.map((f) => f.id);
+/** The confirmed company facts (Doc 07 §13), in the order onboarding asks for them. */
+const PROFILE_FIELDS: { key: string; label: string }[] = [
+  { key: 'industry', label: 'Industry' },
+  { key: 'industry_detail', label: 'What they do' },
+  { key: 'size_band', label: 'Headcount' },
+  { key: 'country', label: 'Headquarters' },
+  { key: 'locations', label: 'Other locations' },
+  { key: 'business_model', label: 'Business model' },
+  { key: 'products_services', label: 'Products and services' },
+  { key: 'org_departments', label: 'Departments' },
+  { key: 'customer_channels', label: 'Customer channels' },
+  { key: 'data_storage', label: 'Where data is kept' },
+  { key: 'current_ai_use', label: 'AI tools in use' },
+  { key: 'security_constraints', label: 'Constraints' },
+];
+
+/** Where each fact came from, so Mjadi staff can tell a confirmed fact from a typed one. */
+const PROVENANCE_LABELS: Record<string, string> = {
+  PREFILL_CONFIRMED: 'confirmed from website',
+  USER_ENTERED: 'entered by client',
+  DISCOVERED_LATER: 'found in conversation',
+  LEGACY_QUESTIONNAIRE: 'old questionnaire',
+};
 
 function formatProfileValue(value: unknown): string | null {
   if (value == null) return null;
@@ -84,44 +96,28 @@ function formatProfileValue(value: unknown): string | null {
 }
 
 function CompanyProfileSummary({ company }: { company: CompanyDetail }) {
-  const answers = company.questionnaire_answers || {};
-  const profile = company.company_profile || {};
-  const rows: { label: string; value: string }[] = [];
-
-  for (const id of PROFILE_FIELD_ORDER) {
-    const fromAnswers = formatProfileValue(answers[id]);
-    if (fromAnswers) {
-      rows.push({ label: PROFILE_FIELD_LABELS[id], value: fromAnswers });
-    }
-  }
-
-  const profileFallbacks: { key: string; label: string }[] = [
-    { key: 'industry', label: 'Industry (synced)' },
-    { key: 'size_band', label: 'Size band' },
-    { key: 'region', label: 'Region' },
-    { key: 'country', label: 'Country' },
-  ];
-  for (const { key, label } of profileFallbacks) {
-    if (rows.some((r) => r.label.startsWith(label.split(' ')[0]))) continue;
-    const value = formatProfileValue(profile[key]);
-    if (value) rows.push({ label, value });
-  }
-
-  const depts = formatProfileValue(profile.org_departments);
-  if (depts && !rows.some((r) => r.label === 'Departments')) {
-    rows.push({ label: 'Departments', value: depts });
-  }
+  const profile = (company.company_profile || {}) as Record<string, unknown>;
+  const provenance = company.profile_provenance || {};
+  const rows = PROFILE_FIELDS.flatMap(({ key, label }) => {
+    const source = provenance[key];
+    const value = source?.unknown ? 'Not sure' : formatProfileValue(profile[key]);
+    if (!value) return [];
+    return [{ label, value, source: source ? PROVENANCE_LABELS[source.source] : undefined }];
+  });
 
   return (
     <Card title="Company profile">
       {rows.length === 0 ? (
-        <p className="m-0 text-sm text-text-secondary">No questionnaire answers yet.</p>
+        <p className="m-0 text-sm text-text-secondary">No confirmed facts yet.</p>
       ) : (
         <dl className="m-0 grid gap-3 sm:grid-cols-2">
           {rows.map((row) => (
             <div key={row.label}>
               <dt className="text-xs font-medium uppercase tracking-wide text-text-secondary">{row.label}</dt>
-              <dd className="mt-0.5 text-sm text-text-primary">{row.value}</dd>
+              <dd className="mt-0.5 text-sm text-text-primary">
+                {row.value}
+                {row.source && <span className="ml-1 text-xs text-text-secondary">· {row.source}</span>}
+              </dd>
             </div>
           ))}
         </dl>
@@ -500,12 +496,13 @@ export function PlatformCompanyDetail() {
             </Card>
             <Card title="Onboarding">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant={company.portal_onboarding_completed_at ? 'success' : 'warning'}>
-                  {company.portal_onboarding_completed_at ? 'Complete' : 'Pending'}
+                <Badge variant={company.engagement?.onboarding_submitted_at ? 'success' : 'warning'}>
+                  {company.engagement?.onboarding_submitted_at ? 'Submitted' : 'Not submitted'}
                 </Badge>
-                {typeof company.questionnaire_completion_percent === 'number' ? (
+                {company.engagement?.planned_departments.length ? (
                   <span className="text-sm text-text-secondary">
-                    Questionnaire {company.questionnaire_completion_percent}%
+                    {company.engagement.planned_participant_count ?? 'Some'} participants planned across{' '}
+                    {company.engagement.planned_departments.map((d) => d.name).join(', ')}
                   </span>
                 ) : null}
               </div>
