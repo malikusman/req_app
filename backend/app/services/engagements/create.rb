@@ -52,6 +52,8 @@ module Engagements
                                 metadata: { company_id: engagement.company_id, scope_type: engagement.scope_type },
                                 request: @request)
       Engagements::Invite.call(engagement: engagement)
+      # Read the website now, so the proposals are ready when the key user first signs in.
+      WebsitePrefillJob.start(engagement)
       engagement
     rescue ActiveRecord::RecordInvalid => e
       raise Error, e.record.errors.full_messages.to_sentence

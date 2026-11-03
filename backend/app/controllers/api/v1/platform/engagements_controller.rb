@@ -50,6 +50,19 @@ module Api
           render json: { ok: true, email: key_user.email }
         end
 
+        # Reads the client's website again for pre-fill proposals.
+        def reread_website
+          engagement = find_engagement
+          if engagement.company.website_url.blank?
+            return render json: { error: "The company has no website" }, status: :unprocessable_entity
+          end
+
+          WebsitePrefillJob.start(engagement)
+          PlatformAuditService.log!(platform_user: current_platform_user, action: "engagement_website_reread",
+                                    target: engagement, request: request)
+          render json: { engagement: self.class.engagement_json(engagement.reload) }
+        end
+
         def self.engagement_json(engagement)
           key_user = engagement.key_user
           {
@@ -64,6 +77,11 @@ module Api
             planned_departments: engagement.planned_departments,
             planned_participant_count: engagement.planned_participant_count,
             onboarding_submitted_at: engagement.onboarding_submitted_at,
+            prefill_status: engagement.prefill_status,
+            prefill_entity_note: engagement.prefill_entity_note,
+            prefill_candidates: engagement.prefill_candidates.order(:id).map do |c|
+              c.slice(:id, :target_field, :value, :display_text, :confidence, :status, :source_url, :evidence_excerpt)
+            end,
             confidentiality_acknowledged_at: engagement.confidentiality_acknowledged_at,
             key_user: key_user && { id: key_user.id, name: key_user.name, email: key_user.email,
                                     phone: key_user.phone, job_title: key_user.job_title, status: key_user.status },

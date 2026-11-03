@@ -9,14 +9,19 @@ class Engagement < ApplicationRecord
   belongs_to :lead_consultant, class_name: "ConsultantUser", optional: true
   belongs_to :confidentiality_acknowledged_by, class_name: "CompanyUser", optional: true
   has_many :participants, class_name: "EngagementParticipant", dependent: :destroy
+  has_many :prefill_candidates, dependent: :destroy
 
   # Doc 06 §3.5, Stage 1 so far. The pricing and later stages are added with
   # the work that moves an engagement into them.
   STATUSES = %w[SET_UP ONBOARDING KEY_PERSON_DISCOVERY STAGE_1_ACTIVE CLOSED].freeze
   SCOPE_TYPES = %w[COMPANY DEPARTMENT].freeze
+  # Reading the website for pre-fill (Doc 07 §5): empty means nothing usable was
+  # found or it couldn't be read, and the form is shown plain, without comment.
+  PREFILL_STATUSES = %w[not_started pending running done empty failed].freeze
 
   validates :status, inclusion: { in: STATUSES }
   validates :scope_type, inclusion: { in: SCOPE_TYPES }
+  validates :prefill_status, inclusion: { in: PREFILL_STATUSES }
   validate :departments_present_for_department_scope
 
   scope :not_closed, -> { where.not(status: "CLOSED") }

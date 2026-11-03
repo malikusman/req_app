@@ -32,6 +32,7 @@ Rails.application.routes.draw do
         resources :engagements, only: %i[create update] do
           member do
             post :resend_invitation
+            post :reread_website
           end
         end
         resources :playbooks, only: %i[index show create update] do

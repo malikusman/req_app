@@ -653,6 +653,41 @@ module Openai
       end
     end
 
+    WEBSITE_PREFILL_PROMPT_VERSION = "P01.v1"
+
+    # P01 — proposes onboarding values from a company's own website pages (Doc 07
+    # §5). Every page is fenced as untrusted data after the instructions, so text
+    # on the site can't steer it. Returns the parsed JSON, or nil when no model is
+    # configured: a pre-fill is never mocked, since a made-up proposal shown to a
+    # client is worse than none.
+    def website_prefill(company_name:, website:, display_language:, pages:)
+      return nil unless configured?
+
+      system = self.class.website_prefill_prompt.gsub("{{display_language}}", display_language.to_s)
+      blocks = [
+        "<company trust=\"platform\">\nname: #{company_name}\nwebsite: #{website}\n" \
+        "display_language: #{display_language}\n</company>"
+      ]
+      pages.each do |page|
+        chrome = page[:chrome].present? ? "\n[header and footer] #{page[:chrome]}" : ""
+        blocks << "<website_page trust=\"untrusted\" url=\"#{page[:url]}\">\n#{page[:text]}#{chrome}\n</website_page>"
+      end
+      blocks << "Extract the onboarding candidates now."
+      context = blocks.join("\n\n")
+
+      body = {
+        model: ENV.fetch("PREFILL_MODEL", ENV.fetch("OPENAI_MODEL", "gpt-4o-mini")),
+        messages: [{ role: "system", content: system }, { role: "user", content: context }],
+        temperature: 0.1,
+        max_tokens: chat_max_tokens(1800)
+      }
+      parse_model_json(chat_json_content(body))
+    end
+
+    def self.website_prefill_prompt
+      @website_prefill_prompt ||= Rails.root.join("app/prompts/p01_website_prefill.v1.txt").read
+    end
+
     private
 
     def ensure_configured_or_mock!(service_name)

@@ -101,9 +101,7 @@ module Companies
       @company.update!(attrs)
       sync_known_systems! if !@known_systems.nil?
 
-      if @website_url != :omit && @company.website_url.present? && @company.website_url != previous_website
-        CompanyWebResearchJob.perform_later(@company.id)
-      end
+      website_changed!(previous_website)
 
       @company
     end
@@ -113,6 +111,15 @@ module Companies
     def unchanged?(profile, provenance, key, value, unknown)
       was_unknown = provenance.dig(key, "unknown") == true
       profile[key] == value && was_unknown == unknown
+    end
+
+    # A new website is read again: for pre-fill proposals when the company is on an
+    # engagement (Doc 07 §5), otherwise for the older research summary.
+    def website_changed!(previous_website)
+      return if @website_url == :omit || @company.website_url.blank? || @company.website_url == previous_website
+
+      engagement = @company.current_engagement
+      engagement ? WebsitePrefillJob.start(engagement) : CompanyWebResearchJob.perform_later(@company.id)
     end
 
     def provenance_entry(unknown:)

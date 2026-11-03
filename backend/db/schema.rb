@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_11_03_130000) do
+ActiveRecord::Schema[7.1].define(version: 2026_11_03_140000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -980,6 +980,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_03_130000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "confidentiality_text_version"
+    t.string "prefill_status", default: "not_started", null: false
+    t.string "prefill_error"
+    t.text "prefill_entity_note"
+    t.datetime "prefill_finished_at"
     t.index ["company_id", "status"], name: "index_engagements_on_company_id_and_status"
     t.index ["company_id"], name: "index_engagements_on_company_id"
     t.index ["confidentiality_acknowledged_by_id"], name: "index_engagements_on_confidentiality_acknowledged_by_id"
@@ -1192,6 +1196,30 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_03_130000) do
     t.datetime "updated_at", null: false
     t.index ["email"], name: "index_platform_users_on_email", unique: true
     t.index ["jti"], name: "index_platform_users_on_jti", unique: true
+  end
+
+  create_table "prefill_candidates", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "engagement_id", null: false
+    t.string "target_field", null: false
+    t.jsonb "value", null: false
+    t.text "display_text"
+    t.string "confidence", null: false
+    t.string "source_url", null: false
+    t.text "evidence_excerpt", null: false
+    t.string "status", default: "PROPOSED", null: false
+    t.string "website_url", null: false
+    t.string "prompt_version", null: false
+    t.datetime "extracted_at", null: false
+    t.string "decided_by_type"
+    t.bigint "decided_by_id"
+    t.datetime "decided_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_prefill_candidates_on_company_id"
+    t.index ["decided_by_type", "decided_by_id"], name: "index_prefill_candidates_on_decided_by"
+    t.index ["engagement_id", "status"], name: "index_prefill_candidates_on_engagement_id_and_status"
+    t.index ["engagement_id"], name: "index_prefill_candidates_on_engagement_id"
   end
 
   create_table "recommendation_feedbacks", force: :cascade do |t|
@@ -1602,6 +1630,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_03_130000) do
   add_foreign_key "notifications", "companies"
   add_foreign_key "patterns", "companies"
   add_foreign_key "platform_audit_logs", "platform_users"
+  add_foreign_key "prefill_candidates", "companies"
+  add_foreign_key "prefill_candidates", "engagements"
   add_foreign_key "recommendation_feedbacks", "company_users"
   add_foreign_key "recommendation_feedbacks", "recommendations"
   add_foreign_key "recommendations", "companies"

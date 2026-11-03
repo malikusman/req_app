@@ -46,6 +46,21 @@ RSpec.describe "Platform engagement set-up", type: :request do
     expect(PlatformAuditLog.where(action: "engagement_created")).to exist
   end
 
+  it "starts reading the website straight away, so proposals are ready at first sign-in" do
+    expect {
+      post "/api/v1/platform/engagements", params: params, headers: headers, as: :json
+    }.to have_enqueued_job(WebsitePrefillJob)
+    expect(Engagement.last.prefill_status).to eq("pending")
+  end
+
+  it "can read the website again on request" do
+    engagement = create(:engagement, company: create(:company, website_url: "https://alnoor.example"))
+    expect {
+      post "/api/v1/platform/engagements/#{engagement.id}/reread_website", headers: headers
+    }.to have_enqueued_job(WebsitePrefillJob).with(engagement.id)
+    expect(response).to have_http_status(:ok)
+  end
+
   it "needs departments when the scope is departments" do
     params[:engagement][:departments_in_scope] = []
     post "/api/v1/platform/engagements", params: params, headers: headers, as: :json
