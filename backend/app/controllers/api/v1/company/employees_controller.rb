@@ -34,6 +34,7 @@ module Api
             send_whatsapp: params[:send_whatsapp] != false,
             preferred_channel: params[:preferred_channel].presence || "whatsapp"
           )
+          link_planned_participant!(result[:employee])
 
           render json: {
             employee: employee_json(result[:employee]),
@@ -102,6 +103,16 @@ module Api
         end
 
         private
+
+        # Inviting someone the key user planned for during onboarding (P3) ties the
+        # plan to the employee, so the plan shows them as invited.
+        def link_planned_participant!(employee)
+          return if params[:engagement_participant_id].blank?
+
+          participant = current_company.current_engagement&.participants&.employees
+                                       &.find_by(id: params[:engagement_participant_id], employee_id: nil)
+          participant&.update!(employee: employee)
+        end
 
         def employee_json(employee, include_nudge: false)
           json = {

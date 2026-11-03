@@ -211,6 +211,7 @@ Rails.application.routes.draw do
         # Autosave: answers only, none of the side effects the full save performs.
         patch "onboarding/questionnaire/answers", to: "onboarding#update_questionnaire_answers"
         post "onboarding/submit", to: "onboarding#submit"
+        resources :onboarding_participants, path: "onboarding/participants", only: %i[index create update destroy]
         resources :documents, only: %i[index show create update destroy] do
           member do
             get :download

@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { api, type OnboardingState } from '../../lib/api';
+import { api, type OnboardingState, type PlannedParticipant } from '../../lib/api';
 import { useCompanyToken, useAuth } from '../../lib/auth';
 import { PageHeader, Card, Input, Button, Skeleton } from '../../components/ui';
 import { NOT_SURE, otherKey, type AnswerValue, type QuestionnaireAnswers, type QuestionnaireField } from '../../lib/formFields';
 import { ONBOARDING_FIELDS, ONBOARDING_GROUPS } from '../../lib/onboardingFields';
 import { FieldRenderer } from './questionnaire/FieldRenderer';
 import { useFormAutosave } from './useFormAutosave';
+import { ParticipantRows } from './onboarding/ParticipantRows';
 
 const splitList = (text: AnswerValue) =>
   typeof text === 'string' ? text.split(/[,\n;]/).map((s) => s.trim()).filter(Boolean) : [];
@@ -32,6 +33,7 @@ export function CompanyOnboarding() {
   const [adminPhone, setAdminPhone] = useState('');
   const [adminName, setAdminName] = useState('');
   const [savingAccount, setSavingAccount] = useState(false);
+  const [participants, setParticipants] = useState<PlannedParticipant[]>([]);
 
   useEffect(() => {
     if (!token) return;
@@ -47,6 +49,10 @@ export function CompanyOnboarding() {
       })
       .catch(() => setErrors(['Could not load your company profile.']))
       .finally(() => setLoading(false));
+    api
+      .plannedParticipants(token)
+      .then((d) => setParticipants(d.participants))
+      .catch(() => undefined);
   }, [token]);
 
   const autosave = useFormAutosave(token, answers, ONBOARDING_FIELDS);
@@ -182,12 +188,31 @@ export function CompanyOnboarding() {
             {group.intro && <p className="m-0 mt-1 text-sm text-muted-foreground">{group.intro}</p>}
           </div>
           {group.fields.map((field) => (
-            <FieldRenderer
-              key={field.id}
-              field={field.id === 'p1_departments' ? departmentField : field}
-              answers={answers}
-              setAnswer={setAnswer}
-            />
+            <div key={field.id} className="space-y-6">
+              <FieldRenderer
+                field={field.id === 'p1_departments' ? departmentField : field}
+                answers={answers}
+                setAnswer={setAnswer}
+              />
+              {field.id === 'p2_department_counts' && token && (
+                <>
+                  <ParticipantRows
+                    token={token}
+                    type="EMPLOYEE"
+                    participants={participants}
+                    departments={Array.isArray(answers.p1_departments) ? answers.p1_departments : []}
+                    onChange={setParticipants}
+                  />
+                  <ParticipantRows
+                    token={token}
+                    type="KEY_PERSON"
+                    participants={participants}
+                    departments={[]}
+                    onChange={setParticipants}
+                  />
+                </>
+              )}
+            </div>
           ))}
           {group.id === 3 && (
             <p className="m-0 text-sm text-muted-foreground">

@@ -351,16 +351,38 @@ export const api = {
     display_name?: string,
     department?: string,
     email?: string,
-    preferred_channel?: 'whatsapp' | 'web' | 'both'
+    preferred_channel?: 'whatsapp' | 'web' | 'both',
+    /** The person planned during onboarding this invitation is for, if any. */
+    engagement_participant_id?: number
   ) =>
     request<{ employee: Employee; discover_url?: string }>(
       '/api/v1/company/employees',
       {
         method: 'POST',
-        body: JSON.stringify({ phone_e164, display_name, department, email, preferred_channel }),
+        body: JSON.stringify({ phone_e164, display_name, department, email, preferred_channel, engagement_participant_id }),
       },
       token
     ),
+
+  plannedParticipants: (token: string) =>
+    request<{ participants: PlannedParticipant[] }>('/api/v1/company/onboarding/participants', {}, token),
+
+  addPlannedParticipant: (token: string, participant: PlannedParticipantInput) =>
+    request<{ participant: PlannedParticipant; warnings: string[] }>(
+      '/api/v1/company/onboarding/participants',
+      { method: 'POST', body: JSON.stringify({ participant }) },
+      token
+    ),
+
+  updatePlannedParticipant: (token: string, id: number, participant: Partial<PlannedParticipantInput>) =>
+    request<{ participant: PlannedParticipant; warnings: string[] }>(
+      `/api/v1/company/onboarding/participants/${id}`,
+      { method: 'PATCH', body: JSON.stringify({ participant }) },
+      token
+    ),
+
+  removePlannedParticipant: (token: string, id: number) =>
+    request<void>(`/api/v1/company/onboarding/participants/${id}`, { method: 'DELETE' }, token),
 
   bulkInviteEmployees: (
     token: string,
@@ -2566,6 +2588,25 @@ export interface EngagementSetupInput {
   lead_consultant_id: number | null;
   languages: string[];
   proposal_reference?: string;
+}
+
+/** Someone the key user plans to involve (Doc 07 §7): staff (P3) or another manager (P4). */
+export interface PlannedParticipantInput {
+  participant_type: 'EMPLOYEE' | 'KEY_PERSON';
+  name: string;
+  role_title?: string;
+  department?: string;
+  scope?: string;
+  email?: string;
+  phone_e164?: string;
+  preferred_language?: string;
+}
+
+export interface PlannedParticipant extends PlannedParticipantInput {
+  id: number;
+  nominated_by_client: boolean;
+  added_after_pricing: boolean;
+  employee_id: number | null;
 }
 
 /** The onboarding screen's state (Api::V1::Company::OnboardingController#state_json). */

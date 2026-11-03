@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { Users } from 'lucide-react';
-import { api, type Employee } from '../../lib/api';
+import { api, type Employee, type PlannedParticipant } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
 import {
   PageHeader,
@@ -61,6 +61,9 @@ export function CompanyEmployees() {
   const [savingPhone, setSavingPhone] = useState(false);
   const [digestEmployee, setDigestEmployee] = useState<Employee | null>(null);
   const inviteCardRef = useRef<HTMLDivElement>(null);
+  // People named during onboarding (P3) who haven't been invited yet.
+  const [planned, setPlanned] = useState<PlannedParticipant[]>([]);
+  const [planningFor, setPlanningFor] = useState<PlannedParticipant | null>(null);
 
   const focusInviteForm = () => {
     inviteCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -81,6 +84,19 @@ export function CompanyEmployees() {
       .then((d) => setEmployees(d.employees))
       .catch(() => setLoadError('Could not load employees.'))
       .finally(() => setLoading(false));
+    api
+      .plannedParticipants(token)
+      .then((d) => setPlanned(d.participants.filter((p) => p.participant_type === 'EMPLOYEE' && !p.employee_id)))
+      .catch(() => undefined);
+  };
+
+  const prefillFromPlan = (person: PlannedParticipant) => {
+    setPlanningFor(person);
+    setPhone(person.phone_e164 || '');
+    setEmail(person.email || '');
+    setDisplayName(person.name);
+    setDepartment(person.department || '');
+    focusInviteForm();
   };
 
   useEffect(() => {
@@ -116,8 +132,10 @@ export function CompanyEmployees() {
         displayName || undefined,
         department || undefined,
         email || undefined,
-        email ? preferredChannel : undefined
+        email ? preferredChannel : undefined,
+        planningFor?.id
       );
+      setPlanningFor(null);
       setInviteSuccess(true);
       toast({ variant: 'success', title: 'Invitation sent', description: 'The employee can message WhatsApp or open their discover link.' });
       setPhone('');
@@ -190,6 +208,27 @@ export function CompanyEmployees() {
 
       {loadError && (
         <ErrorNotice message={loadError} onRetry={load} />
+      )}
+
+      {planned.length > 0 && (
+        <Card title="Planned, not yet invited">
+          <p className="m-0 mb-3 text-sm text-text-secondary">People you named when setting up. Invite each when you&apos;re ready.</p>
+          <ul className="m-0 list-none space-y-2 p-0">
+            {planned.map((person) => (
+              <li key={person.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                <span>
+                  <span className="font-medium text-text-primary">{person.name}</span>
+                  <span className="text-text-secondary">
+                    {[person.role_title, person.department].filter(Boolean).map((v) => ` · ${v}`)}
+                  </span>
+                </span>
+                <Button size="sm" variant="secondary" onClick={() => prefillFromPlan(person)}>
+                  Invite
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </Card>
       )}
 
       <div ref={inviteCardRef}>
