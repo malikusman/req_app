@@ -21,7 +21,9 @@ module Api
           result = Registrations::ApproveCompanyRegistration.call(
             registration: registration,
             platform_user: current_platform_user,
-            review_note: params[:review_note]
+            review_note: params[:review_note],
+            engagement_params: approval_engagement_params,
+            request: request
           )
           PlatformAuditService.log!(
             platform_user: current_platform_user,
@@ -92,6 +94,17 @@ module Api
 
         private
 
+        # The engagement details the admin adds when approving (Doc 07 §3). The
+        # company and key user come from the request itself.
+        def approval_engagement_params
+          return {} unless params[:engagement].present?
+
+          params.require(:engagement).permit(
+            :website_url, :scope_type, :lead_consultant_id, :proposal_reference,
+            departments_in_scope: [], languages: [], key_user: %i[role_title phone]
+          ).to_h
+        end
+
         def company_registration_json(registration)
           {
             id: registration.id,
@@ -106,8 +119,7 @@ module Api
             company_id: registration.company_id,
             company_approval_status: registration.company.approval_status,
             admin_user_status: registration.company_user.status,
-            company_profile: registration.company.company_profile,
-            engagement_mode: registration.company.engagement_mode,
+            website_url: registration.company.website_url,
             created_at: registration.created_at,
             reviewed_at: registration.reviewed_at
           }

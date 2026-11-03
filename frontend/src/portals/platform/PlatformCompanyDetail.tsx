@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { ChatMessageList, type ChatMessageItem } from '../../components/motion';
 import {
@@ -29,7 +29,6 @@ import {
   DataTable,
   EmptyState,
   Button,
-  PasswordInput,
   Modal,
   Skeleton,
   StrengthBar,
@@ -46,6 +45,7 @@ import { allFields } from '../../lib/questionnaireOptions';
 import { PlatformCompanyConsultants } from './PlatformCompanyConsultants';
 import { ConversationMediaCard, ConversationMediaList } from '../../components/ConversationMediaCard';
 import { CompanyStackPanel } from './CompanyStackPanel';
+import { ENGAGEMENT_STATUS_LABELS } from './engagementStatus';
 import { AgenticIdeasPanel } from '../shared/AgenticIdeasPanel';
 
 /**
@@ -58,12 +58,6 @@ const PROFILE_FIELD_LABELS: Record<string, string> = Object.fromEntries(
   QUESTION_FIELDS.map((f) => [f.id, f.label])
 );
 const PROFILE_FIELD_ORDER = QUESTION_FIELDS.map((f) => f.id);
-
-function generatePassword() {
-  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
-  const bytes = crypto.getRandomValues(new Uint8Array(14));
-  return Array.from(bytes, (b) => alphabet[b % alphabet.length]).join('');
-}
 
 function formatProfileValue(value: unknown): string | null {
   if (value == null) return null;
@@ -185,9 +179,7 @@ export function PlatformCompanyDetail() {
   const [reportPreviewVariant, setReportPreviewVariant] = useState<ReportVariant>('full');
   const [reportPreviewMode, setReportPreviewMode] = useState<'draft' | 'stored'>('draft');
   const [actionError, setActionError] = useState('');
-  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
-  const [adminPassword, setAdminPassword] = useState('');
-  const [savingPassword, setSavingPassword] = useState(false);
+  const [resendingInvite, setResendingInvite] = useState(false);
 
   // Only for the Reports tab's helper line, which claims the button exists
   // BECAUSE no consultant is assigned — so it has to know whether that is true.
@@ -360,28 +352,17 @@ export function PlatformCompanyDetail() {
     }
   };
 
-  const openPasswordModal = () => {
-    setAdminPassword(generatePassword());
-    setPasswordModalOpen(true);
-  };
-
-  const handleSetAdminPassword = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!token || !companyId) return;
-    setSavingPassword(true);
+  const resendInvitation = async () => {
+    if (!token || !company?.engagement) return;
+    setResendingInvite(true);
     setActionError('');
     try {
-      const res = await api.resetPlatformCompanyAdminPassword(token, companyId, adminPassword);
-      setPasswordModalOpen(false);
-      toast({
-        title: 'Password emailed',
-        description: `The new password was emailed to ${res.email}.`,
-        variant: 'success',
-      });
+      const res = await api.resendEngagementInvitation(token, company.engagement.id);
+      toast({ title: 'Invitation sent again', description: `A new link was emailed to ${res.email}.`, variant: 'success' });
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Failed to set and email password');
+      setActionError(err instanceof Error ? err.message : 'Could not resend the invitation');
     } finally {
-      setSavingPassword(false);
+      setResendingInvite(false);
     }
   };
 
@@ -493,10 +474,29 @@ export function PlatformCompanyDetail() {
             <Card title="Readiness">
               <p className="m-0 text-3xl font-semibold text-text-primary">{Math.round(company.report_readiness_score)}%</p>
             </Card>
-            <Card title="Subscription">
-              <p className="m-0 text-sm text-text-primary">
-                {company.subscription ? `${company.subscription.plan} · ${company.subscription.status}` : 'None'}
-              </p>
+            <Card title="Engagement">
+              {company.engagement ? (
+                <div className="space-y-1 text-sm">
+                  <p className="m-0 font-medium text-text-primary">
+                    {ENGAGEMENT_STATUS_LABELS[company.engagement.status]}
+                  </p>
+                  <p className="m-0 text-text-secondary">
+                    {company.engagement.scope_type === 'DEPARTMENT'
+                      ? company.engagement.departments_in_scope.join(', ')
+                      : 'Whole company'}
+                    {' · '}
+                    {company.engagement.languages.join(', ').toUpperCase()}
+                  </p>
+                  {company.engagement.lead_consultant ? (
+                    <p className="m-0 text-text-secondary">Lead: {company.engagement.lead_consultant.name}</p>
+                  ) : null}
+                  {company.engagement.proposal_reference ? (
+                    <p className="m-0 text-text-secondary">Proposal {company.engagement.proposal_reference}</p>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="m-0 text-sm text-text-secondary">No engagement</p>
+              )}
             </Card>
             <Card title="Onboarding">
               <div className="flex flex-wrap items-center gap-2">
@@ -530,9 +530,9 @@ export function PlatformCompanyDetail() {
                         {user.email} · {user.role} · {user.status}
                       </p>
                     </div>
-                    {user.role === 'company_admin' ? (
-                      <Button variant="secondary" size="sm" onClick={openPasswordModal}>
-                        Set password & email
+                    {user.status === 'pending' && company.engagement?.key_user?.id === user.id ? (
+                      <Button variant="secondary" size="sm" loading={resendingInvite} onClick={resendInvitation}>
+                        Resend invitation
                       </Button>
                     ) : null}
                   </li>
@@ -541,36 +541,6 @@ export function PlatformCompanyDetail() {
             )}
           </Card>
 
-          <Modal
-            open={passwordModalOpen}
-            onClose={() => setPasswordModalOpen(false)}
-            title="Set company admin password"
-          >
-            <form onSubmit={handleSetAdminPassword} className="space-y-4">
-              <p className="m-0 text-sm text-text-secondary">
-                This replaces the current password and emails the new one to the company admin.
-              </p>
-              <PasswordInput
-                label="New password"
-                value={adminPassword}
-                onChange={(e) => setAdminPassword(e.target.value)}
-                autoComplete="new-password"
-                minLength={8}
-                required
-              />
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="secondary" onClick={() => setAdminPassword(generatePassword())}>
-                  Generate
-                </Button>
-                <Button type="button" variant="secondary" onClick={() => setPasswordModalOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" loading={savingPassword}>
-                  Save & email
-                </Button>
-              </div>
-            </form>
-          </Modal>
         </div>
       )}
 

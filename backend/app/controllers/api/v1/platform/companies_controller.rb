@@ -15,65 +15,6 @@ module Api
           render json: { company: company_detail_json(company) }
         end
 
-        def create
-          authorize ::Company, :create?
-          company = nil
-          created_admin = nil
-          admin_password = nil
-          ActiveRecord::Base.transaction do
-            company = ::Company.create!(company_params.merge(approval_status: "approved", approved_at: Time.current))
-            Subscription.create!(
-              company: company,
-              plan: "trial",
-              status: "trial",
-              trial_ends_at: 14.days.from_now
-            )
-            if params[:company_admin].present?
-              admin_params = params.require(:company_admin).permit(:email, :name, :password)
-              admin_password = admin_params[:password].to_s
-              created_admin = CompanyUser.create!(
-                company: company,
-                email: admin_params[:email].downcase,
-                name: admin_params[:name],
-                password: admin_password,
-                role: "company_admin",
-                status: "active"
-              )
-            end
-          end
-
-          if created_admin && admin_password.present?
-            SignupMailer.company_admin_credentials(created_admin, admin_password).deliver_later
-          end
-
-          PlatformAuditService.log!(
-            platform_user: current_platform_user,
-            action: "company_created",
-            target: company,
-            metadata: { name: company.name, admin_credentials_emailed: created_admin.present? },
-            request: request
-          )
-
-          render json: { company: company_detail_json(company.reload) }, status: :created
-        end
-
-        def reset_admin_password
-          company = policy_scope(::Company).find(params[:id])
-          authorize company, :update?
-          password = params.require(:password).to_s
-          admin = ::Platform::SetCompanyAdminPassword.call(company: company, password: password)
-          PlatformAuditService.log!(
-            platform_user: current_platform_user,
-            action: "company_admin_password_set",
-            target: company,
-            metadata: { email: admin.email },
-            request: request
-          )
-          render json: { ok: true, email: admin.email }
-        rescue ::Platform::SetCompanyAdminPassword::Error => e
-          render_errors(e.message)
-        end
-
         def update
           company = ::Company.find(params[:id])
           attrs = company_update_params
@@ -92,10 +33,6 @@ module Api
 
         private
 
-        def company_params
-          params.require(:company).permit(:name, :display_name, :locale)
-        end
-
         def company_update_params
           params.require(:company).permit(:name, :display_name, :locale, settings: {})
         end
@@ -110,6 +47,7 @@ module Api
             report_readiness_score: company.report_readiness_score,
             portal_onboarding_completed_at: company.portal_onboarding_completed_at,
             approval_status: company.approval_status,
+            engagement_status: company.current_engagement&.status,
             subscription: subscription_json(company.subscription),
             created_at: company.created_at
           }
@@ -117,7 +55,9 @@ module Api
 
         def company_detail_json(company)
           progress = Companies::QuestionnaireProgress.call(company.questionnaire_answers)
+          engagement = company.current_engagement
           company_json(company).merge(
+            engagement: engagement && EngagementsController.engagement_json(engagement),
             settings: company.merged_settings,
             company_users: company.company_users.map do |u|
               { id: u.id, email: u.email, name: u.name, role: u.role, status: u.status }

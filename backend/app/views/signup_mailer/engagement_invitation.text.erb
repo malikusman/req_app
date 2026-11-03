@@ -1,0 +1,10 @@
+Hi <%= @user.name %>,
+
+Mjadi has set up your engagement for <%= @company_name %><% if @consultant_name.present? %>, with <%= @consultant_name %> as your lead consultant<% end %>.
+
+The first step takes under five minutes: confirm a few facts about the company<% if @has_website %>, many of them filled in from your website<% end %>, and tell us who should take part.
+
+Set your password and get started here (the link works for 7 days):
+<%= @set_password_url %>
+
+— Mjadi

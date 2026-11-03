@@ -89,14 +89,13 @@ export const api = {
     notes?: string;
     website?: string;
     website_url?: string;
-    engagement_mode?: string;
-    company_profile?: CompanyProfile;
-    known_systems?: string[];
   }) =>
     request<{ ok: boolean; registration?: { id: number; status: string } }>(
       '/api/v1/public/company_registrations',
       { method: 'POST', body: JSON.stringify(payload) }
     ),
+
+  publicConfig: () => request<{ company_signup_enabled: boolean }>('/api/v1/public/config'),
 
   publicConsultantApplication: (payload: {
     name: string;
@@ -138,10 +137,16 @@ export const api = {
       token
     ),
 
-  approveCompanyRegistration: (token: string, id: number, review_note?: string) =>
+  approveCompanyRegistration: (
+    token: string,
+    id: number,
+    payload: { review_note?: string; engagement: Omit<EngagementSetupInput, 'company_name' | 'key_user'> & {
+      key_user?: { role_title?: string };
+    } }
+  ) =>
     request<{ company_registration: CompanyRegistrationRow }>(
       `/api/v1/platform/registrations/companies/${id}/approve`,
-      { method: 'POST', body: JSON.stringify({ review_note }) },
+      { method: 'POST', body: JSON.stringify(payload) },
       token
     ),
 
@@ -208,20 +213,24 @@ export const api = {
       token
     ),
 
-  createPlatformCompany: (
-    token: string,
-    payload: { name: string; display_name?: string; company_admin: { email: string; name: string; password: string } }
-  ) =>
-    request<{ company: Company }>(
-      '/api/v1/platform/companies',
-      { method: 'POST', body: JSON.stringify({ company: { name: payload.name, display_name: payload.display_name }, company_admin: payload.company_admin }) },
+  createEngagement: (token: string, engagement: EngagementSetupInput) =>
+    request<{ engagement: Engagement }>(
+      '/api/v1/platform/engagements',
+      { method: 'POST', body: JSON.stringify({ engagement }) },
       token
     ),
 
-  resetPlatformCompanyAdminPassword: (token: string, companyId: number, password: string) =>
+  updateEngagement: (token: string, id: number, engagement: Partial<EngagementSetupInput>) =>
+    request<{ engagement: Engagement }>(
+      `/api/v1/platform/engagements/${id}`,
+      { method: 'PATCH', body: JSON.stringify({ engagement }) },
+      token
+    ),
+
+  resendEngagementInvitation: (token: string, id: number) =>
     request<{ ok: boolean; email: string }>(
-      `/api/v1/platform/companies/${companyId}/reset_admin_password`,
-      { method: 'POST', body: JSON.stringify({ password }) },
+      `/api/v1/platform/engagements/${id}/resend_invitation`,
+      { method: 'POST' },
       token
     ),
 
@@ -2570,7 +2579,40 @@ export interface Company {
   report_readiness_score: number;
   portal_onboarding_completed_at: string | null;
   approval_status?: string;
+  engagement_status?: EngagementStatus | null;
   subscription: { plan: string; status: string; trial_ends_at: string | null } | null;
+  created_at: string;
+}
+
+export type EngagementStatus = 'SET_UP' | 'ONBOARDING' | 'KEY_PERSON_DISCOVERY' | 'STAGE_1_ACTIVE' | 'CLOSED';
+
+/** What Mjadi enters to set up an engagement (Doc 07 §3, S1–S8). */
+export interface EngagementSetupInput {
+  company_name: string;
+  website_url?: string;
+  scope_type: 'COMPANY' | 'DEPARTMENT';
+  departments_in_scope: string[];
+  key_user: { name: string; role_title?: string; email: string; phone?: string };
+  lead_consultant_id: number | null;
+  languages: string[];
+  proposal_reference?: string;
+}
+
+export interface Engagement {
+  id: number;
+  company_id: number;
+  status: EngagementStatus;
+  status_history: { from: string | null; to: string; at: string; reason?: string; by_type?: string; by_id?: number }[];
+  scope_type: 'COMPANY' | 'DEPARTMENT';
+  departments_in_scope: string[];
+  languages: string[];
+  proposal_reference: string | null;
+  planned_departments: { name: string; count: number | 'UNKNOWN' }[];
+  planned_participant_count: number | null;
+  onboarding_submitted_at: string | null;
+  confidentiality_acknowledged_at: string | null;
+  key_user: { id: number; name: string; email: string; phone: string | null; job_title: string | null; status: string } | null;
+  lead_consultant: { id: number; name: string } | null;
   created_at: string;
 }
 
@@ -2587,8 +2629,7 @@ export interface CompanyRegistrationRow {
   company_id: number;
   company_approval_status?: string;
   admin_user_status?: string;
-  company_profile?: CompanyProfile;
-  engagement_mode?: string;
+  website_url?: string | null;
   created_at: string;
   reviewed_at?: string | null;
 }
@@ -2619,6 +2660,7 @@ export interface CompanyDetail extends Company {
   questionnaire_completed_at?: string | null;
   questionnaire_completion_percent?: number;
   company_users?: { id: number; email: string; name: string; role: string; status: string }[];
+  engagement?: Engagement | null;
 }
 
 export interface CompanyUser {

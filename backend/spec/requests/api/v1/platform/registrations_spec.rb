@@ -26,12 +26,17 @@ RSpec.describe "Platform registrations", type: :request do
     expect(body["consultant_applications"].size).to be >= 1
   end
 
-  it "approves a company registration, opens its engagement, and emails set-password" do
+  it "approves a company registration through engagement set-up and invites the requester" do
     registration = create_pending_registration
+    consultant = create(:consultant_user)
 
     expect {
-      post "/api/v1/platform/registrations/companies/#{registration.id}/approve", headers: headers
-    }.to have_enqueued_mail(SignupMailer, :company_registration_approved)
+      post "/api/v1/platform/registrations/companies/#{registration.id}/approve",
+           headers: headers,
+           params: { engagement: { scope_type: "COMPANY", lead_consultant_id: consultant.id, languages: %w[en ar],
+                                   proposal_reference: "P-2026-014" } },
+           as: :json
+    }.to have_enqueued_mail(SignupMailer, :engagement_invitation)
 
     expect(response).to have_http_status(:ok)
     registration.reload
@@ -40,7 +45,22 @@ RSpec.describe "Platform registrations", type: :request do
     engagement = registration.company.current_engagement
     expect(engagement.status).to eq("SET_UP")
     expect(engagement.key_user).to eq(registration.company_user)
+    expect(engagement.lead_consultant).to eq(consultant)
+    expect(engagement.languages).to eq(%w[en ar])
+    expect(registration.company.subscription).to be_nil
     expect(registration.company_user.status).to eq("pending")
+  end
+
+  it "leaves the request pending when the engagement details are incomplete" do
+    registration = create_pending_registration
+
+    post "/api/v1/platform/registrations/companies/#{registration.id}/approve",
+         headers: headers, params: { engagement: { languages: ["en"] } }, as: :json
+
+    expect(response).to have_http_status(:unprocessable_entity)
+    expect(JSON.parse(response.body)["error"]).to match(/lead consultant/)
+    expect(registration.reload.status).to eq("pending")
+    expect(registration.company.reload.approval_status).to eq("pending_approval")
   end
 
   it "rejects a company registration" do

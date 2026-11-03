@@ -53,6 +53,15 @@ module Auth
         invitation_token: nil
       )
       user.regenerate_jti!
+      start_onboarding!(user)
+    end
+
+    # The key user accepting their invitation is what opens onboarding.
+    def start_onboarding!(user)
+      engagement = user.company.current_engagement
+      return unless engagement&.status == "SET_UP" && engagement.key_user_id == user.id
+
+      Engagements::Transition.call(engagement: engagement, to: "ONBOARDING", actor: user)
     end
 
     def activate_consultant!(consultant)

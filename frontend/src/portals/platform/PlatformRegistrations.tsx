@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, type CompanyRegistrationRow, type ConsultantApplicationRow } from '../../lib/api';
 import { usePlatformToken } from '../../lib/auth';
 import { PageHeader, Card, DataTable, Badge, Button, EmptyState, Textarea, Modal } from '../../components/ui';
+import { EngagementSetupForm } from './EngagementSetupForm';
 
 type PendingAction =
   | { kind: 'company'; id: number; action: 'approve' | 'reject'; label: string }
@@ -16,6 +17,9 @@ export function PlatformRegistrations() {
   const [pending, setPending] = useState<PendingAction | null>(null);
   const [note, setNote] = useState('');
   const [acting, setActing] = useState(false);
+  // Approving a company request is setting up its engagement, so it gets the
+  // set-up form rather than the plain confirm dialog.
+  const [approving, setApproving] = useState<CompanyRegistrationRow | null>(null);
 
   const load = () => {
     if (!token) return;
@@ -51,8 +55,7 @@ export function PlatformRegistrations() {
     setError('');
     try {
       if (pending.kind === 'company') {
-        if (pending.action === 'approve') await api.approveCompanyRegistration(token, pending.id, note || undefined);
-        else await api.rejectCompanyRegistration(token, pending.id, note || undefined);
+        await api.rejectCompanyRegistration(token, pending.id, note || undefined);
       } else {
         if (pending.action === 'approve') await api.approveConsultantApplication(token, pending.id, note || undefined);
         else await api.rejectConsultantApplication(token, pending.id, note || undefined);
@@ -71,9 +74,45 @@ export function PlatformRegistrations() {
 
   return (
     <div className="space-y-6">
+      <Modal open={!!approving} onClose={() => setApproving(null)} title="Set up engagement" className="max-w-2xl">
+        {approving && token && (
+          <EngagementSetupForm
+            token={token}
+            fromRequest
+            initial={{
+              company_name: approving.company_name,
+              website_url: approving.website_url ?? '',
+              key_user: {
+                name: approving.admin_name,
+                email: approving.admin_email,
+                phone: approving.admin_phone ?? '',
+                role_title: approving.role_title ?? '',
+              },
+            }}
+            submitLabel="Approve and invite"
+            onCancel={() => setApproving(null)}
+            onSubmit={async (input) => {
+              await api.approveCompanyRegistration(token, approving.id, {
+                engagement: {
+                  website_url: input.website_url,
+                  scope_type: input.scope_type,
+                  departments_in_scope: input.departments_in_scope,
+                  lead_consultant_id: input.lead_consultant_id,
+                  languages: input.languages,
+                  proposal_reference: input.proposal_reference,
+                  key_user: { role_title: input.key_user.role_title },
+                },
+              });
+              setApproving(null);
+              load();
+            }}
+          />
+        )}
+      </Modal>
+
       <PageHeader
         title="Registrations"
-        description="Approve or reject company signups and consultant applications."
+        description="Company requests become engagements once you set them up. Consultant applications are approved here too."
       />
 
       {error && !pending ? (
@@ -83,11 +122,11 @@ export function PlatformRegistrations() {
       ) : null}
 
       <Card>
-        <h2 className="font-display m-0 mb-4 text-lg text-text-primary">Company signups</h2>
+        <h2 className="font-display m-0 mb-4 text-lg text-text-primary">Company requests</h2>
         {loading ? (
           <p className="text-sm text-text-secondary">Loading…</p>
         ) : companies.length === 0 ? (
-          <EmptyState title="No pending company signups" description="New requests will appear here." />
+          <EmptyState title="No pending company requests" description="Requests from the website appear here when public sign-up is switched on." />
         ) : (
           <DataTable
             columns={[
@@ -105,19 +144,9 @@ export function PlatformRegistrations() {
                 ),
               },
               {
-                key: 'profile',
-                header: 'Profile',
-                render: (r) => {
-                  const industry = r.company_profile?.industry;
-                  const size = r.company_profile?.size_band;
-                  if (!industry && !size) return <span className="text-text-secondary">—</span>;
-                  return (
-                    <div className="text-sm">
-                      {industry ? <div className="capitalize">{String(industry).replace(/_/g, ' ')}</div> : null}
-                      {size ? <div className="text-xs text-text-secondary">{size}</div> : null}
-                    </div>
-                  );
-                },
+                key: 'website',
+                header: 'Website',
+                render: (r) => r.website_url || <span className="text-text-secondary">—</span>,
               },
               {
                 key: 'status',
@@ -129,13 +158,8 @@ export function PlatformRegistrations() {
                 header: '',
                 render: (r) => (
                   <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      onClick={() =>
-                        openAction({ kind: 'company', id: r.id, action: 'approve', label: r.company_name })
-                      }
-                    >
-                      Approve
+                    <Button size="sm" onClick={() => setApproving(r)}>
+                      Set up engagement
                     </Button>
                     <Button
                       size="sm"

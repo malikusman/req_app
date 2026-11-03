@@ -2,10 +2,12 @@ import { useNavigate, Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { LoginForm } from './LoginForm';
+import { usePublicConfig } from '../lib/usePublicConfig';
 
 export function CompanyLogin() {
   const { setSession } = useAuth();
   const navigate = useNavigate();
+  const signupEnabled = usePublicConfig()?.companySignupEnabled === true;
 
   return (
     <LoginForm
@@ -16,8 +18,12 @@ export function CompanyLogin() {
       forgotPasswordTo="/auth/forgot-password?portal=company"
       footer={
         <>
-          <Link to="/company/signup">Create a company account</Link>
-          {' · '}
+          {signupEnabled && (
+            <>
+              <Link to="/company/signup">Request a company account</Link>
+              {' · '}
+            </>
+          )}
           <Link to="/">Back to home</Link>
         </>
       }

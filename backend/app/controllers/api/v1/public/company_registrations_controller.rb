@@ -3,11 +3,20 @@
 module Api
   module V1
     module Public
+      # A company asking to work with Mjadi. Off unless PUBLIC_COMPANY_SIGNUP_ENABLED
+      # is set: Mjadi creates engagements after speaking with the client (Doc 07 §1),
+      # and when this is on, a request only becomes an account once a Mjadi admin
+      # approves it through engagement set-up.
       class CompanyRegistrationsController < ApplicationController
         MAX_PER_WINDOW = 5
         WINDOW = 1.hour
 
+        def self.enabled?
+          ActiveModel::Type::Boolean.new.cast(ENV.fetch("PUBLIC_COMPANY_SIGNUP_ENABLED", "false")) == true
+        end
+
         def create
+          return head :not_found unless self.class.enabled?
           return render json: { ok: true }, status: :created if params[:website].present?
 
           if rate_limited?
@@ -23,9 +32,7 @@ module Api
             admin_phone: params[:admin_phone] || params[:phone],
             website_url: params[:website_url],
             role_title: params[:role_title],
-            notes: params[:notes],
-            company_profile: profile_params,
-            known_systems: known_systems_param
+            notes: params[:notes]
           )
           render json: { ok: true, registration: { id: registration.id, status: registration.status } },
                  status: :created
@@ -41,16 +48,6 @@ module Api
           key = "company_registrations:#{request.remote_ip}"
           count = Rails.cache.increment(key, 1, expires_in: WINDOW)
           count.nil? ? false : count > MAX_PER_WINDOW
-        end
-
-        def profile_params
-          Companies::ProfileUpdater.permit(params[:company_profile])
-        end
-
-        def known_systems_param
-          return nil unless params.key?(:known_systems)
-
-          Array(params[:known_systems])
         end
       end
     end

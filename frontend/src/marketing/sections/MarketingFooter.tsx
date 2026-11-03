@@ -1,9 +1,13 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { MjadiLogo } from '../../components/brand/MjadiLogo';
 import { marketingContent } from '../content';
+import { usePublicConfig } from '../../lib/usePublicConfig';
+
+const SIGNUP_HREF = '/company/signup';
 
 export function MarketingFooter() {
   const { footer } = marketingContent;
+  const signupEnabled = usePublicConfig()?.companySignupEnabled === true;
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -28,7 +32,7 @@ export function MarketingFooter() {
             <p className="m-0 mt-3 text-sm leading-relaxed text-marketing-muted">{footer.tagline}</p>
           </div>
           <nav className="grid gap-x-10 gap-y-3 sm:grid-cols-2">
-            {footer.links.map((link) =>
+            {footer.links.filter((link) => signupEnabled || link.href !== SIGNUP_HREF).map((link) =>
               link.href.startsWith('#') ? (
                 <button
                   key={link.label}

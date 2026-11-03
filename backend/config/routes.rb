@@ -28,9 +28,10 @@ Rails.application.routes.draw do
       get "consultant_users/:id/avatar", to: "consultant_avatars#show"
 
       namespace :platform do
-        resources :companies, only: %i[index show create update] do
+        resources :companies, only: %i[index show update]
+        resources :engagements, only: %i[create update] do
           member do
-            post :reset_admin_password
+            post :resend_invitation
           end
         end
         resources :playbooks, only: %i[index show create update] do
@@ -282,6 +283,7 @@ Rails.application.routes.draw do
       end
 
       namespace :public do
+        get "config", to: "config#show"
         get "reports/:token", to: "reports#show"
         get "discover/sessions/:token", to: "discover_sessions#show"
         post "discover/sessions/:token/verify", to: "discover_verifications#create"
