@@ -24,11 +24,13 @@ module Registrations
           approved_at: Time.current,
           rejected_at: nil
         )
-        Subscription.find_or_create_by!(company: company) do |sub|
-          sub.plan = "trial"
-          sub.status = "trial"
-          sub.trial_ends_at = 14.days.from_now
-        end
+        # Approving a request opens the engagement; there is no trial to run out.
+        company.engagements.create!(
+          key_user: @registration.company_user,
+          languages: [company.locale.presence || "en"],
+          status_history: [{ "from" => nil, "to" => "SET_UP", "at" => Time.current.iso8601,
+                             "by_type" => @platform_user.class.name, "by_id" => @platform_user.id }]
+        ) unless company.current_engagement
 
         @registration.update!(
           status: "approved",

@@ -26,6 +26,7 @@ class Company < ApplicationRecord
   has_many :consultant_chat_messages, dependent: :destroy
   has_many :company_memory_facts, dependent: :destroy
   has_one :company_registration, dependent: :destroy
+  has_many :engagements, dependent: :destroy
 
   def bot_phone_display
     ENV.fetch("META_WHATSAPP_DISPLAY_NUMBER", "+1 000 000 0000")
@@ -157,6 +158,23 @@ class Company < ApplicationRecord
 
   def onboarding_complete?
     portal_onboarding_completed_at.present?
+  end
+
+  # May this company's users use the portal? Mjadi sells a fixed-fee engagement,
+  # not a subscription (Doc 17 §2), so an engagement in progress is what grants
+  # access. A company from before engagements existed, with none, keeps the old
+  # subscription rule until it has one.
+  def portal_access?
+    return true if current_engagement
+    return false if engagements.exists?
+
+    subscription&.active_for_access? || false
+  end
+
+  # The engagement now in progress. A company normally has one; a later
+  # department-by-department engagement would open a new one.
+  def current_engagement
+    engagements.not_closed.order(created_at: :desc).first
   end
 
   private

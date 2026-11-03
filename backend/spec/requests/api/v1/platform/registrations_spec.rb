@@ -26,7 +26,7 @@ RSpec.describe "Platform registrations", type: :request do
     expect(body["consultant_applications"].size).to be >= 1
   end
 
-  it "approves a company registration, starts a trial, and emails set-password" do
+  it "approves a company registration, opens its engagement, and emails set-password" do
     registration = create_pending_registration
 
     expect {
@@ -37,7 +37,9 @@ RSpec.describe "Platform registrations", type: :request do
     registration.reload
     expect(registration.status).to eq("approved")
     expect(registration.company.approval_status).to eq("approved")
-    expect(registration.company.subscription).to be_present
+    engagement = registration.company.current_engagement
+    expect(engagement.status).to eq("SET_UP")
+    expect(engagement.key_user).to eq(registration.company_user)
     expect(registration.company_user.status).to eq("pending")
   end
 

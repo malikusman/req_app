@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_11_03_100100) do
+ActiveRecord::Schema[7.1].define(version: 2026_11_03_110100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -937,6 +937,53 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_03_100100) do
     t.index ["phone_e164"], name: "index_employees_on_phone_e164", unique: true
   end
 
+  create_table "engagement_participants", force: :cascade do |t|
+    t.bigint "engagement_id", null: false
+    t.bigint "company_id", null: false
+    t.string "participant_type", null: false
+    t.string "name", null: false
+    t.string "role_title"
+    t.string "department"
+    t.string "scope"
+    t.string "email"
+    t.string "phone_e164"
+    t.string "preferred_language"
+    t.boolean "nominated_by_client", default: true, null: false
+    t.boolean "added_after_pricing", default: false, null: false
+    t.string "source", default: "ONBOARDING", null: false
+    t.bigint "employee_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_engagement_participants_on_company_id"
+    t.index ["employee_id"], name: "index_engagement_participants_on_employee_id"
+    t.index ["engagement_id", "participant_type"], name: "idx_on_engagement_id_participant_type_7c38bdc612"
+    t.index ["engagement_id", "phone_e164"], name: "index_engagement_participants_on_engagement_id_and_phone_e164", unique: true, where: "(phone_e164 IS NOT NULL)"
+    t.index ["engagement_id"], name: "index_engagement_participants_on_engagement_id"
+  end
+
+  create_table "engagements", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.string "status", default: "SET_UP", null: false
+    t.jsonb "status_history", default: [], null: false
+    t.string "scope_type", default: "COMPANY", null: false
+    t.text "departments_in_scope", default: [], null: false, array: true
+    t.bigint "key_user_id"
+    t.bigint "lead_consultant_id"
+    t.text "languages", default: ["en"], null: false, array: true
+    t.string "proposal_reference"
+    t.datetime "confidentiality_acknowledged_at"
+    t.bigint "confidentiality_acknowledged_by_id"
+    t.datetime "onboarding_submitted_at"
+    t.jsonb "planned_departments", default: [], null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id", "status"], name: "index_engagements_on_company_id_and_status"
+    t.index ["company_id"], name: "index_engagements_on_company_id"
+    t.index ["confidentiality_acknowledged_by_id"], name: "index_engagements_on_confidentiality_acknowledged_by_id"
+    t.index ["key_user_id"], name: "index_engagements_on_key_user_id"
+    t.index ["lead_consultant_id"], name: "index_engagements_on_lead_consultant_id"
+  end
+
   create_table "findings", force: :cascade do |t|
     t.bigint "company_id", null: false
     t.bigint "employee_id"
@@ -1527,6 +1574,13 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_03_100100) do
   add_foreign_key "employee_web_sessions", "employees"
   add_foreign_key "employees", "companies"
   add_foreign_key "employees", "company_users", column: "invited_by_company_user_id"
+  add_foreign_key "engagement_participants", "companies"
+  add_foreign_key "engagement_participants", "employees"
+  add_foreign_key "engagement_participants", "engagements"
+  add_foreign_key "engagements", "companies"
+  add_foreign_key "engagements", "company_users", column: "confidentiality_acknowledged_by_id"
+  add_foreign_key "engagements", "company_users", column: "key_user_id"
+  add_foreign_key "engagements", "consultant_users", column: "lead_consultant_id"
   add_foreign_key "findings", "companies"
   add_foreign_key "findings", "consultant_users", column: "reviewed_by_id"
   add_foreign_key "findings", "conversations"
