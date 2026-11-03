@@ -8,8 +8,11 @@ class WebsitePrefillJob < ApplicationJob
 
   retry_on Companies::WebsiteFetcher::Unreachable, wait: 10.minutes, attempts: 2 do |job, error|
     engagement = Engagement.find_by(id: job.arguments.first)
-    engagement&.update!(prefill_status: "failed", prefill_error: "unreachable: #{error.message}".truncate(200),
-                        prefill_finished_at: Time.current)
+    # Only if no newer read has finished since: a late failure mustn't hide its result.
+    if engagement && %w[pending running].include?(engagement.prefill_status)
+      engagement.update!(prefill_status: "failed", prefill_error: "unreachable: #{error.message}".truncate(200),
+                         prefill_finished_at: Time.current)
+    end
   end
 
   def perform(engagement_id)

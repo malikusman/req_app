@@ -285,22 +285,33 @@ The customer’s home: configure the organization, upload documents, invite empl
 
 ### 4.2 Access journey
 
+Mjadi is not self-serve (Doc 07 §1): a company account exists only once Mjadi has set up
+the engagement.
+
 ```mermaid
 flowchart LR
-  Signup[PublicSignup] --> Pending[PlatformPending]
-  Pending --> Approve[PlatformApproves]
-  Approve --> SetPw[SetPasswordLink]
-  SetPw --> Login[CompanyLogin]
-  Login --> Profile[SoftProfileWizard]
-  Profile --> Dashboard[Dashboard]
+  Setup[Mjadi sets up the engagement] --> Invite[Key user invited: 7-day set-password link]
+  Setup --> Read[Website read for proposals]
+  Invite --> SetPw[Set password]
+  SetPw --> Profile[Company profile: one screen]
+  Read --> Profile
+  Profile --> Submit[Submit] --> Dashboard[Dashboard]
 ```
 
-1. **Signup** `/company/signup` — company + admin identity (phone required).
-2. Wait for platform approval + confirmation email.
-3. **Set password** `/auth/set-password`.
-4. **Login** `/company/login` — blocked if not approved or subscription inactive.
-5. If `portal_onboarding_completed_at` blank → forced to **Profile** wizard (can Skip).
-6. Otherwise **Dashboard**.
+1. **Engagement set-up** (platform → Companies → *New engagement*, S1–S8): company, website,
+   scope (whole company or named departments), key user, lead consultant, languages,
+   proposal reference. No trial and no admin-chosen password; *Resend invitation* issues a
+   fresh link.
+2. **Set password** `/auth/set-password` from the invitation (link valid 7 days). The
+   engagement moves from *Invited* to *Onboarding*.
+3. **Login** `/company/login` — allowed while the company has an engagement that isn't
+   closed (companies from before engagements keep the old subscription rule).
+4. Until onboarding is submitted, the key user is taken to **Company profile**.
+5. Otherwise **Dashboard**.
+
+Public sign-up (`/company/signup`) is switched off unless `PUBLIC_COMPANY_SIGNUP_ENABLED`
+is set. When on, a request does nothing until a Mjadi admin approves it on
+*Registrations* through the same set-up form.
 
 Forgot password: `/auth/forgot-password?portal=company`.
 
@@ -320,7 +331,7 @@ From `frontend/src/portals/company/nav.ts`:
 | 8 | Consultant questions | `/company/outreaches` | Approve/answer consultant outreaches |
 | 9 | Consultants | `/company/consultants` | See assigned published experts |
 | 10 | Reports | `/company/reports` | View / download / share |
-| 11 | Profile | `/company/onboarding` | Org questionnaire + account |
+| 11 | Company profile | `/company/onboarding` | Facts, who takes part, acknowledgement |
 | 12 | Settings | `/company/settings` | Org prefs; links to Billing & Media |
 
 **Under Settings (secondary):**
@@ -330,28 +341,29 @@ From `frontend/src/portals/company/nav.ts`:
 
 Shell: sidebar, notification bell (poll ~30s), optional integration warnings (OpenAI / Gotenberg / Stripe), impersonation banner when applicable.
 
-### 4.4 Profile / onboarding wizard
+### 4.4 Company profile (onboarding)
 
-Soft-required **10 sections** (nothing hard-required; “fill what you can”):
+One screen, about five minutes (Doc 07). Facts only — never goals, pain points, budget,
+revenue or readiness, which belong in the conversation with leadership.
 
-1. Company Profile  
-2. Departments & Operations  
-3. Current Technology  
-4. Business Processes  
-5. Data & Documents  
-6. Customer Engagement  
-7. Business Challenges  
-8. AI Readiness  
-9. Security & Infrastructure  
-10. Business Goals  
+1. **From your website** — what we read on the company's site, each marked as from the
+   website with the words it came from. *Confirm*, *Edit* or *Not right*; nothing is used
+   until confirmed. While the site is still being read, the screen checks back.
+2. **About the company** — industry, what exactly they do, headcount, headquarters and
+   other locations, business model, products and services, departments.
+3. **How work arrives and where it lives** — customer channels, systems, where data is
+   kept, AI tools in use ("None" is an answer, never a score), constraints.
+4. **Who takes part** — departments to involve and how many people from each (a count may
+   be "Not sure" until the fee is agreed), people already in mind (optional), other
+   managers to speak with (optional), the key user's language, and a link to upload an
+   organisation chart or process documents.
+5. The **confidentiality acknowledgement** (required) and **Submit**.
 
-Also on this page:
-
-- Account name + **admin phone** (`PATCH /me`)
-- Website URL (feeds web research when set)
-- Progress, Save & continue, Finish, **Skip for now**
-
-Completing sets `portal_onboarding_completed_at` and returns to dashboard.
+Every fact accepts "Not sure". Answers save as they are given. Submitting hands the
+engagement over to the leadership conversation; afterwards the same screen edits the facts
+(*Save changes*). Each fact records where it came from — confirmed from the website,
+entered by the client, found later in conversation, or the old questionnaire — and the
+platform company page shows that alongside the value.
 
 ### 4.5 Dashboard
 

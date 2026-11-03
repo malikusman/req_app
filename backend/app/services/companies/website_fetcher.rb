@@ -119,6 +119,11 @@ module Companies
       collected
     end
 
+    # One page's readable text, its header and footer kept apart.
+    def self.page_from_html(url, html)
+      new.send(:page_from, url, html)
+    end
+
     private
 
     def page_from(url, html)

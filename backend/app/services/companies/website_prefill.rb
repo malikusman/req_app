@@ -27,13 +27,16 @@ module Companies
     EXCERPT_WORDS = 25
     QUOTE_OVERLAP = 0.7
 
-    def self.call(engagement:)
-      new(engagement: engagement).call
+    # pages: already-read pages, for a demo or replay against a saved site; normally
+    # the website is fetched.
+    def self.call(engagement:, pages: nil)
+      new(engagement: engagement, pages: pages).call
     end
 
-    def initialize(engagement:)
+    def initialize(engagement:, pages: nil)
       @engagement = engagement
       @company = engagement.company
+      @given_pages = pages
     end
 
     def call
@@ -43,7 +46,7 @@ module Companies
       return finish!("failed", "model_unavailable") if OpenaiCircuitBreaker.open?
 
       @engagement.update!(prefill_status: "running", prefill_error: nil)
-      pages = WebsiteFetcher.new.pages(website)
+      pages = @given_pages || WebsiteFetcher.new.pages(website)
       parsed = extract(website, pages)
       return finish!("empty", "unusable_reply") unless parsed.is_a?(Hash)
       # The website changed while we were reading it: these values describe the old one.

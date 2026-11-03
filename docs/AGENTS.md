@@ -51,7 +51,7 @@ fixed input, a fixed output shape, and a deterministic fallback.
   *priorities* and the *report*; the consultant edits findings and the report; a rule
   *critic* checks the result. Each step reads the previous step's output.
 
-There are **14 distinct model-backed steps** (section 4). On a typical company:
+There are **17 distinct model-backed steps** (section 4). On a typical company:
 ~2 model calls per interview turn, ~4 jobs when an interview ends, and 3 model calls to
 write a report.
 
@@ -163,6 +163,7 @@ flowchart LR
 | 14 | **Speech** | Rails `DiscoverSpeechController` | web interview reads a question aloud | TTS | MP3 of the question | the browser's own voice |
 | 15 | **Cause, direction, what comes first** | Rails `Findings::DraftCauseAndDirection` (`DraftFindingCausesJob`) | findings built; a consultant rewords one; report generation | 1 JSON call per 12 findings | why it happens (said or analysis), kind of change, direction, what must be true first — each field kept only if it carries no figure, quote, product, build or payroll words | nothing drafted; the report prints no such lines |
 | 16 | **Links between findings** | Rails `Findings::DraftDependencies` | report generation | 1 JSON call | ids only: which finding comes after which — kept only between shown findings, grounded in the later one's own words, at most two each, never a loop | the links the findings already had |
+| 17 | **Website pre-fill** (P01) | Rails `Companies::WebsitePrefill` (`WebsitePrefillJob`) | engagement set up; website changed; Mjadi asks to re-read it | 1 JSON call (one retry for invalid JSON) | proposed values for up to 8 onboarding fields — industry, products, locations, business model, channels, departments, systems, AI tools — each with the page it came from and a quote. Kept only if: the field and values are allowed; the quote is the cited page's own words, from a page actually fetched; no headcount, revenue, budget or readiness; departments, systems and AI tools at medium confidence or above. Stored as `PROPOSED` candidates, never as facts | no proposals: the key user sees the plain form, without comment (no website, site unreachable after one retry, no model or `AI_PREFILL=false`, unusable reply) |
 
 Not model-backed, but central: the **dossier and area flow** (what to ask next and when
 to stop), **findings and hours**, **signal extraction** (keyword rules), the **report
@@ -170,6 +171,27 @@ critic** (rules), **interview health**, and **embeddings** used for memory retri
 catalogue matching.
 
 ---
+
+### 4.1 Onboarding: how a website proposal becomes a fact
+
+Doc 07 §5. The model proposes; only the client makes anything a fact.
+
+- `Companies::WebsiteFetcher` reads the home page and up to five same-site pages (about,
+  products, contact, locations, careers — English or Arabic links), SSRF-safe, keeping
+  header and footer text apart (that is where addresses and contacts are).
+- P01 runs from a versioned prompt file (`app/prompts/p01_website_prefill.v1.txt`: P00-A +
+  P01), every page fenced as `trust="untrusted"` after the instructions. Each candidate
+  records the prompt version.
+- Proposals are `prefill_candidates` with status `PROPOSED` (fact status INFERRED). Nothing
+  reads them but the onboarding screen: not `AgentContext`, not the report, not discovery.
+- The key user **confirms** (written to `company_profile` as `PREFILL_CONFIRMED`),
+  **edits** (what they save is `USER_ENTERED`; the website's value stays on the candidate
+  as evidence) or **sets aside** (nothing written). A proposal that disagrees with
+  something already entered is shown as "your website says…" and never applied by itself.
+- `company_profile` holds confirmed facts only, with each field's source in
+  `profile_provenance`. Goals, pain points, revenue, budget and readiness are not
+  profile fields and cannot be stored (Doc 07 §13); the old questionnaire's answers are
+  kept in `legacy_profile`, for consultants only.
 
 ## 5. Flow 1 — an interview turn
 
@@ -420,6 +442,10 @@ media item:
 
 This layer predates findings. With findings in place it now feeds only the report's
 appendix (by default) and the client portal's "What we found". See section 16.
+
+Website research (`WebResearchService`, one summarised knowledge entry) now runs only for
+companies without an engagement. Companies on an engagement get the website pre-fill
+instead (section 4.1), whose output is never read until the client confirms it.
 
 ---
 
