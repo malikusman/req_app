@@ -295,6 +295,13 @@ export const api = {
       token
     ),
 
+  answerPrefillProposal: (token: string, id: number, action: 'confirm' | 'correct' | 'reject') =>
+    request<{ candidate: PrefillProposal; answers?: QuestionnaireAnswerMap }>(
+      `/api/v1/company/onboarding/prefill_candidates/${id}/${action}`,
+      { method: 'POST' },
+      token
+    ),
+
   /** Submits onboarding the first time; afterwards, saves edits to the facts. */
   submitOnboarding: (token: string, payload: { answers: QuestionnaireAnswerMap; confidentiality_acknowledged: boolean }) =>
     request<OnboardingState & { redirect_to?: string }>(
@@ -2632,7 +2639,25 @@ export interface OnboardingState {
     planned_participant_count: number | null;
     confidentiality_acknowledged_at: string | null;
   } | null;
+  prefill: {
+    status: 'not_started' | 'pending' | 'running' | 'done' | 'empty' | 'failed';
+    entity_note: string | null;
+    candidates: PrefillProposal[];
+  } | null;
   confidentiality: { version: string; text: string };
+}
+
+/** A value read from the client's website, waiting for them to confirm (Doc 07 §5). */
+export interface PrefillProposal {
+  id: number;
+  target_field: string;
+  display_text: string;
+  evidence_excerpt: string;
+  source_url: string;
+  confidence: 'HIGH' | 'MEDIUM' | 'LOW';
+  status: 'PROPOSED' | 'CONFIRMED' | 'CORRECTED' | 'REJECTED';
+  /** Disagrees with something the key user already entered. */
+  conflicts: boolean;
 }
 
 export interface Engagement {

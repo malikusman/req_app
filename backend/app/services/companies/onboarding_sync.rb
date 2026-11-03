@@ -11,19 +11,22 @@ module Companies
   class OnboardingSync
     F = OnboardingFields
 
-    def self.call(company:, answers:, actor: nil)
-      new(company: company, answers: answers, actor: actor).call
+    # provenance: PREFILL_CONFIRMED when the answers are a website proposal the key
+    # user confirmed; otherwise they typed them.
+    def self.call(company:, answers:, actor: nil, provenance: "USER_ENTERED")
+      new(company: company, answers: answers, actor: actor, provenance: provenance).call
     end
 
-    def initialize(company:, answers:, actor:)
+    def initialize(company:, answers:, actor:, provenance:)
       @company = company
       @answers = (answers || {}).to_h.stringify_keys
       @actor = actor
+      @provenance = provenance
     end
 
     def call
       ProfileUpdater.call(company: @company, profile_params: profile_params, known_systems: systems,
-                          actor: @actor, only_changed: true)
+                          actor: @actor, provenance: @provenance, only_changed: true)
       sync_planned_departments!
       @company
     end

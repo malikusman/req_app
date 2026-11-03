@@ -79,9 +79,9 @@ module Api
             onboarding_submitted_at: engagement.onboarding_submitted_at,
             prefill_status: engagement.prefill_status,
             prefill_entity_note: engagement.prefill_entity_note,
-            prefill_candidates: engagement.prefill_candidates.order(:id).map do |c|
+            prefill_candidates: engagement.prefill_candidates.order(:id).map { |c|
               c.slice(:id, :target_field, :value, :display_text, :confidence, :status, :source_url, :evidence_excerpt)
-            end,
+            },
             confidentiality_acknowledged_at: engagement.confidentiality_acknowledged_at,
             key_user: key_user && { id: key_user.id, name: key_user.name, email: key_user.email,
                                     phone: key_user.phone, job_title: key_user.job_title, status: key_user.status },

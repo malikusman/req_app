@@ -213,6 +213,13 @@ Rails.application.routes.draw do
         patch "onboarding/questionnaire/answers", to: "onboarding#update_questionnaire_answers"
         post "onboarding/submit", to: "onboarding#submit"
         resources :onboarding_participants, path: "onboarding/participants", only: %i[index create update destroy]
+        resources :onboarding_prefill_candidates, path: "onboarding/prefill_candidates", only: [] do
+          member do
+            post :confirm
+            post :correct
+            post :reject
+          end
+        end
         resources :documents, only: %i[index show create update destroy] do
           member do
             get :download

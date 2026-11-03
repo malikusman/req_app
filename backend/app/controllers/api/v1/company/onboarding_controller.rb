@@ -122,6 +122,14 @@ module Api
               planned_participant_count: engagement.planned_participant_count,
               confidentiality_acknowledged_at: engagement.confidentiality_acknowledged_at
             },
+            # Proposals read from the website (Doc 07 §5), for the key user to confirm.
+            prefill: engagement && {
+              status: engagement.prefill_status,
+              entity_note: engagement.prefill_entity_note,
+              candidates: engagement.prefill_candidates.order(:id).map { |c|
+                OnboardingPrefillCandidatesController.candidate_json(c, current_company)
+              }
+            },
             confidentiality: {
               version: Fields::CONFIDENTIALITY_VERSION,
               text: format(Fields::CONFIDENTIALITY_TEXT, company: current_company.display_name.presence || current_company.name)
@@ -157,9 +165,25 @@ module Api
 
         def sync!(answers)
           Companies::OnboardingSync.call(company: current_company, answers: answers, actor: current_company_user)
+          mark_edited_proposals_corrected!
           language = Fields::LANGUAGES[answers["a4_language"].to_s]
           current_company_user.update!(preferred_language: language) if language
           current_company.update!(docs_profile_stale_at: Time.current) if current_company.documents.ready.exists?
+        end
+
+        # A confirmed website value the key user has since changed by hand is now
+        # theirs: its proposal becomes a correction, kept as the website's evidence.
+        def mark_edited_proposals_corrected!
+          engagement = current_company.current_engagement
+          return unless engagement
+
+          provenance = current_company.reload.profile_provenance
+          engagement.prefill_candidates.where(status: "CONFIRMED").find_each do |candidate|
+            key = Companies::PrefillAnswers::PROFILE_KEYS[candidate.target_field]
+            next unless key && provenance.dig(key, "source") != "PREFILL_CONFIRMED"
+
+            candidate.update!(status: "CORRECTED")
+          end
         end
 
         def acknowledge!(engagement)

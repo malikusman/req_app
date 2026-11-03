@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { api, type OnboardingState, type PlannedParticipant } from '../../lib/api';
+import { api, type OnboardingState, type PlannedParticipant, type PrefillProposal, type QuestionnaireAnswerMap } from '../../lib/api';
 import { useCompanyToken, useAuth } from '../../lib/auth';
 import { PageHeader, Card, Input, Button, Skeleton } from '../../components/ui';
 import { NOT_SURE, otherKey, type AnswerValue, type QuestionnaireAnswers, type QuestionnaireField } from '../../lib/formFields';
@@ -8,6 +8,7 @@ import { ONBOARDING_FIELDS, ONBOARDING_GROUPS } from '../../lib/onboardingFields
 import { FieldRenderer } from './questionnaire/FieldRenderer';
 import { useFormAutosave } from './useFormAutosave';
 import { ParticipantRows } from './onboarding/ParticipantRows';
+import { PrefillCards } from './onboarding/PrefillCards';
 
 const splitList = (text: AnswerValue) =>
   typeof text === 'string' ? text.split(/[,\n;]/).map((s) => s.trim()).filter(Boolean) : [];
@@ -56,6 +57,41 @@ export function CompanyOnboarding() {
   }, [token]);
 
   const autosave = useFormAutosave(token, answers, ONBOARDING_FIELDS);
+  const prefillReading = state?.prefill?.status === 'pending' || state?.prefill?.status === 'running';
+
+  // While the website is still being read, check back for its proposals — every
+  // five seconds, for up to two minutes. Only the proposals are refreshed; the
+  // key user's answers are never overwritten.
+  useEffect(() => {
+    if (!token || !prefillReading) return;
+    let polls = 0;
+    const timer = setInterval(() => {
+      polls += 1;
+      api
+        .companyOnboarding(token)
+        .then((d) => setState((prev) => (prev ? { ...prev, prefill: d.prefill } : d)))
+        .catch(() => undefined);
+      if (polls >= 24) clearInterval(timer);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [token, prefillReading]);
+
+  const proposalAnswered = (
+    proposal: PrefillProposal,
+    brought: QuestionnaireAnswerMap | undefined,
+    action: 'confirm' | 'correct' | 'reject'
+  ) => {
+    setState((prev) =>
+      prev?.prefill
+        ? { ...prev, prefill: { ...prev.prefill, candidates: prev.prefill.candidates.map((c) => (c.id === proposal.id ? proposal : c)) } }
+        : prev
+    );
+    if (!brought) return;
+    // Confirmed answers are already saved; edited ones are the key user's to
+    // change on the form, and save with it.
+    setAnswers((prev) => ({ ...prev, ...(brought as QuestionnaireAnswers) }));
+    if (action === 'correct') Object.keys(brought).forEach((id) => autosave.notifyChange(id));
+  };
   const submitted = Boolean(state?.submitted_at);
 
   const setAnswer = (id: string, value: AnswerValue) => {
@@ -180,6 +216,16 @@ export function CompanyOnboarding() {
           </Button>
         </div>
       </Card>
+
+      {state?.prefill && token && (
+        <PrefillCards
+          token={token}
+          proposals={state.prefill.candidates}
+          reading={prefillReading}
+          entityNote={state.prefill.entity_note}
+          onAnswered={proposalAnswered}
+        />
+      )}
 
       {ONBOARDING_GROUPS.map((group) => (
         <Card key={group.id} className="space-y-6 p-4 sm:p-6">
