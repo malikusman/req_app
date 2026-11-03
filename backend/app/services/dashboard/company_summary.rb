@@ -39,8 +39,9 @@ module Dashboard
         report_readiness_breakdown: @company.report_readiness_breakdown,
         engagement_mode: @company.engagement_mode,
         docs_first_phase: @company.docs_first_phase?,
-        questionnaire_completed_at: @company.questionnaire_completed_at,
-        questionnaire_completion_percent: Companies::QuestionnaireProgress.call(@company.questionnaire_answers)[:completion_percent],
+        # Onboarding is one short form, submitted or not; there is no percentage.
+        onboarding_submitted_at: @company.current_engagement&.onboarding_submitted_at,
+        engagement_status: @company.current_engagement&.status,
         usage: enforcer.usage_summary,
         latest_report: latest_report_json(latest_report),
         opportunity_estimate: opportunity_estimate_json,

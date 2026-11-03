@@ -46,20 +46,23 @@ module Companies
       raw.permit(*scalars, LIST_KEYS.index_with { [] }).to_h
     end
 
+    # only_changed: write a field only when its value differs from what is stored,
+    # so saving a whole form again keeps each fact's original provenance.
     def self.call(company:, profile_params: {}, known_systems: nil, website_url: :omit,
-                  provenance: "USER_ENTERED", actor: nil)
+                  provenance: "USER_ENTERED", actor: nil, only_changed: false)
       new(
         company: company,
         profile_params: profile_params,
         known_systems: known_systems,
         website_url: website_url,
         provenance: provenance,
-        actor: actor
+        actor: actor,
+        only_changed: only_changed
       ).call
     end
 
     def initialize(company:, profile_params: {}, known_systems: nil, website_url: :omit,
-                   provenance: "USER_ENTERED", actor: nil)
+                   provenance: "USER_ENTERED", actor: nil, only_changed: false)
       raise ArgumentError, "unknown provenance #{provenance}" unless PROVENANCE.include?(provenance)
 
       @company = company
@@ -68,6 +71,7 @@ module Companies
       @website_url = website_url
       @provenance = provenance
       @actor = actor
+      @only_changed = only_changed
     end
 
     def call
@@ -78,6 +82,8 @@ module Companies
 
         value = normalize_value(key, @profile_params[key])
         unknown = unknown?(@profile_params[key])
+        next if @only_changed && unchanged?(profile, provenance, key, unknown ? nil : value, unknown)
+
         if value.nil? || unknown
           profile.delete(key)
         else
@@ -103,6 +109,11 @@ module Companies
     end
 
     private
+
+    def unchanged?(profile, provenance, key, value, unknown)
+      was_unknown = provenance.dig(key, "unknown") == true
+      profile[key] == value && was_unknown == unknown
+    end
 
     def provenance_entry(unknown:)
       entry = { "source" => @provenance, "at" => Time.current.iso8601 }

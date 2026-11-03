@@ -54,7 +54,6 @@ module Api
         end
 
         def company_detail_json(company)
-          progress = Companies::QuestionnaireProgress.call(company.questionnaire_answers)
           engagement = company.current_engagement
           company_json(company).merge(
             engagement: engagement && EngagementsController.engagement_json(engagement),
@@ -63,10 +62,8 @@ module Api
               { id: u.id, email: u.email, name: u.name, role: u.role, status: u.status }
             end,
             company_profile: company.company_profile || {},
-            questionnaire_answers: company.questionnaire_answers || {},
-            questionnaire_step: company.questionnaire_step,
-            questionnaire_completed_at: company.questionnaire_completed_at,
-            questionnaire_completion_percent: progress[:completion_percent]
+            profile_provenance: company.profile_provenance || {},
+            onboarding_answers: company.questionnaire_answers || {}
           )
         end
 

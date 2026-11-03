@@ -9,7 +9,7 @@ class OnboardingPolicy < ApplicationPolicy
     company_admin?
   end
 
-  def complete?
+  def submit?
     company_admin?
   end
 end

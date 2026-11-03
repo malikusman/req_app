@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_11_03_120000) do
+ActiveRecord::Schema[7.1].define(version: 2026_11_03_130000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -374,6 +374,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_03_120000) do
     t.datetime "updated_at", null: false
     t.string "phone"
     t.string "job_title"
+    t.string "preferred_language"
     t.index ["company_id", "email"], name: "index_company_users_on_company_id_and_email", unique: true
     t.index ["company_id"], name: "index_company_users_on_company_id"
     t.index ["invited_by_id"], name: "index_company_users_on_invited_by_id"
@@ -978,6 +979,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_03_120000) do
     t.jsonb "planned_departments", default: [], null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "confidentiality_text_version"
     t.index ["company_id", "status"], name: "index_engagements_on_company_id_and_status"
     t.index ["company_id"], name: "index_engagements_on_company_id"
     t.index ["confidentiality_acknowledged_by_id"], name: "index_engagements_on_confidentiality_acknowledged_by_id"
