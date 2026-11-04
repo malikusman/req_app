@@ -54,6 +54,8 @@ class Employee < ApplicationRecord
       "team_size" => profile_data["team_size"],
       "primary_tools" => profile_data["primary_tools"] || [],
       "preferred_language" => preferred_language
-    }
+    }.tap do |card|
+      card["role_clarification"] = profile_data["role_clarification"] if profile_data["role_clarification"].present?
+    end
   end
 end

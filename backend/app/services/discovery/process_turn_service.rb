@@ -25,6 +25,27 @@ module Discovery
     end
 
     def call
+      return execute_turn unless @inbound_message
+
+      # Serialize recovery and normal delivery for this saved answer. The result
+      # is stored with the source message, so a retry cannot advance the dossier twice.
+      @conversation.with_lock do
+        @inbound_message.reload
+        saved = @inbound_message.raw_payload&.dig("discovery_result")
+        next saved if saved.is_a?(Hash)
+
+        result = execute_turn
+        unless result["delayed"]
+          result["source_message_id"] = @inbound_message.id
+          @inbound_message.update!(raw_payload: (@inbound_message.raw_payload || {}).merge("discovery_result" => result, "discovery_pending" => false))
+        else
+          @inbound_message.update!(raw_payload: (@inbound_message.raw_payload || {}).merge("discovery_pending" => result["retryable"] != false))
+        end
+        result
+      end
+    end
+
+    def execute_turn
       playbook = nil
       ensure_thread!
       playbook = DiscoveryPlaybook.active_playbook_for(@employee.department.presence || "default")
@@ -47,6 +68,7 @@ module Discovery
         multi_agent: multi_agent_payload
       )
 
+      validate_workflow_contract!(result)
       persist_turn!(result, playbook)
       OpenaiCircuitBreaker.reset!
       result
@@ -55,11 +77,28 @@ module Discovery
       handle_unavailable!(
         playbook: playbook,
         trip_breaker: e.retryable,
-        defer: e.retryable
+        defer: e.retryable,
+        retryable: e.retryable
       )
     end
 
     private
+
+    def validate_workflow_contract!(result)
+      workflow = result.dig("blackboard", "dossier", "workflow")
+      if @conversation.dossier["workflow"].is_a?(Hash) && !workflow.is_a?(Hash)
+        raise Langgraph::UnavailableError.new("missing_workflow_contract", retryable: false)
+      end
+      return unless result["completed"] && workflow.is_a?(Hash)
+
+      valid = %w[successful needs_follow_up employee_stopped].include?(workflow["outcome"])
+      if workflow["outcome"] == "successful"
+        confirmation = workflow["confirmation"] || {}
+        valid &&= workflow["tasks"].is_a?(Array) && workflow["tasks"].any? &&
+          confirmation["revision"] == workflow["revision"] && confirmation["summary_sha256"].present?
+      end
+      raise Langgraph::UnavailableError.new("invalid_workflow_completion", retryable: false) unless valid
+    end
 
     def ensure_thread!
       return if @conversation.langgraph_thread_id.present?
@@ -92,8 +131,8 @@ module Discovery
       # Multi-agent turns lean on the rolling summary, but too small a raw window
       # meant the model couldn't see the interview's opening questions by mid-flow
       # and re-asked them — keep enough recent turns for an explicit anti-repeat guard.
-      window = multi_agent_enabled? ? 14 : 24
-      @conversation.messages.order(:created_at).last(window).filter_map do |msg|
+      window = multi_agent_enabled? ? 80 : 24
+      @conversation.messages.order(:created_at, :id).last(window).filter_map do |msg|
         next if msg.body.blank?
         next if msg.message_type == "system"
         # A "brief delay" apology is not something the interviewer said — it is a
@@ -104,7 +143,8 @@ module Discovery
         next if msg.raw_payload.is_a?(Hash) && msg.raw_payload["kind"] == "delay_notice"
 
         role = msg.direction == "outbound" ? "assistant" : "user"
-        { role: role, content: msg.body }
+        { role: role, content: msg.body, message_id: msg.id,
+          area: msg.routing_decision&.dig("area"), task_id: msg.routing_decision&.dig("task_id") }.compact
       end
     end
 
@@ -125,6 +165,7 @@ module Discovery
       # value wins over the company/ENV default the ContextBuilder resolved.
       limits = context[:limits].merge(max_questions: @conversation.max_questions)
       {
+        source_message_id: @inbound_message&.id,
         profile: context[:profile],
         blackboard: context[:blackboard],
         limits: limits,
@@ -178,14 +219,14 @@ module Discovery
       result
     end
 
-    def handle_unavailable!(playbook: nil, trip_breaker: true, defer: nil)
+    def handle_unavailable!(playbook: nil, trip_breaker: true, defer: nil, retryable: true)
       # Only trip a CLOSED breaker. trip! is a setex, so calling it while open
       # refreshes the cool-off window and the breaker never reopens under load.
       OpenaiCircuitBreaker.trip! if trip_breaker && !OpenaiCircuitBreaker.open?
       lang = @employee.preferred_language.presence || @company.locale
       defer = @defer_on_failure if defer.nil?
 
-      if defer
+      if defer && @defer_on_failure
         RetryDiscoveryTurnJob.set(wait: 30.seconds).perform_later(
           @conversation.id,
           @user_message,
@@ -198,6 +239,7 @@ module Discovery
         "assistant_message" => DELAY_MESSAGES.fetch(lang, DELAY_MESSAGES["en"]),
         "completed" => false,
         "delayed" => true,
+        "retryable" => retryable,
         "playbook_version" => playbook&.version
       }
     end
