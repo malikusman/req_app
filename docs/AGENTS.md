@@ -161,6 +161,8 @@ flowchart LR
 | 12 | **Priorities + not recommended** | Rails `Findings::Priorities` | report generation | 1 JSON call | 3–5 grouped priorities with kind of change and direction; 1–3 things advised against | the largest findings, one each |
 | 13 | **Report writer** | Rails `Reports::NarrativeWriter` | report generation | 1 JSON call | governing thought, summary, supporting points, role-potential lines | computed summary; roadmap from priorities |
 | 14 | **Speech** | Rails `DiscoverSpeechController` | web interview reads a question aloud | TTS | MP3 of the question | the browser's own voice |
+| 15 | **Cause, direction, what comes first** | Rails `Findings::DraftCauseAndDirection` (`DraftFindingCausesJob`) | findings built; a consultant rewords one; report generation | 1 JSON call per 12 findings | why it happens (said or analysis), kind of change, direction, what must be true first — each field kept only if it carries no figure, quote, product, build or payroll words | nothing drafted; the report prints no such lines |
+| 16 | **Links between findings** | Rails `Findings::DraftDependencies` | report generation | 1 JSON call | ids only: which finding comes after which — kept only between shown findings, grounded in the later one's own words, at most two each, never a loop | the links the findings already had |
 
 Not model-backed, but central: the **dossier and area flow** (what to ask next and when
 to stop), **findings and hours**, **signal extraction** (keyword rules), the **report
@@ -452,10 +454,28 @@ What keeps the report honest:
   sentence by sentence; hours exactly as given; never money, headcount or savings.
 - **Money**: only from agreed benchmark rates (`BenchmarkRate`); none exist yet, so hours
   only.
-- **Critic** (`Reports::Critic`) blocks approval on: totals that don't reconcile, findings
-  changed since generation, a finding that reads as a quote, a named employee, salary or
-  cut language, money without rates, build detail. Warns on overreach, few quantified
-  findings, product names, the consultant's own money estimate.
+- **Critic** (`Reports::Critic`, rules only) runs before platform approval and before a
+  consultant can submit their review. It **blocks** on:
+  - totals that don't reconcile;
+  - a yearly hours figure in the consultant's text that no finding carries;
+  - findings changed since generation;
+  - a finding with no role, or neither how often nor how long (a theme, not work);
+  - a finding that reads as a quote, or a named employee;
+  - salary or cut language, or money without rates;
+  - an hourly rate or Mjadi's own commercial terms;
+  - build detail, or a Stage 2 section;
+  - product names or published ideas;
+  - a company-wide conclusion from partial coverage.
+
+  It **warns** on:
+  - other figures in the consultant's text;
+  - overreach wording;
+  - a department described that nobody spoke for;
+  - one person's findings for the same work, or several findings for one cause;
+  - a role claiming more hours than its people work;
+  - few quantified findings;
+  - findings approved since generation;
+  - the consultant's own money estimate.
 
 ---
 

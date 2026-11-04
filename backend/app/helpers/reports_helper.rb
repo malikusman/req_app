@@ -46,6 +46,36 @@ module ReportsHelper
     edits.is_a?(Hash) ? edits[key.to_s] : nil
   end
 
+  # The one-sentence answer the cover and the brief lead with. A consultant who
+  # rewrote the executive summary is quoted, not the writer they replaced — else
+  # the report says one thing on the cover and another on page three.
+  def report_governing_message(snapshot)
+    edited = report_first_sentence(report_section_edit(snapshot, "executive_summary")&.dig("body"))
+    edited || snapshot.dig("narrative", "governing_thought").presence ||
+      report_first_sentence(snapshot["executive_summary"])
+  end
+
+  # A full stop after these ends a word, not a sentence — "Gulf Trading Co. spend…".
+  SENTENCE_ABBREVIATIONS = %w[co ltd inc corp llc plc bros est mr mrs ms dr st no vs etc approx e.g i.e].freeze
+
+  # First sentence of prose that may carry the consultant's light formatting:
+  # headings are skipped, list markers and emphasis dropped.
+  def report_first_sentence(text)
+    prose = text.to_s.lines.map(&:strip).reject { |l| l.blank? || l.start_with?("#") }
+                .map { |l| l.sub(/\A(?:[-*]|\d+\.)\s+/, "").delete("*_") }.join(" ")
+    pieces = prose.split(/(?<=[.!?])\s+/)
+    sentence = pieces.shift
+    while pieces.any? && sentence_continues?(sentence, pieces.first)
+      sentence = "#{sentence} #{pieces.shift}"
+    end
+    sentence.presence
+  end
+
+  def sentence_continues?(before, after)
+    last_word = before[/(\S+)\.\z/, 1].to_s.downcase
+    SENTENCE_ABBREVIATIONS.include?(last_word) || after.match?(/\A[a-z]/)
+  end
+
   # Custom sections a consultant added, anchored after a given built-in section
   # (or, when anchor is blank, only when `anchor` itself is nil — i.e. trailing).
   def report_custom_sections(snapshot, after: nil)
@@ -100,10 +130,17 @@ module ReportsHelper
     "Mjadi · #{company_name} #{report_kind_noun(snapshot || @_report_snapshot)} Report"
   end
 
-  # "Baseline" for docs-only companies, "Discovery" once interviews contribute.
+  # Every page carries its version, date and marking, so a forwarded page can never
+  # be mistaken for a current one (Doc 15 §9.3). The templates set the version and
+  # date once, as they do the snapshot.
+  def report_footer_meta
+    [@_report_version.present? ? "v#{@_report_version}" : nil, @_generated_label.presence, "Confidential"].compact.join(" · ")
+  end
+
+  # "Baseline" for docs-only companies, "Diagnostic" once interviews contribute.
   def report_kind_noun(snapshot)
     kind = snapshot.is_a?(Hash) ? snapshot["report_kind"].to_s : ""
-    kind == "baseline" ? "Baseline" : "Discovery"
+    kind == "baseline" ? "Baseline" : "Diagnostic"
   end
 
   # Plain-language band for a 0..1 (or 0..100) score. Consulting readers want
@@ -209,10 +246,21 @@ module ReportsHelper
     [[v.round, 0].max, 100].min
   end
 
+  # The signal-era "What changed" view. A findings-era delta is "What's new"
+  # instead, and renders up front (report_whats_new?).
   def report_has_delta?(delta)
     delta = delta || {}
+    return false if delta["findings"].is_a?(Hash)
+
     summary = delta["summary"].to_s
     summary.present? && summary != "Initial discovery report"
+  end
+
+  # From version 2 onward, when any finding was added, updated or superseded, or a
+  # department newly covered (Doc 15 §4.0).
+  def report_whats_new?(delta)
+    changes = (delta || {})["findings"]
+    changes.is_a?(Hash) && changes.values.any? { |v| Array(v).any? }
   end
 
   def report_priority_pill(priority)
@@ -283,7 +331,7 @@ module ReportsHelper
     "Where to act first" => "recommendations", "What we advise against" => "recommendations",
     "Scope & coverage" => "coverage",
     "Company context" => "company_context",
-    "What changed" => "delta", "Signals" => "signals", "Patterns" => "patterns",
+    "What changed" => "delta", "What's new" => "delta", "Signals" => "signals", "Patterns" => "patterns",
     "Implications" => "patterns", "Recommendations" => "recommendations",
     "Roadmap" => "roadmap", "Opportunities" => "opportunities",
     "Capabilities" => "tools_catalog",
@@ -301,6 +349,9 @@ module ReportsHelper
       entries << { n: format("%02d", n), title: title, description: description, rule: rule }
     end
 
+    if report_whats_new?(snapshot["delta_from_previous"])
+      add.call("What's new", "Findings added, updated or superseded since the last version", "rule-teal")
+    end
     add.call("Executive summary", "The headline story in one read", "rule-blue") if snapshot["executive_summary"].present?
     expert = report_expert(snapshot)
     if expert && (expert["verdict"] || expert["opportunity"])
@@ -377,7 +428,7 @@ module ReportsHelper
 
   def report_source_caption(company_name, version: nil)
     ver = version.present? ? "v#{version}" : "snapshot"
-    "Source: Mjadi discovery #{ver} · #{company_name}"
+    "Source: Mjadi diagnostic #{ver} · #{company_name}"
   end
 
   SECTION_LABELS = {
@@ -591,13 +642,16 @@ module ReportsHelper
 
     value.length <= 3 ? value.upcase : value.upcase_first
   end
+  module_function :report_department_label
 
   # The role tables, packed onto pages, in units of one table row (about 13mm). A
   # role's rows stay together unless the role alone is longer than a page; a role
-  # heading with its column headers costs about two rows, and a row whose text runs
-  # to extra lines costs more. Measured against the rendered sheet, with margin.
+  # heading with its column headers and the Stage 2 note under its table costs
+  # about two rows, and a row whose text runs to extra lines costs more. Each row
+  # carries its basis and confidence under the task. Measured against the rendered
+  # sheet, with margin.
   FINDINGS_PAGE_CAPACITY = 12.0
-  FINDINGS_HEADING_COST = 1.8
+  FINDINGS_HEADING_COST = 2.2
   FINDINGS_POTENTIAL_COST = 0.5
 
   def report_findings_pages(view)
@@ -641,7 +695,39 @@ module ReportsHelper
 
   def report_finding_row_cost(finding)
     text = finding["friction"].to_s.length + [finding["what_happens_now"].to_s.length, 160].min
-    text > 200 ? 1.4 : 1.0
+    row = text > 200 ? 1.55 : 1.15
+    row + report_finding_detail_cost(finding)
+  end
+
+  # The cause, direction and dependency lines beneath a finding: about a third of a row a line,
+  # at some 140 characters a line across the table.
+  FINDING_DETAIL_LINE_COST = 0.32
+
+  def report_finding_detail_cost(finding)
+    after = Array(finding["depends_on"]).map { |d| "“#{d['title']}” (#{d['department']}); " }.join
+    lines = [[finding["cause"], 30], [finding["direction"], 45], [finding["dependency"], 20], [after, 12]].sum do |text, label|
+      text.present? ? ((text.to_s.length + label) / 140.0).ceil : 0
+    end
+    lines.zero? ? 0 : 0.1 + lines * FINDING_DETAIL_LINE_COST
+  end
+
+  FINDING_BASIS_LABELS = {
+    "discovery" => "Discovery conversation",
+    "discovery_partial" => "Unfinished conversation",
+    "deep_dive" => "Deep dive",
+    "consultant" => "Added by the consultant"
+  }.freeze
+
+  # Plain labels only; the internal grade is never shown (Doc 15 §8.3).
+  FINDING_CONFIDENCE_LABELS = {
+    "high" => "High confidence", "medium" => "Moderate confidence", "low" => "Requires validation"
+  }.freeze
+
+  # Where a finding comes from and how far to trust it, in the client's words:
+  # "Discovery conversation · Moderate confidence".
+  def report_finding_basis(finding)
+    [FINDING_BASIS_LABELS[finding["basis"].to_s], FINDING_CONFIDENCE_LABELS[finding["confidence"].to_s]]
+      .compact.join(" · ").presence
   end
 
   # --- Expert layer -------------------------------------------------------
@@ -683,6 +769,17 @@ module ReportsHelper
   # Deterministic stand-in for the LLM narrative's supporting points, so the
   # brief's first page is honest rather than sparse when no model is configured.
   def report_deterministic_support(snapshot, limit: 3)
+    # With findings, the points are where to act first and the hours behind each —
+    # the same figures as the priorities page — not the keyword-era signals.
+    if snapshot.dig("findings", "totals", "findings").to_i.positive?
+      return Array(snapshot["priorities"]).first(limit).filter_map do |priority|
+        next if priority["title"].blank?
+
+        hours = report_hours(priority["hours_min"], priority["hours_max"])
+        hours ? "#{priority['title']} — about #{hours} hours a year" : priority["title"]
+      end
+    end
+
     Array(snapshot["signals"]).sort_by { |s| -s["strength"].to_f }.first(limit).filter_map do |signal|
       label = signal["label"].to_s.strip
       next if label.blank?

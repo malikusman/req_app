@@ -57,6 +57,86 @@ RSpec.describe "Consultant review of findings", type: :request do
     expect(json["status"]).to eq("approved")
   end
 
+  it "keeps the consultant's cause and direction over the draft, as analysis unless they say otherwise" do
+    a.update!(cause: "No import route", cause_stated: true, intervention_type: "integration_data_fix",
+              direction: "Bring sheets in directly", draft_digest: a.draft_inputs_digest)
+    patch "/api/v1/consultant/companies/#{company.id}/findings/#{a.id}",
+          params: { finding: { consultant_cause: "Layouts differ by supplier", consultant_intervention_type: "process_change",
+                               consultant_direction: "Agree one sheet layout with suppliers" } },
+          headers: headers
+
+    json = JSON.parse(response.body)["finding"]
+    expect(json.values_at("cause", "cause_stated", "intervention_type", "direction"))
+      .to eq(["Layouts differ by supplier", false, "process_change", "Agree one sheet layout with suppliers"])
+    expect(json["drafted"]["cause"]).to eq("No import route")
+    expect(DraftFindingCausesJob).not_to have_been_enqueued
+  end
+
+  it "lets the consultant say who gave the cause without rewording it" do
+    a.update!(cause: "Each supplier's sheet has its own layout", cause_stated: true, draft_digest: a.draft_inputs_digest)
+    patch "/api/v1/consultant/companies/#{company.id}/findings/#{a.id}",
+          params: { finding: { consultant_cause_stated: false } }, headers: headers, as: :json
+
+    json = JSON.parse(response.body)["finding"]
+    expect(json.values_at("cause", "cause_stated")).to eq(["Each supplier's sheet has its own layout", false])
+
+    patch "/api/v1/consultant/companies/#{company.id}/findings/#{a.id}",
+          params: { finding: { consultant_cause_stated: nil } }, headers: headers, as: :json
+    expect(JSON.parse(response.body)["finding"]["cause_stated"]).to be(true)
+  end
+
+  describe "what must come first" do
+    def save(**finding_params)
+      patch "/api/v1/consultant/companies/#{company.id}/findings/#{a.id}",
+            params: { finding: finding_params }, headers: headers, as: :json
+      JSON.parse(response.body)
+    end
+
+    it "keeps the consultant's dependency and links over the draft" do
+      a.update!(dependency: "Codes are consistent", depends_on_ids: [b.id], draft_digest: a.draft_inputs_digest)
+      json = save(consultant_dependency: "One sheet layout is agreed", consultant_depends_on_ids: [])["finding"]
+
+      expect(json.values_at("dependency", "depends_on_ids")).to eq(["One sheet layout is agreed", []])
+      expect(json["drafted"].values_at("dependency", "depends_on_ids")).to eq(["Codes are consistent", [b.id]])
+    end
+
+    it "follows the drafted links again when the consultant's are cleared" do
+      a.update!(depends_on_ids: [b.id], consultant_depends_on_ids: [])
+      expect(save(consultant_depends_on_ids: nil)["finding"]["depends_on_ids"]).to eq([b.id])
+    end
+
+    it "refuses a link that would close a loop" do
+      b.update!(consultant_depends_on_ids: [a.id])
+      body = save(consultant_depends_on_ids: [b.id])
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(body["error"]).to include("would make a loop")
+    end
+
+    it "refuses a link to the finding itself, or to one set aside" do
+      save(consultant_depends_on_ids: [a.id])
+      expect(response).to have_http_status(:unprocessable_entity)
+
+      b.update!(status: "hidden")
+      save(consultant_depends_on_ids: [b.id])
+      expect(response).to have_http_status(:unprocessable_entity)
+    end
+  end
+
+  it "redrafts the cause and direction when the wording changes" do
+    a.update!(draft_digest: a.draft_inputs_digest)
+    expect do
+      patch "/api/v1/consultant/companies/#{company.id}/findings/#{a.id}",
+            params: { finding: { consultant_friction: "Price sheets are retyped line by line" } }, headers: headers
+    end.to have_enqueued_job(DraftFindingCausesJob).with([a.id])
+  end
+
+  it "refuses a kind of change that is not on the list" do
+    patch "/api/v1/consultant/companies/#{company.id}/findings/#{a.id}",
+          params: { finding: { consultant_intervention_type: "blockchain" } }, headers: headers
+    expect(response).to have_http_status(:unprocessable_entity)
+  end
+
   it "clears the review flag once a single-occupant finding is approved" do
     patch "/api/v1/consultant/companies/#{company.id}/findings/#{c.id}", params: { finding: { status: "approved" } }, headers: headers
     expect(JSON.parse(response.body)["finding"]["needs_review"]).to be(false)

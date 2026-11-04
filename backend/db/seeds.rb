@@ -125,23 +125,23 @@ company.update!(settings: company.settings.merge(
   "discovery_question_target" => 12
 ))
 
-reviewer = ReviewerUser.find_or_create_by!(email: "reviewer@reqapp.local") do |u|
-  u.name = "Expert Reviewer"
+consultant = ConsultantUser.find_or_create_by!(email: "consultant@reqapp.local") do |u|
+  u.name = "Expert Consultant"
   u.password = "password123"
   u.status = "active"
   u.jti = SecureRandom.uuid
 end
-puts "Reviewer: #{reviewer.email} / password123"
+puts "Consultant: #{consultant.email} / password123"
 
-ReviewerUser.find_or_create_by!(email: "reviewer2@reqapp.local") do |u|
+ConsultantUser.find_or_create_by!(email: "consultant2@reqapp.local") do |u|
   u.name = "Finance Specialist"
   u.password = "password123"
   u.status = "active"
   u.jti = SecureRandom.uuid
 end
-puts "Reviewer: reviewer2@reqapp.local / password123"
+puts "Consultant: consultant2@reqapp.local / password123"
 
-ReviewerAssignment.find_or_create_by!(company: company, reviewer_user: reviewer, status: "active") do |a|
+ConsultantAssignment.find_or_create_by!(company: company, consultant_user: consultant, status: "active") do |a|
   a.assigned_by_platform_user = platform
   a.assigned_at = Time.current
 end
@@ -179,7 +179,7 @@ beta.update!(settings: beta.settings.merge(
   "discovery_question_target" => 12
 ))
 
-ReviewerAssignment.find_or_create_by!(company: beta, reviewer_user: reviewer, status: "active") do |a|
+ConsultantAssignment.find_or_create_by!(company: beta, consultant_user: consultant, status: "active") do |a|
   a.assigned_by_platform_user = platform
   a.assigned_at = Time.current
 end

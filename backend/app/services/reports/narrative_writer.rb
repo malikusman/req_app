@@ -24,7 +24,7 @@ module Reports
     end
 
     def call
-      return nil unless enabled?
+      return nil unless Llm::ReportNarrative.enabled?
 
       client = Openai::Client.new
       return nil unless client.configured?
@@ -37,12 +37,6 @@ module Reports
     end
 
     private
-
-    # Off only when explicitly disabled. Local Gemma testing works by pointing
-    # OPENAI_BASE_URL at the local endpoint and setting a dummy OPENAI_API_KEY.
-    def enabled?
-      ENV.fetch("AI_REPORT_NARRATIVE", "true").to_s.downcase != "false"
-    end
 
     # Compact, evidence-only context. No raw PII; just the structured findings
     # the report already stands on.

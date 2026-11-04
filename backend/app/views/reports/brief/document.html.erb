@@ -23,7 +23,9 @@
 <% recommendations = Array(snapshot["recommendations"]).sort_by { |r| -r["impact_score"].to_f } %>
 <% roadmap = snapshot["roadmap"].is_a?(Hash) ? snapshot["roadmap"] : {} %>
 <% docs_first = snapshot["docs_first_phase"] == true || snapshot["report_kind"].to_s == "baseline" %>
-<% foot = ->(n) { %(<div class="foot"><span class="brand">#{h report_brand_footer(company_name)}</span><span>#{n} / 4</span></div>).html_safe } %>
+<% @_report_version = report_version %>
+<% @_generated_label = generated_label %>
+<% foot = ->(n) { %(<div class="foot"><span class="brand">#{h report_brand_footer(company_name, snapshot)}</span><span>#{h report_footer_meta} · #{n} / 4</span></div>).html_safe } %>
 
 <%# ===== PAGE 1 · THE ANSWER, AND WHAT IT'S WORTH ===================== %>
 <section class="page">
@@ -42,14 +44,14 @@
   <%# Labels the page like the other three, and gives the in-portal reader
       something to name it in the section rail. %>
   <div class="eyebrow" style="margin-bottom:5mm;">The answer</div>
-  <% headline = narrative["governing_thought"].presence ||
-                snapshot.dig("situation", "headline").presence ||
-                snapshot["executive_summary"].to_s.split(/(?<=\.)\s+/).first %>
+  <%# The consultant's rewrite leads when there is one, as on the cover. %>
+  <% headline = report_governing_message(snapshot) || snapshot.dig("situation", "headline") %>
   <h1 class="answer"><%= h headline %></h1>
 
   <%# Without a model there are no narrative supporting points, which left this
       page with a headline and nothing under it. The deterministic stand-in is
-      built from the real signals, so the page is honest either way. %>
+      built from the priorities (or, without findings, the signals), so the page
+      is honest either way. %>
   <% support = Array(narrative["supporting_points"]).reject(&:blank?).first(3) %>
   <% support = report_deterministic_support(snapshot) if support.empty? %>
   <% if support.any? %>
@@ -58,8 +60,11 @@
     </ul>
   <% end %>
 
+  <%# The implications are pattern statements; with findings they are not the
+      account the brief gives, so only the writer's stakes stand. %>
+  <% has_findings = snapshot.dig("findings", "totals", "findings").to_i.positive? %>
   <% stakes = narrative["stakes"].presence ||
-              Array(snapshot["implications"]).max_by { |i| i["confidence"].to_f }&.dig("statement") %>
+              (has_findings ? nil : Array(snapshot["implications"]).max_by { |i| i["confidence"].to_f }&.dig("statement")) %>
   <% if stakes.present? %>
     <div class="stakes"><strong>What's at stake.</strong> <%= h stakes %></div>
   <% end %>
@@ -128,16 +133,8 @@
       </div>
     </div>
   <% end %>
-  <% top_pattern = patterns.max_by { |p| p["confidence"].to_f } %>
-  <% if top_pattern %>
-    <div class="pattern">
-      <div class="exlabel">Strongest cross-team pattern</div>
-      <div class="t" style="margin-top:2mm;"><%= h top_pattern["title"] %></div>
-      <% if top_pattern["description"].present? %>
-        <p><%= h top_pattern["description"].to_s.truncate(320) %></p>
-      <% end %>
-    </div>
-  <% end %>
+  <%# No "strongest pattern" box here: patterns are the keyword-era account of
+      the same interviews, in other words and other numbers. %>
   <%= foot.call(2) %>
 </section>
 <% elsif signals.any? %>
@@ -294,7 +291,7 @@
     <% else %>
       <p>Review the recommendations with the owners named against each, and pick the first one to fund.</p>
     <% end %>
-    <div class="pointer">The full report — every signal, all supporting evidence and the complete expert appendix — is available in your Mjadi portal.</div>
+    <div class="pointer">The full report — every finding, the method behind the figures and the complete expert appendix — is available in your Mjadi portal.</div>
   </div>
   <%= foot.call(4) %>
 </section>

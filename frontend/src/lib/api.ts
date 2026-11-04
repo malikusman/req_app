@@ -1028,7 +1028,7 @@ export const api = {
     ),
 
   consultantFindings: (token: string, companyId: number) =>
-    request<{ findings: Finding[]; summary: FindingsSummary }>(
+    request<{ findings: Finding[]; summary: FindingsSummary; intervention_types: { key: string; label: string }[] }>(
       `/api/v1/consultant/companies/${companyId}/findings`,
       {},
       token
@@ -2648,7 +2648,41 @@ export interface Finding {
   what_happens_now: string | null;
   friction: string | null;
   original: { title: string | null; what_happens_now: string | null; friction: string | null };
-  consultant: { title: string | null; what_happens_now: string | null; friction: string | null; note: string | null };
+  consultant: {
+    title: string | null;
+    what_happens_now: string | null;
+    friction: string | null;
+    note: string | null;
+    cause: string | null;
+    /** null: not said; the draft's reading stands, or analysis for their own cause. */
+    cause_stated: boolean | null;
+    intervention_type: string | null;
+    direction: string | null;
+    dependency: string | null;
+    /** null while the drafted links stand; a list, even empty, once the consultant set one. */
+    depends_on_ids: number[] | null;
+  };
+  /** The model's draft of why it happens, the kind of change and what must come first. */
+  drafted: {
+    cause: string | null;
+    cause_stated: boolean;
+    intervention_type: string | null;
+    direction: string | null;
+    dependency: string | null;
+    depends_on_ids: number[];
+  };
+  /** What the report prints: the consultant's where they wrote one, the draft otherwise. */
+  cause: string | null;
+  /** False: the report labels the cause as analysis. */
+  cause_stated: boolean;
+  intervention_type: string | null;
+  direction: string | null;
+  /** What must be true before the change can work. */
+  dependency: string | null;
+  /** Findings that must be addressed first; only shown ones reach the report. */
+  depends_on_ids: number[];
+  /** The wording changed since the draft, or it was never drafted; it is redrafted shortly. */
+  draft_pending: boolean;
   frequency: { as_said: string | null; min: number | null; max: number | null; unit: string | null };
   duration: { as_said: string | null; min: number | null; max: number | null; unit: string | null };
   effort_type: 'active' | 'waiting' | 'mixed' | 'unknown';
@@ -2719,6 +2753,14 @@ export interface FindingUpdate {
   consultant_what_happens_now?: string;
   consultant_friction?: string;
   consultant_note?: string;
+  /** Empty puts the draft back. */
+  consultant_cause?: string;
+  consultant_cause_stated?: boolean | null;
+  consultant_intervention_type?: string;
+  consultant_direction?: string;
+  consultant_dependency?: string;
+  /** null follows the drafted links again; a list, even empty, is the consultant's own. */
+  consultant_depends_on_ids?: number[] | null;
   /** null clears the correction and puts the interview's figures back. */
   consultant_effort?: FindingEffort | null;
 }

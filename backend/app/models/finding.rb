@@ -9,6 +9,13 @@ class Finding < ApplicationRecord
   FREQUENCY_UNITS = %w[per_day per_week per_month per_quarter per_year per_event].freeze
   DURATION_UNITS = %w[minutes hours days].freeze
   EFFORT_TYPES = %w[active waiting mixed unknown].freeze
+  # The kinds of change a Stage 1 report may name, plainly (Doc 15 §4.5.7).
+  INTERVENTION_TYPES = {
+    "ai_agent" => "AI agent", "ai_workflow" => "AI workflow", "ai_assistant" => "AI assistant",
+    "automation" => "Automation", "configure_existing" => "Configuration of existing systems",
+    "ready_made_tool" => "Ready-made tool", "process_change" => "Process or procedure change",
+    "integration_data_fix" => "Integration or data fix", "training" => "Training", "remove_work" => "Remove the work"
+  }.freeze
 
   belongs_to :company
   belongs_to :employee, optional: true
@@ -23,6 +30,8 @@ class Finding < ApplicationRecord
   validates :effort_type, inclusion: { in: EFFORT_TYPES }
   validates :frequency_unit, inclusion: { in: FREQUENCY_UNITS }, allow_nil: true
   validates :duration_unit, inclusion: { in: DURATION_UNITS }, allow_nil: true
+  validates :intervention_type, :consultant_intervention_type,
+            inclusion: { in: INTERVENTION_TYPES.keys }, allow_blank: true
 
   belongs_to :reviewed_by, class_name: "ConsultantUser", optional: true
 
@@ -30,6 +39,7 @@ class Finding < ApplicationRecord
 
   validate :merge_target_is_a_live_sibling
   validate :consultant_effort_is_coherent
+  validate :consultant_links_are_sound, if: :consultant_depends_on_ids_changed?
 
   # Hours are worked out here and nowhere else, from the consultant's figures when
   # they corrected them and the interview's otherwise — whenever either changes.
@@ -49,9 +59,43 @@ class Finding < ApplicationRecord
 
   # What a client would read: the consultant's wording where they gave one, the
   # interview's otherwise. The machine text itself is never changed.
+  # { merged finding id => the finding it was merged into }, so a link or a
+  # reference to a merged finding follows it to the one that stands.
+  def self.merge_targets = where(status: "merged").pluck(:id, :merged_into_id).to_h
+
   def display_title = consultant_title.presence || title.presence || area
   def display_what_happens_now = consultant_what_happens_now.presence || what_happens_now
   def display_friction = consultant_friction.presence || friction
+  def display_cause = consultant_cause.presence || cause
+  def display_intervention_type = consultant_intervention_type.presence || intervention_type
+  def display_direction = consultant_direction.presence || direction
+  def display_dependency = consultant_dependency.presence || dependency
+
+  # The findings that must be addressed before this one: the consultant's list
+  # once they set one (even empty), the draft's otherwise.
+  def effective_depends_on_ids = consultant_depends_on_ids.nil? ? depends_on_ids : consultant_depends_on_ids
+
+  # Whether the cause is the employee's own account or analysis. The consultant's
+  # say wins, whether or not they reworded the cause — the draft can be right in
+  # substance and wrong about who said it. A cause they wrote without saying is
+  # analysis; otherwise the draft's reading stands.
+  def display_cause_stated
+    return consultant_cause_stated unless consultant_cause_stated.nil?
+
+    consultant_cause.present? ? false : cause_stated
+  end
+
+  # What the cause and direction draft is written from. When the wording a client
+  # would read changes, the draft no longer fits it. DRAFT_VERSION is part of it so
+  # that when the draft gains a field every finding is drafted again, once.
+  DRAFT_VERSION = 2
+
+  def draft_inputs_digest
+    Digest::SHA256.hexdigest([DRAFT_VERSION, display_title, display_what_happens_now, display_friction, role_title,
+                              effective_effort_type].join("|"))[0, 16]
+  end
+
+  def draft_stale? = draft_digest != draft_inputs_digest
 
   # Two cases may not reach a client until a consultant has looked: a finding about
   # the only person in a role identifies them, and one carrying the same figures as
@@ -188,5 +232,20 @@ class Finding < ApplicationRecord
     elsif target.status == "merged"
       errors.add(:merged_into, "is itself merged into another finding")
     end
+  end
+
+  # The consultant's links must point at live findings of the same company, never
+  # at the finding itself, and never close a loop.
+  def consultant_links_are_sound
+    ids = Array(consultant_depends_on_ids).map(&:to_i)
+    return errors.add(:consultant_depends_on_ids, "cannot include the finding itself") if ids.include?(id)
+
+    targets = Finding.live.where(company_id: company_id, id: ids).index_by(&:id)
+    return errors.add(:consultant_depends_on_ids, "must be live findings of the same company") if (ids - targets.keys).any?
+
+    edges = Finding.live.where(company_id: company_id).where.not(id: id)
+                   .to_h { |f| [f.id, f.effective_depends_on_ids] }
+    looped = ids.find { |target| Findings::DependencyGraph.loop?(edges, id, target) }
+    errors.add(:consultant_depends_on_ids, "would make a loop with “#{targets[looped].display_title}”") if looped
   end
 end

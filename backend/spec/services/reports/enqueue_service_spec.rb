@@ -79,6 +79,24 @@ RSpec.describe Reports::EnqueueService do
       expect(company.reports.count).to eq(1)
     end
 
+    it "counts a finding the consultant reviewed since as something new" do
+      existing_report
+      company.update!(intelligence_updated_at: 3.days.ago)
+      employee = create(:employee, company: company)
+      finding = company.findings.create!(employee: employee, source_key: "orders", area: "orders", title: "Orders",
+                                         role_title: "Clerk", friction: "Typed by hand", status: "approved",
+                                         reviewed_at: 3.days.ago)
+
+      expect { described_class.call(company: company, triggered_by: consultant) }
+        .to raise_error(described_class::NotStale)
+
+      finding.update!(consultant_cause: "Orders arrive as free text", reviewed_at: 1.hour.ago)
+      result = described_class.call(company: company, triggered_by: consultant)
+
+      expect(result[:report].version).to eq(2)
+      expect(result[:stale]).to be true
+    end
+
     # The staleness check is a hint, not a veto: a consultant re-cutting after
     # editing sections has a reason the system cannot see.
     it "generates anyway when the consultant forces it" do

@@ -73,6 +73,11 @@ class Company < ApplicationRecord
     # "pool": a role held by one person never appears by name in a report; its
     # findings pool with others (Findings::ForReport). "show" keeps roles as-is.
     "report_small_roles" => "pool",
+    # "hidden": the published agentic ideas and the vendor tool matches stay out
+    # of the report, and out of its snapshot. Stage 1 says what to address; which
+    # product or idea would do it is Stage 2's. "shown" puts them back, pending
+    # the client's decision on vendors in Stage 1 — and the critic then blocks.
+    "report_stage2_previews" => "hidden",
     # Mjadi is sold as a fixed-fee engagement, not a subscription, so the client
     # portal shows no billing, plans or trials unless this is turned on.
     "client_billing_visible" => false,

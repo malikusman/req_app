@@ -59,6 +59,57 @@ RSpec.describe "Report variants" do
     expect(html_for("exec_brief")).to include("A4 portrait")
   end
 
+  it "marks every page of both with the version, date and confidentiality" do
+    date = Time.current.strftime("%B %d, %Y")
+    %w[full exec_brief].each do |variant|
+      footers = Nokogiri::HTML(html_for(variant)).css(".footer, .foot").map { |f| f.text.squish }
+      expect(footers).not_to be_empty
+      expect(footers).to all(include("Diagnostic Report", "v2", date, "Confidential"))
+    end
+  end
+
+  it "leads the cover and the brief with the consultant's summary when they rewrote it" do
+    snapshot["section_overrides"] = {
+      "edits" => { "executive_summary" => { "body" => "## Summary\n\nInvoice re-keying is the place to start. It touches every team." } }
+    }
+    cover = Nokogiri::HTML(html_for("full")).at_css(".cover").text
+    brief_answer = Nokogiri::HTML(html_for("exec_brief")).at_css("h1.answer").text
+
+    expect(cover).to include("Invoice re-keying is the place to start.")
+    expect(brief_answer).to eq("Invoice re-keying is the place to start.")
+    expect(cover).not_to include("against an 8-day target")
+  end
+
+  it "leads with what's new, from the findings, right after the contents" do
+    snapshot["delta_from_previous"] = {
+      "summary" => "1 new finding and 1 superseded finding since Report v1",
+      "findings" => {
+        "added" => [{ "id" => 7, "title" => "Stock counts", "hours_min" => 40, "hours_max" => 60 }],
+        "updated" => [],
+        "superseded" => [{ "id" => 3, "title" => "Statement checks", "reason" => "merged into “Invoice entry”" }],
+        "new_departments" => ["warehouse"]
+      }
+    }
+    doc = Nokogiri::HTML(html_for("full"))
+    pages = doc.css("section.page")
+    whats_new = pages.index { |p| p.text.include?("What's new in this version") }
+
+    expect(pages[whats_new - 1].at_css(".contents-land")).to be_present
+    expect(pages[whats_new - 1].text).to include("What's new")
+    expect(pages[whats_new].text).to include("Stock counts", "40–60 hours a year", "Statement checks",
+                                             "merged into “Invoice entry”", "Newly covered: Warehouse")
+    expect(doc.text).not_to include("Delta from the previous version")
+  end
+
+  it "does not end the consultant's sentence at an abbreviation like Co." do
+    snapshot["section_overrides"] = {
+      "edits" => { "executive_summary" => { "body" => "Buyers at Nimbus Trading Co. spend 490 hours a year re-keying. It touches every team." } }
+    }
+    brief_answer = Nokogiri::HTML(html_for("exec_brief")).at_css("h1.answer").text
+
+    expect(brief_answer).to eq("Buyers at Nimbus Trading Co. spend 490 hours a year re-keying.")
+  end
+
   it "quotes the same governing thought and the same metric in both" do
     both = %w[full exec_brief].map { |v| html_for(v) }
 

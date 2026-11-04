@@ -409,6 +409,111 @@ module Openai
       parse_model_json(chat_json_content(body))
     end
 
+    # Drafts, for each finding, why the work costs what it does and the kind of
+    # change that would address it. Returns parsed JSON or raises;
+    # Findings::DraftCauseAndDirection checks every field and keeps only what
+    # passes. A consultant reviews every draft before it reaches a client.
+    def finding_causes(context:, language: "en")
+      ensure_configured_or_mock!("OpenAI")
+      return nil unless configured?
+
+      body = {
+        model: ENV.fetch("REPORT_MODEL", ENV.fetch("OPENAI_MODEL", "gpt-4o-mini")),
+        messages: [
+          {
+            role: "system",
+            content: <<~SYS
+              You are a senior operations consultant preparing a Stage 1 DIAGNOSTIC for the
+              owners of a small or mid-sized business. Write in #{language}.
+              You are given findings: pieces of work, in one role, that people described as
+              slower, more manual or more repetitive than they need to be. For EACH finding:
+              - cause: one sentence on the CONDITION in the work that makes it slow — the
+                inconsistent input, the unclear rule, the data kept in two places, the
+                hand-off nobody owns, the dependency on someone outside. About the work and
+                its systems, never a person. Plain words.
+                NOT a cause: restating the symptom ("manual follow-up takes time"), or the
+                absence of a solution ("lack of automation", "no system for it").
+                When the text does not support a real cause, set cause to null.
+              - cause_stated: true ONLY when the employee's words (`what_snags`,
+                `what_happens_now`) name that condition themselves — "each supplier's sheet
+                has a different layout". If you reasoned your way to it, false. When in
+                doubt, false.
+              - intervention_type: the KIND of change, one of #{Finding::INTERVENTION_TYPES.keys.join(', ')}.
+                Prefer the simplest change that fits: remove_work, process_change, training or
+                configure_existing before ready_made_tool, automation or anything AI. It must
+                match the direction: a process_change changes how people work, not software.
+              - direction: one sentence on what the change would do for the work, as an
+                outcome — "Bring supplier price sheets into the ERP in one consistent form, so
+                only new items and unmatched codes need a person". WHAT it does, never HOW it
+                is built: no product or vendor names, no triggers, rules, thresholds, fields,
+                steps, cost, effort or timescale, and never the words implement, deploy,
+                install or build. Where the cause sits outside the business (a government
+                office, a supplier's own pace), aim the direction at what the business
+                controls — or set intervention_type and direction to null if it controls
+                nothing.
+              - For waiting (`waiting` true), the direction addresses the wait, not the work.
+              - dependency: one sentence on what must already be true in the business for
+                that change to work — "Supplier item codes are kept consistent in the ERP",
+                "One person owns the leave balance sheet and keeps it current". A condition,
+                never a build step or a task list. null when nothing must come first, or
+                when there is no direction.
+              RULES: no numbers or figures of any kind; no quotes; never "I", "me", "my";
+              never mention salary, headcount, jobs or savings.
+              Respond as JSON only, one entry per id given:
+              {"findings": [{"id": 1, "cause": "...", "cause_stated": false,
+                             "intervention_type": "integration_data_fix", "direction": "...",
+                             "dependency": "..."}]}
+            SYS
+          },
+          { role: "user", content: "Findings (JSON):\n#{context.to_json.truncate(12_000)}" }
+        ],
+        max_tokens: chat_max_tokens(1600)
+      }
+      parse_model_json(chat_json_content(body))
+    end
+
+    # Proposes which findings must be addressed before which, across the company.
+    # Returns ids only; Findings::DraftDependencies keeps the links that point at
+    # shown findings and never close a loop.
+    def finding_dependencies(context:, language: "en")
+      ensure_configured_or_mock!("OpenAI")
+      return nil unless configured?
+
+      body = {
+        model: ENV.fetch("REPORT_MODEL", ENV.fetch("OPENAI_MODEL", "gpt-4o-mini")),
+        messages: [
+          {
+            role: "system",
+            content: <<~SYS
+              You are a senior operations consultant preparing a Stage 1 DIAGNOSTIC for the
+              owners of a small or mid-sized business. Language: #{language}.
+              You are given findings: pieces of work, in named roles, with why each happens,
+              the direction of the change that would address it, and what must be true first.
+              Say which findings depend on which: A depends on B only when A's
+              `must_be_true_first` IS what addressing B's work achieves — A needs leave balances
+              kept current, and B is the work of keeping the leave balance sheet; A needs one
+              trusted ERP report, and B is building that report each week.
+              RULES:
+              - A and B are always two DIFFERENT findings, with different ids. A finding never
+                depends on itself.
+              - A's own words must name B's work. If you have to explain the link, there is none.
+              - Never link findings because they are similar, share a system, or sit in the
+                same team. Similar work is a duplicate, not a dependency.
+              - At most two links per finding. Most findings depend on nothing; returning no
+                links is a good answer.
+              - Never a loop: if A depends on B, B does not depend on A.
+              - Use only ids given.
+              Respond as JSON only:
+              {"links": [{"id": 1, "depends_on": 2}]}
+            SYS
+          },
+          { role: "user", content: "Findings (JSON):\n#{context.to_json.truncate(16_000)}" }
+        ],
+        max_tokens: chat_max_tokens(600)
+      }
+      parse_model_json(chat_json_content(body))
+    end
+
     # Tailored agentic-AI opportunity concepts, grounded strictly in the supplied
     # evidence. Returns parsed JSON or raises; callers fall back to the rule-based
     # synthesizer. Works with local OpenAI-compatible models.

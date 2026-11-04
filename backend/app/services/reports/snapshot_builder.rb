@@ -55,7 +55,7 @@ module Reports
         # What a reader might expect us to suggest, and why we don't, for this company.
         "not_recommended" => @not_recommended || [],
         "coverage" => coverage_json(intel),
-        "layout" => { "signals" => signals_placement },
+        "layout" => { "signals" => signals_placement, "stage2_previews" => stage2_previews },
         "situation" => situation_json(docs_first),
         "signals" => signals_json,
         "patterns" => patterns_json,
@@ -75,8 +75,10 @@ module Reports
         # the one context block a client can independently verify.
         "web_research" => web_research_json,
         "client_stack" => client_stack_json,
-        "tools_catalog" => tools_catalog_json,
-        "agentic_ideas" => agentic_ideas_json,
+        # Left out, not just unrendered, when hidden: the snapshot is served to the
+        # company over the API too. The ideas and matches themselves are untouched.
+        "tools_catalog" => stage2_previews == "shown" ? tools_catalog_json : EMPTY_TOOLS_CATALOG.deep_dup,
+        "agentic_ideas" => stage2_previews == "shown" ? agentic_ideas_json : [],
         "agent_activity" => agent_activity_json,
         "narrative" => nil,
         "roadmap" => nil
@@ -159,6 +161,14 @@ module Reports
 
       placement = @company.merged_settings["report_signals_placement"].to_s
       SIGNALS_PLACEMENTS.include?(placement) ? placement : "appendix"
+    end
+
+    EMPTY_TOOLS_CATALOG = { "curated_matches" => [], "endorsements" => [] }.freeze
+
+    # Agentic ideas and vendor matches name what would do the work, which is
+    # Stage 2's. Hidden unless the company setting says otherwise.
+    def stage2_previews
+      @company.merged_settings["report_stage2_previews"].to_s == "shown" ? "shown" : "hidden"
     end
 
     def priorities_json
@@ -450,8 +460,11 @@ module Reports
         "#{depts.any? ? " across #{depts.join(', ')}" : ""}."
       ].compact
 
-      top_patterns = @company.patterns.order(confidence: :desc).limit(2).pluck(:title)
-      top_signals = @company.company_signals.order(strength: :desc).limit(3).pluck(:label)
+      # A partial interview can leave findings before the baseline turns over;
+      # once there are any, they say what we found, not the themes.
+      top_patterns = findings? ? [] : @company.patterns.order(confidence: :desc).limit(2).pluck(:title)
+      top_signals = findings? ? [] : @company.company_signals.order(strength: :desc).limit(3).pluck(:label)
+      parts << findings_sentence if findings?
       if top_patterns.any?
         parts << "The strongest cross-cutting themes are #{top_patterns.join(' and ')}."
       elsif top_signals.any?
@@ -462,7 +475,7 @@ module Reports
         parts << "Underlying friction shows up as #{top_signals.first(2).join(' and ')}."
       end
 
-      pattern_count = @company.patterns.count
+      pattern_count = findings? ? 0 : @company.patterns.count
       if pattern_count.positive?
         parts << "#{pattern_count} cross-cutting #{'pattern'.pluralize(pattern_count)} inform the recommendations below."
       end
@@ -489,11 +502,15 @@ module Reports
       doc_count = @company.documents.where(status: "ready").count
       parts << "Findings are reinforced by #{doc_count} internal #{'document'.pluralize(doc_count)}." if doc_count.positive?
 
-      top_signals = @company.company_signals.order(strength: :desc).limit(3).pluck(:label)
-      parts << "Top friction areas include #{top_signals.join(', ')}." if top_signals.any?
+      # With findings, the signals and patterns are a second, vaguer account of
+      # the same interviews; the findings sentence above already says what we found.
+      unless findings?
+        top_signals = @company.company_signals.order(strength: :desc).limit(3).pluck(:label)
+        parts << "Top friction areas include #{top_signals.join(', ')}." if top_signals.any?
 
-      pattern_count = @company.patterns.count
-      parts << "#{pattern_count} cross-team #{'pattern'.pluralize(pattern_count)} inform the recommendations below." if pattern_count.positive?
+        pattern_count = @company.patterns.count
+        parts << "#{pattern_count} cross-team #{'pattern'.pluralize(pattern_count)} inform the recommendations below." if pattern_count.positive?
+      end
 
       parts << goals_framing_sentence
       parts << departments_framing_sentence
@@ -508,6 +525,10 @@ module Reports
 
       "About #{report_hours(totals['hours_min'], totals['hours_max'])} hours a year go into the work " \
         "#{totals['people'].to_i == 1 ? 'one person' : "#{totals['people']} people"} described"
+    end
+
+    def findings?
+      findings_json&.dig("totals", "findings").to_i.positive?
     end
 
     def findings_sentence

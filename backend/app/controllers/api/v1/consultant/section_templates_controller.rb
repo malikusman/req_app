@@ -14,7 +14,8 @@ module Api
       class SectionTemplatesController < BaseController
         def index
           render json: {
-            templates: ReportSectionTemplates::DEFINITIONS.map { |t| serialize(t) },
+            # Stage 1 only: an implementation plan is how a fix is delivered, Stage 2's.
+            templates: ReportSectionTemplates::STAGE1.map { |t| serialize(t) },
             # Where a section may be anchored, so the client can offer a picker
             # rather than expecting the consultant to know section keys.
             anchors: ReportSectionOverride::BUILT_IN_SECTIONS.map do |key|

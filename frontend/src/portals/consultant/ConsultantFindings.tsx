@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Calculator, Check, EyeOff, GitMerge, Pencil, RotateCcw, UserRound } from 'lucide-react';
+import { Calculator, Check, Compass, EyeOff, GitMerge, Pencil, RotateCcw, UserRound } from 'lucide-react';
 import {
   api,
   type Finding,
@@ -89,6 +89,7 @@ export function ConsultantFindings() {
   const [error, setError] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [interventionTypes, setInterventionTypes] = useState<{ key: string; label: string }[]>([]);
 
   const load = useCallback(() => {
     if (!token || !companyId) return;
@@ -97,6 +98,7 @@ export function ConsultantFindings() {
       .then((d) => {
         setFindings(d.findings);
         setSummary(d.summary);
+        setInterventionTypes(d.intervention_types ?? []);
         setError('');
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Could not load findings'))
@@ -229,6 +231,7 @@ export function ConsultantFindings() {
                         duplicateOf={f.possible_duplicate_of_id ? byId.get(f.possible_duplicate_of_id) : undefined}
                         busy={busyId === f.id}
                         companyId={companyId!}
+                        interventionTypes={interventionTypes}
                         onUpdate={(payload) => update(f.id, payload)}
                         onMerge={(intoId) => merge(f.id, intoId)}
                       />
@@ -257,6 +260,7 @@ function FindingRow({
   duplicateOf,
   busy,
   companyId,
+  interventionTypes,
   onUpdate,
   onMerge,
 }: {
@@ -266,12 +270,17 @@ function FindingRow({
   duplicateOf?: Finding;
   busy: boolean;
   companyId: string;
+  interventionTypes: { key: string; label: string }[];
   onUpdate: (payload: FindingUpdate) => void;
   onMerge: (intoId: number) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [merging, setMerging] = useState(false);
   const [correcting, setCorrecting] = useState(false);
+  const [directing, setDirecting] = useState(false);
+  const interventionLabel = interventionTypes.find((t) => t.key === f.intervention_type)?.label;
+  // Links to findings since hidden or merged away are not shown; the report drops them too.
+  const comesAfter = f.depends_on_ids.flatMap((id) => mergeTargets.filter((t) => t.id === id));
   const [friction, setFriction] = useState(f.consultant.friction ?? f.original.friction ?? '');
   const [how, setHow] = useState(f.consultant.what_happens_now ?? f.original.what_happens_now ?? '');
   const [note, setNote] = useState(f.consultant.note ?? '');
@@ -321,6 +330,46 @@ function FindingRow({
         <p className="m-0 text-sm text-muted-foreground">
           <span className="font-medium text-foreground">What happens now: </span>
           {f.what_happens_now}
+        </p>
+      )}
+
+      {(f.cause || f.direction || f.dependency || comesAfter.length > 0) && (
+        <div className="m-0 space-y-1 text-sm text-muted-foreground">
+          {f.cause && (
+            <p className="m-0">
+              <span className="font-medium text-foreground">
+                Why it happens{f.cause_stated ? '' : ' (our analysis)'}:{' '}
+              </span>
+              {f.cause}
+            </p>
+          )}
+          {f.direction && (
+            <p className="m-0">
+              <span className="font-medium text-foreground">
+                Direction{interventionLabel ? ` · ${interventionLabel}` : ''}:{' '}
+              </span>
+              {f.direction}
+            </p>
+          )}
+          {f.dependency && (
+            <p className="m-0">
+              <span className="font-medium text-foreground">Must be true first: </span>
+              {f.dependency}
+            </p>
+          )}
+          {comesAfter.length > 0 && (
+            <p className="m-0">
+              <span className="font-medium text-foreground">Comes after: </span>
+              {comesAfter.map((t) => `“${t.title}”${t.role_title ? ` (${t.role_title})` : ''}`).join('; ')}
+            </p>
+          )}
+        </div>
+      )}
+      {f.draft_pending && !setAside && (
+        <p className="m-0 text-xs text-muted-foreground">
+          {f.cause || f.direction
+            ? 'The wording changed since why it happens and the direction were drafted; they are being redrafted.'
+            : 'Why it happens and the direction are drafted shortly, and at the latest when the report is generated.'}
         </p>
       )}
 
@@ -414,6 +463,20 @@ function FindingRow({
         />
       )}
 
+      {directing && (
+        <DirectionForm
+          finding={f}
+          busy={busy}
+          interventionTypes={interventionTypes}
+          others={mergeTargets}
+          onSave={(payload) => {
+            onUpdate(payload);
+            setDirecting(false);
+          }}
+          onCancel={() => setDirecting(false)}
+        />
+      )}
+
       {merging && (
         <div className="flex flex-wrap items-end gap-2 rounded-md border border-border p-3">
           <div className="min-w-[16rem] flex-1">
@@ -447,7 +510,7 @@ function FindingRow({
         </div>
       )}
 
-      {!editing && !merging && !correcting && (
+      {!editing && !merging && !correcting && !directing && (
         <div className="flex flex-wrap items-center gap-2">
           {setAside ? (
             <Button
@@ -471,6 +534,9 @@ function FindingRow({
               </Button>
               <Button size="sm" variant="secondary" icon={<Calculator className="h-4 w-4" />} onClick={() => setCorrecting(true)}>
                 Correct figures
+              </Button>
+              <Button size="sm" variant="secondary" icon={<Compass className="h-4 w-4" />} onClick={() => setDirecting(true)}>
+                Cause and direction
               </Button>
               {mergeTargets.length > 0 && (
                 <Button size="sm" variant="secondary" icon={<GitMerge className="h-4 w-4" />} onClick={() => setMerging(true)}>
@@ -500,6 +566,159 @@ function FindingRow({
         </div>
       )}
     </article>
+  );
+}
+
+/**
+ * Why the work costs what it does, and the kind of change that would address it.
+ * Starts from the draft; saving the draft's own words back stores nothing, so the
+ * finding keeps following its draft until the consultant really rewrites it.
+ */
+function DirectionForm({
+  finding: f,
+  busy,
+  interventionTypes,
+  others,
+  onSave,
+  onCancel,
+}: {
+  finding: Finding;
+  busy: boolean;
+  interventionTypes: { key: string; label: string }[];
+  /** The other live findings this one may come after. */
+  others: Finding[];
+  onSave: (payload: FindingUpdate) => void;
+  onCancel: () => void;
+}) {
+  const [cause, setCause] = useState(f.consultant.cause ?? f.drafted.cause ?? '');
+  const [stated, setStated] = useState(f.cause_stated ? 'stated' : 'analysis');
+  const [type, setType] = useState(f.consultant.intervention_type ?? f.drafted.intervention_type ?? '');
+  const [direction, setDirection] = useState(f.consultant.direction ?? f.drafted.direction ?? '');
+  const [dependency, setDependency] = useState(f.consultant.dependency ?? f.drafted.dependency ?? '');
+  // Links follow the draft until the consultant adds or removes one.
+  const [links, setLinks] = useState<number[]>(f.depends_on_ids.filter((id) => others.some((o) => o.id === id)));
+  const [followDraft, setFollowDraft] = useState(f.consultant.depends_on_ids === null);
+  const [adding, setAdding] = useState('');
+  const titleOf = (id: number) => others.find((o) => o.id === id)?.title ?? 'a finding';
+  const changeLinks = (next: number[]) => {
+    setLinks(next);
+    setFollowDraft(false);
+  };
+
+  const save = () => {
+    const ownCause = cause.trim() === (f.drafted.cause ?? '').trim() ? '' : cause.trim();
+    // Who said it is stored only when it differs from what would be shown anyway:
+    // the draft's reading for the draft's cause, analysis for the consultant's own.
+    const saidByPeople = stated === 'stated';
+    const implied = ownCause ? false : f.drafted.cause_stated;
+    onSave({
+      consultant_cause: ownCause,
+      consultant_cause_stated: saidByPeople === implied ? null : saidByPeople,
+      consultant_intervention_type: type === (f.drafted.intervention_type ?? '') ? '' : type,
+      consultant_direction: direction.trim() === (f.drafted.direction ?? '').trim() ? '' : direction.trim(),
+      consultant_dependency: dependency.trim() === (f.drafted.dependency ?? '').trim() ? '' : dependency.trim(),
+      consultant_depends_on_ids: followDraft ? null : links,
+    });
+  };
+
+  return (
+    <div className="space-y-3 rounded-md border border-border p-3">
+      <Textarea label="Why it happens" value={cause} onChange={(e) => setCause(e.target.value)} />
+      <Select
+        label="Where the cause comes from"
+        value={stated}
+        onChange={(e) => setStated(e.target.value)}
+        options={[
+          { value: 'analysis', label: 'Our analysis — the report says so' },
+          { value: 'stated', label: 'The people doing the work said it' },
+        ]}
+      />
+      <Select
+        label="Kind of change"
+        value={type}
+        onChange={(e) => setType(e.target.value)}
+        options={[{ value: '', label: 'Choose…' }, ...interventionTypes.map((t) => ({ value: t.key, label: t.label }))]}
+      />
+      <Textarea label="Direction" value={direction} onChange={(e) => setDirection(e.target.value)} />
+      <Textarea
+        label="Must be true first"
+        value={dependency}
+        onChange={(e) => setDependency(e.target.value)}
+      />
+      <div className="space-y-2">
+        <p className="m-0 text-sm font-medium text-foreground">Comes after</p>
+        {links.length === 0 ? (
+          <p className="m-0 text-xs text-muted-foreground">No other finding has to be addressed first.</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {links.map((id) => (
+              <span key={id} className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs">
+                {titleOf(id)}
+                <button
+                  type="button"
+                  className="text-muted-foreground hover:text-foreground"
+                  aria-label={`Remove ${titleOf(id)}`}
+                  onClick={() => changeLinks(links.filter((l) => l !== id))}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="min-w-[16rem] flex-1">
+            <Select
+              label="Add a finding it comes after"
+              value={adding}
+              onChange={(e) => setAdding(e.target.value)}
+              options={[
+                { value: '', label: 'Choose a finding…' },
+                ...others
+                  .filter((o) => !links.includes(o.id))
+                  .map((o) => ({ value: String(o.id), label: `${o.title} — ${o.role_title ?? 'role not recorded'}` })),
+              ]}
+            />
+          </div>
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={!adding}
+            onClick={() => {
+              changeLinks([...links, Number(adding)]);
+              setAdding('');
+            }}
+          >
+            Add
+          </Button>
+          {!followDraft && (
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                setLinks(f.drafted.depends_on_ids.filter((id) => others.some((o) => o.id === id)));
+                setFollowDraft(true);
+              }}
+            >
+              Use suggested links
+            </Button>
+          )}
+        </div>
+      </div>
+      <p className="m-0 text-xs text-muted-foreground">
+        Say what the change would do for the work, never how it is built: no products, steps, rules, cost or
+        timescale. That design is Stage 2. Leave a box as drafted to keep following the draft. A finding comes after
+        another only when that one must be addressed first for this change to work.
+      </p>
+      <div className="flex gap-2">
+        <Button size="sm" onClick={save} loading={busy}>
+          Save
+        </Button>
+        <Button size="sm" variant="secondary" onClick={onCancel}>
+          Cancel
+        </Button>
+      </div>
+    </div>
   );
 }
 

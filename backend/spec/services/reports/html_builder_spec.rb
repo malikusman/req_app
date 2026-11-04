@@ -30,7 +30,7 @@ RSpec.describe Reports::HtmlBuilder do
   it "renders snapshot sections from the ERB template" do
     html = described_class.call(snapshot: snapshot)
 
-    expect(html).to include("Discovery Report")
+    expect(html).to include("Diagnostic Report")
     expect(html).to include("Acme Corp")
     expect(html).to include("Who took part")
     expect(html).not_to include("Readiness breakdown")
@@ -85,6 +85,41 @@ RSpec.describe Reports::HtmlBuilder do
       expect(html).to include("Full design is available at Stage 2")
       expect(html).not_to include("How:</strong>")
       expect(html).not_to include("Pilot OCR.")
+    end
+
+    it "says where each finding comes from and how far to trust it, in plain words" do
+      role = with_findings.dig("findings", "departments", 0, "roles", 0)
+      role["findings"][0].merge!("basis" => "discovery", "confidence" => "medium")
+      role["findings"][1].merge!("basis" => "discovery_partial", "confidence" => "low")
+      html = described_class.call(snapshot: with_findings)
+
+      expect(html).to include("Discovery conversation · Moderate confidence")
+      expect(html).to include("Unfinished conversation · Requires validation")
+      expect(html).not_to include(">medium<")
+      expect(html.scan("A deep dive and full design are available at Stage 2.").size).to be >= 2
+    end
+
+    it "says why each finding happens and the kind of change, labelling analysis as analysis" do
+      role = with_findings.dig("findings", "departments", 0, "roles", 0)
+      role["findings"][0].merge!("cause" => "Sheets differ by supplier.", "cause_stated" => true,
+                                 "intervention" => "Integration or data fix", "direction" => "Bring sheets in directly.")
+      role["findings"][1].merge!("cause" => "Nobody owns the supplier list.", "cause_stated" => false)
+      text = Nokogiri::HTML(described_class.call(snapshot: with_findings)).text.squish
+
+      expect(text).to include("Why it happens: Sheets differ by supplier.")
+      expect(text).to include("Direction · Integration or data fix: Bring sheets in directly.")
+      expect(text).to include("Why it happens (our analysis): Nobody owns the supplier list.")
+    end
+
+    it "says what must be true first, and which findings come before" do
+      role = with_findings.dig("findings", "departments", 0, "roles", 0)
+      role["findings"][0].merge!("dependency" => "Supplier codes are consistent.",
+                                 "depends_on" => [{ "id" => 9, "title" => "Supplier set-up", "department" => "hr" },
+                                                  { "id" => 10, "title" => "Pooled work", "department" => nil }])
+      text = Nokogiri::HTML(described_class.call(snapshot: with_findings)).text.squish
+
+      expect(text).to include("Must be true first: Supplier codes are consistent.")
+      expect(text).to include("Comes after: “Supplier set-up” (HR); “Pooled work”")
     end
 
     it "puts the priorities grouped from the findings where the catalog recommendations used to be" do
