@@ -2170,6 +2170,7 @@ export interface CompanyDashboardPayload {
   intel_counts?: {
     total_documents: number;
     ready_documents: number;
+    processing_documents?: number;
     open_clarifications: number;
     signal_count: number;
     pattern_count: number;

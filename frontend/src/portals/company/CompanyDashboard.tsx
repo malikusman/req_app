@@ -150,7 +150,11 @@ export function CompanyDashboard() {
   const recommendationCount = intel?.recommendation_count ?? snapshot?.recommendation_count ?? 0;
   const docsFirstPhase = Boolean(data.docs_first_phase ?? data.company.docs_first_phase);
   const docsFirstActive = docsFirstPhase && (readyDocs > 0 || score > 0 || signalCount > 0);
-  const processingDocs = docsFirstPhase && readyDocs === 0 && score === 0 && signalCount === 0;
+  const processingCount = Number(intel?.processing_documents ?? 0);
+  // Only when documents have actually been uploaded and are still being worked
+  // on. Before, a company that had uploaded nothing — every new engagement — was
+  // told its documents were being analysed.
+  const processingDocs = docsFirstPhase && processingCount > 0 && readyDocs === 0 && score === 0 && signalCount === 0;
   const docsOnlyView = docsFirstPhase && docsFirstActive;
   const qComplete = Boolean(data.onboarding_submitted_at);
 

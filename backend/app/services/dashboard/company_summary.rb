@@ -84,6 +84,9 @@ module Dashboard
       {
         total_documents: docs.count,
         ready_documents: docs.ready.count,
+        # Uploaded and still being worked on — what "we're analyzing your
+        # documents" means. A failed upload is not "in progress".
+        processing_documents: docs.where(status: %w[uploaded pending processing]).count,
         open_clarifications: @company.company_clarification_questions.open_for_admin.count,
         signal_count: (snapshot["signal_count"].presence || Array(snapshot["top_pain_points"]).size).to_i,
         pattern_count: Array(snapshot["emerging_patterns"]).size,

@@ -27,6 +27,19 @@ RSpec.describe "A company on an engagement, with no subscription", type: :reques
     expect(body["engagement_status"]).to eq("KEY_PERSON_DISCOVERY")
     expect(body["onboarding_submitted_at"]).to be_present
     expect(body["planned_participant_count"]).to be_nil
+    # Nothing uploaded, so nothing is "being analysed".
+    expect(body.dig("intel_counts", "processing_documents")).to eq(0)
+  end
+
+  it "counts only documents still being worked on as processing, not failed ones" do
+    %w[pending processing failed ready].each_with_index do |status, i|
+      company.documents.create!(filename: "doc#{i}.pdf", storage_key: "k#{i}", source: "company_portal_upload",
+                                status: status)
+    end
+
+    get "/api/v1/company/dashboard", headers: auth_headers_for(user)
+
+    expect(JSON.parse(response.body)["intel_counts"]).to include("processing_documents" => 2, "ready_documents" => 1)
   end
 
   it "loads the signed-in user" do
