@@ -1374,6 +1374,12 @@ export const api = {
   consultantDashboard: (token: string) => request<ConsultantDashboardPayload>('/api/v1/consultant/dashboard', {}, token),
 
   consultantCompany: (token: string, id: number) => request<{ company: ConsultantCompanyDetail }>(`/api/v1/consultant/companies/${id}`, {}, token),
+  updateConsultantCompanyFacts: (token: string, companyId: number, answers: QuestionnaireAnswerMap) =>
+    request<CompanyFactsUpdate>(
+      `/api/v1/consultant/companies/${companyId}/facts`,
+      { method: 'PATCH', body: JSON.stringify({ answers }) },
+      token
+    ),
 
   consultantEmployees: (token: string, companyId: number) =>
     request<{ employees: Employee[] }>(`/api/v1/consultant/companies/${companyId}/employees`, {}, token),
@@ -1853,6 +1859,19 @@ export interface ConsultantCompanyDetail extends ConsultantCompanySummary {
     systems?: string[];
   };
   legacy_profile?: LegacyProfile;
+  /** The client's onboarding answers, which a consultant may correct once submitted. */
+  onboarding_answers?: QuestionnaireAnswerMap;
+  profile_provenance?: ProfileProvenance;
+  onboarding_submitted_at?: string | null;
+  profile_changes?: ProfileChangeEntry[];
+}
+
+/** What saving a consultant's correction to the company's facts returns. */
+export interface CompanyFactsUpdate {
+  company_profile: CompanyProfile;
+  profile_provenance: ProfileProvenance;
+  onboarding_answers: QuestionnaireAnswerMap;
+  profile_changes: ProfileChangeEntry[];
 }
 
 export interface ConsultantReportDetail {

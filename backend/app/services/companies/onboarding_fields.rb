@@ -105,6 +105,10 @@ module Companies
     BY_KEY = FIELDS.to_h { |f| [f[:key], f] }.freeze
     OTHER_KEYS = FIELDS.filter_map { |f| "#{f[:key]}_other" if f[:with_other] }.freeze
     WHITELIST = (FIELD_IDS + OTHER_KEYS).freeze
+    # The facts about the company (O1–O11), which a consultant may also correct
+    # after submission. Who takes part (P1, P2) and the key user's own language
+    # (A4) stay the key user's.
+    FACT_KEYS = WHITELIST.select { |key| key.start_with?("o") }.freeze
     OTHER_TEXT_MAX_LENGTH = 200
     MAX_COUNT = 9_999
 

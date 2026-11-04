@@ -3,7 +3,9 @@
 module Companies
   # Folds the onboarding form's answers into the facts the rest of the platform
   # reads: company_profile (through ProfileUpdater, so provenance is recorded),
-  # the company's systems, and the engagement's planned departments.
+  # the company's systems, and the engagement's planned departments. A website
+  # proposal confirmed earlier whose field has since been changed becomes a
+  # correction, and document analysis is told the profile has moved on.
   #
   # Only a field whose value actually changed is written, so re-saving the form
   # never relabels a fact the key user confirmed from their website as one they
@@ -12,7 +14,8 @@ module Companies
     F = OnboardingFields
 
     # provenance: PREFILL_CONFIRMED when the answers are a website proposal the key
-    # user confirmed; otherwise they typed them.
+    # user confirmed; DISCOVERED_LATER when a consultant corrects a fact after
+    # submission; otherwise the key user typed them.
     def self.call(company:, answers:, actor: nil, provenance: "USER_ENTERED")
       new(company: company, answers: answers, actor: actor, provenance: provenance).call
     end
@@ -28,10 +31,29 @@ module Companies
       ProfileUpdater.call(company: @company, profile_params: profile_params, known_systems: systems,
                           actor: @actor, provenance: @provenance, only_changed: true)
       sync_planned_departments!
+      # Confirming a proposal is not an edit of one: a confirm whose value was
+      # already there keeps its earlier source, and must not undo itself.
+      mark_edited_proposals_corrected! unless @provenance == "PREFILL_CONFIRMED"
+      @company.update!(docs_profile_stale_at: Time.current) if @company.documents.ready.exists?
       @company
     end
 
     private
+
+    # A confirmed website value someone has since changed by hand is now theirs:
+    # its proposal becomes a correction, kept as the website's evidence.
+    def mark_edited_proposals_corrected!
+      engagement = @company.current_engagement
+      return unless engagement
+
+      provenance = @company.reload.profile_provenance
+      engagement.prefill_candidates.where(status: "CONFIRMED").find_each do |candidate|
+        key = PrefillAnswers::PROFILE_KEYS[candidate.target_field]
+        next unless key && provenance.dig(key, "source") != "PREFILL_CONFIRMED"
+
+        candidate.update!(status: "CORRECTED")
+      end
+    end
 
     def answered?(key) = @answers.key?(key)
 

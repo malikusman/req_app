@@ -37,6 +37,8 @@ import {
 import { label } from '../../lib/labels';
 import { ConsultantChatDrawer } from './workspace/ConsultantChatDrawer';
 import { AgenticIdeasPanel } from '../shared/AgenticIdeasPanel';
+import { CompanyProfileSummary, ProfileChanges } from '../shared/CompanyProfileFacts';
+import { CompanyFactsEditor } from './CompanyFactsEditor';
 
 type ConversationRow = {
   id: number;
@@ -51,6 +53,7 @@ export function ConsultantCompanyOverview() {
   const { companyId } = useParams();
   const token = useConsultantToken();
   const [company, setCompany] = useState<ConsultantCompanyDetail | null>(null);
+  const [editingFacts, setEditingFacts] = useState(false);
   const [conversations, setConversations] = useState<ConversationRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -192,39 +195,53 @@ export function ConsultantCompanyOverview() {
 
       {tab === 'profile' && (
         <div className="space-y-6">
-          <Card title="Firmographics">
-            {company.company_profile || company.website_url ? (
-              <dl className="m-0 grid gap-3 sm:grid-cols-2 text-sm">
-                {[
-                  ['Industry', company.company_profile?.industry],
-                  ['Sub-industry', company.company_profile?.sub_industry],
-                  ['Size', company.company_profile?.size_band],
-                  ['Region', company.company_profile?.region || company.company_profile?.country],
-                  ['Website', company.website_url],
-                ].map(([label, value]) =>
-                  value ? (
-                    <div key={String(label)}>
-                      <dt className="text-muted-foreground">{label}</dt>
-                      <dd className="m-0 font-medium">
-                        {label === 'Website' && typeof value === 'string' ? (
-                          <a href={value} target="_blank" rel="noreferrer" className="text-accent hover:underline">
-                            {value}
-                          </a>
-                        ) : (
-                          String(value)
-                        )}
-                      </dd>
-                    </div>
-                  ) : null
-                )}
-              </dl>
-            ) : (
-              <EmptyState
-                title="No profile yet"
-                description="Firmographics appear after the company completes onboarding."
-              />
-            )}
-          </Card>
+          {editingFacts && token ? (
+            <CompanyFactsEditor
+              token={token}
+              companyId={company.id}
+              answers={company.onboarding_answers || {}}
+              onCancel={() => setEditingFacts(false)}
+              onSaved={(saved) => {
+                setCompany((prev) => (prev ? { ...prev, ...saved } : prev));
+                setEditingFacts(false);
+                // Systems named in the facts show under "Applications in use".
+                api
+                  .consultantCompany(token, company.id)
+                  .then((d) => setCompany(d.company))
+                  .catch(() => undefined);
+              }}
+            />
+          ) : (
+            <CompanyProfileSummary
+              profile={company.company_profile as Record<string, unknown> | undefined}
+              provenance={company.profile_provenance}
+              action={
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={!company.onboarding_submitted_at}
+                  title={company.onboarding_submitted_at ? undefined : 'Editable once the client submits their profile'}
+                  onClick={() => setEditingFacts(true)}
+                >
+                  Edit facts
+                </Button>
+              }
+            />
+          )}
+          {!company.onboarding_submitted_at && (
+            <p className="m-0 text-sm text-muted-foreground">
+              The facts are editable once the client submits their company profile.
+            </p>
+          )}
+          {company.website_url && (
+            <p className="m-0 text-sm">
+              <span className="text-muted-foreground">Website:</span>{' '}
+              <a href={company.website_url} target="_blank" rel="noreferrer" className="text-accent hover:underline">
+                {company.website_url}
+              </a>
+            </p>
+          )}
+          <ProfileChanges changes={company.profile_changes} />
 
           {legacyGoals.length > 0 || company.legacy_profile?.annual_revenue_band ? (
             <Card title="From the old questionnaire">
@@ -248,13 +265,6 @@ export function ConsultantCompanyOverview() {
               )}
             </Card>
           ) : null}
-
-          {Array.isArray(company.company_profile?.org_departments) &&
-            company.company_profile!.org_departments!.length > 0 && (
-              <Card title="Departments">
-                <p className="m-0 text-sm">{company.company_profile!.org_departments!.join(', ')}</p>
-              </Card>
-            )}
 
           <Card title="Applications in use">
             {(company.company_systems || []).length === 0 ? (

@@ -95,3 +95,27 @@ export function fieldIsVisible(field: QuestionnaireField, answers: Questionnaire
   if (!value || typeof value !== 'string') return false;
   return !field.showWhen.notOneOf.includes(value);
 }
+
+export function valuesEqual(a: AnswerValue, b: AnswerValue): boolean {
+  if (Array.isArray(a) || Array.isArray(b)) {
+    const arrA = Array.isArray(a) ? a : [];
+    const arrB = Array.isArray(b) ? b : [];
+    if (arrA.length !== arrB.length) return false;
+    return arrA.every((v, i) => v === arrB[i]);
+  }
+  // The matrix questions store a keyed map. Comparing serialisations is enough
+  // here: the values are small, and both sides are built by the same code.
+  if ((a && typeof a === 'object') || (b && typeof b === 'object')) {
+    return JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+  }
+  return a === b;
+}
+
+/** The answers in `current` that differ from `base`. */
+export function diffAnswers(current: QuestionnaireAnswers, base: QuestionnaireAnswers): QuestionnaireAnswers {
+  const diff: QuestionnaireAnswers = {};
+  for (const key of Object.keys(current)) {
+    if (!valuesEqual(current[key], base[key])) diff[key] = current[key];
+  }
+  return diff;
+}

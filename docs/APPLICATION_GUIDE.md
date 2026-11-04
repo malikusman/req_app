@@ -366,6 +366,12 @@ engagement over to the leadership conversation; afterwards the same screen edits
 entered by the client, found later in conversation, or the old questionnaire — and the
 platform company page shows that alongside the value.
 
+Once onboarding is submitted, an assigned consultant may also correct the facts (consultant
+portal → company → *Profile* → *Edit facts*). Who takes part and the key user's language
+stay the key user's. A consultant's correction is recorded as found in conversation, under
+their name. Every change after submission, whoever makes it, is kept in the change history
+shown on the consultant and platform company pages.
+
 ### 4.5 Dashboard
 
 Adapts to engagement phase:

@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Check, Search, X } from 'lucide-react';
-import { Input, Textarea } from '../../../components/ui';
-import { cn } from '../../../lib/cn';
+import { Input, Textarea } from '../../components/ui';
+import { cn } from '../../lib/cn';
 import {
   NOT_SURE,
   detailKey,
@@ -10,7 +10,7 @@ import {
   type AnswerValue,
   type QuestionnaireAnswers,
   type QuestionnaireField,
-} from '../../../lib/formFields';
+} from '../../lib/formFields';
 
 export type SetAnswer = (id: string, value: AnswerValue) => void;
 

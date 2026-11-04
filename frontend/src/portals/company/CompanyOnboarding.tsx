@@ -5,7 +5,7 @@ import { useCompanyToken, useAuth } from '../../lib/auth';
 import { PageHeader, Card, Input, Button, Skeleton } from '../../components/ui';
 import { NOT_SURE, otherKey, type AnswerValue, type QuestionnaireAnswers, type QuestionnaireField } from '../../lib/formFields';
 import { ONBOARDING_FIELDS, ONBOARDING_GROUPS } from '../../lib/onboardingFields';
-import { FieldRenderer } from './questionnaire/FieldRenderer';
+import { FieldRenderer } from '../shared/FieldRenderer';
 import { useFormAutosave } from './useFormAutosave';
 import { ParticipantRows } from './onboarding/ParticipantRows';
 import { PrefillCards } from './onboarding/PrefillCards';

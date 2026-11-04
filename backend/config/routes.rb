@@ -134,6 +134,8 @@ Rails.application.routes.draw do
           end
         end
         resources :companies, only: %i[index show] do
+          # Correcting the client's facts after they submitted onboarding (Doc 07 §12).
+          resource :facts, only: :update, controller: "company_facts"
           resources :employees, only: %i[index show], controller: "employees"
           resources :conversations, only: %i[index show], controller: "conversations"
           get "signals", to: "intelligence#signals"

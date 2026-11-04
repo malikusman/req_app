@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
 import { api, ApiRequestError } from '../../lib/api';
-import type { AnswerValue, FieldType, QuestionnaireAnswers, QuestionnaireField } from '../../lib/formFields';
+import { diffAnswers, type FieldType, type QuestionnaireAnswers, type QuestionnaireField } from '../../lib/formFields';
 
 export type AutosaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -19,29 +19,6 @@ const IMMEDIATE_TYPES = new Set<FieldType>([
   'searchable_select',
   'parallel_text',
 ]);
-
-function valuesEqual(a: AnswerValue, b: AnswerValue): boolean {
-  if (Array.isArray(a) || Array.isArray(b)) {
-    const arrA = Array.isArray(a) ? a : [];
-    const arrB = Array.isArray(b) ? b : [];
-    if (arrA.length !== arrB.length) return false;
-    return arrA.every((v, i) => v === arrB[i]);
-  }
-  // The matrix questions store a keyed map. Comparing serialisations is enough
-  // here: the values are small, and both sides are built by the same code.
-  if ((a && typeof a === 'object') || (b && typeof b === 'object')) {
-    return JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
-  }
-  return a === b;
-}
-
-function diffAnswers(current: QuestionnaireAnswers, base: QuestionnaireAnswers): QuestionnaireAnswers {
-  const diff: QuestionnaireAnswers = {};
-  for (const key of Object.keys(current)) {
-    if (!valuesEqual(current[key], base[key])) diff[key] = current[key];
-  }
-  return diff;
-}
 
 /**
  * Autosave for the onboarding form. There is no Save button: answers

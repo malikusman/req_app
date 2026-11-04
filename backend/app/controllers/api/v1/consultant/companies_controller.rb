@@ -32,11 +32,22 @@ module Api
               company_admins: company.company_users.where(role: "company_admin", status: "active").order(:name).map { |u|
                 { id: u.id, name: u.name, email: u.email }
               }
-            ).merge(Companies::AgentContext.consultant_profile_json(company))
+            ).merge(Companies::AgentContext.consultant_profile_json(company)).merge(facts_json(company))
           }
         end
 
         private
+
+        # What the Profile tab needs to show each fact's source and let the
+        # consultant correct it once onboarding is submitted.
+        def facts_json(company)
+          {
+            "onboarding_answers" => company.questionnaire_answers || {},
+            "profile_provenance" => company.profile_provenance || {},
+            "onboarding_submitted_at" => company.current_engagement&.onboarding_submitted_at,
+            "profile_changes" => ProfileChange.recent_json(company)
+          }
+        end
 
         def company_summary(company)
           {
