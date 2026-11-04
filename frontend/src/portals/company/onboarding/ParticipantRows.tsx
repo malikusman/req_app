@@ -16,6 +16,9 @@ const COPY = {
   },
 } as const;
 
+// Not a department name a client could choose, so it can't collide with one.
+const NO_DEPARTMENT = '__none__';
+
 /**
  * The people the key user plans to involve (Doc 07 §7, P3 and P4). Saved as they
  * are added; nobody is invited from here.
@@ -60,6 +63,21 @@ export function ParticipantRows({
     }
   };
 
+  // A person planned in a department that has since been taken out of P1 keeps
+  // it, so nothing is lost; the key user is asked where they now belong.
+  const outsidePlan = (p: PlannedParticipant) =>
+    type === 'EMPLOYEE' && Boolean(p.department) && !departments.some((d) => d.toLowerCase() === p.department!.toLowerCase());
+
+  const move = async (id: number, department: string) => {
+    setMessage('');
+    try {
+      const res = await api.updatePlannedParticipant(token, id, { department });
+      onChange(participants.map((p) => (p.id === id ? res.participant : p)));
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Could not move this person');
+    }
+  };
+
   const remove = async (id: number) => {
     try {
       await api.removePlannedParticipant(token, id);
@@ -77,21 +95,40 @@ export function ParticipantRows({
       {rows.length > 0 && (
         <ul className="m-0 list-none space-y-2 p-0">
           {rows.map((p) => (
-            <li key={p.id} className="flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2 text-sm">
-              <span>
-                <span className="font-medium text-foreground">{p.name}</span>
-                <span className="text-muted-foreground">
-                  {[p.role_title, type === 'EMPLOYEE' ? p.department : p.scope].filter(Boolean).map((v) => ` · ${v}`)}
+            <li key={p.id} className="space-y-2 rounded-lg border border-border px-3 py-2 text-sm">
+              <div className="flex items-center justify-between gap-2">
+                <span>
+                  <span className="font-medium text-foreground">{p.name}</span>
+                  <span className="text-muted-foreground">
+                    {[p.role_title, type === 'EMPLOYEE' ? p.department : p.scope].filter(Boolean).map((v) => ` · ${v}`)}
+                  </span>
                 </span>
-              </span>
-              <button
-                type="button"
-                aria-label={`Remove ${p.name}`}
-                className="text-muted-foreground hover:text-foreground"
-                onClick={() => remove(p.id)}
-              >
-                <X className="h-4 w-4" />
-              </button>
+                <button
+                  type="button"
+                  aria-label={`Remove ${p.name}`}
+                  className="text-muted-foreground hover:text-foreground"
+                  onClick={() => remove(p.id)}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              {outsidePlan(p) && (
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                  <p className="m-0 text-xs text-status-warning">
+                    {p.department} is no longer one of the departments taking part.
+                  </p>
+                  <Select
+                    label={`Move ${p.name} to`}
+                    value=""
+                    onChange={(e) => e.target.value && move(p.id, e.target.value === NO_DEPARTMENT ? '' : e.target.value)}
+                    options={[
+                      { value: '', label: 'Choose…' },
+                      ...departments.map((d) => ({ value: d, label: d })),
+                      { value: NO_DEPARTMENT, label: 'No department' },
+                    ]}
+                  />
+                </div>
+              )}
             </li>
           ))}
         </ul>
