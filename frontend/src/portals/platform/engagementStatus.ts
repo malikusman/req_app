@@ -1,4 +1,4 @@
-import type { EngagementStatus } from '../../lib/api';
+import type { EngagementStatus, PrefillStatus } from '../../lib/api';
 
 /** How each engagement stage reads to Mjadi staff. */
 export const ENGAGEMENT_STATUS_LABELS: Record<EngagementStatus, string> = {
@@ -7,4 +7,14 @@ export const ENGAGEMENT_STATUS_LABELS: Record<EngagementStatus, string> = {
   KEY_PERSON_DISCOVERY: 'Leadership conversation',
   STAGE_1_ACTIVE: 'Stage 1 in progress',
   CLOSED: 'Closed',
+};
+
+/** Where reading the client's website for onboarding proposals has got to. */
+export const PREFILL_STATUS_LABELS: Record<PrefillStatus, string> = {
+  not_started: 'Not read',
+  pending: 'Reading…',
+  running: 'Reading…',
+  done: 'Read',
+  empty: 'Nothing usable found',
+  failed: "Couldn't be read",
 };

@@ -61,6 +61,20 @@ RSpec.describe "Platform engagement set-up", type: :request do
     expect(response).to have_http_status(:ok)
   end
 
+  it "doesn't start a second read while one is under way, but restarts one that is stuck" do
+    engagement = create(:engagement, company: create(:company, website_url: "https://alnoor.example"),
+                                     prefill_status: "running")
+    post "/api/v1/platform/engagements/#{engagement.id}/reread_website", headers: headers
+    expect(response).to have_http_status(:conflict)
+
+    travel 16.minutes do
+      expect {
+        post "/api/v1/platform/engagements/#{engagement.id}/reread_website", headers: headers
+      }.to have_enqueued_job(WebsitePrefillJob).with(engagement.id)
+      expect(response).to have_http_status(:ok)
+    end
+  end
+
   it "needs departments when the scope is departments" do
     params[:engagement][:departments_in_scope] = []
     post "/api/v1/platform/engagements", params: params, headers: headers, as: :json

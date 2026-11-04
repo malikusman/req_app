@@ -301,7 +301,8 @@ flowchart LR
 1. **Engagement set-up** (platform → Companies → *New engagement*, S1–S8): company, website,
    scope (whole company or named departments), key user, lead consultant, languages,
    proposal reference. No trial and no admin-chosen password; *Resend invitation* issues a
-   fresh link.
+   fresh link. The engagement card shows how reading the website went, and *Read website
+   again* reads it for new proposals (not while a read is still under way).
 2. **Set password** `/auth/set-password` from the invitation (link valid 7 days). The
    engagement moves from *Invited* to *Onboarding*.
 3. **Login** `/company/login` — allowed while the company has an engagement that isn't

@@ -63,7 +63,8 @@ module Api
             end,
             company_profile: company.company_profile || {},
             profile_provenance: company.profile_provenance || {},
-            onboarding_answers: company.questionnaire_answers || {}
+            onboarding_answers: company.questionnaire_answers || {},
+            website_url: company.website_url
           )
         end
 

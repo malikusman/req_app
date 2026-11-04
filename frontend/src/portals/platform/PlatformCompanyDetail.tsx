@@ -8,6 +8,7 @@ import {
   type CompanyConversation,
   type CompanyConversationMessage,
   type DiscoveryProvenanceEntry,
+  type Engagement,
   type MediaAttachment,
   type CompanyPattern,
   type CompanySignal,
@@ -44,7 +45,7 @@ import { label } from '../../lib/labels';
 import { PlatformCompanyConsultants } from './PlatformCompanyConsultants';
 import { ConversationMediaCard, ConversationMediaList } from '../../components/ConversationMediaCard';
 import { CompanyStackPanel } from './CompanyStackPanel';
-import { ENGAGEMENT_STATUS_LABELS } from './engagementStatus';
+import { ENGAGEMENT_STATUS_LABELS, PREFILL_STATUS_LABELS } from './engagementStatus';
 import { AgenticIdeasPanel } from '../shared/AgenticIdeasPanel';
 
 /** The confirmed company facts (Doc 07 §13), in the order onboarding asks for them. */
@@ -126,6 +127,18 @@ function CompanyProfileSummary({ company }: { company: CompanyDetail }) {
   );
 }
 
+/** How reading the website for onboarding proposals went, and what the client did with them. */
+function WebsiteReadLine({ engagement }: { engagement: Engagement }) {
+  const proposals = engagement.prefill_candidates || [];
+  const confirmed = proposals.filter((c) => c.status === 'CONFIRMED').length;
+  return (
+    <p className="m-0 text-text-secondary">
+      Website: {PREFILL_STATUS_LABELS[engagement.prefill_status] ?? engagement.prefill_status}
+      {proposals.length > 0 && ` · ${proposals.length} proposals, ${confirmed} confirmed`}
+    </p>
+  );
+}
+
 export function PlatformCompanyDetail() {
   const { id } = useParams();
   const companyId = Number(id);
@@ -176,6 +189,7 @@ export function PlatformCompanyDetail() {
   const [reportPreviewMode, setReportPreviewMode] = useState<'draft' | 'stored'>('draft');
   const [actionError, setActionError] = useState('');
   const [resendingInvite, setResendingInvite] = useState(false);
+  const [rereadingWebsite, setRereadingWebsite] = useState(false);
 
   // Only for the Reports tab's helper line, which claims the button exists
   // BECAUSE no consultant is assigned — so it has to know whether that is true.
@@ -362,6 +376,21 @@ export function PlatformCompanyDetail() {
     }
   };
 
+  const rereadWebsite = async () => {
+    if (!token || !company?.engagement) return;
+    setRereadingWebsite(true);
+    setActionError('');
+    try {
+      const res = await api.rereadEngagementWebsite(token, company.engagement.id);
+      setCompany((prev) => (prev ? { ...prev, engagement: res.engagement } : prev));
+      toast({ title: 'Reading the website again', description: 'New proposals appear on the client’s profile screen.', variant: 'success' });
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Could not read the website again');
+    } finally {
+      setRereadingWebsite(false);
+    }
+  };
+
   // A consultant flagging sections as "needs clarification" blocks approval until
   // it's resolved (regenerate with the changes, or the consultant re-marks them).
   const consultantNeedsInfo = (report: PlatformReport) =>
@@ -489,6 +518,16 @@ export function PlatformCompanyDetail() {
                   {company.engagement.proposal_reference ? (
                     <p className="m-0 text-text-secondary">Proposal {company.engagement.proposal_reference}</p>
                   ) : null}
+                  <WebsiteReadLine engagement={company.engagement} />
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    loading={rereadingWebsite}
+                    disabled={!company.website_url || ['pending', 'running'].includes(company.engagement.prefill_status)}
+                    onClick={rereadWebsite}
+                  >
+                    Read website again
+                  </Button>
                 </div>
               ) : (
                 <p className="m-0 text-sm text-text-secondary">No engagement</p>

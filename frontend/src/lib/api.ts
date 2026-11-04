@@ -234,6 +234,13 @@ export const api = {
       token
     ),
 
+  rereadEngagementWebsite: (token: string, id: number) =>
+    request<{ engagement: Engagement }>(
+      `/api/v1/platform/engagements/${id}/reread_website`,
+      { method: 'POST' },
+      token
+    ),
+
   companyMe: (token: string) =>
     request<{
       user: CompanyUser;
@@ -2641,12 +2648,15 @@ export interface OnboardingState {
     confidentiality_acknowledged_at: string | null;
   } | null;
   prefill: {
-    status: 'not_started' | 'pending' | 'running' | 'done' | 'empty' | 'failed';
+    status: PrefillStatus;
     entity_note: string | null;
     candidates: PrefillProposal[];
   } | null;
   confidentiality: { version: string; text: string };
 }
+
+/** Where reading the client's website for proposals has got to. */
+export type PrefillStatus = 'not_started' | 'pending' | 'running' | 'done' | 'empty' | 'failed';
 
 /** A value read from the client's website, waiting for them to confirm (Doc 07 §5). */
 export interface PrefillProposal {
@@ -2673,6 +2683,9 @@ export interface Engagement {
   planned_departments: { name: string; count: number | 'UNKNOWN' }[];
   planned_participant_count: number | null;
   onboarding_submitted_at: string | null;
+  prefill_status: PrefillStatus;
+  prefill_entity_note: string | null;
+  prefill_candidates: { id: number; target_field: string; status: PrefillProposal['status'] }[];
   confidentiality_acknowledged_at: string | null;
   key_user: { id: number; name: string; email: string; phone: string | null; job_title: string | null; status: string } | null;
   lead_consultant: { id: number; name: string } | null;
@@ -2720,6 +2733,7 @@ export interface CompanyDetail extends Company {
   company_profile?: Record<string, unknown>;
   profile_provenance?: Record<string, { source: string; at: string; unknown?: boolean }>;
   onboarding_answers?: Record<string, unknown>;
+  website_url?: string | null;
   company_users?: { id: number; email: string; name: string; role: string; status: string }[];
   engagement?: Engagement | null;
 }

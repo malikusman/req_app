@@ -50,11 +50,16 @@ module Api
           render json: { ok: true, email: key_user.email }
         end
 
-        # Reads the client's website again for pre-fill proposals.
+        # Reads the client's website again for pre-fill proposals. A read still under
+        # way is not started twice; one stuck for longer than the job's retry window
+        # can be.
         def reread_website
           engagement = find_engagement
           if engagement.company.website_url.blank?
             return render json: { error: "The company has no website" }, status: :unprocessable_entity
+          end
+          if reading?(engagement)
+            return render json: { error: "The website is already being read" }, status: :conflict
           end
 
           WebsitePrefillJob.start(engagement)
@@ -92,6 +97,12 @@ module Api
         end
 
         private
+
+        READ_STUCK_AFTER = 15.minutes
+
+        def reading?(engagement)
+          %w[pending running].include?(engagement.prefill_status) && engagement.updated_at > READ_STUCK_AFTER.ago
+        end
 
         def find_engagement
           engagement = Engagement.find(params[:id])
