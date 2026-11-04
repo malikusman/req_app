@@ -177,6 +177,17 @@ class Company < ApplicationRecord
     engagements.not_closed.order(created_at: :desc).first
   end
 
+  # Reads the website again in the background: for onboarding pre-fill proposals
+  # when the company is on an engagement (Doc 07 §5), otherwise for the older
+  # research summary. An engagement company never gets the summary, which was
+  # never confirmed by anyone.
+  def read_website_later(force: false)
+    return if website_url.blank?
+
+    engagement = current_engagement
+    engagement ? WebsitePrefillJob.start(engagement) : CompanyWebResearchJob.perform_later(id, force: force)
+  end
+
   private
 
   def generate_slug

@@ -445,7 +445,9 @@ appendix (by default) and the client portal's "What we found". See section 16.
 
 Website research (`WebResearchService`, one summarised knowledge entry) now runs only for
 companies without an engagement. Companies on an engagement get the website pre-fill
-instead (section 4.1), whose output is never read until the client confirms it.
+instead (section 4.1), whose output is never read until the client confirms it. A website
+change and Settings' *refresh research* both go through `Company#read_website_later`,
+which makes that choice.
 
 ---
 

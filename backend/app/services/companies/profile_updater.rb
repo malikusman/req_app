@@ -113,13 +113,11 @@ module Companies
       profile[key] == value && was_unknown == unknown
     end
 
-    # A new website is read again: for pre-fill proposals when the company is on an
-    # engagement (Doc 07 §5), otherwise for the older research summary.
+    # A new website is read again (Company#read_website_later decides how).
     def website_changed!(previous_website)
       return if @website_url == :omit || @company.website_url.blank? || @company.website_url == previous_website
 
-      engagement = @company.current_engagement
-      engagement ? WebsitePrefillJob.start(engagement) : CompanyWebResearchJob.perform_later(@company.id)
+      @company.read_website_later
     end
 
     def provenance_entry(unknown:)
