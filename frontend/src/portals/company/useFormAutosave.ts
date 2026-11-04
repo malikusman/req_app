@@ -62,6 +62,7 @@ export function useFormAutosave(token: string | null, answers: QuestionnaireAnsw
   const savingDelayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedFadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const waitersRef = useRef<Array<() => void>>([]);
+  const flushAfterRenderRef = useRef(false);
 
   const isDirty = () => Object.keys(diffAnswers(answersRef.current, lastSavedRef.current)).length > 0;
 
@@ -149,7 +150,10 @@ export function useFormAutosave(token: string | null, answers: QuestionnaireAnsw
     if (field?.type === 'static') return;
 
     if (field && IMMEDIATE_TYPES.has(field.type)) {
-      triggerFlush();
+      // Saved once React has rendered the change: called from the click itself,
+      // answersRef still holds the answers from before it, and the change would
+      // be missed.
+      flushAfterRenderRef.current = true;
       return;
     }
 
@@ -159,6 +163,13 @@ export function useFormAutosave(token: string | null, answers: QuestionnaireAnsw
       maxWaitTimerRef.current = setTimeout(triggerFlush, MAX_WAIT_MS);
     }
   };
+
+  // Runs after the effect above has caught answersRef up with this render.
+  useEffect(() => {
+    if (!flushAfterRenderRef.current) return;
+    flushAfterRenderRef.current = false;
+    triggerFlush();
+  });
 
   const flush = (): Promise<void> => {
     if (!enabledRef.current) return Promise.resolve();

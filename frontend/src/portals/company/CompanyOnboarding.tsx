@@ -38,9 +38,14 @@ export function CompanyOnboarding() {
 
   useEffect(() => {
     if (!token) return;
+    // A response that lands after this load was superseded (in development,
+    // StrictMode loads twice) must not overwrite what the key user has since
+    // answered.
+    let current = true;
     api
       .companyOnboarding(token)
       .then((d) => {
+        if (!current) return;
         setState(d);
         setAnswers(withScopeDefaults(d));
         setAcknowledged(Boolean(d.engagement?.confidentiality_acknowledged_at));
@@ -48,12 +53,15 @@ export function CompanyOnboarding() {
         setAdminName(d.key_user.name || '');
         setAdminPhone(d.key_user.phone || '');
       })
-      .catch(() => setErrors(['Could not load your company profile.']))
-      .finally(() => setLoading(false));
+      .catch(() => current && setErrors(['Could not load your company profile.']))
+      .finally(() => current && setLoading(false));
     api
       .plannedParticipants(token)
-      .then((d) => setParticipants(d.participants))
+      .then((d) => current && setParticipants(d.participants))
       .catch(() => undefined);
+    return () => {
+      current = false;
+    };
   }, [token]);
 
   const autosave = useFormAutosave(token, answers, ONBOARDING_FIELDS);
