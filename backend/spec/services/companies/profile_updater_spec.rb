@@ -64,4 +64,55 @@ RSpec.describe Companies::ProfileUpdater do
   it "rejects an unknown provenance" do
     expect { described_class.call(company: company, provenance: "GUESSED") }.to raise_error(ArgumentError)
   end
+
+  describe "change history" do
+    include ActiveJob::TestHelper
+
+    let(:user) { create(:company_user, company: company) }
+    let!(:engagement) { create(:engagement, company: company, status: "ONBOARDING") }
+
+    before do
+      described_class.call(company: company, profile_params: { "size_band" => "11-50", "industry" => "retail" },
+                           known_systems: ["Excel"], actor: user)
+    end
+
+    it "keeps nothing while the client is still filling in onboarding" do
+      expect(company.profile_changes).to be_empty
+    end
+
+    context "once onboarding is submitted" do
+      before { engagement.update!(onboarding_submitted_at: Time.current) }
+
+      it "records each changed field, what it was and became, where from and who" do
+        described_class.call(company: company, profile_params: { "size_band" => "51-200", "industry" => "retail" },
+                             actor: user, only_changed: true)
+
+        change = company.profile_changes.sole
+        expect(change).to have_attributes(field: "size_band", from_value: "11-50", to_value: "51-200",
+                                          source: "USER_ENTERED", actor: user)
+      end
+
+      it "records nothing when a save changes nothing, even one that rewrites every field" do
+        described_class.call(company: company, profile_params: { "size_band" => "11-50", "industry" => "retail" })
+
+        expect(company.profile_changes).to be_empty
+      end
+
+      it "records Not sure as such" do
+        described_class.call(company: company, profile_params: { "size_band" => "UNKNOWN" }, actor: user)
+
+        expect(company.profile_changes.sole).to have_attributes(from_value: "11-50", to_value: "UNKNOWN")
+      end
+
+      it "records a new website and new systems" do
+        described_class.call(company: company, website_url: "example-trading.ae", known_systems: %w[Excel SAP],
+                             actor: user)
+
+        expect(company.profile_changes.pluck(:field, :from_value, :to_value)).to contain_exactly(
+          ["website_url", nil, "https://example-trading.ae"],
+          ["company_systems", ["Excel"], %w[Excel SAP]]
+        )
+      end
+    end
+  end
 end

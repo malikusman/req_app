@@ -2723,6 +2723,20 @@ export interface ConsultantApplicationRow {
   created_at: string;
 }
 
+/** Where each company fact came from (Companies::ProfileUpdater). */
+export type ProfileProvenance = Record<string, { source: string; at: string; unknown?: boolean; by_type?: string; by_id?: number }>;
+
+/** One change to a company fact after onboarding was submitted. */
+export interface ProfileChangeEntry {
+  id: number;
+  field: string;
+  from: unknown;
+  to: unknown;
+  source: string;
+  actor: { type: string; name: string | null } | null;
+  at: string;
+}
+
 export interface CompanyDetail extends Company {
   settings: Record<string, unknown>;
   intelligence_snapshot: Record<string, unknown>;
@@ -2731,9 +2745,10 @@ export interface CompanyDetail extends Company {
   completed_count?: number;
   invited_count?: number;
   company_profile?: Record<string, unknown>;
-  profile_provenance?: Record<string, { source: string; at: string; unknown?: boolean }>;
+  profile_provenance?: ProfileProvenance;
   onboarding_answers?: Record<string, unknown>;
   website_url?: string | null;
+  profile_changes?: ProfileChangeEntry[];
   company_users?: { id: number; email: string; name: string; role: string; status: string }[];
   engagement?: Engagement | null;
 }

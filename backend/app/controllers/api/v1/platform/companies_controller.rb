@@ -64,7 +64,8 @@ module Api
             company_profile: company.company_profile || {},
             profile_provenance: company.profile_provenance || {},
             onboarding_answers: company.questionnaire_answers || {},
-            website_url: company.website_url
+            website_url: company.website_url,
+            profile_changes: ProfileChange.recent_json(company)
           )
         end
 

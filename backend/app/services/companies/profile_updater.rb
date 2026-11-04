@@ -12,6 +12,10 @@ module Companies
   # Each written field also records where it came from in profile_provenance, so
   # a value the key user confirmed can be told apart from one they typed, one
   # found later in conversation, or one carried over from the old questionnaire.
+  #
+  # Once onboarding has been submitted, every change to a fact — a profile
+  # field, the website or the systems — is also kept as a ProfileChange, with
+  # who made it (Doc 07 §12).
   class ProfileUpdater
     PROFILE_KEYS = %w[
       industry industry_detail sub_industry size_band country region locations
@@ -75,6 +79,9 @@ module Companies
     end
 
     def call
+      audit = @company.current_engagement&.onboarding_submitted_at.present?
+      changes = []
+      systems_before = audit ? active_system_names : nil
       profile = (@company[:company_profile] || {}).to_h.stringify_keys
       provenance = (@company[:profile_provenance] || {}).to_h.stringify_keys
       PROFILE_KEYS.each do |key|
@@ -82,8 +89,10 @@ module Companies
 
         value = normalize_value(key, @profile_params[key])
         unknown = unknown?(@profile_params[key])
-        next if @only_changed && unchanged?(profile, provenance, key, unknown ? nil : value, unknown)
+        same = unchanged?(profile, provenance, key, unknown ? nil : value, unknown)
+        next if @only_changed && same
 
+        changes << change(key, logged_value(profile, provenance, key), unknown ? UNKNOWN : value) unless same
         if value.nil? || unknown
           profile.delete(key)
         else
@@ -100,6 +109,15 @@ module Companies
 
       @company.update!(attrs)
       sync_known_systems! if !@known_systems.nil?
+
+      if audit
+        if @website_url != :omit && @company.website_url != previous_website
+          changes << change("website_url", previous_website, @company.website_url)
+        end
+        systems_after = active_system_names
+        changes << change("company_systems", systems_before, systems_after) if systems_after != systems_before
+        record_changes!(changes)
+      end
 
       website_changed!(previous_website)
 
@@ -118,6 +136,28 @@ module Companies
       return if @website_url == :omit || @company.website_url.blank? || @company.website_url == previous_website
 
       @company.read_website_later
+    end
+
+    def logged_value(profile, provenance, key)
+      provenance.dig(key, "unknown") ? UNKNOWN : profile[key]
+    end
+
+    def change(field, from, to)
+      { field: field, from_value: from, to_value: to }
+    end
+
+    def active_system_names
+      @company.company_systems.active.order(:name).pluck(:name)
+    end
+
+    def record_changes!(changes)
+      return if changes.empty?
+
+      now = Time.current
+      ProfileChange.insert_all!(changes.map { |c|
+        c.merge(company_id: @company.id, source: @provenance, actor_type: @actor&.class&.name, actor_id: @actor&.id,
+                created_at: now, updated_at: now)
+      })
     end
 
     def provenance_entry(unknown:)

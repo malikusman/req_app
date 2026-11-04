@@ -27,6 +27,7 @@ class Company < ApplicationRecord
   has_many :company_memory_facts, dependent: :destroy
   has_one :company_registration, dependent: :destroy
   has_many :engagements, dependent: :destroy
+  has_many :profile_changes, dependent: :delete_all
 
   def bot_phone_display
     ENV.fetch("META_WHATSAPP_DISPLAY_NUMBER", "+1 000 000 0000")

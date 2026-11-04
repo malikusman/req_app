@@ -47,85 +47,7 @@ import { ConversationMediaCard, ConversationMediaList } from '../../components/C
 import { CompanyStackPanel } from './CompanyStackPanel';
 import { ENGAGEMENT_STATUS_LABELS, PREFILL_STATUS_LABELS } from './engagementStatus';
 import { AgenticIdeasPanel } from '../shared/AgenticIdeasPanel';
-
-/** The confirmed company facts (Doc 07 §13), in the order onboarding asks for them. */
-const PROFILE_FIELDS: { key: string; label: string }[] = [
-  { key: 'industry', label: 'Industry' },
-  { key: 'industry_detail', label: 'What they do' },
-  { key: 'size_band', label: 'Headcount' },
-  { key: 'country', label: 'Headquarters' },
-  { key: 'locations', label: 'Other locations' },
-  { key: 'business_model', label: 'Business model' },
-  { key: 'products_services', label: 'Products and services' },
-  { key: 'org_departments', label: 'Departments' },
-  { key: 'customer_channels', label: 'Customer channels' },
-  { key: 'data_storage', label: 'Where data is kept' },
-  { key: 'current_ai_use', label: 'AI tools in use' },
-  { key: 'security_constraints', label: 'Constraints' },
-];
-
-/** Where each fact came from, so Mjadi staff can tell a confirmed fact from a typed one. */
-const PROVENANCE_LABELS: Record<string, string> = {
-  PREFILL_CONFIRMED: 'confirmed from website',
-  USER_ENTERED: 'entered by client',
-  DISCOVERED_LATER: 'found in conversation',
-  LEGACY_QUESTIONNAIRE: 'old questionnaire',
-};
-
-function formatProfileValue(value: unknown): string | null {
-  if (value == null) return null;
-  if (typeof value === 'string') return value.trim() || null;
-  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-  if (Array.isArray(value)) {
-    const parts = value.map((v) => String(v).trim()).filter(Boolean);
-    return parts.length ? parts.join(', ') : null;
-  }
-  if (typeof value === 'object') {
-    // The matrix questions (systems by category, parties and their channels,
-    // headcount per department) store a keyed map.
-    const parts = Object.entries(value as Record<string, unknown>)
-      .map(([k, v]) => {
-        const inner = Array.isArray(v)
-          ? v.map((x) => String(x).trim()).filter(Boolean).join(', ')
-          : String(v ?? '').trim();
-        return inner ? `${k}: ${inner}` : null;
-      })
-      .filter(Boolean);
-    return parts.length ? parts.join(' · ') : null;
-  }
-  return null;
-}
-
-function CompanyProfileSummary({ company }: { company: CompanyDetail }) {
-  const profile = (company.company_profile || {}) as Record<string, unknown>;
-  const provenance = company.profile_provenance || {};
-  const rows = PROFILE_FIELDS.flatMap(({ key, label }) => {
-    const source = provenance[key];
-    const value = source?.unknown ? 'Not sure' : formatProfileValue(profile[key]);
-    if (!value) return [];
-    return [{ label, value, source: source ? PROVENANCE_LABELS[source.source] : undefined }];
-  });
-
-  return (
-    <Card title="Company profile">
-      {rows.length === 0 ? (
-        <p className="m-0 text-sm text-text-secondary">No confirmed facts yet.</p>
-      ) : (
-        <dl className="m-0 grid gap-3 sm:grid-cols-2">
-          {rows.map((row) => (
-            <div key={row.label}>
-              <dt className="text-xs font-medium uppercase tracking-wide text-text-secondary">{row.label}</dt>
-              <dd className="mt-0.5 text-sm text-text-primary">
-                {row.value}
-                {row.source && <span className="ml-1 text-xs text-text-secondary">· {row.source}</span>}
-              </dd>
-            </div>
-          ))}
-        </dl>
-      )}
-    </Card>
-  );
-}
+import { CompanyProfileSummary, ProfileChanges } from '../shared/CompanyProfileFacts';
 
 /** How reading the website for onboarding proposals went, and what the client did with them. */
 function WebsiteReadLine({ engagement }: { engagement: Engagement }) {
@@ -548,7 +470,8 @@ export function PlatformCompanyDetail() {
             </Card>
           </div>
 
-          <CompanyProfileSummary company={company} />
+          <CompanyProfileSummary profile={company.company_profile} provenance={company.profile_provenance} />
+          <ProfileChanges changes={company.profile_changes} />
 
           <Card title="Company admins">
             {actionError && tab === 'overview' ? (

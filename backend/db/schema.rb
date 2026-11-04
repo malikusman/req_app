@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_11_03_140000) do
+ActiveRecord::Schema[7.1].define(version: 2026_11_04_100000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -1222,6 +1222,19 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_03_140000) do
     t.index ["engagement_id"], name: "index_prefill_candidates_on_engagement_id"
   end
 
+  create_table "profile_changes", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.string "field", null: false
+    t.jsonb "from_value"
+    t.jsonb "to_value"
+    t.string "source", null: false
+    t.string "actor_type"
+    t.bigint "actor_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id", "created_at"], name: "index_profile_changes_on_company_id_and_created_at"
+  end
+
   create_table "recommendation_feedbacks", force: :cascade do |t|
     t.bigint "recommendation_id", null: false
     t.bigint "company_user_id", null: false
@@ -1632,6 +1645,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_03_140000) do
   add_foreign_key "platform_audit_logs", "platform_users"
   add_foreign_key "prefill_candidates", "companies"
   add_foreign_key "prefill_candidates", "engagements"
+  add_foreign_key "profile_changes", "companies"
   add_foreign_key "recommendation_feedbacks", "company_users"
   add_foreign_key "recommendation_feedbacks", "recommendations"
   add_foreign_key "recommendations", "companies"
