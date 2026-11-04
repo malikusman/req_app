@@ -130,51 +130,50 @@ namespace :e2e do
     end
   end
 
-  desc "Provision a company user sitting at the start of a blank onboarding questionnaire"
-  task seed_questionnaire: :environment do
+  desc "Provision a key user at the start of company onboarding, with one website proposal to confirm"
+  task seed_onboarding: :environment do
     abort "Refusing to run in production" if Rails.env.production?
 
-    email = ENV.fetch("E2E_QUESTIONNAIRE_EMAIL", "questionnaire-e2e@mjadi.test")
-    password = ENV.fetch("E2E_QUESTIONNAIRE_PASSWORD", "QuestionnaireE2E123!")
+    email = ENV.fetch("E2E_ONBOARDING_EMAIL", "onboarding-e2e@mjadi.test")
+    password = ENV.fetch("E2E_ONBOARDING_PASSWORD", "OnboardingE2E123!")
+    website = "https://example-trading.ae/"
 
-    company = Company.find_or_create_by!(slug: "questionnaire-e2e") do |c|
-      c.name = "Questionnaire E2E Co"
-      c.display_name = "Questionnaire E2E Co"
+    company = Company.find_or_create_by!(slug: "onboarding-e2e") do |c|
+      c.name = "Onboarding E2E Co"
+      c.display_name = "Onboarding E2E Co"
       c.locale = "en"
     end
-    # Login is gated on approval and an active subscription. Portal onboarding is
-    # deliberately left incomplete — the questionnaire is what we are testing.
-    company.update!(approval_status: "approved", portal_onboarding_completed_at: Time.current)
-    subscription = company.subscription || company.build_subscription
-    subscription.update!(plan: Subscription::PLANS.first, status: "active")
-
-    # Every run starts from an empty questionnaire, so the test sees a first-time
-    # company rather than whatever the previous run left behind.
-    company.update!(questionnaire_answers: {}, questionnaire_step: 1, questionnaire_completed_at: nil)
+    # Access comes from the engagement, not a subscription (Doc 07 §1). Every run
+    # starts from a first-time key user with nothing answered.
+    company.subscription&.destroy!
+    company.engagements.destroy_all
     company.company_systems.destroy_all
+    company.profile_changes.delete_all
+    company.update!(
+      approval_status: "approved", website_url: website, portal_onboarding_completed_at: nil,
+      questionnaire_answers: {}, questionnaire_step: 1, company_profile: {}, profile_provenance: {}
+    )
 
     user = CompanyUser.find_or_initialize_by(email: email)
-    user.company = company
-    user.name = "Questionnaire E2E Admin"
-    user.role = "company_admin"
-    user.password = password
+    user.assign_attributes(company: company, name: "Onboarding E2E Admin", role: "company_admin", status: "active",
+                           password: password, onboarding_completed_at: nil)
     user.save!
-    user.update!(onboarding_completed_at: nil)
 
-    puts "Seeded #{email} / #{password} (company ##{company.id}, questionnaire reset)"
-  end
-
-  desc "Print the stored questionnaire answers for the e2e company as JSON"
-  task dump_questionnaire: :environment do
-    company = Company.find_by!(slug: "questionnaire-e2e")
-    puts JSON.pretty_generate(
-      "step" => company.questionnaire_step,
-      "completed_at" => company.questionnaire_completed_at,
-      "completion" => Companies::QuestionnaireProgress.call(company.questionnaire_answers)[:completion_percent],
-      "company_profile" => company.company_profile,
-      "known_systems" => company.company_systems.active.order(:name).pluck(:name),
-      "answers" => company.questionnaire_answers
+    # Created directly rather than through Engagements::Create, so no invitation
+    # is sent and no website is fetched.
+    engagement = company.engagements.create!(
+      status: "ONBOARDING", scope_type: "COMPANY", languages: %w[en], key_user: user,
+      status_history: [{ "from" => nil, "to" => "ONBOARDING", "at" => Time.current.iso8601, "reason" => "e2e seed" }],
+      prefill_status: "done", prefill_finished_at: Time.current
     )
+    engagement.prefill_candidates.create!(
+      company: company, target_field: "industry", value: "Wholesale distribution — tailoring materials",
+      display_text: "Wholesaler of tailoring materials", confidence: "HIGH", source_url: website,
+      evidence_excerpt: "one of the leading wholesalers of tailoring materials", website_url: website,
+      prompt_version: "P01.v1", extracted_at: Time.current
+    )
+
+    puts "Seeded #{email} / #{password} (company ##{company.id}, engagement ##{engagement.id}, onboarding reset)"
   end
 
 end
