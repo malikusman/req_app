@@ -91,6 +91,8 @@ module EmployeeWebAuthenticatable
       conversation_status: conversation.status,
       question_count: conversation.question_count,
       completed: conversation.status == "completed",
+      discovery_outcome: conversation.dossier.dig("workflow", "outcome"),
+      discovery_pending: conversation.messages.where(direction: "inbound").order(:id).last&.raw_payload&.dig("discovery_pending") == true,
       # For the browser's own voice when the questions cannot be spoken server-side.
       language: employee.preferred_language.presence || employee.company.locale,
       voice: {

@@ -139,6 +139,7 @@ def routing_decision(decision: dict[str, Any], previous_agent: str | None) -> di
         "reason": reason,
         "slot": beat.get("slot"),
         "area": beat.get("area"),
+        "task_id": beat.get("task_id"),
         "close_reason": decision.get("close_reason"),
     }
 

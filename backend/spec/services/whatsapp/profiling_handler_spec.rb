@@ -100,6 +100,41 @@ RSpec.describe Whatsapp::ProfilingHandler do
       expect(employee.reload.profile_data["team_size"]).to eq(6)
     end
 
+    it "clarifies a manager title paired with individual contributor exactly once" do
+      handler.handle_inbound_text("Finance Manager")
+      handler.handle_inbound_text("Finance")
+      handler.handle_inbound_text("Individual contributor")
+      expect(conversation.reload.state_snapshot.dig("profiling", "step")).to eq("role_clarification")
+      expect(conversation.messages.where(direction: "outbound").last.body).to include("do you also manage people")
+      handler.handle_inbound_text("It's just my title; I don't manage anyone.")
+      expect(employee.reload.seniority).to eq("individual_contributor")
+      expect(employee.role_title).to eq("Finance Manager")
+      expect(employee.profile_card["role_clarification"]).to include("don't manage anyone")
+      expect(conversation.reload.state_snapshot.dig("profiling", "step")).to eq("responsibilities")
+      handler.handle_inbound_text("I check invoices and payments")
+      expect(conversation.messages.where(direction: "outbound").where("body LIKE ?", "%do you also manage people%").count).to eq(1)
+    end
+
+    it "updates work level only when the clarification explicitly confirms people management" do
+      handler.handle_inbound_text("Finance Manager")
+      handler.handle_inbound_text("Finance")
+      handler.handle_inbound_text("Individual contributor")
+      handler.handle_inbound_text("Yes, I manage a team of four.")
+      expect(employee.reload.seniority).to eq("manager")
+      handler.handle_inbound_text("I review invoices")
+      expect(conversation.reload.state_snapshot.dig("profiling", "step")).to eq("team_size")
+    end
+
+    it "does not repeatedly challenge an unclear role clarification" do
+      handler.handle_inbound_text("Finance Manager")
+      handler.handle_inbound_text("Finance")
+      handler.handle_inbound_text("Individual contributor")
+      handler.handle_inbound_text("It depends on the project.")
+      expect(employee.reload.seniority).to eq("individual_contributor")
+      expect(conversation.reload.state_snapshot.dig("profiling", "step")).to eq("responsibilities")
+      expect(employee.profile_card["role_clarification"]).to eq("It depends on the project.")
+    end
+
     it "handles opt-out" do
       handler.handle_inbound_text("STOP")
       expect(employee.reload.participation_status).to eq("declined")

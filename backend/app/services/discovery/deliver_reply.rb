@@ -16,6 +16,18 @@ module Discovery
     end
 
     def call
+      @conversation.with_lock do
+        source = @result["source_message_id"]
+        if source
+          existing = @conversation.messages.where(direction: "outbound")
+            .where("raw_payload ->> 'source_message_id' = ?", source.to_s).first
+          next existing if existing
+        end
+        deliver
+      end
+    end
+
+    def deliver
       if @result["delayed"]
         body = @result["assistant_message"].to_s
         # Tagged so build_history can exclude it. Untagged, this canned apology was
@@ -32,7 +44,7 @@ module Discovery
       assistant_body = @result["assistant_message"].to_s
       return nil if assistant_body.blank?
 
-      is_question = !@result["completed"] && @conversation.reload.question_count.positive?
+      is_question = !@result["completed"] && @conversation.question_count.positive?
       message = persist_outbound(
         assistant_body,
         is_discovery_question: is_question,
@@ -63,7 +75,7 @@ module Discovery
         routing_decision: routing_decision.presence || {},
         # message_type stays "text" (not "system") so the employee still sees the
         # apology in their own thread — only build_history needs to exclude it.
-        raw_payload: delay_notice ? { "kind" => "delay_notice" } : {}
+        raw_payload: delay_notice ? { "kind" => "delay_notice" } : { "source_message_id" => @result["source_message_id"] }.compact
       )
     end
 

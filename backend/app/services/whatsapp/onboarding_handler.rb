@@ -118,7 +118,7 @@ module Whatsapp
             company: @company,
             conversation: @conversation
           )
-          Whatsapp::ProfilingHandler.new(employee: @employee, conversation: @conversation, client: @client).start!
+          Whatsapp::ProfilingHandler.new(employee: @employee, conversation: @conversation, client: @client, channel: @channel).start!
         else
           @conversation.update!(status: "discovery", started_at: Time.current)
           Subscriptions::ConversationLimitEnforcer.record_discovery_started!(
@@ -143,7 +143,7 @@ module Whatsapp
       @employee.update!(preferred_language: lang) if @employee.preferred_language.blank?
 
       if Whatsapp::ProfilingHandler.enabled?(@company) && !@employee.profile_complete? && !@conversation.discovery?
-        handler = Whatsapp::ProfilingHandler.new(employee: @employee, conversation: @conversation, client: @client)
+        handler = Whatsapp::ProfilingHandler.new(employee: @employee, conversation: @conversation, client: @client, channel: @channel)
         @conversation.profiling? ? handler.handle_inbound_text(text) : handler.start!
         return
       end

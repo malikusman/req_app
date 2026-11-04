@@ -21,6 +21,7 @@ from app.llm import OpenAIUnavailable
 from app.multi_agent_llm import closing_message, write_farewell, write_question
 from app.orchestrator import finalize_turn, needs_summary_refresh, prepare_turn, record_reply
 from app.state import MultiTurnState
+from app import workflow
 
 
 def _record(state: MultiTurnState) -> MultiTurnState:
@@ -31,6 +32,11 @@ def _record(state: MultiTurnState) -> MultiTurnState:
     # cost the interview areas the person had already named.
     if not str(current.get("user_message") or "").strip():
         return {**current, "insight": dict(EMPTY_CAPTURE["insight"]), "capture_status": "skipped"}
+    bb = current.get("blackboard") or {}
+    if workflow.enabled(bb) and bb.get("last_phase") == "review" and workflow.explicit_approval(current.get("user_message")):
+        # A plain confirmation adds no process facts; don't spend a model call
+        # re-extracting and paraphrasing the entire dossier on the closing turn.
+        return record_reply(current, {**EMPTY_CAPTURE, "workflow_updates": [], "summary_confirmed": True})
     capture = capture_reply(current, refresh_summary=needs_summary_refresh(current))
     return record_reply(current, capture)
 
@@ -51,6 +57,14 @@ def _close(state: MultiTurnState) -> MultiTurnState:
     else:
         message = closing_message(state.get("preferred_language", "en"), state.get("employee_name", ""))
     bb = state.get("blackboard") or {}
+    if workflow.enabled(bb):
+        data = workflow.ledger(bb)
+        if reason == "employee_ended":
+            data["outcome"] = "employee_stopped"
+        elif reason == "dossier_complete" and data.get("outcome") == "successful":
+            message = "Thanks. Your workflow summary is confirmed and saved. That’s everything for now."
+        elif reason != "dossier_complete":
+            message = "Thank you. Your answers are saved. Some workflow details still need follow-up; this interview is not marked as successfully validated."
     # Why the interview ended is worth keeping: a high rate of "ceiling" means the
     # dossier is asking for more than an interview can reasonably get.
     bb["close_reason"] = reason

@@ -20,7 +20,7 @@ from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from app import dossier
+from app import dossier, workflow
 from app.circuit_breaker import record_failure, record_success
 from app.config import settings
 from app.llm import OpenAIUnavailable
@@ -130,10 +130,23 @@ def language_rule(language: str) -> str:
 def write_question(state: dict[str, Any]) -> dict[str, Any]:
     """{assistant_message, fallback_reason}. Raises OpenAIUnavailable on an outage so
     Rails can send its delay notice and retry the whole turn."""
+    if state.get("phase") == "review":
+        shown = workflow.ledger(state["blackboard"]).get("presented_summary") or {}
+        if workflow.review_matches(state["blackboard"], shown) and any(
+                m.get("role") == "assistant" and m.get("content") == shown.get("text") for m in state.get("history") or []):
+            shown["revision"] = workflow.ledger(state["blackboard"])["revision"]
+            return {"assistant_message": "Does the summary above reflect your work, or is there a particular detail I should correct or add?", "fallback_reason": None}
+        return {"assistant_message": workflow.review_message(state["blackboard"]), "fallback_reason": None}
     if not llm_configured():
         return {"assistant_message": fallback_question(state), "fallback_reason": None}
 
     text = _talk(_build_talk_prompt(state), state)
+    asked = {" ".join(str(m.get("content") or "").casefold().split())
+             for m in state.get("history") or [] if m.get("role") == "assistant"}
+    if text and " ".join(text.casefold().split()) in asked:
+        return {"assistant_message": fallback_question(state), "fallback_reason": "repeated_question"}
+    if text and state.get("preferred_language", "en") == "en" and text.count("?") > 1:
+        return {"assistant_message": fallback_question(state), "fallback_reason": "multiple_questions"}
     if text:
         return {"assistant_message": text, "fallback_reason": None}
     # Two empty replies in a row: ask the planned question in plain words rather than
@@ -144,7 +157,7 @@ def write_question(state: dict[str, Any]) -> dict[str, Any]:
 def write_farewell(state: dict[str, Any]) -> str:
     """They asked to stop. A short, warm goodbye — never a question, never pressure.
     Never raises: the employee has done their part, and failing loudly now helps nobody."""
-    fallback = closing_message(state.get("preferred_language", "en"), state.get("employee_name", ""))
+    fallback = "Thank you. Your answers are saved, and we’ll stop here."
     if not llm_configured():
         return fallback
     prompt = (
@@ -228,6 +241,17 @@ def clean_reply(content: Any) -> str:
 def fallback_question(state: dict[str, Any]) -> str:
     """The planned question in plain words — used with no model, or when the model
     returns nothing twice. Deliberately simple; it is a safety net, not a style."""
+    if (state.get("beat") or {}).get("slot") == "workflow":
+        question = workflow.fallback(state["beat"])
+        asked = {str(m.get("content") or "").strip() for m in state.get("history") or [] if m.get("role") == "assistant"}
+        if question in asked and "steps_decisions" in state["beat"].get("fields", []):
+            return f"Could you walk me through one recent example of {state['beat'].get('area')}, including the checks or decisions before the final result?"
+        if question in asked:
+            target = state["beat"].get("intent") or "; ".join(workflow.LABELS.get(f, f.replace("_", " ")) for f in state["beat"].get("fields", []))
+            return f"For {state['beat'].get('area') or 'the work you described'}, I'm still unclear about {target}; could you give a rough example, or say if that information isn't available?"
+        return question
+    if workflow.enabled(state.get("blackboard") or {}) and (state.get("beat") or {}).get("slot") == "role_potential":
+        return "Which repetitive part of this work would you most like simplified, and what would that free you to focus on?"
     if state.get("phase") == "orient" or not state.get("beat"):
         if not state.get("question_count"):
             name = (state.get("employee_name") or "").split(" ")[0]
@@ -310,18 +334,26 @@ def _asked_block(state: dict[str, Any]) -> str:
         return ""
     lines = "\n".join(f"- {q[:160]}" for q in asked[-8:])
     return (
-        "\nQuestions you have ALREADY asked — do NOT ask any of these again, "
-        f"even reworded or from a slightly different angle:\n{lines}\n"
+        "\nQuestions you have ALREADY asked — never request details already supplied. "
+        "A previously broad question may have left one specific detail unclear; ask "
+        f"only the selected genuine gap, never the whole question again:\n{lines}\n"
     )
 
 
 # Asked of every turn, whatever the beat. The brief's "keep it simple and easy to
 # reply" is a hard constraint, not a tone note: a compound question gets a partial
 # answer, which fills no slot and pushes the interview toward the stall exit.
-QUESTION_SHAPE = """- ONE question, one clause. It must be answerable in a sentence.
-- No compound questions — nothing with "and" joining two asks, no "if so, ...".
+QUESTION_SHAPE = """- ONE concise natural question about a meaningful process gap.
+- Use exactly one question mark. Do not ask the same thing twice in one message.
+- Combine closely related missing details naturally; don't read out a field checklist.
+- Never ask for a detail already captured, including approvals, tools and exception handling.
+- A detailed answer can finish a workflow in one turn. Aim for around 8–10 useful questions,
+  fewer when answers are rich; this is not a quota or a reason to skip essential gaps.
 - Plain words. No jargon, no consulting vocabulary, nothing they'd have to decode.
-- React to what they just said first, in a few natural words, THEN ask.
+- Usually go straight to the useful question. Acknowledge only when it adds meaning;
+  do not prefix every reply with thanks, great, got it, or a recap of their answer.
+- If their last answer was vague, unrelated or repeated, name the specific uncertainty
+  and ask for one concrete example or clarification, never the same broad question.
 - Warm through your WORDS, not symbols — do NOT use emoji."""
 
 
@@ -353,6 +385,11 @@ def _build_talk_prompt(state: dict[str, Any]) -> str:
     findings_block = "\n".join(f"- {f['finding']}" for f in findings[-5:]) or "(none yet)"
     known_areas = dossier.area_names(bb)
     still_wanted = dossier.summary_for_prompt(bb, limits.get("slot_confidence", 0.6))
+    if workflow.enabled(bb):
+        summary = "Use the current workflow facts below; historical summaries may contain superseded details."
+        findings_block = "Use current workflow facts, not historical extracted findings."
+        still_wanted = json.dumps([{ "task": task["name"], "missing": fields }
+                                  for task, fields in workflow.requirements(bb) if fields], ensure_ascii=False)
 
     if phase == "orient":
         persona = ORIENT_PERSONA
@@ -372,7 +409,9 @@ def _build_talk_prompt(state: dict[str, Any]) -> str:
         task = (
             f"Your question MUST be about {scope}.\n"
             f"Get curious specifically about {beat.get('intent', '')}.\n"
-            "React warmly to their last answer first — and even if it drifted elsewhere, gently "
+            "If the target includes start, steps and output, invite one end-to-end walkthrough; "
+            "do not narrow the question to just how the task starts.\n"
+            "Use their last answer to frame a specific clarification when needed; if it drifted elsewhere, gently "
             f"steer back so THIS question is clearly about {scope}."
         )
 
@@ -386,6 +425,8 @@ Conversation so far (summary): {summary}
 
 What you've learned already:
 {findings_block}
+Accurate workflow facts (do not ask for these again):
+{workflow.prompt_context(bb)}
 {_context_blocks(state)}{_asked_block(state)}
 Still to understand: {still_wanted}
 

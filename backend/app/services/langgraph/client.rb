@@ -29,6 +29,7 @@ module Langgraph
       }
 
       if multi_agent
+        body[:source_message_id] = multi_agent[:source_message_id]
         body[:multi_agent] = true
         body[:profile] = multi_agent[:profile]
         body[:blackboard] = multi_agent[:blackboard]

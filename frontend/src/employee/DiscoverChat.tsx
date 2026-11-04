@@ -150,6 +150,21 @@ export function DiscoverChat() {
     [jwt]
   );
 
+  // Saved text answers recover through Sidekiq, just like media. Poll only the
+  // read endpoint; never re-submit the employee's answer from the browser.
+  useEffect(() => {
+    if (!jwt || !state?.discovery_pending) return;
+    let active = true;
+    const timer = window.setInterval(() => {
+      void discoverApi.messages(jwt).then((data) => {
+        if (!active) return;
+        setRaw(data.messages);
+        setState(data.state);
+      }).catch(() => { /* Keep the saved answer; the next read may recover. */ });
+    }, 3000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [jwt, state?.discovery_pending]);
+
   const send = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!jwt || sending) return;
@@ -252,6 +267,9 @@ export function DiscoverChat() {
   const statusLabel = useMemo(() => {
     if (!state) return null;
     if (processingMedia) return voiceUpload ? 'Listening to your answer…' : 'Processing your file…';
+    if (state.discovery_pending) return 'Your answer is saved — continuing automatically…';
+    if (state.completed && state.discovery_outcome === 'employee_stopped') return 'Interview stopped — your answers are saved';
+    if (state.completed && state.discovery_outcome && state.discovery_outcome !== 'successful') return 'Answers saved — workflow details need follow-up';
     if (state.completed) return 'Interview complete — you can always add more anytime';
     if (state.conversation_status === 'discovery') return 'Discovery in progress';
     if (state.conversation_status === 'profiling') return 'Getting to know your role';
@@ -323,7 +341,10 @@ export function DiscoverChat() {
           >
             {state?.completed && (
               <p className="mb-3 text-sm text-muted-foreground">
-                Interview complete — but you can always add more anytime.
+                  {state.discovery_outcome === 'employee_stopped' ? 'Your answers are saved. We stopped as you requested.'
+                    : state.discovery_outcome && state.discovery_outcome !== 'successful'
+                    ? 'Your answers are saved. Some details still need follow-up.'
+                    : 'Interview complete — but you can always add more anytime.'}
               </p>
             )}
             {selectedFile && (
