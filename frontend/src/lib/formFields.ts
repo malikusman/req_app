@@ -119,3 +119,12 @@ export function diffAnswers(current: QuestionnaireAnswers, base: QuestionnaireAn
   }
   return diff;
 }
+
+/**
+ * Answers ready to send. A cleared answer is `undefined`, which JSON drops — the
+ * server would never hear of it and keep the old value — so it goes as null,
+ * which the server stores as cleared.
+ */
+export function answersForSending(answers: QuestionnaireAnswers): Record<string, Exclude<AnswerValue, undefined> | null> {
+  return Object.fromEntries(Object.entries(answers).map(([key, value]) => [key, value ?? null]));
+}

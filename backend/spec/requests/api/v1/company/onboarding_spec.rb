@@ -38,6 +38,15 @@ RSpec.describe "Company onboarding form", type: :request do
       expect(response).to have_http_status(:unprocessable_entity)
     end
 
+    it "clears an answer sent as null, and the profile with it once saved" do
+      save_group(o02_headcount: "11–50")
+      autosave(o02_headcount: nil)
+      expect(company.reload.questionnaire_answers["o02_headcount"]).to be_nil
+
+      save_group({})
+      expect(company.reload.company_profile).not_to have_key("size_band")
+    end
+
     it "keeps the profile as it was until a group is saved" do
       autosave(o01_industry: "Manufacturing")
       expect(company.reload.company_profile).to eq({})

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { api, type CompanyFactsUpdate, type QuestionnaireAnswerMap } from '../../lib/api';
 import { Button, Card } from '../../components/ui';
-import { diffAnswers, type AnswerValue, type QuestionnaireAnswers } from '../../lib/formFields';
+import { answersForSending, diffAnswers, type AnswerValue, type QuestionnaireAnswers } from '../../lib/formFields';
 import { ONBOARDING_GROUPS } from '../../lib/onboardingFields';
 import { FieldRenderer } from '../shared/FieldRenderer';
 
@@ -39,7 +39,7 @@ export function CompanyFactsEditor({
     setSaving(true);
     setError('');
     try {
-      onSaved(await api.updateConsultantCompanyFacts(token, companyId, changes as QuestionnaireAnswerMap));
+      onSaved(await api.updateConsultantCompanyFacts(token, companyId, answersForSending(changes)));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save the changes');
     } finally {

@@ -84,6 +84,17 @@ test.describe('company onboarding', () => {
     );
   });
 
+  test('forgets an answer once it is unselected', async ({ page }) => {
+    const headcount = question(page, /how many people work in the company/i);
+    await saved(page, () => setChoice(page, headcount, '11–50', false));
+
+    await page.reload();
+    await expect(question(page, /how many people work in the company/i).getByRole('button', { name: '11–50' })).toHaveAttribute(
+      'aria-pressed',
+      'false'
+    );
+  });
+
   test('"Not sure" clears the other choices', async ({ page }) => {
     const channels = question(page, /how do customers and partners mainly reach you/i);
     await setChoice(page, channels, 'WhatsApp', true);

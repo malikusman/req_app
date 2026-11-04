@@ -295,7 +295,7 @@ export const api = {
    * Autosave. Stores answers and nothing else; the profile is updated on submit
    * (or when a group is saved), not on every keystroke.
    */
-  updateQuestionnaireAnswers: (token: string, answers: QuestionnaireAnswerMap) =>
+  updateQuestionnaireAnswers: (token: string, answers: QuestionnaireAnswerPayload) =>
     request<{ ok: boolean }>(
       '/api/v1/company/onboarding/questionnaire/answers',
       { method: 'PATCH', body: JSON.stringify({ answers }) },
@@ -310,7 +310,7 @@ export const api = {
     ),
 
   /** Submits onboarding the first time; afterwards, saves edits to the facts. */
-  submitOnboarding: (token: string, payload: { answers: QuestionnaireAnswerMap; confidentiality_acknowledged: boolean }) =>
+  submitOnboarding: (token: string, payload: { answers: QuestionnaireAnswerPayload; confidentiality_acknowledged: boolean }) =>
     request<OnboardingState & { redirect_to?: string }>(
       '/api/v1/company/onboarding/submit',
       { method: 'POST', body: JSON.stringify(payload) },
@@ -1374,7 +1374,7 @@ export const api = {
   consultantDashboard: (token: string) => request<ConsultantDashboardPayload>('/api/v1/consultant/dashboard', {}, token),
 
   consultantCompany: (token: string, id: number) => request<{ company: ConsultantCompanyDetail }>(`/api/v1/consultant/companies/${id}`, {}, token),
-  updateConsultantCompanyFacts: (token: string, companyId: number, answers: QuestionnaireAnswerMap) =>
+  updateConsultantCompanyFacts: (token: string, companyId: number, answers: QuestionnaireAnswerPayload) =>
     request<CompanyFactsUpdate>(
       `/api/v1/consultant/companies/${companyId}/facts`,
       { method: 'PATCH', body: JSON.stringify({ answers }) },
@@ -1984,6 +1984,9 @@ export type QuestionnaireAnswerMap = Record<
   string,
   string | string[] | Record<string, string | string[]> | undefined
 >;
+
+/** Answers as sent: a cleared one is null (see answersForSending). */
+export type QuestionnaireAnswerPayload = Record<string, string | string[] | Record<string, string | string[]> | null>;
 
 export interface DeepDiveSuggestion {
   /** Addressed to the employee. Sent as-is if the consultant accepts it. */

@@ -37,6 +37,14 @@ RSpec.describe "Consultant: correcting a company's facts", type: :request do
     expect(JSON.parse(response.body)["profile_changes"].first).to include("field" => "size_band")
   end
 
+  it "clears a fact sent as null, as the form does when an answer is unselected" do
+    save(o02_headcount: nil)
+
+    expect(response).to have_http_status(:ok)
+    expect(company.reload.company_profile).not_to have_key("size_band")
+    expect(company.profile_changes.sole).to have_attributes(field: "size_band", from_value: "11-50", to_value: nil)
+  end
+
   it "leaves who takes part and the key user's language alone" do
     save(o02_headcount: "51–200", p1_departments: %w[Sales], p2_department_counts: { "Sales" => "4" },
          a4_language: "Arabic")

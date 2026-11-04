@@ -3,7 +3,14 @@ import { Link, useNavigate } from 'react-router-dom';
 import { api, type OnboardingState, type PlannedParticipant, type PrefillProposal, type QuestionnaireAnswerMap } from '../../lib/api';
 import { useCompanyToken, useAuth } from '../../lib/auth';
 import { PageHeader, Card, Input, Button, Skeleton } from '../../components/ui';
-import { NOT_SURE, otherKey, type AnswerValue, type QuestionnaireAnswers, type QuestionnaireField } from '../../lib/formFields';
+import {
+  NOT_SURE,
+  answersForSending,
+  otherKey,
+  type AnswerValue,
+  type QuestionnaireAnswers,
+  type QuestionnaireField,
+} from '../../lib/formFields';
 import { ONBOARDING_FIELDS, ONBOARDING_GROUPS } from '../../lib/onboardingFields';
 import { FieldRenderer } from '../shared/FieldRenderer';
 import { useFormAutosave } from './useFormAutosave';
@@ -64,7 +71,7 @@ export function CompanyOnboarding() {
     };
   }, [token]);
 
-  const autosave = useFormAutosave(token, answers, ONBOARDING_FIELDS);
+  const autosave = useFormAutosave(token, answers, ONBOARDING_FIELDS, !loading && state !== null);
   const prefillReading = state?.prefill?.status === 'pending' || state?.prefill?.status === 'running';
 
   // While the website is still being read, check back for its proposals — every
@@ -156,7 +163,7 @@ export function CompanyOnboarding() {
     setErrors([]);
     try {
       await autosave.flush();
-      const res = await api.submitOnboarding(token, { answers, confidentiality_acknowledged: acknowledged });
+      const res = await api.submitOnboarding(token, { answers: answersForSending(answers), confidentiality_acknowledged: acknowledged });
       setState(res);
       if (session?.portal === 'company' && !session.company.portal_onboarding_completed_at) {
         setSession({ ...session, company: { ...session.company, portal_onboarding_completed_at: new Date().toISOString() } });

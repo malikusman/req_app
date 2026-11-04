@@ -1,6 +1,12 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
 import { api, ApiRequestError } from '../../lib/api';
-import { diffAnswers, type FieldType, type QuestionnaireAnswers, type QuestionnaireField } from '../../lib/formFields';
+import {
+  answersForSending,
+  diffAnswers,
+  type FieldType,
+  type QuestionnaireAnswers,
+  type QuestionnaireField,
+} from '../../lib/formFields';
 
 export type AutosaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -24,9 +30,16 @@ const IMMEDIATE_TYPES = new Set<FieldType>([
  * Autosave for the onboarding form. There is no Save button: answers
  * persist as they are given, and the browser warns before a close that would lose
  * anything still in flight.
+ *
+ * `enabled` turns it on once the stored answers have loaded: what is saved is
+ * measured from those, so clearing a stored answer is seen as a change.
  */
-export function useFormAutosave(token: string | null, answers: QuestionnaireAnswers, fields: QuestionnaireField[]) {
-  const enabled = true;
+export function useFormAutosave(
+  token: string | null,
+  answers: QuestionnaireAnswers,
+  fields: QuestionnaireField[],
+  enabled = true
+) {
   const [status, setStatus] = useState<AutosaveStatus>('idle');
 
   const answersRef = useRef(answers);
@@ -103,7 +116,7 @@ export function useFormAutosave(token: string | null, answers: QuestionnaireAnsw
     let failed = false;
 
     api
-      .updateQuestionnaireAnswers(tokenRef.current, diff)
+      .updateQuestionnaireAnswers(tokenRef.current, answersForSending(diff))
       .then(() => {
         // Merge the snapshot that was actually sent, not the live answers — if the
         // user edited further while this request was in flight, those keys must
