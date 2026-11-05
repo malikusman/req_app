@@ -15,6 +15,7 @@ class ConversationSession < ApplicationRecord
                            inverse_of: false
   has_many :turns, -> { order(:turn_index) }, class_name: "ConversationTurn", dependent: :destroy,
                                               inverse_of: :session
+  has_one :management_discovery_context, dependent: :destroy
 
   SESSION_TYPES = %w[KEY_PERSON].freeze
   # Doc 08 §6, plus ABANDONED from Doc 06 §4.2 for a session a consultant closes

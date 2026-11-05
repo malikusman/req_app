@@ -69,6 +69,27 @@ module Companies
       }.compact
     end
 
+    # The only part of the conversations with leadership that may reach an
+    # employee interview (Doc 08 §18.1): short neutral lines for a department —
+    # "The company wants to respond to customer enquiries faster" — already
+    # checked for attribution, names, solutions and figures when they were
+    # written (KeyPerson::ContextValidator). Lines for the whole company apply to
+    # every department. Not added to for_agents: the employee interview opts in.
+    COMPANY_WIDE = %w[company all company-wide everyone].freeze
+
+    def self.neutral_management_context(company, department:)
+      engagement = company.current_engagement
+      return [] unless engagement
+
+      wanted = department.to_s.strip.downcase
+      ManagementDiscoveryContext.where(engagement: engagement).latest_per_participant.flat_map do |context|
+        Array(context.neutral_employee_context).filter_map do |line|
+          dept = line["department"].to_s.strip.downcase
+          line["context"] if dept == wanted || COMPANY_WIDE.include?(dept)
+        end
+      end.uniq
+    end
+
     def self.consultant_profile_json(company)
       {
         "company_profile" => profile_slice(company),

@@ -29,6 +29,7 @@ module KeyPerson
 
     def call
       @participant.update!(participation_status: "COMPLETED") if @session.state == "COMPLETE"
+      KeyPersonContextJob.perform_later(@session.id)
       notify_consultant
       self.class.hand_over_to_pricing(@session.engagement, actor: @participant.company_user) if @participant.key_user?
     end

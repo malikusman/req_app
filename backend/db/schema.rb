@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_11_05_110000) do
+ActiveRecord::Schema[7.1].define(version: 2026_11_05_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -1164,6 +1164,34 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_05_110000) do
     t.index ["company_id"], name: "index_insight_timeline_events_on_company_id"
   end
 
+  create_table "management_discovery_contexts", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "engagement_id", null: false
+    t.bigint "engagement_participant_id", null: false
+    t.bigint "conversation_session_id", null: false
+    t.integer "version", default: 1, null: false
+    t.bigint "parent_version_id"
+    t.string "status", null: false
+    t.string "persona"
+    t.string "scope"
+    t.string "schema_version", null: false
+    t.string "prompt_version"
+    t.jsonb "content", default: {}, null: false
+    t.jsonb "neutral_employee_context", default: [], null: false
+    t.jsonb "unknowns", default: [], null: false
+    t.jsonb "contradictions", default: [], null: false
+    t.jsonb "completion", default: {}, null: false
+    t.jsonb "coverage_state", default: {}, null: false
+    t.jsonb "consultant_private", default: {}, null: false
+    t.string "fallback_reason"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_management_discovery_contexts_on_company_id"
+    t.index ["conversation_session_id"], name: "index_management_discovery_contexts_on_conversation_session_id", unique: true
+    t.index ["engagement_id"], name: "index_management_discovery_contexts_on_engagement_id"
+    t.index ["engagement_participant_id", "version"], name: "idx_on_engagement_participant_id_version_2e610d2200", unique: true
+  end
+
   create_table "media_attachments", force: :cascade do |t|
     t.bigint "message_id", null: false
     t.bigint "company_id", null: false
@@ -1252,6 +1280,23 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_05_110000) do
     t.jsonb "confidence_history", default: [], null: false
     t.index ["company_id", "title"], name: "index_patterns_on_company_id_and_title", unique: true
     t.index ["company_id"], name: "index_patterns_on_company_id"
+  end
+
+  create_table "planned_initiatives", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "engagement_id", null: false
+    t.bigint "management_discovery_context_id", null: false
+    t.string "initiative_type", null: false
+    t.text "description", null: false
+    t.string "timing"
+    t.string "status", null: false
+    t.string "affected_areas", default: [], null: false, array: true
+    t.string "evidence", default: [], null: false, array: true
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_planned_initiatives_on_company_id"
+    t.index ["engagement_id"], name: "index_planned_initiatives_on_engagement_id"
+    t.index ["management_discovery_context_id"], name: "index_planned_initiatives_on_management_discovery_context_id"
   end
 
   create_table "platform_audit_logs", force: :cascade do |t|
@@ -1559,6 +1604,36 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_05_110000) do
     t.index ["slug"], name: "index_solution_catalog_on_slug", unique: true, where: "(slug IS NOT NULL)"
   end
 
+  create_table "strategic_findings", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "engagement_id", null: false
+    t.bigint "management_discovery_context_id", null: false
+    t.integer "version", default: 1, null: false
+    t.bigint "parent_version_id"
+    t.string "status", default: "ACTIVE", null: false
+    t.string "category", null: false
+    t.string "scope", null: false
+    t.text "statement", null: false
+    t.text "business_consequence"
+    t.string "symptom_or_cause"
+    t.string "source_basis", null: false
+    t.string "fact_status", null: false
+    t.string "management_importance"
+    t.string "related_departments", default: [], null: false, array: true
+    t.string "related_systems", default: [], null: false, array: true
+    t.text "planned_initiative_link"
+    t.text "validation_need"
+    t.string "evidence", default: [], null: false, array: true
+    t.string "edited_by_type"
+    t.bigint "edited_by_id"
+    t.text "edit_rationale"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_strategic_findings_on_company_id"
+    t.index ["engagement_id"], name: "index_strategic_findings_on_engagement_id"
+    t.index ["management_discovery_context_id"], name: "index_strategic_findings_on_management_discovery_context_id"
+  end
+
   create_table "subscriptions", force: :cascade do |t|
     t.bigint "company_id", null: false
     t.string "plan", default: "trial", null: false
@@ -1723,6 +1798,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_05_110000) do
   add_foreign_key "impersonation_sessions", "company_users"
   add_foreign_key "impersonation_sessions", "platform_users"
   add_foreign_key "insight_timeline_events", "companies"
+  add_foreign_key "management_discovery_contexts", "companies"
+  add_foreign_key "management_discovery_contexts", "conversation_sessions"
+  add_foreign_key "management_discovery_contexts", "engagement_participants"
+  add_foreign_key "management_discovery_contexts", "engagements"
   add_foreign_key "media_attachments", "companies"
   add_foreign_key "media_attachments", "conversations"
   add_foreign_key "media_attachments", "documents"
@@ -1731,6 +1810,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_05_110000) do
   add_foreign_key "messages", "conversations"
   add_foreign_key "notifications", "companies"
   add_foreign_key "patterns", "companies"
+  add_foreign_key "planned_initiatives", "companies"
+  add_foreign_key "planned_initiatives", "engagements"
+  add_foreign_key "planned_initiatives", "management_discovery_contexts"
   add_foreign_key "platform_audit_logs", "platform_users"
   add_foreign_key "prefill_candidates", "companies"
   add_foreign_key "prefill_candidates", "engagements"
@@ -1762,5 +1844,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_05_110000) do
   add_foreign_key "review_discussions", "employees"
   add_foreign_key "review_discussions", "reports"
   add_foreign_key "review_discussions", "review_discussions", column: "parent_id"
+  add_foreign_key "strategic_findings", "companies"
+  add_foreign_key "strategic_findings", "engagements"
+  add_foreign_key "strategic_findings", "management_discovery_contexts"
   add_foreign_key "subscriptions", "companies"
 end

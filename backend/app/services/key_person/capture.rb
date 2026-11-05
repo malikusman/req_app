@@ -208,15 +208,7 @@ module KeyPerson
       "<previous_question trust=\"platform\">\ntarget: #{target}\nquestion: #{@pack.clean(asked&.text)}\n</previous_question>"
     end
 
-    # People this conversation could name: those planned to take part, the key
-    # user, and anyone the company has invited. First names count too, since
-    # that is how managers usually refer to staff.
-    def known_names
-      engagement = @session.engagement
-      names = engagement.participants.pluck(:name) + [engagement.key_user&.name] +
-              @session.company.employees.pluck(:display_name)
-      names.compact.flat_map { |n| [n, n.split.first] }.map(&:to_s).map(&:strip).select { |n| n.length >= 3 }.uniq
-    end
+    def known_names = @pack.known_names
 
     def log_status(log) = log.calls > 1 ? "RETRIED" : "OK"
 

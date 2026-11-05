@@ -108,6 +108,19 @@ module KeyPerson
       "<participant_answer trust=\"participant\" turn_id=\"#{turn.locator}\">\n#{clean(turn.text)}\n</participant_answer>"
     end
 
+    # People this conversation could name: those planned to take part, the key
+    # user, and anyone the company has invited. First names count too, since
+    # that is how managers usually refer to staff. Used to keep names out of
+    # what is recorded about work (P03 rule 8, P04 rule 12).
+    def known_names
+      @known_names ||= begin
+        engagement = session.engagement
+        names = engagement.participants.pluck(:name) + [engagement.key_user&.name] +
+                @company.employees.pluck(:display_name)
+        names.compact.flat_map { |n| [n, n.split.first] }.map { |n| n.to_s.strip }.select { |n| n.length >= 3 }.uniq
+      end
+    end
+
     def context_classes
       @participant.consultant_focus.present? ? CONTEXT_CLASSES + ["CONSULTANT_FOCUS"] : CONTEXT_CLASSES
     end
