@@ -126,8 +126,11 @@ module KeyPersonConversationEndpoints
       },
       consent: { version: KeyPerson::Conversation::CONSENT_VERSION, points: CONSENT_TEXT.fetch(language) },
       session: session && session_json(session)
-    }
+    }.merge(extra_json(session))
   end
+
+  # What only one door adds (the key user's scope card).
+  def extra_json(_session) = {}
 
   def session_json(session)
     planner = KeyPerson::Planner.new(snapshot: session.state_snapshot, persona: session.participant.persona)

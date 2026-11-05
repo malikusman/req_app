@@ -29,7 +29,13 @@ module Api
           unless %w[SET_UP ONBOARDING].include?(engagement.status)
             attrs = attrs.except("scope_type", "departments_in_scope")
           end
+          # Counts the client couldn't give, settled with them by Mjadi before
+          # pricing (Doc 07 §10). Only until the engagement is priced.
+          if engagement_params.key?(:planned_departments) && engagement.status == "KEY_PERSON_DISCOVERY"
+            attrs["planned_departments"] = Engagements::PlannedDepartments.normalise(engagement_params[:planned_departments])
+          end
           engagement.update!(attrs)
+          KeyPerson::Completion.hand_over_to_pricing(engagement, actor: current_platform_user) if attrs.key?("planned_departments")
           PlatformAuditService.log!(platform_user: current_platform_user, action: "engagement_updated",
                                     target: engagement, metadata: { fields: attrs.keys }, request: request)
           render json: { engagement: self.class.engagement_json(engagement) }
@@ -113,7 +119,7 @@ module Api
         def engagement_params
           params.require(:engagement).permit(
             :company_name, :website_url, :scope_type, :lead_consultant_id, :proposal_reference,
-            departments_in_scope: [], languages: [],
+            departments_in_scope: [], languages: [], planned_departments: %i[name count],
             key_user: %i[name role_title email phone]
           )
         end

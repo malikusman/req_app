@@ -52,14 +52,11 @@ module Api
         end
 
         def participant_params
-          attrs = params.require(:participant)
-                        .permit(:participant_type, :name, :role_title, :department, :scope, :email, :phone_e164,
-                                :preferred_language)
-                        .to_h.symbolize_keys
-          attrs[:phone_e164] = attrs[:phone_e164].present? ? PhoneNormalizer.call(attrs[:phone_e164]) : nil if attrs.key?(:phone_e164)
-          attrs[:email] = attrs[:email].to_s.strip.downcase.presence if attrs.key?(:email)
-          attrs[:participant_type] = attrs[:participant_type].to_s.upcase if attrs.key?(:participant_type)
-          attrs
+          EngagementParticipant.normalise_contact(
+            params.require(:participant)
+                  .permit(:participant_type, :name, :role_title, :department, :scope, :email, :phone_e164,
+                          :preferred_language)
+          )
         end
 
         # A phone number belongs to one employee record across all clients, so a

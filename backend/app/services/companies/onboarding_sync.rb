@@ -104,10 +104,7 @@ module Companies
 
       departments = F.not_sure?(@answers["p1_departments"]) ? [] : Array(@answers["p1_departments"])
       counts = @answers["p2_department_counts"].is_a?(Hash) ? @answers["p2_department_counts"] : {}
-      planned = departments.map do |name|
-        count = counts[name].to_s
-        { "name" => name, "count" => count.match?(/\A\d+\z/) ? count.to_i : ProfileUpdater::UNKNOWN }
-      end
+      planned = Engagements::PlannedDepartments.normalise(departments.map { |name| { name: name, count: counts[name] } })
       engagement.update!(planned_departments: planned) if planned != engagement.planned_departments
     end
 

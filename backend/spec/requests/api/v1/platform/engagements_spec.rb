@@ -137,4 +137,35 @@ RSpec.describe "Platform engagement set-up", type: :request do
     expect(response).to have_http_status(:ok)
     expect(engagement.reload).to have_attributes(scope_type: "COMPANY", proposal_reference: "P-9")
   end
+
+  describe "settling planned counts before pricing (Doc 07 §10)" do
+    let(:key_user) { create(:company_user) }
+    let(:engagement) do
+      create(:engagement, status: "KEY_PERSON_DISCOVERY", key_user: key_user,
+                          planned_departments: [{ "name" => "Sales", "count" => "UNKNOWN" }])
+    end
+
+    def settle(rows)
+      patch "/api/v1/platform/engagements/#{engagement.id}", params: { engagement: { planned_departments: rows } },
+                                                             headers: headers, as: :json
+    end
+
+    it "sets the counts and moves on to pricing once the key user's conversation is done" do
+      own = create(:engagement_participant, engagement: engagement, participant_type: "KEY_PERSON", source: "KEY_USER",
+                                            company_user: key_user, name: key_user.name)
+      create(:conversation_session, participant: own, state: "COMPLETE")
+
+      settle([{ name: "Sales", count: "3" }, { name: "sales", count: "9" }])
+
+      expect(engagement.reload.planned_departments).to eq([{ "name" => "Sales", "count" => 3 }])
+      expect(engagement.status).to eq("STAGE_1_PRICING")
+      expect(engagement.status_history.last).to include("by_type" => "PlatformUser")
+    end
+
+    it "only sets them while the leadership conversations are on" do
+      engagement.update!(status: "STAGE_1_PRICING")
+      settle([{ name: "Sales", count: "3" }])
+      expect(engagement.reload.planned_departments).to eq([{ "name" => "Sales", "count" => "UNKNOWN" }])
+    end
+  end
 end

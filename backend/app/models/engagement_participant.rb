@@ -41,6 +41,16 @@ class EngagementParticipant < ApplicationRecord
 
   def key_user? = source == "KEY_USER"
 
+  # Contact details as typed: the phone in E.164, the email lower-case, the type
+  # upper-case.
+  def self.normalise_contact(attrs)
+    attrs = attrs.to_h.symbolize_keys
+    attrs[:phone_e164] = attrs[:phone_e164].present? ? PhoneNormalizer.call(attrs[:phone_e164]) : nil if attrs.key?(:phone_e164)
+    attrs[:email] = attrs[:email].to_s.strip.downcase.presence if attrs.key?(:email)
+    attrs[:participant_type] = attrs[:participant_type].to_s.upcase if attrs.key?(:participant_type)
+    attrs
+  end
+
   private
 
   def company_matches_engagement
