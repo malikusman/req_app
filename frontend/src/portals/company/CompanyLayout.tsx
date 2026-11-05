@@ -18,6 +18,7 @@ export function CompanyLayout() {
     profileSubmitted?: boolean;
     reportVersion?: number | null;
     consultantQuestions?: number;
+    leadership?: { finished: boolean } | null;
   }>({});
 
   const impersonating = Boolean(session?.portal === 'company' && session.impersonating);
@@ -32,6 +33,7 @@ export function CompanyLayout() {
           ...prev,
           profileSubmitted: Boolean(d.onboarding_submitted_at),
           reportVersion: d.latest_report?.version ?? null,
+          leadership: d.leadership?.is_key_user && d.leadership.own ? { finished: d.leadership.own.finished } : null,
         }));
       })
       .catch(() => undefined);

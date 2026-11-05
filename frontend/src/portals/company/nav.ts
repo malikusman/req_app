@@ -3,6 +3,7 @@ import {
   FileBarChart,
   FileText,
   LayoutDashboard,
+  MessagesSquare,
   Search,
   Settings,
   ShieldCheck,
@@ -19,6 +20,8 @@ export interface CompanyNavOpts {
   reportVersion?: number | null;
   /** Unanswered consultant questions; shows an amber count badge when > 0. */
   consultantQuestions?: number;
+  /** The key user's conversation with leadership: shown once it exists; 'To do' until finished. */
+  leadership?: { finished: boolean } | null;
 }
 
 /**
@@ -26,12 +29,15 @@ export interface CompanyNavOpts {
  * already fetches the dashboard payload) to light up the badges.
  */
 export function companyNavItems(opts: CompanyNavOpts = {}): SidebarItem[] {
-  const { profileSubmitted, reportVersion, consultantQuestions } = opts;
+  const { profileSubmitted, reportVersion, consultantQuestions, leadership } = opts;
 
   const items: SidebarItem[] = [
     { to: '/company/dashboard', label: 'Home', icon: LayoutDashboard },
 
     { to: '/company/onboarding', label: 'Company profile', icon: UserCircle, section: 'Set up' },
+    ...(leadership
+      ? [{ to: '/company/leadership', label: 'Leadership conversation', icon: MessagesSquare, section: 'Set up' }]
+      : []),
     { to: '/company/documents', label: 'Documents', icon: FileText, section: 'Set up' },
     { to: '/company/employees', label: 'Your team', icon: Users, section: 'Set up' },
 
@@ -46,6 +52,9 @@ export function companyNavItems(opts: CompanyNavOpts = {}): SidebarItem[] {
 
   return items.map((item) => {
     if (item.to === '/company/onboarding' && profileSubmitted === false) {
+      return { ...item, badge: 'To do', badgeTone: 'attention' };
+    }
+    if (item.to === '/company/leadership' && leadership && !leadership.finished) {
       return { ...item, badge: 'To do', badgeTone: 'attention' };
     }
     if (item.to === '/company/reports' && reportVersion != null) {

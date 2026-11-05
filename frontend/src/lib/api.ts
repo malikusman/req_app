@@ -262,6 +262,60 @@ export const api = {
   companyDashboard: (token: string) =>
     request<CompanyDashboardPayload>('/api/v1/company/dashboard', {}, token),
 
+  // The conversation with leadership (Doc 08). `door` is where it is reached: the
+  // key user's portal (with their token) or a manager's signed link (no token).
+  leadershipShow: (door: LeadershipDoor) => request<LeadershipConversation>(door.base, {}, door.token),
+
+  leadershipConsent: (door: LeadershipDoor) =>
+    request<LeadershipConversation>(`${door.base}/consent`, { method: 'POST' }, door.token),
+
+  leadershipMessage: (door: LeadershipDoor, text: string, clientMessageId: string) =>
+    request<LeadershipConversation>(
+      `${door.base}/messages`,
+      { method: 'POST', body: JSON.stringify({ text, client_message_id: clientMessageId }) },
+      door.token
+    ),
+
+  leadershipPause: (door: LeadershipDoor) =>
+    request<LeadershipConversation>(`${door.base}/pause`, { method: 'POST' }, door.token),
+
+  leadershipResume: (door: LeadershipDoor) =>
+    request<LeadershipConversation>(`${door.base}/resume`, { method: 'POST' }, door.token),
+
+  leadershipVoiceNote: (door: LeadershipDoor, audio: File) => {
+    const form = new FormData();
+    form.append('audio', audio);
+    return leadershipUpload(door, 'voice_note', form);
+  },
+
+  leadershipDocument: (door: LeadershipDoor, file: File, documentRequestId?: number) => {
+    const form = new FormData();
+    form.append('file', file);
+    if (documentRequestId) form.append('document_request_id', String(documentRequestId));
+    return leadershipUpload(door, 'documents', form);
+  },
+
+  leadershipScope: (token: string, departments: { name: string; count: number | string }[]) =>
+    request<LeadershipConversation>(
+      '/api/v1/company/leadership/scope',
+      { method: 'PATCH', body: JSON.stringify({ departments }) },
+      token
+    ),
+
+  leadershipConfirmPerson: (token: string, index: number, participant: LeadershipPersonInput) =>
+    request<LeadershipConversation>(
+      '/api/v1/company/leadership/people',
+      { method: 'POST', body: JSON.stringify({ index, participant }) },
+      token
+    ),
+
+  leadershipDismissPerson: (token: string, index: number) =>
+    request<LeadershipConversation>(
+      '/api/v1/company/leadership/people/dismiss',
+      { method: 'POST', body: JSON.stringify({ index }) },
+      token
+    ),
+
   companyOnboarding: (token: string) =>
     request<OnboardingState>('/api/v1/company/onboarding', {}, token),
 
@@ -2151,6 +2205,97 @@ export interface PlatformDashboardPayload {
   reports_awaiting_approval: PlatformApprovalRow[];
 }
 
+/** Where a conversation with leadership is reached: its API base, and a portal token if any. */
+export interface LeadershipDoor {
+  base: string;
+  token?: string | null;
+}
+
+async function leadershipUpload(door: LeadershipDoor, path: string, form: FormData) {
+  const res = await fetch(`${API_URL}${door.base}/${path}`, {
+    method: 'POST',
+    headers: door.token ? { Authorization: `Bearer ${door.token}` } : {},
+    body: form,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = (data as ApiError).error || (data as ApiError).errors?.join(', ') || res.statusText;
+    throw new ApiRequestError(err, res.status);
+  }
+  return data as LeadershipConversation;
+}
+
+export interface LeadershipTurn {
+  index: number;
+  from: 'assistant' | 'participant';
+  text: string;
+  input_mode: 'TEXT' | 'VOICE_NOTE';
+  at: string;
+}
+
+export interface LeadershipDocumentRequest {
+  id: number;
+  requested_item: string;
+  status: 'REQUESTED' | 'RECEIVED' | 'DECLINED' | 'NOT_AVAILABLE';
+  uploaded: number;
+}
+
+export interface LeadershipSession {
+  id: number;
+  state: string;
+  language: 'en' | 'ar';
+  finished: boolean;
+  needs_resume: boolean;
+  progress: 'early' | 'middle' | 'near_end' | 'done';
+  mode: string | null;
+  themes: string[];
+  document_requests: LeadershipDocumentRequest[];
+  turns: LeadershipTurn[];
+}
+
+export interface LeadershipScope {
+  editable: boolean;
+  departments: { name: string; count: number | 'UNKNOWN' }[];
+  counts_known: boolean;
+  suggested_departments: string[];
+  people_mentioned: { index: number; name: string | null; role: string | null; department: string | null; reason: string }[];
+  planned_people: { id: number; name: string; participant_type: 'EMPLOYEE' | 'KEY_PERSON'; department: string | null; role_title: string | null }[];
+}
+
+export interface LeadershipConversation {
+  available: boolean;
+  participant: {
+    name: string;
+    role_title: string | null;
+    key_user: boolean;
+    participation_status: string;
+    consented: boolean;
+  };
+  consent: { version: string; points: string[] };
+  session: LeadershipSession | null;
+  /** The key user's scope card; absent behind a manager's link. */
+  scope?: LeadershipScope;
+  warnings?: string[];
+}
+
+export interface LeadershipPersonInput {
+  participant_type: 'EMPLOYEE' | 'KEY_PERSON';
+  name: string;
+  role_title?: string;
+  department?: string;
+  email?: string;
+  phone_e164?: string;
+}
+
+export type ParticipationStatus =
+  | 'NOT_INVITED'
+  | 'INVITED'
+  | 'STARTED'
+  | 'PAUSED'
+  | 'COMPLETED'
+  | 'ABANDONED'
+  | 'DECLINED';
+
 export interface CompanyDashboardPayload {
   user: CompanyUser;
   company: {
@@ -2175,6 +2320,20 @@ export interface CompanyDashboardPayload {
   engagement_status?: EngagementStatus | null;
   /** Null while any department's count is still "Not sure". */
   planned_participant_count?: number | null;
+  /** The conversations with leadership: the key user's own, and the other managers' status only. */
+  leadership?: {
+    available: boolean;
+    is_key_user: boolean;
+    own: { participation_status: ParticipationStatus; finished: boolean } | null;
+    managers: {
+      id: number;
+      name: string;
+      role_title: string | null;
+      participation_status: ParticipationStatus;
+      can_invite: boolean;
+      reminders_used_up: boolean;
+    }[];
+  } | null;
   usage: { conversations_used: number; conversation_limit: number | null; remaining: number | null; limit_reached: boolean };
   latest_report: Report | null;
   opportunity_estimate: {

@@ -43,6 +43,7 @@ module Dashboard
         onboarding_submitted_at: @company.current_engagement&.onboarding_submitted_at,
         engagement_status: @company.current_engagement&.status,
         planned_participant_count: @company.current_engagement&.planned_participant_count,
+        leadership: leadership_json,
         usage: enforcer.usage_summary,
         latest_report: latest_report_json(latest_report),
         opportunity_estimate: opportunity_estimate_json,
@@ -55,6 +56,28 @@ module Dashboard
     end
 
     private
+
+    # The conversations with leadership as the client sees them: the key user's
+    # own, and each other manager's status — never what anyone said (Doc 14 §9.2).
+    def leadership_json
+      engagement = @company.current_engagement
+      return nil unless engagement
+
+      own = engagement.participants.find_by(source: "KEY_USER")
+      managers = engagement.participants.planned.key_persons.order(:created_at)
+      return nil if own.nil? && managers.none?
+
+      session = own&.conversation_sessions&.last
+      {
+        available: KeyPerson::Conversation.available?,
+        is_key_user: engagement.key_user_id == @company_user.id,
+        own: own && { participation_status: own.participation_status, finished: session&.finished? || false },
+        managers: managers.map do |m|
+          { id: m.id, name: m.name, role_title: m.role_title, participation_status: m.participation_status,
+            can_invite: m.email.present?, reminders_used_up: m.reminder_count >= KeyPerson::Reminders::NOT_STARTED_AFTER.size }
+        end
+      }
+    end
 
     # The consultant's opportunity estimate — surfaced only from a report that has
     # actually shipped to the company (never leaked pre-approval), newest first.

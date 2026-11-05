@@ -4,6 +4,7 @@ import {
   FileText,
   FileBarChart,
   HelpCircle,
+  MessagesSquare,
   Radio,
   Sparkles,
   UserCircle,
@@ -42,11 +43,24 @@ function iconFor(id: DashboardActionId): ReactNode {
     case 'add-profile':
       return <UserCircle className="h-[18px] w-[18px]" />;
     case 'get-started':
+    case 'pricing':
       return <FileText className="h-[18px] w-[18px]" />;
+    case 'leadership':
+      return <MessagesSquare className="h-[18px] w-[18px]" />;
     default:
       return <Radio className="h-[18px] w-[18px]" />;
   }
 }
+
+const MANAGER_STATUS: Record<string, { label: string; variant: 'success' | 'warning' | 'info' | 'neutral' }> = {
+  NOT_INVITED: { label: 'Not invited yet', variant: 'neutral' },
+  INVITED: { label: 'Invited', variant: 'info' },
+  STARTED: { label: 'Started', variant: 'info' },
+  PAUSED: { label: 'Paused', variant: 'warning' },
+  COMPLETED: { label: 'Done', variant: 'success' },
+  ABANDONED: { label: 'Closed', variant: 'neutral' },
+  DECLINED: { label: 'Declined', variant: 'neutral' },
+};
 
 function toAttentionItem(a: DashboardAction): AttentionItemData {
   return {
@@ -264,6 +278,29 @@ export function CompanyDashboard() {
 
       {/* Also waiting */}
       <AttentionList items={attentionItems} />
+
+      {/* The other managers' conversations: who has taken part — never what they said (Doc 14 §9.2). */}
+      {data.leadership && data.leadership.managers.length > 0 && (
+        <Card title="Other managers we're speaking with">
+          <ul className="m-0 list-none space-y-2 p-0">
+            {data.leadership.managers.map((m) => (
+              <li key={m.id} className="flex items-center justify-between gap-3 text-sm">
+                <span className="min-w-0 truncate text-foreground">
+                  {m.name}
+                  {m.role_title ? <span className="text-muted-foreground"> · {m.role_title}</span> : null}
+                </span>
+                <Badge variant={MANAGER_STATUS[m.participation_status]?.variant ?? 'neutral'}>
+                  {!m.can_invite && m.participation_status === 'NOT_INVITED'
+                    ? 'Needs an email address'
+                    : m.reminders_used_up && m.participation_status === 'INVITED'
+                      ? 'Not started — worth a word'
+                      : MANAGER_STATUS[m.participation_status]?.label ?? m.participation_status}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       {/*
         Opportunity headline — the consultant's estimate of what acting is worth.

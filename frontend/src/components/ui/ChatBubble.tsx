@@ -50,7 +50,8 @@ export function ChatBubble({
               : 'rounded-bl-sm border border-border bg-card text-foreground'
           )}
         >
-          <p className="m-0 whitespace-pre-wrap break-words">{body}</p>
+          {/* dir="auto": an Arabic message reads right to left, an English one left to right. */}
+          <p dir="auto" className="m-0 whitespace-pre-wrap break-words">{body}</p>
         </div>
         {timeLabel ? (
           <span

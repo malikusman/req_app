@@ -25,6 +25,8 @@ import { PlatformApprovals } from './portals/platform/PlatformApprovals';
 import { CompanyLayout } from './portals/company/CompanyLayout';
 import { CompanyDashboard } from './portals/company/CompanyDashboard';
 import { CompanyOnboarding } from './portals/company/CompanyOnboarding';
+import { CompanyLeadership } from './portals/company/CompanyLeadership';
+import { LeadershipLink } from './portals/public/LeadershipLink';
 import { CompanyEmployees } from './portals/company/CompanyEmployees';
 import { CompanyIntelligence } from './portals/company/CompanyIntelligence';
 import { CompanyDocuments } from './portals/company/CompanyDocuments';
@@ -182,6 +184,7 @@ export default function App() {
               <Route index element={<Navigate to="dashboard" replace />} />
               <Route path="dashboard" element={<CompanyDashboard />} />
               <Route path="onboarding" element={<CompanyOnboarding />} />
+              <Route path="leadership" element={<CompanyLeadership />} />
               <Route path="employees" element={<CompanyEmployees />} />
               {/* The client sees who has taken part, never what they said — see
                   Your team. Old links land there rather than on a 404. */}
@@ -202,6 +205,7 @@ export default function App() {
               <Route path="settings" element={<CompanySettings />} />
               <Route path="billing" element={<CompanyBilling />} />
             </Route>
+            <Route path="/leadership/:token" element={<LeadershipLink />} />
             <Route path="/discover/:token" element={<DiscoverLanding />} />
             <Route path="/discover/:token/chat" element={<DiscoverChat />} />
             <Route path="/outreach/reply/:token" element={<OutreachReplyPage />} />
