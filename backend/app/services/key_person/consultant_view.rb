@@ -21,7 +21,7 @@ module KeyPerson
           planned_participant_count: @engagement.planned_participant_count,
           plan_editable: @engagement.status == "KEY_PERSON_DISCOVERY"
         },
-        available: Conversation.available?,
+        available: Conversation.available?(@engagement.company),
         personas: EngagementParticipant::PERSONAS,
         areas: Coverage::AREAS,
         participants: @engagement.participants.key_persons.order(Arel.sql("source = 'KEY_USER' DESC"), :created_at)

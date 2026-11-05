@@ -176,4 +176,50 @@ namespace :e2e do
     puts "Seeded #{email} / #{password} (company ##{company.id}, engagement ##{engagement.id}, onboarding reset)"
   end
 
+  desc "Provision a key user at the start of their conversation with leadership, with scripted replies and one manager"
+  task seed_key_person: :environment do
+    abort "Refusing to run in production" if Rails.env.production?
+
+    email = ENV.fetch("E2E_KEY_PERSON_EMAIL", "key-person-e2e@mjadi.test")
+    password = ENV.fetch("E2E_KEY_PERSON_PASSWORD", "KeyPersonE2E123!")
+    manager_link = ENV.fetch("E2E_MANAGER_LINK", "e2e-manager-link")
+
+    company = Company.find_or_create_by!(slug: "key-person-e2e") do |c|
+      c.name = "Key Person E2E Co"
+      c.display_name = "Key Person E2E Co"
+      c.locale = "en"
+    end
+    company.subscription&.destroy!
+    company.engagements.destroy_all
+    company.documents.leadership.destroy_all
+    # No model in the browser test: the conversation runs on scripted replies
+    # (KeyPerson::ScriptedClient), which only exists outside production.
+    company.update!(
+      approval_status: "approved", portal_onboarding_completed_at: Time.current,
+      company_profile: { "industry" => "Wholesale distribution", "org_departments" => %w[Sales Procurement] },
+      settings: Company::DEFAULT_SETTINGS.merge("key_person_scripted_replies" => true)
+    )
+
+    user = CompanyUser.find_or_initialize_by(email: email)
+    user.assign_attributes(company: company, name: "Layla Haddad", role: "company_admin", status: "active",
+                           password: password, onboarding_completed_at: Time.current, job_title: "CEO")
+    user.save!
+
+    engagement = company.engagements.create!(
+      status: "KEY_PERSON_DISCOVERY", scope_type: "COMPANY", languages: %w[en], key_user: user,
+      onboarding_submitted_at: Time.current, confidentiality_acknowledged_at: Time.current,
+      planned_departments: [{ "name" => "Sales", "count" => "UNKNOWN" }, { "name" => "Procurement", "count" => 2 }],
+      status_history: [{ "from" => nil, "to" => "KEY_PERSON_DISCOVERY", "at" => Time.current.iso8601, "reason" => "e2e seed" }]
+    )
+    manager = engagement.participants.create!(company: company, participant_type: "KEY_PERSON", name: "Rania Saleh",
+                                              role_title: "Head of Sales", scope: "Sales", email: "rania@key-person-e2e.test")
+    KeyPerson::Kickoff.call(engagement)
+    # A known link for the manager, so the browser test can open it.
+    manager.reload.update!(access_token_digest: KeyPerson::Invite.digest(manager_link),
+                           access_token_expires_at: 14.days.from_now)
+
+    puts "Seeded #{email} / #{password} (company ##{company.id}, engagement ##{engagement.id}); " \
+         "manager link /leadership/#{manager_link}"
+  end
+
 end

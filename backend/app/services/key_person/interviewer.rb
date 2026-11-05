@@ -44,7 +44,7 @@ module KeyPerson
       end
     end
 
-    def initialize(session:, planner:, pack:, client: Openai::Client.new)
+    def initialize(session:, planner:, pack:, client: KeyPerson.client_for(session.company))
       @session = session
       @planner = planner
       @pack = pack

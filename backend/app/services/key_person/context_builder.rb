@@ -26,7 +26,7 @@ module KeyPerson
       "RELEASED_TIME" => "released_time_preferences"
     }.freeze
 
-    def self.call(session, client: Openai::Client.new)
+    def self.call(session, client: KeyPerson.client_for(session.company))
       new(session, client: client).call
     end
 

@@ -35,7 +35,7 @@ module KeyPerson
       /لا يقوم|متأخر|بطيء|كسول|مشكلة|خطأ|يفشل|يهمل/
     )
 
-    def initialize(session:, turn:, previous_instruction:, planner:, pack:, client: Openai::Client.new)
+    def initialize(session:, turn:, previous_instruction:, planner:, pack:, client: KeyPerson.client_for(session.company))
       @session = session
       @turn = turn
       @previous = previous_instruction || {}

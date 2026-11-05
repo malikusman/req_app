@@ -129,7 +129,7 @@ module KeyPersonConversationEndpoints
     session = conversation.session
     language = session&.language || (participant.preferred_language.to_s.start_with?("ar") ? "ar" : "en")
     {
-      available: KeyPerson::Conversation.available?,
+      available: KeyPerson::Conversation.available?(key_participant.company),
       participant: {
         name: participant.name, role_title: participant.role_title, key_user: participant.key_user?,
         participation_status: participant.participation_status, consented: participant.consent_recorded_at.present?

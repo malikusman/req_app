@@ -13,11 +13,11 @@ module KeyPerson
 
     # With the switch off or no model, the conversation isn't offered: a form
     # pretending to be a conversation would be worse than the team arranging it.
-    def self.available?(client: Openai::Client.new)
+    def self.available?(company = nil, client: KeyPerson.client_for(company))
       Llm::KeyPerson.enabled? && client.configured?
     end
 
-    def initialize(participant, client: Openai::Client.new)
+    def initialize(participant, client: KeyPerson.client_for(participant.company))
       @participant = participant
       @client = client
     end

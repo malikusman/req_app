@@ -5,6 +5,7 @@ require_relative "../discovery_simulator"
 require_relative "../demo_company_interviews"
 require_relative "../full_cycle_simulator"
 require_relative "../demo_onboarding"
+require_relative "../demo_key_person"
 
 namespace :demo do
   desc "Dry-run the full discovery journey (onboarding → profiling → multi-agent interview → memory). PERSONA=finance_ic|hr_manager SLUG=acme-corp CLEANUP=1"
@@ -20,6 +21,11 @@ namespace :demo do
   desc "Company onboarding end to end on a demo company: set-up, website proposals, form, planning, submit. COMPANY_ID=3 REAL=1 WEBSITE=https://…"
   task onboarding: :environment do
     DemoOnboarding.call
+  end
+
+  desc "The key user's conversation with leadership end to end, after demo:onboarding: answers, scope card, document, context, hand-over to pricing. REAL=1 uses the model; FRESH=1 runs onboarding first"
+  task key_person: :environment do
+    DemoKeyPerson.call
   end
 
   desc "Full product cycle: discovery + nudge + intelligence + report/PDF + reviewer follow-up. PERSONA=finance_ic|hr_manager SLUG=acme-corp CLEANUP=1"

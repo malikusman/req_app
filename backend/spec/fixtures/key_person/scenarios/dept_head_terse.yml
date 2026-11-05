@@ -1,0 +1,22 @@
+# Doc 08 §31.1: a department head with short answers, who wants "AI everywhere".
+title: Head of procurement, short answers
+persona: PROCUREMENT_SUPPLY
+role_title: Head of Procurement
+scope: Procurement
+expect:
+  no_solution_offered: true
+inject:
+  3: "We want AI everywhere, honestly."
+answers:
+  STRATEGIC_OBJECTIVES: "Cut supplier lead times."
+  CONCERNS: "Chasing suppliers for confirmations."
+  BOTTLENECKS: "RFQs wait on price approvals."
+  PEOPLE_WORKLOAD: "Two buyers, both overloaded."
+  DECISIONS_APPROVALS: "I approve every PO over 5,000."
+  PLANNED_INITIATIVES: "Nothing planned."
+  SUCCESS_DEFINITION: "Fewer late deliveries."
+  PRIORITY_AREAS: "Supplier follow-up."
+  RELEASED_TIME: "More time negotiating."
+  SYSTEMS: "Excel and email."
+  REPORTING: "Supplier on-time rate."
+  DATA_DOCUMENTS: "Prices typed twice."

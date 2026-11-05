@@ -219,6 +219,15 @@ export function CompanyDashboard() {
       sublabel: qComplete ? 'complete' : 'to do',
       status: qComplete ? 'done' : 'optional',
     },
+    ...(data.leadership?.own
+      ? [
+          {
+            label: 'Leadership',
+            sublabel: data.leadership.own.finished ? 'done' : 'your conversation',
+            status: data.leadership.own.finished ? ('done' as const) : ('now' as const),
+          },
+        ]
+      : []),
     {
       label: 'Documents',
       sublabel: readyDocs > 0 ? `${readyDocs} analyzed` : undefined,

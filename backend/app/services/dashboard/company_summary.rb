@@ -69,7 +69,7 @@ module Dashboard
 
       session = own&.conversation_sessions&.last
       {
-        available: KeyPerson::Conversation.available?,
+        available: KeyPerson::Conversation.available?(@company),
         is_key_user: engagement.key_user_id == @company_user.id,
         own: own && { participation_status: own.participation_status, finished: session&.finished? || false },
         managers: managers.map do |m|

@@ -22,7 +22,7 @@ module KeyPerson
     ARABIC = /\p{Arabic}/
     LETTER = /\p{L}/
 
-    def initialize(session, client: Openai::Client.new)
+    def initialize(session, client: KeyPerson.client_for(session.company))
       @session = session
       @client = client
     end
