@@ -25,6 +25,7 @@ For the interview's design rationale see also
 10. [Flow 6 — the companion after the interview](#10-flow-6--the-companion-after-the-interview)
 11. [Flow 7 — company intelligence](#11-flow-7--company-intelligence)
 12. [Flow 8 — findings to the client's report](#12-flow-8--findings-to-the-clients-report)
+    - [Flow 9 — the conversation with leadership](#12a-flow-9--the-conversation-with-leadership)
 13. [How the agents collaborate](#13-how-the-agents-collaborate)
 14. [Reliability, safety and failure modes](#14-reliability-safety-and-failure-modes)
 15. [Models and configuration](#15-models-and-configuration)
@@ -51,7 +52,7 @@ fixed input, a fixed output shape, and a deterministic fallback.
   *priorities* and the *report*; the consultant edits findings and the report; a rule
   *critic* checks the result. Each step reads the previous step's output.
 
-There are **17 distinct model-backed steps** (section 4). On a typical company:
+There are **20 distinct model-backed steps** (section 4). On a typical company:
 ~2 model calls per interview turn, ~4 jobs when an interview ends, and 3 model calls to
 write a report.
 
@@ -164,6 +165,9 @@ flowchart LR
 | 15 | **Cause, direction, what comes first** | Rails `Findings::DraftCauseAndDirection` (`DraftFindingCausesJob`) | findings built; a consultant rewords one; report generation | 1 JSON call per 12 findings | why it happens (said or analysis), kind of change, direction, what must be true first — each field kept only if it carries no figure, quote, product, build or payroll words | nothing drafted; the report prints no such lines |
 | 16 | **Links between findings** | Rails `Findings::DraftDependencies` | report generation | 1 JSON call | ids only: which finding comes after which — kept only between shown findings, grounded in the later one's own words, at most two each, never a loop | the links the findings already had |
 | 17 | **Website pre-fill** (P01) | Rails `Companies::WebsitePrefill` (`WebsitePrefillJob`) | engagement set up; website changed; Mjadi asks to re-read it | 1 JSON call (one retry for invalid JSON) | proposed values for up to 8 onboarding fields — industry, products, locations, business model, channels, departments, systems, AI tools — each with the page it came from and a quote. Kept only if: the field and values are allowed; the quote is the cited page's own words, from a page actually fetched; no headcount, revenue, budget or readiness; departments, systems and AI tools at medium confidence or above. Stored as `PROPOSED` candidates, never as facts | no proposals: the key user sees the plain form, without comment (no website, site unreachable after one retry, no model or `AI_PREFILL=false`, unusable reply) |
+| 18 | **Leadership question** (P02) | Rails `KeyPerson::Interviewer`, in `KeyPerson::Turn` | every assistant turn of a conversation with leadership | 1 text call; one more if the guard refuses it | what the assistant says this turn, worded for the mode and area the planner chose (`KeyPerson::Planner`). `KeyPerson::Guard` refuses it if it is empty or too long, asks other than one question, brings up AI, automation, agents, price or reports before the participant did, mentions consultants, readiness or assessment, repeats an earlier question or asks a fact the company already gave | the area's safe question from `KeyPerson::Intents` (P02 §11); a pause is acknowledged with no call |
+| 19 | **Leadership turn capture** (P03) | Rails `KeyPerson::Capture` | every answer in a conversation with leadership, before the next question | 1 JSON call (one retry for invalid JSON) | which of the 16 areas the answer covered, graded against the previous question's area; statements (`REPORTED`); planned changes, people, documents, profile facts, numbers as said; sensitive and political notes kept apart. Code keeps only valid enums and items citing this turn, and moves any statement criticising a named person to `sensitive` | nothing captured: the area counts as not filled and may be asked again (P03 §9) |
+| 20 | **Leadership context and findings** (P04) | Rails `KeyPerson::ContextBuilder` (`KeyPersonContextJob`) | a conversation with leadership finishing, or a consultant closing it | 1 JSON call (one retry) | the person's `ManagementDiscoveryContext`, `StrategicFinding`s, `PlannedInitiative`s, political context (consultant only) and neutral lines that may reach staff. Code drops items citing turns that don't exist, findings that name a person, prescribe a solution or carry a figure not in the transcript, and neutral lines that attribute views, name someone, suggest a solution or carry a number | built from the turn captures alone, marked `INCOMPLETE` and flagged for the consultant (P04 §9) |
 
 Not model-backed, but central: the **dossier and area flow** (what to ask next and when
 to stop), **findings and hours**, **signal extraction** (keyword rules), the **report
@@ -507,6 +511,43 @@ What keeps the report honest:
 
 ---
 
+## 12A. Flow 9 — the conversation with leadership
+
+Doc 08, prompts P02–P04. Built in Rails (`app/services/key_person/`) beside the employee
+interview, not in the agent: the same three-step shape — record, decide, talk — with its
+own tables (`conversation_sessions`, `conversation_turns`), so nothing employee-side reads
+it.
+
+1. **Hand-over.** Submitting onboarding moves the engagement to `KEY_PERSON_DISCOVERY` and
+   queues `KeyPersonKickoffJob`: the key user gets a participant row of their own and an
+   email that their conversation is ready at `/company/leadership`; each manager named in
+   P4 with an email gets a signed 14-day link to `/leadership/:token`.
+2. **A turn.** The answer is saved first. P03 records it; `KeyPerson::Effects` writes
+   facts the key user mentions that the profile lacks (`DISCOVERED_LATER`, never over a
+   confirmed one) and flags restructuring, legal matters and confidential strategy for
+   the lead consultant; `KeyPerson::Planner` decides the next turn from structured state
+   (16 areas weighted by persona, one follow-up per area at most, a reflection every few
+   questions, sufficiency, floor 8, ceiling 24, stall 3); P02 words it and the guard checks
+   it. Everything is saved under a lock on the session.
+3. **Closing.** Read-back of the themes, the scope card (key user only: counts and the
+   people they mentioned), up to three documents they mentioned, "anything else?", then
+   closing words. The close reason is recorded.
+4. **After.** `KeyPersonContextJob` runs P04 over that session alone. When the key user's
+   conversation is finished and every planned count is a number, the engagement moves to
+   `STAGE_1_PRICING`; other managers' conversations don't hold it up.
+
+**What can reach staff:** only `Companies::AgentContext.neutral_management_context(company,
+department:)` — validated neutral lines. The employee interview opts in to it; nothing
+is added to `for_agents`. Leadership uploads are stored but never ingested, chunked or
+listed in the client portal. `spec/firewall/key_person_context_spec.rb` proves it.
+
+**Without a model** (`AI_KEY_PERSON=false` or no key) the conversation isn't offered and
+the dashboard says the team will arrange it. Outside production a company can run on
+`KeyPerson::ScriptedClient` (the demo and the browser test). Every call writes an
+`AiRun`: stage, prompt version, model, tokens, time, status, fallback reason.
+
+---
+
 ## 13. How the agents collaborate
 
 There are no agent-to-agent calls. Every hand-off goes through Rails and a stored
@@ -562,6 +603,9 @@ All model calls go to one OpenAI-compatible endpoint (`OPENAI_BASE_URL`, default
 | `EMBEDDING_MODEL`, `EMBEDDING_DIMENSIONS` (768) | memory, documents, catalogue |
 | `OPENAI_REASONING_EFFORT` | agent only; must be a value the model accepts (`gpt-6-luna`: none/low/medium/high/xhigh) |
 | `OPENAI_JSON_MODE`, `OPENAI_MAX_TOKENS` | structured calls; token cap |
+| `KEY_PERSON_MODEL`, `KEY_PERSON_CAPTURE_MODEL`, `KEY_PERSON_CONTEXT_MODEL` | P02, P03, P04; each falls back to `OPENAI_MODEL`. Doc 05 §3.1 asks for a strong model for all three |
+| `AI_KEY_PERSON` | `false` switches the conversation with leadership off |
+| `KEY_PERSON_FLOOR`, `KEY_PERSON_CEILING`, `KEY_PERSON_STALL` | the conversation's limits (8, 24, 3), after a company's `key_person_limits` setting |
 
 Compatibility handled in code: newer OpenAI models take `max_completion_tokens` (sent
 automatically to the official endpoint) and accept only their default temperature
@@ -615,6 +659,9 @@ small compatibility fixes.
    **Recommendation:** log model, tokens and duration on each `routing_decision` and in
    report generation, and surface them on the Interviews health page. Cheap, and it's
    what a pilot will need to answer "what does an interview cost?".
+   *Started:* the conversation with leadership logs every call as an `AiRun` (model,
+   tokens, latency, status, fallback reason), reported by `rails key_person:health`.
+   The employee interview and the report steps don't yet.
 
 7. **Voice is turn-based.** Fine for a pilot; Masood's live two-way voice (Next tier)
    needs the record/talk split we already have, plus a realtime vendor.

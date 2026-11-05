@@ -295,7 +295,9 @@ flowchart LR
   Invite --> SetPw[Set password]
   SetPw --> Profile[Company profile: one screen]
   Read --> Profile
-  Profile --> Submit[Submit] --> Dashboard[Dashboard]
+  Profile --> Submit[Submit] --> Leadership[Conversation with leadership]
+  Submit --> Managers[Other managers invited by link]
+  Leadership --> Scope[Scope card: counts settled] --> Pricing[Stage 1 pricing]
 ```
 
 1. **Engagement set-up** (platform → Companies → *New engagement*, S1–S8): company, website,
@@ -308,7 +310,10 @@ flowchart LR
 3. **Login** `/company/login` — allowed while the company has an engagement that isn't
    closed (companies from before engagements keep the old subscription rule).
 4. Until onboarding is submitted, the key user is taken to **Company profile**.
-5. Otherwise **Dashboard**.
+5. Otherwise **Dashboard**. After onboarding it leads with the key user's **conversation
+   with leadership** (§4.5); the other managers named in onboarding are emailed a link of
+   their own. When the key user's conversation is finished and every planned count is a
+   number, the engagement moves to *Preparing Stage 1 proposal*.
 
 Public sign-up (`/company/signup`) is switched off unless `PUBLIC_COMPANY_SIGNUP_ENABLED`
 is set. When on, a request does nothing until a Mjadi admin approves it on
@@ -320,25 +325,26 @@ Forgot password: `/auth/forgot-password?portal=company`.
 
 From `frontend/src/portals/company/nav.ts`:
 
-| Order | Label | Path | Role |
-|-------|-------|------|------|
-| 1 | Dashboard | `/company/dashboard` | Home / KPIs / next actions |
-| 2 | Documents | `/company/documents` | Upload & analyze files |
-| 3 | Knowledge | `/company/knowledge` | KB + clarification answers |
-| 4 | Employees | `/company/employees` | Invite, nudge, phone edit |
-| 5 | Conversations | `/company/conversations` | Interview transcripts |
-| 6 | Discovery questions | `/company/discovery-questions` | Question-level feedback (not answers) |
-| 7 | Intelligence | `/company/intelligence` | Signals / patterns / recs / timeline |
-| 8 | Consultant questions | `/company/outreaches` | Approve/answer consultant outreaches |
-| 9 | Consultants | `/company/consultants` | See assigned published experts |
-| 10 | Reports | `/company/reports` | View / download / share |
-| 11 | Company profile | `/company/onboarding` | Facts, who takes part, acknowledgement |
-| 12 | Settings | `/company/settings` | Org prefs; links to Billing & Media |
+| Section | Label | Path | Role |
+|---------|-------|------|------|
+| — | Home | `/company/dashboard` | Next step, progress, the other managers' status |
+| Set up | Company profile | `/company/onboarding` | Facts, who takes part, acknowledgement |
+| Set up | Leadership conversation | `/company/leadership` | The key user's own conversation (§4.4a); shown once it exists, *To do* until finished |
+| Set up | Documents | `/company/documents` | Upload and analyse files |
+| Set up | Your team | `/company/employees` | Invite and nudge staff — after the Stage 1 fee is agreed |
+| Insights | Reports | `/company/reports` | View, download, share |
+| Insights | What we found | `/company/intelligence` | Signals, patterns, recommendations |
+| Working with you | Consultant questions | `/company/outreaches` | Approve and answer consultant outreaches |
+| Working with you | Your consultant | `/company/consultants` | The assigned experts |
+| — | Settings | `/company/settings` | Org preferences; links to Billing and Media |
+
+Old paths (`/company/conversations`, `/company/discovery-questions`) redirect: clients see
+participation, never transcripts. `/company/knowledge` still opens but isn't in the menu.
 
 **Under Settings (secondary):**
 
 - **Billing** `/company/billing` — trial/plan, conversation usage, Stripe/mock upgrade  
-- **WhatsApp media** `/company/media` — inbound media library  
+- **WhatsApp media** — `/company/media` now opens *Your team*  
 
 Shell: sidebar, notification bell (poll ~30s), optional integration warnings (OpenAI / Gotenberg / Stripe), impersonation banner when applicable.
 
@@ -372,17 +378,43 @@ stay the key user's. A consultant's correction is recorded as found in conversat
 their name. Every change after submission, whoever makes it, is kept in the change history
 shown on the consultant and platform company pages.
 
+### 4.4a Conversation with leadership
+
+Doc 08. A short conversation — about fifteen to twenty minutes — on where the business is
+going, what gets in the way, what is planned and where Mjadi should look first. The key
+user has it in the portal (`/company/leadership`); each other manager named in onboarding
+has it by a signed 14-day link (`/leadership/:token`), with no password and no app.
+
+- **Before it starts:** a short note on how what they say is used, and consent.
+- **During:** one question at a time; type or send a voice note; *Pause* any time —
+  closing the page counts as a pause, and coming back picks up the same thread. English
+  by default; Modern Standard Arabic when they write in Arabic.
+- **Near the end:** what we've heard, read back; for the key user, the **scope card** —
+  each department and how many people from it (every "Not sure" becomes a number here),
+  and the people they mentioned, to add to the plan; then the documents they mentioned,
+  with an upload for each (optional, now or later).
+- **Afterwards:** "the team will be in touch". Nothing they said is shown to anyone else
+  in the company: the key user sees the other managers' **status only**, and leadership
+  uploads never appear in Documents.
+
+Reminders go by email in the company's working hours: two if someone hasn't started, one
+after a pause, one for documents still to come. Consultants see everything — coverage,
+findings, planned changes, the transcript and the notes for consultants only — on the
+company's *Leadership conversations* page.
+
 ### 4.5 Dashboard
 
 Adapts to engagement phase:
 
 | Phase | Emphasis |
 |-------|----------|
+| Leadership conversation | Start or carry on the conversation; other managers' status; the participant-count task while any count is "Not sure" |
+| Preparing Stage 1 proposal | "We're preparing your Stage 1 proposal" — nothing needs the client |
 | Docs processing, no signals yet | Action tiles (upload, profile, etc.) |
 | Docs-only | KPIs: Documents / Signals / Patterns / Recommendations |
 | Hybrid (interviews started) | In progress / Signals / Patterns / Recommendations |
 
-Typical action tiles: Profile %, Assigned consultant, Conversations, Discovery questions (unanswered badge), Shared reports, Upload documents, Invite employees, WhatsApp media.
+Typical action tiles: Profile %, Assigned consultant, Conversations, Discovery questions (unanswered badge), Shared reports, Upload documents, Invite employees, WhatsApp media. "Add documents or invite your team" appears only once Stage 1 is under way (or for a company from before engagements): staff are invited after the Stage 1 fee is agreed. Blocking staff invitations on the server until then is part of the pricing work.
 
 Also: stalled employees card (nudge CTA), participation funnel, department coverage, top pain points, emerging patterns, recent activity, trial usage line.
 
