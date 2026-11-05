@@ -104,7 +104,7 @@ module KeyPerson
       captures = @turns.select(&:participant?).filter_map(&:capture)
       fields = ContextValidator::LIST_FIELDS.index_with { [] }
       success = nil
-      captures.flat_map { |c| c["statements"] }.each do |s|
+      captures.flat_map { |c| Array(c["statements"]) }.each do |s|
         item = { "text" => s["statement"], "evidence" => [s["evidence"]] }
         if s["domain"] == "SUCCESS_DEFINITION"
           success ||= item
@@ -124,7 +124,7 @@ module KeyPerson
           "change_appetite_inferred" => { "level" => "UNCLEAR", "basis" => "", "fact_status" => "INFERRED" }
         ),
         "strategic_findings" => [],
-        "planned_initiatives" => captures.flat_map { |c| c["planned_initiatives"] }.map do |i|
+        "planned_initiatives" => captures.flat_map { |c| Array(c["planned_initiatives"]) }.map do |i|
           { "initiative_type" => i["type"], "description" => i["description"], "timing" => i["timing"],
             "status" => "UNCERTAIN", "affected_areas" => i["affected_areas"], "evidence" => [i["evidence"]] }
         end,
@@ -139,10 +139,10 @@ module KeyPerson
                           "domains_thin" => [], "confidence" => "LOW" },
         "consultant_private" => {
           "political_context" => { "decision_makers" => [], "influencers" => [],
-                                   "resistance_points" => captures.flat_map { |c| c["political_signals"] }.map do |p|
+                                   "resistance_points" => captures.flat_map { |c| Array(c["political_signals"]) }.map do |p|
                                      { "note" => p["note"], "evidence" => [p["evidence"]] }
                                    end },
-          "consultant_notes" => captures.flat_map { |c| c["sensitive"] }.map do |s|
+          "consultant_notes" => captures.flat_map { |c| Array(c["sensitive"]) }.map do |s|
             { "type" => "SENSITIVE", "note" => s["note"], "evidence" => [s["evidence"]] }
           end
         }

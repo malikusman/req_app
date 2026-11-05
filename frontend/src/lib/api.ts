@@ -1428,6 +1428,22 @@ export const api = {
   consultantDashboard: (token: string) => request<ConsultantDashboardPayload>('/api/v1/consultant/dashboard', {}, token),
 
   consultantCompany: (token: string, id: number) => request<{ company: ConsultantCompanyDetail }>(`/api/v1/consultant/companies/${id}`, {}, token),
+
+  consultantLeadership: (token: string, companyId: number) =>
+    request<ConsultantLeadership>(`/api/v1/consultant/companies/${companyId}/leadership`, {}, token),
+
+  consultantLeadershipAction: (
+    token: string,
+    companyId: number,
+    path: string,
+    method: 'POST' | 'PATCH',
+    body?: Record<string, unknown>
+  ) =>
+    request<ConsultantLeadership>(
+      `/api/v1/consultant/companies/${companyId}/leadership/${path}`,
+      { method, body: body ? JSON.stringify(body) : undefined },
+      token
+    ),
   updateConsultantCompanyFacts: (token: string, companyId: number, answers: QuestionnaireAnswerPayload) =>
     request<CompanyFactsUpdate>(
       `/api/v1/consultant/companies/${companyId}/facts`,
@@ -2296,6 +2312,107 @@ export type ParticipationStatus =
   | 'ABANDONED'
   | 'DECLINED';
 
+export interface ConsultantLeadershipFinding {
+  id: number;
+  version: number;
+  status: 'ACTIVE' | 'SUPERSEDED' | 'REJECTED';
+  category: string;
+  scope: string;
+  statement: string;
+  business_consequence: string | null;
+  symptom_or_cause: string | null;
+  fact_status: string;
+  management_importance: string | null;
+  related_departments: string[];
+  validation_need: string | null;
+  evidence: string[];
+  edit_rationale: string | null;
+}
+
+export interface ConsultantLeadershipContext {
+  id: number;
+  version: number;
+  status: 'COMPLETE' | 'INCOMPLETE';
+  persona: string | null;
+  scope: string | null;
+  fallback_reason: string | null;
+  content: Record<string, unknown>;
+  unknowns: { domain: string; note: string }[];
+  contradictions: { between: string; note: string; evidence: string[] }[];
+  completion: { domains_adequate?: string[]; domains_thin?: string[]; confidence?: string };
+  neutral_employee_context: { department: string; context: string }[];
+  consultant_private: {
+    political_context?: Record<string, { note: string; evidence: string[] }[]>;
+    consultant_notes?: { type: string; note: string; evidence: string[] }[];
+  };
+  findings: ConsultantLeadershipFinding[];
+  initiatives: { id: number; initiative_type: string; description: string; timing: string | null; status: string; evidence: string[] }[];
+}
+
+export interface ConsultantLeadershipSession {
+  id: number;
+  version: number;
+  state: string;
+  close_reason: string | null;
+  language: string;
+  needs_review: boolean;
+  review_reasons: { type: string; turn?: string }[];
+  turn_count: number;
+  started_at: string | null;
+  completed_at: string | null;
+  last_activity_at: string | null;
+  coverage: Record<string, string>;
+  contradictions: { field: string; value: string; evidence: string }[];
+  people_mentioned: { name: string | null; role: string | null; department: string | null; reason: string; confirmed_id?: number; dismissed?: boolean }[];
+  document_requests: { id: number; requested_item: string; status: string }[];
+  documents: { id: number; filename: string; document_request_id: number | null }[];
+  transcript: {
+    index: number;
+    locator: string;
+    direction: 'AI' | 'PARTICIPANT' | 'SYSTEM';
+    text: string;
+    mode: string | null;
+    targeted_slot: string | null;
+    slots_filled: string[];
+    input_mode: string;
+    fallback_reason: string | null;
+    capture: Record<string, unknown> | null;
+    at: string;
+  }[];
+}
+
+export interface ConsultantLeadershipParticipant {
+  id: number;
+  name: string;
+  role_title: string | null;
+  email: string | null;
+  key_user: boolean;
+  source: string;
+  persona: string | null;
+  scope: string | null;
+  participation_status: ParticipationStatus;
+  invited_at: string | null;
+  can_invite: boolean;
+  reminder_count: number;
+  consultant_focus: string | null;
+  sessions: ConsultantLeadershipSession[];
+  contexts: ConsultantLeadershipContext[];
+}
+
+export interface ConsultantLeadership {
+  engagement: {
+    id: number;
+    status: EngagementStatus;
+    planned_departments: { name: string; count: number | 'UNKNOWN' }[];
+    planned_participant_count: number | null;
+    plan_editable: boolean;
+  };
+  available: boolean;
+  personas: string[];
+  areas: string[];
+  participants: ConsultantLeadershipParticipant[];
+}
+
 export interface CompanyDashboardPayload {
   user: CompanyUser;
   company: {
@@ -2873,6 +2990,14 @@ export interface Engagement {
   prefill_status: PrefillStatus;
   prefill_entity_note: string | null;
   prefill_candidates: { id: number; target_field: string; status: PrefillProposal['status'] }[];
+  /** How far each conversation with leadership has got; never its content. */
+  leadership?: {
+    name: string;
+    key_user: boolean;
+    participation_status: ParticipationStatus;
+    close_reason: string | null;
+    needs_review: boolean;
+  }[];
   confidentiality_acknowledged_at: string | null;
   key_user: { id: number; name: string; email: string; phone: string | null; job_title: string | null; status: string } | null;
   lead_consultant: { id: number; name: string } | null;

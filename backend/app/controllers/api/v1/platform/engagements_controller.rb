@@ -94,6 +94,12 @@ module Api
               c.slice(:id, :target_field, :value, :display_text, :confidence, :status, :source_url, :evidence_excerpt)
             },
             confidentiality_acknowledged_at: engagement.confidentiality_acknowledged_at,
+            # How far each conversation with leadership has got — never what was said.
+            leadership: engagement.participants.key_persons.order(:created_at).map { |p|
+              session = p.conversation_sessions.last
+              { name: p.name, key_user: p.key_user?, participation_status: p.participation_status,
+                close_reason: session&.close_reason, needs_review: session&.needs_review || false }
+            },
             key_user: key_user && { id: key_user.id, name: key_user.name, email: key_user.email,
                                     phone: key_user.phone, job_title: key_user.job_title, status: key_user.status },
             lead_consultant: engagement.lead_consultant && { id: engagement.lead_consultant.id,

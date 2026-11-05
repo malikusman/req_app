@@ -136,6 +136,14 @@ Rails.application.routes.draw do
         resources :companies, only: %i[index show] do
           # Correcting the client's facts after they submitted onboarding (Doc 07 §12).
           resource :facts, only: :update, controller: "company_facts"
+          # The conversations with leadership (Doc 08).
+          get "leadership", to: "key_person_sessions#show"
+          patch "leadership/participants/:participant_id", to: "key_person_sessions#update_participant"
+          post "leadership/participants/:participant_id/invite", to: "key_person_sessions#invite"
+          post "leadership/participants/:participant_id/close", to: "key_person_sessions#close"
+          post "leadership/participants/:participant_id/further_session", to: "key_person_sessions#further_session"
+          patch "leadership/findings/:id", to: "key_person_sessions#update_finding"
+          patch "leadership/plan", to: "key_person_sessions#update_plan"
           resources :employees, only: %i[index show], controller: "employees"
           resources :conversations, only: %i[index show], controller: "conversations"
           get "signals", to: "intelligence#signals"

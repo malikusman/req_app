@@ -405,6 +405,18 @@ export function ConsultantCompanyOverview() {
                 )}
               </Card>
 
+              <Card title="Leadership conversations">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <p className="m-0 text-sm text-muted-foreground">
+                    What the owner and managers said matters, what is planned, and where to look first — with coverage,
+                    findings and the notes for consultants only.
+                  </p>
+                  <Link to={`/consultant/companies/${companyId}/leadership`}>
+                    <Button variant="secondary" icon={<Users className="h-4 w-4" />}>Open</Button>
+                  </Link>
+                </div>
+              </Card>
+
               <Card title="Findings">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <p className="m-0 text-sm text-muted-foreground">

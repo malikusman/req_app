@@ -49,6 +49,24 @@ import { ENGAGEMENT_STATUS_LABELS, PREFILL_STATUS_LABELS } from './engagementSta
 import { AgenticIdeasPanel } from '../shared/AgenticIdeasPanel';
 import { CompanyProfileSummary, ProfileChanges } from '../shared/CompanyProfileFacts';
 
+/** How far each conversation with leadership has got, and how each one ended. */
+function LeadershipLine({ engagement }: { engagement: Engagement }) {
+  const people = engagement.leadership ?? [];
+  if (people.length === 0) return null;
+  return (
+    <p className="m-0 text-text-secondary">
+      Leadership:{' '}
+      {people
+        .map((p) => {
+          const status = p.participation_status.toLowerCase().replace(/_/g, ' ');
+          const ended = p.close_reason ? ` (${p.close_reason.toLowerCase().replace(/_/g, ' ')})` : '';
+          return `${p.name}${p.key_user ? ' (key user)' : ''} — ${status}${ended}${p.needs_review ? ', needs review' : ''}`;
+        })
+        .join(' · ')}
+    </p>
+  );
+}
+
 /** How reading the website for onboarding proposals went, and what the client did with them. */
 function WebsiteReadLine({ engagement }: { engagement: Engagement }) {
   const proposals = engagement.prefill_candidates || [];
@@ -441,6 +459,7 @@ export function PlatformCompanyDetail() {
                     <p className="m-0 text-text-secondary">Proposal {company.engagement.proposal_reference}</p>
                   ) : null}
                   <WebsiteReadLine engagement={company.engagement} />
+                  <LeadershipLine engagement={company.engagement} />
                   <Button
                     variant="secondary"
                     size="sm"

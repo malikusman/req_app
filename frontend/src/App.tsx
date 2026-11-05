@@ -47,6 +47,7 @@ import { ConsultantConversations } from './portals/consultant/ConsultantConversa
 import { ConsultantConversationDetail } from './portals/consultant/ConsultantConversationDetail';
 import { ConsultantEmployeeFollowup } from './portals/consultant/ConsultantEmployeeFollowup';
 import { ConsultantProfile } from './portals/consultant/ConsultantProfile';
+import { ConsultantLeadership } from './portals/consultant/ConsultantLeadership';
 import { DevUiShowcase } from './dev/DevUiShowcase';
 import { CompanyOutreaches } from './portals/company/CompanyOutreaches';
 import { PlatformCatalogCandidates } from './portals/platform/PlatformCatalogCandidates';
@@ -172,6 +173,7 @@ export default function App() {
               <Route path="companies/:companyId/analysis" element={<ConsultantDocumentAnalysis />} />
               <Route path="companies/:companyId/catalog" element={<ConsultantCatalog />} />
               <Route path="companies/:companyId/findings" element={<ConsultantFindings />} />
+              <Route path="companies/:companyId/leadership" element={<ConsultantLeadership />} />
             </Route>
             <Route
               path="/company"
