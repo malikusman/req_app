@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_11_05_100000) do
+ActiveRecord::Schema[7.1].define(version: 2026_11_05_110000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -45,6 +45,28 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_05_100000) do
     t.index ["company_id"], name: "index_agentic_ideas_on_company_id"
     t.index ["created_by_type", "created_by_id"], name: "index_agentic_ideas_on_created_by"
     t.index ["solution_catalog_entry_id"], name: "index_agentic_ideas_on_solution_catalog_entry_id"
+  end
+
+  create_table "ai_runs", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "engagement_id"
+    t.string "subject_type"
+    t.bigint "subject_id"
+    t.string "stage", null: false
+    t.string "prompt_version"
+    t.string "model"
+    t.integer "latency_ms"
+    t.integer "input_tokens"
+    t.integer "output_tokens"
+    t.string "finish_reason"
+    t.string "status", null: false
+    t.string "fallback_reason"
+    t.jsonb "context_classes", default: [], null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id", "created_at"], name: "index_ai_runs_on_company_id_and_created_at"
+    t.index ["stage", "created_at"], name: "index_ai_runs_on_stage_and_created_at"
+    t.index ["subject_type", "subject_id"], name: "index_ai_runs_on_subject"
   end
 
   create_table "benchmark_rates", force: :cascade do |t|
@@ -595,6 +617,53 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_05_100000) do
     t.index ["conversation_id"], name: "index_conversation_insights_on_conversation_id"
     t.index ["employee_id"], name: "index_conversation_insights_on_employee_id"
     t.index ["message_id"], name: "index_conversation_insights_on_message_id"
+  end
+
+  create_table "conversation_sessions", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "engagement_id", null: false
+    t.bigint "engagement_participant_id", null: false
+    t.string "session_type", default: "KEY_PERSON", null: false
+    t.string "state", default: "NOT_STARTED", null: false
+    t.jsonb "state_history", default: [], null: false
+    t.string "modality", default: "TEXT", null: false
+    t.string "language", default: "en", null: false
+    t.jsonb "state_snapshot", default: {}, null: false
+    t.jsonb "limits", default: {}, null: false
+    t.integer "turn_count", default: 0, null: false
+    t.string "close_reason"
+    t.boolean "needs_review", default: false, null: false
+    t.jsonb "review_reasons", default: [], null: false
+    t.integer "version", default: 1, null: false
+    t.datetime "started_at"
+    t.datetime "last_activity_at"
+    t.datetime "completed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_conversation_sessions_on_company_id"
+    t.index ["engagement_id"], name: "index_conversation_sessions_on_engagement_id"
+    t.index ["engagement_participant_id", "version"], name: "idx_on_engagement_participant_id_version_48fc5a358c", unique: true
+  end
+
+  create_table "conversation_turns", force: :cascade do |t|
+    t.bigint "conversation_session_id", null: false
+    t.integer "turn_index", null: false
+    t.string "direction", null: false
+    t.text "text", null: false
+    t.text "translation"
+    t.string "input_mode", default: "TEXT", null: false
+    t.string "mode"
+    t.string "targeted_slot"
+    t.jsonb "routing_decision", default: {}, null: false
+    t.string "slots_filled", default: [], null: false, array: true
+    t.jsonb "capture"
+    t.boolean "is_system_notice", default: false, null: false
+    t.string "fallback_reason"
+    t.string "client_message_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["conversation_session_id", "client_message_id"], name: "idx_on_conversation_session_id_client_message_id_8735f65ff0", unique: true, where: "(client_message_id IS NOT NULL)"
+    t.index ["conversation_session_id", "turn_index"], name: "idx_on_conversation_session_id_turn_index_14c66a96a5", unique: true
   end
 
   create_table "conversations", force: :cascade do |t|
@@ -1529,6 +1598,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_05_100000) do
 
   add_foreign_key "agentic_ideas", "companies"
   add_foreign_key "agentic_ideas", "solution_catalog", column: "solution_catalog_entry_id"
+  add_foreign_key "ai_runs", "companies"
+  add_foreign_key "ai_runs", "engagements"
   add_foreign_key "catalog_candidates", "catalog_source_records"
   add_foreign_key "catalog_candidates", "solution_catalog", column: "suggested_catalog_entry_id"
   add_foreign_key "catalog_endorsements", "companies"
@@ -1590,6 +1661,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_05_100000) do
   add_foreign_key "conversation_insights", "conversations"
   add_foreign_key "conversation_insights", "employees"
   add_foreign_key "conversation_insights", "messages"
+  add_foreign_key "conversation_sessions", "companies"
+  add_foreign_key "conversation_sessions", "engagement_participants"
+  add_foreign_key "conversation_sessions", "engagements"
+  add_foreign_key "conversation_turns", "conversation_sessions"
   add_foreign_key "conversations", "companies"
   add_foreign_key "conversations", "employees"
   add_foreign_key "discovery_followup_questions", "consultant_info_requests"

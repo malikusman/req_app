@@ -10,6 +10,7 @@ class Engagement < ApplicationRecord
   belongs_to :confidentiality_acknowledged_by, class_name: "CompanyUser", optional: true
   has_many :participants, class_name: "EngagementParticipant", dependent: :destroy
   has_many :prefill_candidates, dependent: :destroy
+  has_many :conversation_sessions, dependent: :destroy
 
   # Doc 06 §3.5, Stage 1 so far. The later stages are added with the work that
   # moves an engagement into them. STAGE_1_PRICING is where the conversations with

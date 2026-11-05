@@ -11,6 +11,7 @@ class EngagementParticipant < ApplicationRecord
   belongs_to :company
   belongs_to :employee, optional: true
   belongs_to :company_user, optional: true
+  has_many :conversation_sessions, -> { order(:version) }, dependent: :destroy
 
   PARTICIPANT_TYPES = %w[EMPLOYEE KEY_PERSON].freeze
   # KEY_PERSON_CONVERSATION: someone the key user confirmed during their

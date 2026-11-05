@@ -7,6 +7,11 @@ module Openai
   class Client
     class Error < StandardError; end
 
+    # What a chat call returned, with what it cost and how it ended, so the caller
+    # can log the run (Doc 05 §21) and tell a truncated reply from a finished one.
+    ChatResult = Struct.new(:content, :model, :finish_reason, :input_tokens, :output_tokens, :latency_ms, :escalated,
+                            keyword_init: true)
+
     DEFAULT_CHAT_BASE = "https://api.openai.com/v1"
     DEFAULT_EMBEDDING_DIMENSIONS = 768
 
@@ -770,6 +775,47 @@ module Openai
         end
       end
       message_text(chat_completion(prepared))
+    end
+
+    # Like chat_json_content, but returns a ChatResult instead of bare text. A reply
+    # cut off by the token cap is asked for once more with twice the cap, never at
+    # the same cap again (Doc 05 §3.5): a reasoning model may spend its budget
+    # before it writes anything.
+    def chat_with_meta(body, json: false)
+      prepared = body.key?(:max_tokens) ? body : body.merge(max_tokens: chat_max_tokens(1200))
+      result = timed_chat(prepared, json: json)
+      return result unless result.finish_reason == "length"
+
+      retried = timed_chat(prepared.merge(max_tokens: prepared[:max_tokens] * 2), json: json)
+      retried.escalated = true
+      retried
+    end
+
+    def timed_chat(body, json:)
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      payload =
+        if json && json_object_mode_enabled?
+          begin
+            chat_completion(body.merge(response_format: { type: "json_object" }))
+          rescue Error => e
+            raise if official_openai_host?(chat_base_url)
+
+            Rails.logger.warn("[Openai::Client] JSON mode unsupported (#{e.message}); retrying without response_format")
+            chat_completion(body)
+          end
+        else
+          chat_completion(body)
+        end
+      usage = payload["usage"].is_a?(Hash) ? payload["usage"] : {}
+      ChatResult.new(
+        content: message_text(payload),
+        model: payload["model"].presence || body[:model],
+        finish_reason: payload.dig("choices", 0, "finish_reason"),
+        input_tokens: usage["prompt_tokens"],
+        output_tokens: usage["completion_tokens"],
+        latency_ms: ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000).round,
+        escalated: false
+      )
     end
 
     def json_object_mode_enabled?
