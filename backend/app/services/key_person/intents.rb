@@ -129,6 +129,10 @@ module KeyPerson
         en: "Good question — the team will follow up with you on that separately.",
         ar: "سؤال جيد، وسيتابع الفريق معك بشأنه بشكل منفصل."
       },
+      "CLARIFY" => {
+        en: "Just so I have it right, could you say a little more about that?",
+        ar: "حتى أتأكد من أنني فهمت بشكل صحيح، هل يمكنك أن توضح ذلك قليلاً؟"
+      },
       "RESUME" => {
         en: "Welcome back.",
         ar: "أهلاً بعودتك."

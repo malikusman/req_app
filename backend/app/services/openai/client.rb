@@ -693,6 +693,71 @@ module Openai
       @website_prefill_prompt ||= Rails.root.join("app/prompts/p01_website_prefill.v1.txt").read
     end
 
+    KEY_PERSON_INTERVIEWER_PROMPT_VERSION = "P02.v1"
+    KEY_PERSON_CAPTURE_PROMPT_VERSION = "P03.v1"
+    KEY_PERSON_CONTEXT_PROMPT_VERSION = "P04.v1"
+
+    # The conversation with leadership (Doc 08). KeyPerson services assemble each
+    # prompt — base, engine rules, context blocks, then the turn instruction (Doc
+    # 24 §6) — and check every reply in code; these calls only carry it. Each
+    # returns a ChatResult so the caller can log the run. Never mocked: with no
+    # model the conversation isn't offered.
+
+    # P02 — what the assistant says next. Plain text.
+    def key_person_turn(system:, context:)
+      raise Error, "No model configured" unless configured?
+
+      chat_with_meta(
+        {
+          model: ENV.fetch("KEY_PERSON_MODEL", ENV.fetch("OPENAI_MODEL", "gpt-4o-mini")),
+          messages: [{ role: "system", content: system }, { role: "user", content: context }],
+          temperature: 0.6,
+          max_tokens: chat_max_tokens(400)
+        }
+      )
+    end
+
+    # P03 — what the participant's answer contained. JSON.
+    def key_person_capture(system:, context:)
+      raise Error, "No model configured" unless configured?
+
+      chat_with_meta(
+        {
+          model: ENV.fetch("KEY_PERSON_CAPTURE_MODEL", ENV.fetch("OPENAI_MODEL", "gpt-4o-mini")),
+          messages: [{ role: "system", content: system }, { role: "user", content: context }],
+          temperature: 0.1,
+          max_tokens: chat_max_tokens(2000)
+        },
+        json: true
+      )
+    end
+
+    # P04 — the whole conversation as management context and findings. JSON.
+    def key_person_context(system:, context:)
+      raise Error, "No model configured" unless configured?
+
+      chat_with_meta(
+        {
+          model: ENV.fetch("KEY_PERSON_CONTEXT_MODEL", ENV.fetch("OPENAI_MODEL", "gpt-4o-mini")),
+          messages: [{ role: "system", content: system }, { role: "user", content: context }],
+          temperature: 0.2,
+          max_tokens: chat_max_tokens(6000)
+        },
+        json: true
+      )
+    end
+
+    # Parses a JSON reply the way every other step does: reasoning channels and
+    # code fences stripped, the first object found if there is prose around it.
+    def parse_reply(content)
+      parse_model_json(content)
+    end
+
+    def self.prompt(file)
+      @prompts ||= {}
+      @prompts[file] ||= Rails.root.join("app/prompts", file).read
+    end
+
     private
 
     def ensure_configured_or_mock!(service_name)
