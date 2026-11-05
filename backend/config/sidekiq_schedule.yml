@@ -20,3 +20,8 @@ generate_employee_value_digests:
   class: GenerateEmployeeValueDigestsJob
   queue: default
   active_job: true
+key_person_sweep:
+  cron: "15 * * * *"
+  class: KeyPersonSweepJob
+  queue: default
+  active_job: true

@@ -19,6 +19,15 @@ class KeyPersonMailer < ApplicationMailer
     mail(to: participant.email, subject: subject("invitation"))
   end
 
+  # A nudge (Doc 14 §9.1). kind: not_started, not_started_again, paused, documents.
+  def reminder(participant, url, kind, documents: [])
+    setup(participant)
+    @url = url
+    @kind = kind
+    @documents = documents
+    mail(to: participant.email, subject: subject(kind == "documents" ? "documents" : "reminder"))
+  end
+
   private
 
   def setup(participant)
@@ -28,11 +37,14 @@ class KeyPersonMailer < ApplicationMailer
     @arabic = participant.preferred_language.to_s.start_with?("ar")
   end
 
+  SUBJECTS = {
+    "ready" => ["Your conversation with Mjadi is ready", "حديثك مع Mjadi جاهز"],
+    "invitation" => ["%<company>s and Mjadi: fifteen minutes of your time?", "%<company>s و Mjadi: هل لديك خمس عشرة دقيقة؟"],
+    "reminder" => ["Your conversation with Mjadi", "حديثك مع Mjadi"],
+    "documents" => ["The documents you mentioned", "المستندات التي ذكرتها"]
+  }.freeze
+
   def subject(kind)
-    if @arabic
-      kind == "ready" ? "حديثك مع Mjadi جاهز" : "#{@company_name} و Mjadi: هل لديك خمس عشرة دقيقة؟"
-    else
-      kind == "ready" ? "Your conversation with Mjadi is ready" : "#{@company_name} and Mjadi: fifteen minutes of your time?"
-    end
+    format(SUBJECTS.fetch(kind)[@arabic ? 1 : 0], company: @company_name)
   end
 end

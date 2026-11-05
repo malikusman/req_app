@@ -58,6 +58,21 @@ module KeyPerson
       end
     end
 
+    # Closing the page counts as a pause (Doc 14 §8). Nothing is said: nobody
+    # is there to hear it.
+    def mark_idle!
+      @session.with_lock do
+        return @session if @session.finished? || @session.paused? || %w[NOT_STARTED CONSENT].include?(@session.state)
+
+        planner = planner_for
+        planner.pause
+        @session.move_to("PAUSED")
+        @session.update!(state_snapshot: planner.snapshot)
+        sync_participant!
+        @session
+      end
+    end
+
     # Returns the turns this answer added, oldest first.
     def answer!(text:, client_message_id: nil, input_mode: "TEXT")
       answer, repeated = save_answer!(text, client_message_id, input_mode)

@@ -45,10 +45,7 @@ module KeyPerson
       if @participant.key_user?
         KeyPersonMailer.ready(@participant).deliver_later
       else
-        token = SecureRandom.urlsafe_base64(32)
-        @participant.update!(access_token_digest: self.class.digest(token),
-                             access_token_expires_at: LINK_TTL.from_now)
-        url = "#{NotificationService.app_host}/leadership/#{token}"
+        url = link!
         KeyPersonMailer.invitation(@participant, url).deliver_later
         send_whatsapp(url)
       end
@@ -56,6 +53,16 @@ module KeyPerson
       @participant.update!(invited_at: Time.current, participation_status: status,
                            persona: @participant.persona || Personas.from_title(@participant.role_title))
       true
+    end
+
+    # Where this person's conversation is: the portal for the key user; for a
+    # manager, a fresh signed link, which replaces the one before.
+    def link!
+      return "#{NotificationService.app_host}/company/leadership" if @participant.key_user?
+
+      token = SecureRandom.urlsafe_base64(32)
+      @participant.update!(access_token_digest: self.class.digest(token), access_token_expires_at: LINK_TTL.from_now)
+      "#{NotificationService.app_host}/leadership/#{token}"
     end
 
     private
