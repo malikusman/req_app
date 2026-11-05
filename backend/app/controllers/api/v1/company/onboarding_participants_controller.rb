@@ -40,7 +40,7 @@ module Api
 
         def scope
           engagement = current_company.current_engagement
-          engagement ? engagement.participants : EngagementParticipant.none
+          engagement ? engagement.participants.planned : EngagementParticipant.none
         end
 
         def save(participant, status:)

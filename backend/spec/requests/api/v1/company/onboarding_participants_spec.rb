@@ -73,4 +73,16 @@ RSpec.describe "Onboarding participant planning", type: :request do
     expect(response).to have_http_status(:created)
     expect(planned.reload.employee).to eq(Employee.find_by(phone_e164: "+971501112222"))
   end
+
+  it "leaves the key user's own row out of the plan they edit" do
+    own = create(:engagement_participant, engagement: engagement, participant_type: "KEY_PERSON", source: "KEY_USER",
+                                          company_user: user, name: user.name)
+
+    get path, headers: headers
+    expect(response.parsed_body["participants"].pluck("id")).not_to include(own.id)
+
+    delete "#{path}/#{own.id}", headers: headers
+    expect(response).to have_http_status(:not_found)
+    expect(own.reload).to be_persisted
+  end
 end

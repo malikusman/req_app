@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_11_04_100000) do
+ActiveRecord::Schema[7.1].define(version: 2026_11_05_100000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -956,7 +956,20 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_04_100000) do
     t.bigint "employee_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "persona"
+    t.string "participation_status", default: "NOT_INVITED", null: false
+    t.bigint "company_user_id"
+    t.datetime "invited_at"
+    t.string "access_token_digest"
+    t.datetime "access_token_expires_at"
+    t.datetime "consent_recorded_at"
+    t.string "consent_text_version"
+    t.integer "reminder_count", default: 0, null: false
+    t.datetime "last_reminded_at"
+    t.text "consultant_focus"
+    t.index ["access_token_digest"], name: "index_engagement_participants_on_access_token_digest", unique: true
     t.index ["company_id"], name: "index_engagement_participants_on_company_id"
+    t.index ["company_user_id"], name: "index_engagement_participants_on_company_user_id"
     t.index ["employee_id"], name: "index_engagement_participants_on_employee_id"
     t.index ["engagement_id", "participant_type"], name: "idx_on_engagement_id_participant_type_7c38bdc612"
     t.index ["engagement_id", "phone_e164"], name: "index_engagement_participants_on_engagement_id_and_phone_e164", unique: true, where: "(phone_e164 IS NOT NULL)"
@@ -1619,6 +1632,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_04_100000) do
   add_foreign_key "employees", "companies"
   add_foreign_key "employees", "company_users", column: "invited_by_company_user_id"
   add_foreign_key "engagement_participants", "companies"
+  add_foreign_key "engagement_participants", "company_users"
   add_foreign_key "engagement_participants", "employees"
   add_foreign_key "engagement_participants", "engagements"
   add_foreign_key "engagements", "companies"

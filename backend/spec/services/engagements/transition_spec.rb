@@ -50,6 +50,29 @@ RSpec.describe Engagements::Transition do
     end
   end
 
+  describe "handing over to Stage 1 pricing" do
+    before { engagement.update!(status: "KEY_PERSON_DISCOVERY") }
+
+    it "waits while any department's count is still unknown" do
+      engagement.update!(planned_departments: [{ "name" => "Sales", "count" => 2 },
+                                               { "name" => "Finance", "count" => "UNKNOWN" }])
+      expect { move("STAGE_1_PRICING") }.to raise_error(described_class::Error, /number of people/)
+      expect(engagement.reload.status).to eq("KEY_PERSON_DISCOVERY")
+    end
+
+    it "goes ahead once every count is known" do
+      engagement.update!(planned_departments: [{ "name" => "Sales", "count" => 2 }])
+      move("STAGE_1_PRICING", actor: key_user)
+      expect(engagement.reload.status).to eq("STAGE_1_PRICING")
+      expect(engagement.status_history.last).to include("from" => "KEY_PERSON_DISCOVERY", "to" => "STAGE_1_PRICING")
+    end
+
+    it "lets a Mjadi user move it on regardless, with a reason" do
+      move("STAGE_1_PRICING", actor: create(:platform_user), reason: "Counts agreed by phone", force: true)
+      expect(engagement.reload.status).to eq("STAGE_1_PRICING")
+    end
+  end
+
   describe "forcing a move" do
     let(:admin) { create(:platform_user) }
 

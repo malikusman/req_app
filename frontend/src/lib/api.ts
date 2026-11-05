@@ -2613,7 +2613,13 @@ export interface Company {
   created_at: string;
 }
 
-export type EngagementStatus = 'SET_UP' | 'ONBOARDING' | 'KEY_PERSON_DISCOVERY' | 'STAGE_1_ACTIVE' | 'CLOSED';
+export type EngagementStatus =
+  | 'SET_UP'
+  | 'ONBOARDING'
+  | 'KEY_PERSON_DISCOVERY'
+  | 'STAGE_1_PRICING'
+  | 'STAGE_1_ACTIVE'
+  | 'CLOSED';
 
 /** What Mjadi enters to set up an engagement (Doc 07 §3, S1–S8). */
 export interface EngagementSetupInput {
