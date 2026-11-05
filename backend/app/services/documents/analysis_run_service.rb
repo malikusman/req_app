@@ -79,7 +79,7 @@ module Documents
       when "incremental_docs"
         docs = @company.documents.portal.awaiting_analysis.order(:id).to_a
         if @run.document_ids.present?
-          extra = @company.documents.where(id: @run.document_ids).to_a
+          extra = @company.documents.not_leadership.where(id: @run.document_ids).to_a
           docs = (docs + extra).uniq(&:id)
         end
         docs

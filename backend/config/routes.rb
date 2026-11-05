@@ -225,6 +225,7 @@ Rails.application.routes.draw do
           patch "scope", action: :update_scope
           post "people", action: :confirm_person
           post "people/dismiss", action: :dismiss_person
+          post "documents", action: :upload
         end
         resources :onboarding_participants, path: "onboarding/participants", only: %i[index create update destroy]
         resources :onboarding_prefill_candidates, path: "onboarding/prefill_candidates", only: [] do
@@ -316,6 +317,7 @@ Rails.application.routes.draw do
           post "voice_note"
           post "pause"
           post "resume"
+          post "documents", action: :upload
         end
         get "discover/sessions/:token", to: "discover_sessions#show"
         post "discover/sessions/:token/verify", to: "discover_verifications#create"

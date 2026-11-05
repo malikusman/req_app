@@ -73,6 +73,9 @@ module KeyPerson
         capture = Capture.new(session: @session, turn: answer, previous_instruction: previous, planner: planner,
                               pack: pack, client: @client).call
         Effects.new(@session, capture, answer).call
+        if previous&.dig("mode") == "DOCUMENT_REQUEST" && capture&.dig("participant_signal") == "UNWILLING_ON_TOPIC"
+          Documents.new(@session).decline_open!
+        end
         planner.after_answer(capture)
         answer.update!(capture: capture, slots_filled: slots_filled(capture, previous))
         speak!(planner)
@@ -151,6 +154,7 @@ module KeyPerson
       end
       @session.update!(state_snapshot: planner.snapshot, turn_count: @session.turns.count, last_activity_at: now)
       sync_participant!
+      Documents.new(@session).open_requests!(instruction) if instruction["mode"] == "DOCUMENT_REQUEST"
       Completion.call(@session) if @session.state == "COMPLETE"
       turn
     end

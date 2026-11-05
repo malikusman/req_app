@@ -27,7 +27,7 @@ module Documents
         elsif @run_kind == "incremental_docs"
           pending = @company.documents.portal.awaiting_analysis.to_a
           if @document_ids.any?
-            pending = (pending + @company.documents.where(id: @document_ids).to_a).uniq(&:id)
+            pending = (pending + @company.documents.not_leadership.where(id: @document_ids).to_a).uniq(&:id)
           end
           raise Error, "No documents awaiting analysis" if pending.empty?
         else

@@ -78,7 +78,7 @@ module Dashboard
     end
 
     def intel_counts
-      docs = @company.documents.where(purged_at: nil)
+      docs = @company.documents.not_leadership.where(purged_at: nil)
       snapshot = @company.intelligence_snapshot.is_a?(Hash) ? @company.intelligence_snapshot : {}
 
       {

@@ -31,7 +31,7 @@ class DocumentPolicy < ApplicationPolicy
   class Scope < Scope
     def resolve
       if company?
-        scope.where(company_id: company_id)
+        scope.where(company_id: company_id).not_leadership
       elsif consultant?
         scope.where(company_id: assigned_company_ids).where("consultant_visible IS DISTINCT FROM FALSE")
       else

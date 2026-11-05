@@ -88,6 +88,16 @@ module KeyPersonConversationEndpoints
     render json: conversation_json
   end
 
+  # An upload, now or later — after the conversation has ended too (Doc 14 §12).
+  def upload
+    KeyPerson::Documents.new(started_session!)
+                        .upload!(params[:file], request_id: params[:document_request_id],
+                                                uploaded_by: key_participant.company_user)
+    render json: conversation_json, status: :created
+  rescue ArgumentError => e
+    render json: { errors: [e.message] }, status: :unprocessable_entity
+  end
+
   def resume
     conversation.resume!
     render json: conversation_json
@@ -140,6 +150,7 @@ module KeyPersonConversationEndpoints
       needs_resume: conversation.needs_resume?(session), progress: session.finished? ? "done" : planner.progress,
       mode: instruction["mode"],
       themes: session.state == "PRIORITY_CONFIRMATION" ? Array(instruction["themes"]) : [],
+      document_requests: KeyPerson::Documents.new(session).json,
       turns: session.history.map do |turn|
         { index: turn.turn_index, from: turn.assistant? ? "assistant" : "participant", text: turn.text,
           input_mode: turn.input_mode, at: turn.created_at.iso8601 }

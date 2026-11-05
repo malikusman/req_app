@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_11_05_120000) do
+ActiveRecord::Schema[7.1].define(version: 2026_11_05_130000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -838,6 +838,20 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_05_120000) do
     t.index ["document_id"], name: "index_document_chunks_on_document_id"
   end
 
+  create_table "document_requests", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "conversation_session_id", null: false
+    t.text "requested_item", null: false
+    t.text "reason", null: false
+    t.string "status", default: "REQUESTED", null: false
+    t.string "evidence", default: [], null: false, array: true
+    t.datetime "reminded_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_document_requests_on_company_id"
+    t.index ["conversation_session_id"], name: "index_document_requests_on_conversation_session_id"
+  end
+
   create_table "documents", force: :cascade do |t|
     t.bigint "company_id", null: false
     t.bigint "employee_id"
@@ -863,9 +877,11 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_05_120000) do
     t.integer "version_number", default: 1, null: false
     t.datetime "retained_until"
     t.datetime "purged_at"
+    t.bigint "document_request_id"
     t.index ["company_id", "status"], name: "index_documents_on_company_id_and_status"
     t.index ["company_id"], name: "index_documents_on_company_id"
     t.index ["conversation_id"], name: "index_documents_on_conversation_id"
+    t.index ["document_request_id"], name: "index_documents_on_document_request_id"
     t.index ["employee_id"], name: "index_documents_on_employee_id"
     t.index ["message_id"], name: "index_documents_on_message_id"
     t.index ["uploaded_by_company_user_id"], name: "index_documents_on_uploaded_by_company_user_id"
@@ -1760,9 +1776,12 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_05_120000) do
   add_foreign_key "document_analysis_runs", "companies"
   add_foreign_key "document_analysis_runs", "company_users", column: "triggered_by_company_user_id"
   add_foreign_key "document_chunks", "documents"
+  add_foreign_key "document_requests", "companies"
+  add_foreign_key "document_requests", "conversation_sessions"
   add_foreign_key "documents", "companies"
   add_foreign_key "documents", "company_users", column: "uploaded_by_company_user_id"
   add_foreign_key "documents", "conversations"
+  add_foreign_key "documents", "document_requests"
   add_foreign_key "documents", "employees"
   add_foreign_key "documents", "messages"
   add_foreign_key "employee_invitations", "companies"
