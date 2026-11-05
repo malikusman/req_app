@@ -1,0 +1,17 @@
+<% if @arabic %>مرحباً <%= @participant.name %>،
+
+تعمل <%= @company_name %> مع Mjadi لتسهيل العمل اليومي<% if @key_user_name.present? %>، واقترح <%= @key_user_name %> أن نتحدث معك<% end %>. نودّ أن نفهم الاتجاه الذي تريد أن تأخذ إليه <%= @scope.present? ? @scope : "مجالك" %>، وما الذي يعيق ذلك.
+
+يستغرق الحديث نحو خمس عشرة إلى عشرين دقيقة. يمكنك الكتابة أو إرسال رسائل صوتية، والتوقف متى شئت. ابدأ متى كنت مستعداً (الرابط صالح لمدة 14 يوماً):
+<%= @url %>
+
+— Mjadi
+<% else %>Hi <%= @participant.name %>,
+
+<%= @company_name %> is working with Mjadi to make everyday work easier<% if @key_user_name.present? %>, and <%= @key_user_name %> suggested we speak with you<% end %>. We'd like to understand where you're taking <%= @scope.present? ? @scope : "your area" %> and what gets in the way.
+
+It takes about fifteen to twenty minutes. You can type or send voice notes, and pause whenever you need. Start whenever you're ready (the link works for 14 days):
+<%= @url %>
+
+— Mjadi
+<% end %>

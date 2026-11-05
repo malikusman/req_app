@@ -85,6 +85,8 @@ module Api
             current_company_user.update!(onboarding_completed_at: Time.current) if current_company_user.onboarding_completed_at.blank?
             hand_over!(engagement.reload)
           end
+          # After the commit, so the job sees the hand-over. Safe on a resubmit.
+          KeyPersonKickoffJob.perform_later(engagement.id) if engagement.reload.status == "KEY_PERSON_DISCOVERY"
           render json: state_json.merge(redirect_to: "/company/dashboard")
         rescue Engagements::Transition::Error => e
           render json: { errors: [e.message] }, status: :unprocessable_entity

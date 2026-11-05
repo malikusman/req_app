@@ -1,0 +1,17 @@
+<% if @arabic %>مرحباً <%= @participant.name %>،
+
+شكراً لإكمال بيانات <%= @company_name %>. الخطوة التالية حديث قصير معك: نودّ أن نفهم الاتجاه الذي تريد أن تأخذ إليه الشركة، وما الذي يعيق ذلك.
+
+يستغرق نحو خمس عشرة إلى عشرين دقيقة، ويمكنك الكتابة أو إرسال رسائل صوتية، والتوقف متى شئت:
+<%= @url %>
+
+— Mjadi
+<% else %>Hi <%= @participant.name %>,
+
+Thanks for completing <%= @company_name %>'s details. The next step is a short conversation with you: we'd like to understand where you're taking the business and what gets in the way.
+
+It takes about fifteen to twenty minutes. You can type or send voice notes, and pause whenever you need:
+<%= @url %>
+
+— Mjadi
+<% end %>

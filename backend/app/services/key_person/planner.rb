@@ -97,6 +97,23 @@ module KeyPerson
       end
     end
 
+    # The pause button: keep the current question for when they come back.
+    def pause
+      return instruction if instruction&.dig("mode") == "PAUSE"
+
+      pause!(instruction || {})
+    end
+
+    # They answered straight after pausing, without the welcome-back turn: the
+    # answer belongs to the question they paused on.
+    def unpause
+      return instruction unless instruction&.dig("mode") == "PAUSE"
+
+      @snapshot["instruction"] = @snapshot["paused_instruction"]
+      @snapshot["paused_instruction"] = nil
+      instruction
+    end
+
     # The participant has answered the current instruction. capture is the
     # validated P03 output, or nil when capture failed: then the target counts
     # as not filled (P03 §9) and the conversation carries on.

@@ -51,7 +51,21 @@ RSpec.describe Engagements::Transition do
   end
 
   describe "handing over to Stage 1 pricing" do
-    before { engagement.update!(status: "KEY_PERSON_DISCOVERY") }
+    let(:own) do
+      create(:engagement_participant, engagement: engagement, participant_type: "KEY_PERSON", source: "KEY_USER",
+                                      company_user: key_user, name: "Key user")
+    end
+
+    before do
+      engagement.update!(status: "KEY_PERSON_DISCOVERY")
+      create(:conversation_session, participant: own, state: "COMPLETE")
+    end
+
+    it "waits for the key user's own conversation to finish" do
+      own.conversation_sessions.last.update!(state: "PRIORITY_CONFIRMATION")
+      engagement.update!(planned_departments: [{ "name" => "Sales", "count" => 2 }])
+      expect { move("STAGE_1_PRICING") }.to raise_error(described_class::Error, /isn't finished/)
+    end
 
     it "waits while any department's count is still unknown" do
       engagement.update!(planned_departments: [{ "name" => "Sales", "count" => 2 },

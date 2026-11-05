@@ -72,9 +72,14 @@ module Engagements
       raise Error, "Choose at least one department to take part" if Array(@engagement.planned_departments).empty?
     end
 
-    # The Stage 1 fee is set from how many people take part (Doc 17 §2.1), so every
-    # planned count must be a number by now.
+    # Stage 1 is priced after the key user's conversation with leadership (Doc 08
+    # §13, Doc 17 §2.1), from how many people take part, so every planned count
+    # must be a number by now. Other managers' conversations don't hold it up.
     def check_ready_for_pricing!
+      own = @engagement.participants.find_by(source: "KEY_USER")
+      unless own&.conversation_sessions&.last&.finished?
+        raise Error, "The key user's conversation with leadership isn't finished yet"
+      end
       raise Error, "Every department needs a number of people before pricing" if @engagement.planned_participant_count.nil?
     end
 

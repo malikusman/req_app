@@ -214,6 +214,15 @@ Rails.application.routes.draw do
         # Autosave: answers only, none of the side effects the full save performs.
         patch "onboarding/questionnaire/answers", to: "onboarding#update_questionnaire_answers"
         post "onboarding/submit", to: "onboarding#submit"
+        # The key user's conversation with leadership (Doc 08).
+        scope "leadership", controller: "key_person_sessions", as: "leadership" do
+          get "", action: :show
+          post "consent"
+          post "messages", action: :message
+          post "voice_note"
+          post "pause"
+          post "resume"
+        end
         resources :onboarding_participants, path: "onboarding/participants", only: %i[index create update destroy]
         resources :onboarding_prefill_candidates, path: "onboarding/prefill_candidates", only: [] do
           member do
@@ -296,6 +305,15 @@ Rails.application.routes.draw do
       namespace :public do
         get "config", to: "config#show"
         get "reports/:token", to: "reports#show"
+        # Another manager's conversation with leadership, by their signed link.
+        scope "leadership/:token", controller: "key_person_sessions", as: "leadership" do
+          get "", action: :show
+          post "consent"
+          post "messages", action: :message
+          post "voice_note"
+          post "pause"
+          post "resume"
+        end
         get "discover/sessions/:token", to: "discover_sessions#show"
         post "discover/sessions/:token/verify", to: "discover_verifications#create"
         get "discover/messages", to: "discover_messages#index"

@@ -97,7 +97,7 @@ RSpec.describe "Company onboarding form", type: :request do
     let(:complete) { { p1_departments: ["Sales"], p2_department_counts: { "Sales" => "Not sure" } } }
 
     it "hands the engagement over to the key-person conversation, with the acknowledgement recorded" do
-      submit(complete)
+      expect { submit(complete) }.to have_enqueued_job(KeyPersonKickoffJob).with(engagement.id)
 
       expect(response).to have_http_status(:ok)
       engagement.reload
