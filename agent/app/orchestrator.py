@@ -27,9 +27,10 @@ interview before there is anything worth packaging.
 """
 
 import copy
+import re
 from typing import Any
 
-from app import area_flow, dossier
+from app import area_flow, dossier, workflow
 from app.state import Blackboard, resolve_limits
 
 SUMMARY_REFRESH_EVERY = 3
@@ -96,7 +97,16 @@ def record_reply(state: dict[str, Any], capture: dict[str, Any]) -> dict[str, An
         area=(bb.get("last_beat") or {}).get("area"),
     )
 
-    progress += _accept_on_second_attempt(bb, state.get("user_message"), turn_number, threshold)
+    progress += workflow.merge(bb, capture, state)
+    if capture.get("provider"):
+        bb["last_capture_provider"] = capture["provider"]
+    if workflow.enabled(bb):
+        workflow.project_slots(bb)
+    elif not capture.get("fallback_reason") and re.search(r"\b(depends|varies|hard to say|cannot estimate)\b", str(state.get("user_message") or ""), re.I):
+        # Legacy time dossiers may record an explicitly unavailable estimate.
+        # Unrelated prose and failed extraction never satisfy a requirement.
+        if (bb.get("last_beat") or {}).get("slot") == "friction_cost":
+            progress += _accept_on_second_attempt(bb, state.get("user_message"), turn_number, threshold)
 
     # A reply that fills nothing required is not automatically a problem — it may
     # have been a clarification — but several in a row means the conversation is
@@ -190,7 +200,8 @@ def prepare_turn(state: dict[str, Any]) -> dict[str, Any]:
     if state.get("employee_ended"):
         decision = {"phase": "close", "beat": None, "should_close": True, "close_reason": "employee_ended"}
     else:
-        decision = area_flow.prepare(bb, limits, question_count)
+        decision = (workflow.next_decision(bb, limits, question_count) if workflow.enabled(bb)
+                    else area_flow.prepare(bb, limits, question_count))
     previous = (bb.get("last_routing_decision") or {}).get("agent")
     routing = area_flow.routing_decision(decision, previous)
     routing["capture"] = state.get("capture_status") or "skipped"

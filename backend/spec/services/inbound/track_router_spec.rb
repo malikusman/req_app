@@ -59,6 +59,9 @@ RSpec.describe Inbound::TrackRouter do
     it "answers as companion when the message is plainly about something else" do
       request = open_info_request
       allow(Companion::IntentClassifier).to receive(:call).and_return({ intent: "tools", confidence: 0.9, source: "phrase" })
+      # Routing assertions must not depend on an ambient real API key or billing.
+      allow(Companion::ToolsSuggestService).to receive(:call)
+        .and_return(company: [], general: [], assistant_message: "No suggestions in this routing test.")
 
       described_class.call(
         employee: employee,

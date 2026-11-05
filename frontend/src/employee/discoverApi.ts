@@ -31,6 +31,8 @@ export type DiscoverState = {
   conversation_status: string;
   question_count: number;
   completed: boolean;
+  discovery_outcome?: 'successful' | 'needs_follow_up' | 'employee_stopped' | null;
+  discovery_pending?: boolean;
   /** For the browser's own voice when a question cannot be spoken server-side. */
   language?: string;
   /** Absent on responses from an older server. */

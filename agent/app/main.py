@@ -46,11 +46,15 @@ class TurnContext(BaseModel):
 class HistoryMessage(BaseModel):
     role: str
     content: str
+    message_id: int | None = None
+    area: str | None = None
+    task_id: str | None = None
 
 
 class TurnRequest(BaseModel):
     thread_id: str | None = None
     user_message: str
+    source_message_id: int | None = None
     playbook: PlaybookPayload
     context: TurnContext = Field(default_factory=TurnContext)
     history: list[HistoryMessage] = Field(default_factory=list)
@@ -82,7 +86,8 @@ class TurnResponse(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "openai_configured": bool(settings.openai_api_key or settings.openai_base_url)}
+    return {"status": "ok", "openai_configured": bool(settings.openai_api_key or settings.openai_base_url),
+            "discovery_workflow_version": 1}
 
 
 @app.post("/v1/threads/{thread_id}/turn", response_model=TurnResponse)
@@ -108,6 +113,7 @@ def run_turn(thread_id: str, body: TurnRequest):
         "business_goals": body.context.business_goals,
         "company_profile": body.context.company_profile or {},
         "user_message": body.user_message,
+        "source_message_id": body.source_message_id,
         "history": [m.model_dump() for m in body.history],
     }
 

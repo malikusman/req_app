@@ -51,6 +51,7 @@ class Blackboard(TypedDict, total=False):
 class MultiTurnState(TypedDict, total=False):
     # Inputs
     user_message: str
+    source_message_id: int | None
     history: list[dict[str, str]]
     playbook_block: str
     playbook_version: int

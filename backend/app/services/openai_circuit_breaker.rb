@@ -24,4 +24,10 @@ class OpenaiCircuitBreaker
   rescue Redis::BaseError
     nil
   end
+
+  def self.retry_after
+    [REDIS.ttl(KEY).to_i, 1].max
+  rescue Redis::BaseError
+    30
+  end
 end
