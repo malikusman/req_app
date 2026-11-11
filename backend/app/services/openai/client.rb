@@ -765,6 +765,43 @@ module Openai
       )
     end
 
+    # Consolidation and synthesis (Doc 10). Synthesis services assemble each
+    # prompt and check every reply in code; these calls only carry it. Both run
+    # in the background, never inside a live conversation (Doc 10 §23), and a
+    # strong reasoning model is expected (Doc 05 §2.4).
+    PROCESS_RELATIONSHIP_PROMPT_VERSION = "P10.v1"
+    SYNTHESIS_PROMPT_VERSION = "P11.v1"
+
+    # P10 — how two pieces of work relate. JSON.
+    def process_relationship(system:, context:)
+      raise Error, "No model configured" unless configured?
+
+      chat_with_meta(
+        {
+          model: ENV.fetch("SYNTHESIS_CLASSIFIER_MODEL", ENV.fetch("OPENAI_MODEL", "gpt-4o-mini")),
+          messages: [{ role: "system", content: system }, { role: "user", content: context }],
+          temperature: 0.1,
+          max_tokens: chat_max_tokens(1500)
+        },
+        json: true
+      )
+    end
+
+    # P11 — root causes, opportunities and the operating picture. JSON.
+    def synthesis(system:, context:)
+      raise Error, "No model configured" unless configured?
+
+      chat_with_meta(
+        {
+          model: ENV.fetch("SYNTHESIS_MODEL", ENV.fetch("OPENAI_MODEL", "gpt-4o-mini")),
+          messages: [{ role: "system", content: system }, { role: "user", content: context }],
+          temperature: 0.2,
+          max_tokens: chat_max_tokens(8000)
+        },
+        json: true
+      )
+    end
+
     # Parses a JSON reply the way every other step does: reasoning channels and
     # code fences stripped, the first object found if there is prose around it.
     def parse_reply(content)
