@@ -160,6 +160,11 @@ Rails.application.routes.draw do
           post "leadership/participants/:participant_id/further_session", to: "key_person_sessions#further_session"
           patch "leadership/findings/:id", to: "key_person_sessions#update_finding"
           patch "leadership/plan", to: "key_person_sessions#update_plan"
+          # Consolidation and synthesis (Doc 10): what was grouped and concluded,
+          # and the consultant's decisions on it.
+          get "synthesis", to: "synthesis#show"
+          post "synthesis/run", to: "synthesis#run"
+          post "synthesis/decisions", to: "synthesis#decide"
           # The Stage 1 proposal as the client sees it, and where it stands.
           get "stage1_quote", to: "stage1_quotes#show"
           resources :employees, only: %i[index show], controller: "employees"

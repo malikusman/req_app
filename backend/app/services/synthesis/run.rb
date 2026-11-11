@@ -67,8 +67,11 @@ module Synthesis
     def classify(items)
       return [] if items.size < 2
 
-      judged = ProcessRelationship.current.where(engagement_id: @engagement.id).pluck(:pair_digest).to_set
-      pairs = Candidates.call(items, skip_digests: judged)
+      current = ProcessRelationship.current.where(engagement_id: @engagement.id)
+      judged = current.pluck(:pair_digest).to_set
+      # A pair the consultant settled is never put back to the model.
+      settled = current.where(origin: "CONSULTANT").pluck(:from_finding_id, :to_finding_id).to_set
+      pairs = Candidates.call(items, skip_digests: judged).reject { |p| settled.include?([p.a.id, p.b.id]) }
       return [] if pairs.empty?
 
       in_cluster = current_clusters.each_with_object({}) do |cluster, map|
@@ -124,7 +127,11 @@ module Synthesis
       end
 
       cluster = if existing
-                  existing.revise!(attrs.merge("synthesis_run_id" => @run.id)).tap { |c| c.members.destroy_all }
+                  existing.revise!(attrs.merge("synthesis_run_id" => @run.id)).tap do |c|
+                    c.members.destroy_all
+                    c.effort_normalization&.destroy!
+                    c.reload
+                  end
                 else
                   ProcessCluster.create!(attrs.merge("company_id" => @run.company_id, "engagement_id" => @engagement.id,
                                                      "synthesis_run_id" => @run.id, "cluster_key" => group.key,

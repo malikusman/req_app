@@ -42,11 +42,16 @@ class ProcessCluster < ApplicationRecord
 
   private
 
-  # A new version keeps the same members until the caller changes them.
+  # A new version keeps the same members and effort until the caller changes
+  # them; the old version keeps its own.
   def copy_children(copy)
     members.each do |m|
       copy.members.create!(m.attributes.slice("finding_id", "employee_id", "variant_label", "stage_order",
                                               "member_digest"))
     end
+    return unless effort_normalization
+
+    copy.create_effort_normalization!(effort_normalization.attributes.except("id", "process_cluster_id", "created_at",
+                                                                             "updated_at"))
   end
 end
