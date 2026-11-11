@@ -197,4 +197,7 @@ rescue StandardError => e
   puts "Catalog source seed skipped: #{e.message}"
 end
 
+# Rate card v1 (placeholder values, K2) and the 60% margin floor (B12).
+Pricing::Defaults.ensure!
+
 puts "Done."

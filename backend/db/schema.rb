@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_11_05_130000) do
+ActiveRecord::Schema[7.1].define(version: 2026_11_11_100100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -1082,11 +1082,25 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_05_130000) do
     t.string "prefill_error"
     t.text "prefill_entity_note"
     t.datetime "prefill_finished_at"
+    t.string "currency", default: "AED", null: false
     t.index ["company_id", "status"], name: "index_engagements_on_company_id_and_status"
     t.index ["company_id"], name: "index_engagements_on_company_id"
     t.index ["confidentiality_acknowledged_by_id"], name: "index_engagements_on_confidentiality_acknowledged_by_id"
     t.index ["key_user_id"], name: "index_engagements_on_key_user_id"
     t.index ["lead_consultant_id"], name: "index_engagements_on_lead_consultant_id"
+  end
+
+  create_table "estimate_overrides", force: :cascade do |t|
+    t.bigint "quote_id", null: false
+    t.string "kind", null: false
+    t.decimal "original_total", precision: 12, scale: 2, null: false
+    t.decimal "adjusted_total", precision: 12, scale: 2, null: false
+    t.string "structured_reason", null: false
+    t.text "free_text"
+    t.bigint "actor_id", null: false
+    t.datetime "created_at", null: false
+    t.index ["actor_id"], name: "index_estimate_overrides_on_actor_id"
+    t.index ["quote_id"], name: "index_estimate_overrides_on_quote_id"
   end
 
   create_table "findings", force: :cascade do |t|
@@ -1206,6 +1220,18 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_05_130000) do
     t.index ["conversation_session_id"], name: "index_management_discovery_contexts_on_conversation_session_id", unique: true
     t.index ["engagement_id"], name: "index_management_discovery_contexts_on_engagement_id"
     t.index ["engagement_participant_id", "version"], name: "idx_on_engagement_participant_id_version_2e610d2200", unique: true
+  end
+
+  create_table "margin_floor_versions", force: :cascade do |t|
+    t.integer "version", null: false
+    t.decimal "value", precision: 5, scale: 4, null: false
+    t.datetime "effective_from", null: false
+    t.text "reason", null: false
+    t.string "changed_by_type"
+    t.bigint "changed_by_id"
+    t.datetime "created_at", null: false
+    t.index ["changed_by_type", "changed_by_id"], name: "index_margin_floor_versions_on_changed_by"
+    t.index ["version"], name: "index_margin_floor_versions_on_version", unique: true
   end
 
   create_table "media_attachments", force: :cascade do |t|
@@ -1376,6 +1402,90 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_05_130000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["company_id", "created_at"], name: "index_profile_changes_on_company_id_and_created_at"
+  end
+
+  create_table "quote_events", force: :cascade do |t|
+    t.bigint "quote_id", null: false
+    t.string "event", null: false
+    t.string "actor_type"
+    t.bigint "actor_id"
+    t.jsonb "detail", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.index ["actor_type", "actor_id"], name: "index_quote_events_on_actor"
+    t.index ["quote_id", "event"], name: "index_quote_events_on_quote_id_and_event"
+    t.index ["quote_id"], name: "index_quote_events_on_quote_id"
+  end
+
+  create_table "quotes", force: :cascade do |t|
+    t.bigint "engagement_id", null: false
+    t.bigint "company_id", null: false
+    t.string "quote_stage", null: false
+    t.integer "version", null: false
+    t.bigint "parent_quote_id"
+    t.string "status", default: "PROPOSED", null: false
+    t.string "currency", null: false
+    t.bigint "rate_card_version_id", null: false
+    t.bigint "margin_floor_version_id", null: false
+    t.jsonb "inputs", default: {}, null: false
+    t.jsonb "estimate", default: {}, null: false
+    t.jsonb "line_items", default: [], null: false
+    t.decimal "subtotal", precision: 12, scale: 2, null: false
+    t.decimal "tax_rate", precision: 5, scale: 4, default: "0.0", null: false
+    t.decimal "tax_amount", precision: 12, scale: 2, default: "0.0", null: false
+    t.decimal "total", precision: 12, scale: 2, null: false
+    t.decimal "additional_participant_rate", precision: 12, scale: 2, null: false
+    t.integer "participants_included", null: false
+    t.integer "deep_dives_included", null: false
+    t.jsonb "internal", default: {}, null: false
+    t.decimal "margin_percent", precision: 6, scale: 2, null: false
+    t.boolean "below_floor", default: false, null: false
+    t.date "valid_until"
+    t.jsonb "admin_explanation", default: {}, null: false
+    t.jsonb "client_scope", default: {}, null: false
+    t.string "explanation_source", default: "TEMPLATE", null: false
+    t.bigint "approved_by_id"
+    t.datetime "approved_at"
+    t.datetime "issued_at"
+    t.datetime "first_viewed_at"
+    t.bigint "accepted_by_id"
+    t.datetime "accepted_at"
+    t.bigint "declined_by_id"
+    t.datetime "declined_at"
+    t.text "decline_reason"
+    t.bigint "rejected_by_id"
+    t.datetime "rejected_at"
+    t.text "rejection_note"
+    t.string "pdf_storage_key"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["accepted_by_id"], name: "index_quotes_on_accepted_by_id"
+    t.index ["approved_by_id"], name: "index_quotes_on_approved_by_id"
+    t.index ["company_id"], name: "index_quotes_on_company_id"
+    t.index ["declined_by_id"], name: "index_quotes_on_declined_by_id"
+    t.index ["engagement_id", "quote_stage", "version"], name: "index_quotes_on_engagement_id_and_quote_stage_and_version", unique: true
+    t.index ["engagement_id", "quote_stage"], name: "index_quotes_one_accepted_per_stage", unique: true, where: "((status)::text = 'ACCEPTED'::text)"
+    t.index ["engagement_id", "quote_stage"], name: "index_quotes_one_open_per_stage", unique: true, where: "((status)::text = ANY ((ARRAY['PROPOSED'::character varying, 'ISSUED'::character varying])::text[]))"
+    t.index ["engagement_id"], name: "index_quotes_on_engagement_id"
+    t.index ["margin_floor_version_id"], name: "index_quotes_on_margin_floor_version_id"
+    t.index ["parent_quote_id"], name: "index_quotes_on_parent_quote_id"
+    t.index ["rate_card_version_id"], name: "index_quotes_on_rate_card_version_id"
+    t.index ["rejected_by_id"], name: "index_quotes_on_rejected_by_id"
+    t.index ["status"], name: "index_quotes_on_status"
+  end
+
+  create_table "rate_card_versions", force: :cascade do |t|
+    t.integer "version", null: false
+    t.datetime "effective_from", null: false
+    t.string "currency", default: "AED", null: false
+    t.jsonb "rates", default: {}, null: false
+    t.jsonb "stage1", default: {}, null: false
+    t.boolean "placeholder", default: false, null: false
+    t.text "reason", null: false
+    t.string "changed_by_type"
+    t.bigint "changed_by_id"
+    t.datetime "created_at", null: false
+    t.index ["changed_by_type", "changed_by_id"], name: "index_rate_card_versions_on_changed_by"
+    t.index ["version"], name: "index_rate_card_versions_on_version", unique: true
   end
 
   create_table "recommendation_feedbacks", force: :cascade do |t|
@@ -1808,6 +1918,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_05_130000) do
   add_foreign_key "engagements", "company_users", column: "confidentiality_acknowledged_by_id"
   add_foreign_key "engagements", "company_users", column: "key_user_id"
   add_foreign_key "engagements", "consultant_users", column: "lead_consultant_id"
+  add_foreign_key "estimate_overrides", "platform_users", column: "actor_id"
+  add_foreign_key "estimate_overrides", "quotes"
   add_foreign_key "findings", "companies"
   add_foreign_key "findings", "consultant_users", column: "reviewed_by_id"
   add_foreign_key "findings", "conversations"
@@ -1836,6 +1948,16 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_05_130000) do
   add_foreign_key "prefill_candidates", "companies"
   add_foreign_key "prefill_candidates", "engagements"
   add_foreign_key "profile_changes", "companies"
+  add_foreign_key "quote_events", "quotes"
+  add_foreign_key "quotes", "companies"
+  add_foreign_key "quotes", "company_users", column: "accepted_by_id"
+  add_foreign_key "quotes", "company_users", column: "declined_by_id"
+  add_foreign_key "quotes", "engagements"
+  add_foreign_key "quotes", "margin_floor_versions"
+  add_foreign_key "quotes", "platform_users", column: "approved_by_id"
+  add_foreign_key "quotes", "platform_users", column: "rejected_by_id"
+  add_foreign_key "quotes", "quotes", column: "parent_quote_id"
+  add_foreign_key "quotes", "rate_card_versions"
   add_foreign_key "recommendation_feedbacks", "company_users"
   add_foreign_key "recommendation_feedbacks", "recommendations"
   add_foreign_key "recommendations", "companies"

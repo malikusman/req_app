@@ -11,6 +11,8 @@ class Engagement < ApplicationRecord
   has_many :participants, class_name: "EngagementParticipant", dependent: :destroy
   has_many :prefill_candidates, dependent: :destroy
   has_many :conversation_sessions, dependent: :destroy
+  # Doc 17: Stage 1 is priced once the leadership conversation hands over.
+  has_many :quotes, dependent: :destroy
 
   # Doc 06 §3.5, Stage 1 so far. The later stages are added with the work that
   # moves an engagement into them. STAGE_1_PRICING is where the conversations with
@@ -39,6 +41,14 @@ class Engagement < ApplicationRecord
 
     counts.sum
   end
+
+  # The Stage 1 quote with the administrator or the client, if there is one.
+  def open_stage1_quote = quotes.stage1.open.order(version: :desc).first
+
+  # The price the client agreed; fixed for the engagement (Decision Register B8).
+  def accepted_stage1_quote = quotes.stage1.find_by(status: "ACCEPTED")
+
+  def latest_stage1_quote = quotes.stage1.order(version: :desc).first
 
   def planned_count_for(department)
     row = Array(planned_departments).find { |r| r["name"].to_s.casecmp?(department.to_s) }
