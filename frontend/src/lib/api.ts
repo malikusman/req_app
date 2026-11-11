@@ -9,11 +9,14 @@ export type ApiError = { error?: string; errors?: string[] };
  */
 export class ApiRequestError extends Error {
   readonly status: number;
+  /** The response body, for errors that carry more than a message. */
+  readonly body: unknown;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, body?: unknown) {
     super(message);
     this.name = 'ApiRequestError';
     this.status = status;
+    this.body = body;
   }
 }
 
@@ -33,7 +36,7 @@ async function request<T>(
 
   if (!res.ok) {
     const err = (data as ApiError).error || (data as ApiError).errors?.join(', ') || res.statusText;
-    throw new ApiRequestError(err, res.status);
+    throw new ApiRequestError(err, res.status, data);
   }
   return data as T;
 }
@@ -226,6 +229,92 @@ export const api = {
       { method: 'PATCH', body: JSON.stringify({ engagement }) },
       token
     ),
+
+  // Stage 1 pricing (Doc 17): the administrator's queue, review and actions.
+  platformStage1Quotes: (token: string, status: Stage1QuoteStatus[] = ['PROPOSED']) =>
+    request<{ quotes: Stage1QuoteSummary[]; proposed_count: number }>(
+      `/api/v1/platform/stage1_quotes?${status.map((s) => `status[]=${s}`).join('&')}`,
+      {},
+      token
+    ),
+
+  platformStage1Quote: (token: string, id: number) =>
+    request<Stage1QuoteDetail>(`/api/v1/platform/stage1_quotes/${id}`, {}, token),
+
+  platformApproveQuote: (token: string, id: number, floorOverride?: { reason: string; free_text?: string }) =>
+    request<Stage1QuoteDetail>(
+      `/api/v1/platform/stage1_quotes/${id}/approve`,
+      { method: 'POST', body: JSON.stringify(floorOverride ? { floor_override: floorOverride } : {}) },
+      token
+    ),
+
+  platformAdjustQuote: (token: string, id: number, body: { subtotal: string; reason: string; free_text?: string }) =>
+    request<Stage1QuoteDetail>(
+      `/api/v1/platform/stage1_quotes/${id}/adjust`,
+      { method: 'POST', body: JSON.stringify(body) },
+      token
+    ),
+
+  platformChangeQuoteInputs: (
+    token: string,
+    id: number,
+    inputs: { deep_dives?: string; locations?: string; country?: string }
+  ) =>
+    request<Stage1QuoteDetail>(
+      `/api/v1/platform/stage1_quotes/${id}/change_inputs`,
+      { method: 'POST', body: JSON.stringify(inputs) },
+      token
+    ),
+
+  platformRejectQuote: (token: string, id: number, note: string) =>
+    request<Stage1QuoteDetail>(
+      `/api/v1/platform/stage1_quotes/${id}/reject`,
+      { method: 'POST', body: JSON.stringify({ note }) },
+      token
+    ),
+
+  /** Works out the engagement's Stage 1 quote now (or a fresh one after a decline or expiry). */
+  platformCalculateQuote: (token: string, engagementId: number) =>
+    request<Stage1QuoteDetail>(`/api/v1/platform/engagements/${engagementId}/stage1_quote`, { method: 'POST' }, token),
+
+  platformCloseEngagement: (token: string, engagementId: number, reason: string) =>
+    request<{ engagement: { id: number; status: EngagementStatus } }>(
+      `/api/v1/platform/engagements/${engagementId}/close`,
+      { method: 'POST', body: JSON.stringify({ reason }) },
+      token
+    ),
+
+  // The client's Stage 1 proposal (Doc 17 §10).
+  companyStage1Quote: (token: string) =>
+    request<{ quote: ClientQuote | null }>('/api/v1/company/stage1_quote', {}, token),
+
+  companyAcceptQuote: (token: string, id: number) =>
+    request<{ quote: ClientQuote }>(
+      `/api/v1/company/stage1_quotes/${id}/accept`,
+      { method: 'POST', body: JSON.stringify({ acknowledged: true }) },
+      token
+    ),
+
+  companyDeclineQuote: (token: string, id: number, reason: string) =>
+    request<{ quote: ClientQuote }>(
+      `/api/v1/company/stage1_quotes/${id}/decline`,
+      { method: 'POST', body: JSON.stringify({ reason }) },
+      token
+    ),
+
+  /** The proposal as a file: a PDF, or HTML where PDFs can't be made. */
+  companyQuoteDocument: async (token: string, id: number): Promise<{ blob: Blob; filename: string }> => {
+    const res = await fetch(`${API_URL}/api/v1/company/stage1_quotes/${id}/pdf`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new ApiRequestError('The proposal could not be downloaded', res.status);
+    const disposition = res.headers.get('Content-Disposition') || '';
+    const filename = /filename="?([^";]+)"?/.exec(disposition)?.[1] || `Mjadi-Stage-1-proposal-v${id}.pdf`;
+    return { blob: await res.blob(), filename };
+  },
+
+  consultantStage1Quote: (token: string, companyId: number) =>
+    request<ConsultantStage1Quote>(`/api/v1/consultant/companies/${companyId}/stage1_quote`, {}, token),
 
   resendEngagementInvitation: (token: string, id: number) =>
     request<{ ok: boolean; email: string }>(
@@ -3001,6 +3090,15 @@ export interface Engagement {
   confidentiality_acknowledged_at: string | null;
   key_user: { id: number; name: string; email: string; phone: string | null; job_title: string | null; status: string } | null;
   lead_consultant: { id: number; name: string } | null;
+  /** The newest Stage 1 quote, if one has been worked out. */
+  stage1_quote?: {
+    id: number;
+    version: number;
+    status: Stage1QuoteStatus;
+    total: string;
+    currency: string;
+    below_floor: boolean;
+  } | null;
   created_at: string;
 }
 
@@ -3366,4 +3464,199 @@ export interface ConsultantFollowupRow {
   last_message: string;
   updated_at: string;
   sent_at: string | null;
+}
+
+// ---- Stage 1 pricing (Doc 17) ----
+
+export type Stage1QuoteStatus = 'PROPOSED' | 'ISSUED' | 'ACCEPTED' | 'DECLINED' | 'EXPIRED' | 'REJECTED' | 'SUPERSEDED';
+
+/** A line of the price, as the client sees it. Amounts are decimal strings. */
+export interface QuoteLine {
+  key: string;
+  label: string;
+  quantity: number;
+  unit_amount: string;
+  amount: string;
+  detail: string;
+}
+
+/** What Stage 1 includes and doesn't (Doc 17 §2.4). */
+export interface QuoteScope {
+  what_is_included?: string[];
+  what_is_not_included?: string[];
+  participants_and_departments?: string;
+  deliverable?: string;
+  additional_participants?: string;
+  what_happens_next?: string;
+  validity?: string;
+}
+
+export interface AdditionalParticipants {
+  count: number;
+  rate: string;
+  currency: string;
+  amount: string;
+  people: { name: string; department: string | null; added_on: string }[];
+}
+
+/** The proposal as the client sees it — never cost, hours or margin (Doc 17 §15). */
+export interface ClientQuote {
+  id: number;
+  version: number;
+  status: Stage1QuoteStatus;
+  currency: string;
+  company_name: string;
+  line_items: QuoteLine[];
+  subtotal: string;
+  tax_rate: string;
+  tax_amount: string;
+  total: string;
+  additional_participant_rate: string;
+  participants_included: number;
+  deep_dives_included: number;
+  departments: { name: string; count: number }[];
+  scope: QuoteScope;
+  payment_terms: string | null;
+  terms_reference: string | null;
+  issued_at: string | null;
+  valid_until: string | null;
+  past_validity: boolean;
+  accepted_at: string | null;
+  accepted_by: string | null;
+  declined_at: string | null;
+  can_decide: boolean;
+  additional_participants: AdditionalParticipants | null;
+}
+
+export interface ConsultantStage1Quote {
+  engagement_status: EngagementStatus | null;
+  latest: {
+    version: number;
+    status: Stage1QuoteStatus;
+    created_at: string;
+    rejection_note: string | null;
+    decline_reason: string | null;
+  } | null;
+  quote: ClientQuote | null;
+}
+
+export interface Stage1QuoteSummary {
+  id: number;
+  version: number;
+  status: Stage1QuoteStatus;
+  company_id: number;
+  company_name: string;
+  engagement_id: number;
+  total: string;
+  subtotal: string;
+  currency: string;
+  participants_included: number;
+  deep_dives_included: number;
+  margin_percent: string;
+  below_floor: boolean;
+  confidence: 'HIGH' | 'MEDIUM' | 'LOW' | null;
+  created_at: string;
+  issued_at: string | null;
+  valid_until: string | null;
+}
+
+/** P24's explanation for the administrator. */
+export interface QuoteAdminExplanation {
+  headline?: string;
+  derivation?: { component: string; amount: string; why: string }[];
+  effort_basis?: string;
+  comparables_note?: string;
+  margin_note?: string;
+  confidence?: 'HIGH' | 'MEDIUM' | 'LOW';
+  what_could_make_this_wrong?: string[];
+  recommendation_note?: string;
+}
+
+/** Everything the administrator sees of a quote, internal figures included. */
+export interface Stage1QuoteDetail {
+  quote: Stage1QuoteSummary & {
+    line_items: QuoteLine[];
+    tax_rate: string;
+    tax_amount: string;
+    additional_participant_rate: string;
+    inputs: {
+      participants: number;
+      departments: { name: string; count: number }[];
+      key_persons: number;
+      named_participants: number;
+      languages: string[];
+      locations: number;
+      country: string | null;
+      deep_dives: number | null;
+      industry: string | null;
+      size_band: string | null;
+      sources: Record<string, 'ENGAGEMENT' | 'ADMINISTRATOR'>;
+    };
+    estimate: {
+      hours: Record<string, string>;
+      total_hours: string;
+      consultant_internal_cost: string;
+      cost: Record<string, string>;
+      margin_percent: string;
+      floor_percent: string;
+      confidence: 'HIGH' | 'MEDIUM' | 'LOW';
+      risk_signals: { code: string; text: string }[];
+    };
+    admin_explanation: QuoteAdminExplanation;
+    client_scope: QuoteScope;
+    explanation_source: 'P24' | 'TEMPLATE';
+    approved_by: string | null;
+    approved_at: string | null;
+    accepted_by: string | null;
+    accepted_at: string | null;
+    declined_at: string | null;
+    decline_reason: string | null;
+    rejected_by: string | null;
+    rejected_at: string | null;
+    rejection_note: string | null;
+    first_viewed_at: string | null;
+    pdf_ready: boolean;
+  };
+  engagement: {
+    id: number;
+    status: EngagementStatus;
+    languages: string[];
+    planned_departments: { name: string; count: number | 'UNKNOWN' }[];
+    lead_consultant: string | null;
+  };
+  comparables: {
+    participants: number;
+    deep_dives: number;
+    fee: string;
+    currency: string;
+    estimated_hours: string | null;
+    actual_hours: string | null;
+    accepted_on: string | null;
+  }[];
+  additional_participants: AdditionalParticipants | null;
+  rate_card: { version: number; placeholder: boolean };
+  margin_floor: { version: number; percent: string };
+  overrides: {
+    kind: 'ADJUST' | 'FLOOR_OVERRIDE';
+    structured_reason: string;
+    free_text: string | null;
+    created_at: string;
+    original_total: string;
+    adjusted_total: string;
+    actor: string;
+  }[];
+  events: { event: string; at: string; by: string | null; detail: Record<string, unknown> }[];
+  versions: Stage1QuoteSummary[];
+  override_reasons: string[];
+  can_act: boolean;
+}
+
+/** Whether staff can be invited, and how many the Stage 1 price covers (Doc 14 §4.1). */
+export interface StaffInvitationState {
+  open: boolean;
+  message?: string | null;
+  included?: number | null;
+  invited?: number;
+  rate?: string | null;
+  currency?: string | null;
 }

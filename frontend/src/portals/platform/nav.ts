@@ -1,5 +1,6 @@
 import {
   BookOpen,
+  BadgeDollarSign,
   Building2,
   FileCheck2,
   LayoutDashboard,
@@ -19,6 +20,8 @@ export interface PlatformNavCounts {
   candidates?: number;
   /** Reports sitting on the approval gate, awaiting the operator. */
   approvals?: number;
+  /** Stage 1 quotes waiting for an administrator's approval (Doc 17 §9). */
+  pricing?: number;
 }
 
 /**
@@ -27,12 +30,13 @@ export interface PlatformNavCounts {
  * Mirrors companyNavItems / consultantNavItems.
  */
 export function platformNavItems(counts: PlatformNavCounts = {}): SidebarItem[] {
-  const { registrations, candidates, approvals } = counts;
+  const { registrations, candidates, approvals, pricing } = counts;
 
   const items: SidebarItem[] = [
     { to: '/platform/dashboard', label: 'Dashboard', icon: LayoutDashboard },
 
     { to: '/platform/approvals', label: 'Approvals', icon: FileCheck2, section: 'Operate' },
+    { to: '/platform/pricing', label: 'Pricing', icon: BadgeDollarSign, section: 'Operate' },
     { to: '/platform/registrations', label: 'Registrations', icon: UserPlus, section: 'Operate' },
     { to: '/platform/companies', label: 'Companies', icon: Building2, section: 'Operate' },
     { to: '/platform/consultants', label: 'Consultants', icon: Users, section: 'Operate' },
@@ -49,6 +53,9 @@ export function platformNavItems(counts: PlatformNavCounts = {}): SidebarItem[] 
   return items.map((item) => {
     if (item.to === '/platform/approvals' && approvals != null && approvals > 0) {
       return { ...item, badge: String(approvals), badgeTone: 'attention' };
+    }
+    if (item.to === '/platform/pricing' && pricing != null && pricing > 0) {
+      return { ...item, badge: String(pricing), badgeTone: 'attention' };
     }
     if (item.to === '/platform/registrations' && registrations != null && registrations > 0) {
       return { ...item, badge: String(registrations), badgeTone: 'attention' };

@@ -35,6 +35,10 @@ export function PlatformLayout() {
       .platformPendingReports(token)
       .then((d) => setCounts((prev) => ({ ...prev, approvals: d.reports.length })))
       .catch(() => undefined);
+    api
+      .platformStage1Quotes(token)
+      .then((d) => setCounts((prev) => ({ ...prev, pricing: d.proposed_count })))
+      .catch(() => undefined);
   }, [token]);
 
   const nav = useMemo(() => platformNavItems(counts), [counts]);

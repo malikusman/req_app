@@ -7,7 +7,7 @@ import { ProgressBar } from '../../components/ui/ProgressBar';
 import { PageHeader, Button, DataTable, StatusBadge, EmptyState, Modal } from '../../components/ui';
 import { useToast } from '../../components/ui/ToastProvider';
 import { EngagementSetupForm } from './EngagementSetupForm';
-import { ENGAGEMENT_STATUS_LABELS } from './engagementStatus';
+import { engagementStatusLabel } from './engagementStatus';
 
 export function PlatformCompanies() {
   const { session, setSession } = useAuth();
@@ -113,7 +113,7 @@ export function PlatformCompanies() {
           {
             key: 'engagement',
             header: 'Engagement',
-            render: (c) => (c.engagement_status ? ENGAGEMENT_STATUS_LABELS[c.engagement_status] : '—'),
+            render: (c) => engagementStatusLabel(c.engagement_status),
           },
           {
             key: 'onboarding',

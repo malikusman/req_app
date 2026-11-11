@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ChatMessageList, type ChatMessageItem } from '../../components/motion';
 import {
   api,
@@ -45,9 +45,54 @@ import { label } from '../../lib/labels';
 import { PlatformCompanyConsultants } from './PlatformCompanyConsultants';
 import { ConversationMediaCard, ConversationMediaList } from '../../components/ConversationMediaCard';
 import { CompanyStackPanel } from './CompanyStackPanel';
-import { ENGAGEMENT_STATUS_LABELS, PREFILL_STATUS_LABELS } from './engagementStatus';
+import { PREFILL_STATUS_LABELS, QUOTE_STATUS_LABELS, engagementStatusLabel } from './engagementStatus';
+import { formatMoney } from '../../lib/money';
 import { AgenticIdeasPanel } from '../shared/AgenticIdeasPanel';
 import { CompanyProfileSummary, ProfileChanges } from '../shared/CompanyProfileFacts';
+
+/**
+ * Where the engagement's Stage 1 price stands (Doc 17), with a way in: the
+ * newest quote, or — for an engagement that reached pricing without one — a
+ * button that works it out now.
+ */
+function Stage1QuoteLine({ engagement, token }: { engagement: Engagement; token: string }) {
+  const navigate = useNavigate();
+  const [working, setWorking] = useState(false);
+  const [error, setError] = useState('');
+  const quote = engagement.stage1_quote;
+
+  if (quote) {
+    return (
+      <p className="m-0 text-text-secondary">
+        Stage 1 quote:{' '}
+        <Link to={`/platform/pricing/${quote.id}`}>
+          v{quote.version} · {formatMoney(quote.total, quote.currency)} · {QUOTE_STATUS_LABELS[quote.status]}
+        </Link>
+        {quote.below_floor ? ' · below the margin floor' : ''}
+      </p>
+    );
+  }
+  if (engagement.status !== 'STAGE_1_PRICING') return null;
+
+  const calculate = () => {
+    setWorking(true);
+    setError('');
+    api
+      .platformCalculateQuote(token, engagement.id)
+      .then((d) => navigate(`/platform/pricing/${d.quote.id}`))
+      .catch((err) => setError(err instanceof Error ? err.message : 'The proposal could not be worked out'))
+      .finally(() => setWorking(false));
+  };
+
+  return (
+    <div className="space-y-1">
+      <Button size="sm" loading={working} onClick={calculate}>
+        Calculate Stage 1 proposal
+      </Button>
+      {error ? <p className="m-0 text-status-error">{error}</p> : null}
+    </div>
+  );
+}
 
 /** How far each conversation with leadership has got, and how each one ended. */
 function LeadershipLine({ engagement }: { engagement: Engagement }) {
@@ -443,7 +488,7 @@ export function PlatformCompanyDetail() {
               {company.engagement ? (
                 <div className="space-y-1 text-sm">
                   <p className="m-0 font-medium text-text-primary">
-                    {ENGAGEMENT_STATUS_LABELS[company.engagement.status]}
+                    {engagementStatusLabel(company.engagement.status)}
                   </p>
                   <p className="m-0 text-text-secondary">
                     {company.engagement.scope_type === 'DEPARTMENT'
@@ -460,6 +505,7 @@ export function PlatformCompanyDetail() {
                   ) : null}
                   <WebsiteReadLine engagement={company.engagement} />
                   <LeadershipLine engagement={company.engagement} />
+                  {token ? <Stage1QuoteLine engagement={company.engagement} token={token} /> : null}
                   <Button
                     variant="secondary"
                     size="sm"

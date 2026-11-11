@@ -108,6 +108,11 @@ module Api
                                     phone: key_user.phone, job_title: key_user.job_title, status: key_user.status },
             lead_consultant: engagement.lead_consultant && { id: engagement.lead_consultant.id,
                                                              name: engagement.lead_consultant.name },
+            # The newest Stage 1 quote, for the pricing link (Doc 17).
+            stage1_quote: engagement.latest_stage1_quote&.then { |q|
+              { id: q.id, version: q.version, status: q.status, total: q.total.to_s("F"), currency: q.currency,
+                below_floor: q.below_floor }
+            },
             created_at: engagement.created_at
           }
         end
