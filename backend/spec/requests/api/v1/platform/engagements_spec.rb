@@ -138,7 +138,7 @@ RSpec.describe "Platform engagement set-up", type: :request do
     expect(engagement.reload).to have_attributes(scope_type: "COMPANY", proposal_reference: "P-9")
   end
 
-  describe "settling planned counts before pricing (Doc 07 §10)" do
+  describe "settling planned counts (Doc 07 §10)" do
     let(:key_user) { create(:company_user) }
     let(:engagement) do
       create(:engagement, status: "KEY_PERSON_DISCOVERY", key_user: key_user,
@@ -162,8 +162,19 @@ RSpec.describe "Platform engagement set-up", type: :request do
       expect(engagement.status_history.last).to include("by_type" => "PlatformUser")
     end
 
-    it "only sets them while the leadership conversations are on" do
+    # Until the client accepts the Stage 1 price; a change while it is being
+    # priced makes a fresh quote (Doc 17 §12).
+    it "re-prices when the counts change during pricing" do
+      Pricing::Defaults.ensure!
       engagement.update!(status: "STAGE_1_PRICING")
+      settle([{ name: "Sales", count: "3" }])
+
+      expect(engagement.reload.planned_departments).to eq([{ "name" => "Sales", "count" => 3 }])
+      expect(engagement.open_stage1_quote).to have_attributes(participants_included: 3, status: "PROPOSED")
+    end
+
+    it "leaves them alone once the client has agreed the price" do
+      engagement.update!(status: "STAGE_1_ACTIVE")
       settle([{ name: "Sales", count: "3" }])
       expect(engagement.reload.planned_departments).to eq([{ "name" => "Sales", "count" => "UNKNOWN" }])
     end

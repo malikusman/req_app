@@ -30,7 +30,16 @@ class Engagement < ApplicationRecord
 
   scope :not_closed, -> { where.not(status: "CLOSED") }
 
+  # Reaching pricing starts the Stage 1 quote (Doc 17 §1). After the commit, so
+  # the job sees the hand-over however deep the transaction that made it.
+  after_commit :propose_stage1_price, if: -> { saved_change_to_status? && status == "STAGE_1_PRICING" }
+
   def closed? = status == "CLOSED"
+
+  # Mjadi may change who takes part until the client accepts the Stage 1 price;
+  # in pricing, a change makes a fresh quote (Doc 17 §12). The client's own
+  # scope card closes when pricing starts.
+  def plan_open_to_mjadi? = %w[KEY_PERSON_DISCOVERY STAGE_1_PRICING].include?(status)
 
   # Departments and how many people from each will take part (P1, P2). The
   # total is nil while any department is still "Not sure", so nothing downstream
@@ -56,6 +65,10 @@ class Engagement < ApplicationRecord
   end
 
   private
+
+  def propose_stage1_price
+    ProposeStage1Job.perform_later(id)
+  end
 
   def departments_present_for_department_scope
     return unless scope_type == "DEPARTMENT" && Array(departments_in_scope).reject(&:blank?).empty?

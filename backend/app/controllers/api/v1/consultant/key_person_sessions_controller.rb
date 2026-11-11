@@ -88,10 +88,11 @@ module Api
           render json: KeyPerson::ConsultantView.new(@engagement).json
         end
 
-        # Counts agreed with the client, before pricing (Doc 07 §10).
+        # Counts agreed with the client (Doc 07 §10). Until the client accepts the
+        # Stage 1 price; a change while it is being priced makes a fresh quote.
         def update_plan
-          unless @engagement.status == "KEY_PERSON_DISCOVERY"
-            return render json: { error: "The plan is fixed once Stage 1 is being priced" }, status: :conflict
+          unless @engagement.plan_open_to_mjadi?
+            return render json: { error: "The plan is fixed once the client has agreed the Stage 1 price" }, status: :conflict
           end
 
           planned = Engagements::PlannedDepartments.normalise(params.permit(departments: %i[name count]).fetch(:departments, []))
@@ -99,6 +100,7 @@ module Api
 
           @engagement.update!(planned_departments: planned)
           KeyPerson::Completion.hand_over_to_pricing(@engagement, actor: current_consultant_user)
+          Pricing::ProposeStage1.reprice_if_pricing(@engagement, actor: current_consultant_user, reason: "Plan changed")
           render json: KeyPerson::ConsultantView.new(@engagement.reload).json
         end
 

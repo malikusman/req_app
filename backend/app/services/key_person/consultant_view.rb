@@ -19,7 +19,7 @@ module KeyPerson
         engagement: {
           id: @engagement.id, status: @engagement.status, planned_departments: @engagement.planned_departments,
           planned_participant_count: @engagement.planned_participant_count,
-          plan_editable: @engagement.status == "KEY_PERSON_DISCOVERY"
+          plan_editable: @engagement.plan_open_to_mjadi?
         },
         available: Conversation.available?(@engagement.company),
         personas: EngagementParticipant::PERSONAS,
