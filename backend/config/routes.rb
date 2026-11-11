@@ -34,6 +34,16 @@ Rails.application.routes.draw do
             post :resend_invitation
             post :reread_website
           end
+          # Stage 1 pricing (Doc 17 §9): work the quote out now.
+          post "stage1_quote", to: "stage1_quotes#calculate"
+        end
+        resources :stage1_quotes, only: %i[index show] do
+          member do
+            post :approve
+            post :adjust
+            post :change_inputs
+            post :reject
+          end
         end
         resources :playbooks, only: %i[index show create update] do
           member do
