@@ -9,6 +9,10 @@ class DraftFindingCausesJob < ApplicationJob
   def perform(finding_ids)
     findings = Finding.where(id: finding_ids).live.includes(:company).to_a
     Findings::DraftCauseAndDirection.call(findings: findings)
+    # New or reworded findings change what synthesis would say (Doc 10 §19).
+    findings.map(&:company).uniq.each do |company|
+      SynthesisRunJob.request(company.current_engagement, trigger: "FINDINGS")
+    end
   rescue StandardError => e
     Rails.logger.error("[DraftFindingCausesJob] findings=#{Array(finding_ids).first(10)} #{e.class}: #{e.message}")
   end

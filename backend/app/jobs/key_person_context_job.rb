@@ -8,6 +8,10 @@ class KeyPersonContextJob < ApplicationJob
 
   def perform(session_id)
     session = ConversationSession.find_by(id: session_id)
-    KeyPerson::ContextBuilder.call(session) if session&.finished?
+    return unless session&.finished?
+
+    KeyPerson::ContextBuilder.call(session)
+    # A new leadership context is new evidence for synthesis (Doc 08 §19).
+    SynthesisRunJob.request(session.engagement, trigger: "LEADERSHIP")
   end
 end

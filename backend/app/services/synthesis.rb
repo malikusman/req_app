@@ -15,6 +15,16 @@ module Synthesis
     scripted ? ScriptedClient.new : Openai::Client.new
   end
 
+  # Tells later stages synthesis changed (Doc 10 §17: task intelligence re-ranks
+  # when effort changes). Task intelligence subscribes to "synthesis.changed";
+  # the payload says which engagement, which run, and whether anything a figure
+  # depends on moved.
+  def self.changed!(run, effort_changed: true, reason: run.trigger)
+    ActiveSupport::Notifications.instrument("synthesis.changed",
+                                            engagement_id: run.engagement_id, synthesis_version: run.version,
+                                            effort_changed: effort_changed, reason: reason)
+  end
+
   def self.system_prompt(file)
     [Openai::Client.prompt("p00a_analytical_base.v1.txt").strip, Openai::Client.prompt(file).strip].join("\n\n")
   end
