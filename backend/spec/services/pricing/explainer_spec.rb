@@ -68,7 +68,7 @@ RSpec.describe Pricing::Explainer do
     expect(quote.explanation_source).to eq("P24")
     expect(quote.admin_explanation["derivation"].map { |d| d["amount"] })
       .to eq(quote.line_items.map { |l| Pricing::Money.format(l["amount"], "AED") })
-    expect(quote.client_scope["what_is_included"]).to include(a_string_including("6 of your team"))
+    expect(quote.client_scope["what_is_included"]).to include(a_string_including("6 members of your team"))
     expect(quote.client_scope["validity"]).to eq(Pricing::ScopeTemplate.call(quote)["validity"])
     expect(quote.events.map(&:event)).to include("explained")
     expect(AiRun.find_by(subject: quote)).to have_attributes(stage: "P24", status: "OK", prompt_version: "P24.v1")

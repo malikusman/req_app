@@ -260,27 +260,27 @@ export function PlatformQuoteReview() {
                         <p className="m-0 font-medium">{line.label}</p>
                         {why ? <p className="m-0 text-xs text-text-secondary">{why}</p> : null}
                       </td>
-                      <td className="py-2 text-right tabular-nums text-text-secondary">
+                      <td className="whitespace-nowrap py-2 pl-3 text-right tabular-nums text-text-secondary">
                         {line.quantity} × {money(line.unit_amount)}
                       </td>
-                      <td className="py-2 text-right tabular-nums">{money(line.amount)}</td>
+                      <td className="whitespace-nowrap py-2 pl-3 text-right tabular-nums">{money(line.amount)}</td>
                     </tr>
                   );
                 })}
                 <tr className="border-b border-border">
                   <td className="py-2">Subtotal</td>
                   <td />
-                  <td className="py-2 text-right tabular-nums">{money(quote.subtotal)}</td>
+                  <td className="whitespace-nowrap py-2 text-right tabular-nums">{money(quote.subtotal)}</td>
                 </tr>
                 <tr className="border-b border-border">
                   <td className="py-2">VAT ({Number((Number(quote.tax_rate) * 100).toFixed(2))}%)</td>
                   <td />
-                  <td className="py-2 text-right tabular-nums">{money(quote.tax_amount)}</td>
+                  <td className="whitespace-nowrap py-2 text-right tabular-nums">{money(quote.tax_amount)}</td>
                 </tr>
                 <tr>
                   <td className="pt-2 font-semibold">Total</td>
                   <td />
-                  <td className="pt-2 text-right font-semibold tabular-nums">{money(quote.total)}</td>
+                  <td className="whitespace-nowrap pt-2 text-right font-semibold tabular-nums">{money(quote.total)}</td>
                 </tr>
               </tbody>
             </table>

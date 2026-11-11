@@ -54,24 +54,24 @@ export function QuoteDocument({
                   <p className="m-0 font-medium text-text-primary">{line.label}</p>
                   {line.detail ? <p className="m-0 text-xs text-text-secondary">{line.detail}</p> : null}
                 </td>
-                <td className="py-2.5 text-right tabular-nums text-text-secondary">{line.quantity}</td>
-                <td className="py-2.5 text-right tabular-nums text-text-primary">{money(line.amount)}</td>
+                <td className="whitespace-nowrap py-2.5 pl-3 text-right tabular-nums text-text-secondary">{line.quantity}</td>
+                <td className="whitespace-nowrap py-2.5 pl-3 text-right tabular-nums text-text-primary">{money(line.amount)}</td>
               </tr>
             ))}
             <tr className="border-b border-border">
               <td className="py-2.5 text-text-secondary">Subtotal</td>
               <td />
-              <td className="py-2.5 text-right tabular-nums">{money(subtotal)}</td>
+              <td className="whitespace-nowrap py-2.5 pl-3 text-right tabular-nums">{money(subtotal)}</td>
             </tr>
             <tr className="border-b border-border">
               <td className="py-2.5 text-text-secondary">VAT ({vat})</td>
               <td />
-              <td className="py-2.5 text-right tabular-nums">{money(taxAmount)}</td>
+              <td className="whitespace-nowrap py-2.5 pl-3 text-right tabular-nums">{money(taxAmount)}</td>
             </tr>
             <tr>
               <td className="pt-3 text-base font-semibold text-text-primary">Total</td>
               <td />
-              <td className="pt-3 text-right text-base font-semibold tabular-nums text-text-primary">{money(total)}</td>
+              <td className="whitespace-nowrap pt-3 pl-3 text-right text-base font-semibold tabular-nums text-text-primary">{money(total)}</td>
             </tr>
           </tbody>
         </table>

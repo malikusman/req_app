@@ -51,7 +51,8 @@ module Pricing
 
     def from_model
       return [nil, "model_off"] unless Llm::Pricing.enabled? && @client.configured?
-      return [nil, "model_unavailable"] if OpenaiCircuitBreaker.open?
+      # The breaker guards the real model; scripted replies don't need it.
+      return [nil, "model_unavailable"] if !@client.is_a?(ScriptedClient) && OpenaiCircuitBreaker.open?
 
       2.times do
         result = @client.stage1_price_explanation(system: self.class.system_prompt, context: Stage1Context.build(@quote))

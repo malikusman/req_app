@@ -1,0 +1,10 @@
+# P24 §9: no comparables yet — said plainly, confidence reduced.
+name: no_comparables
+departments: { Sales: 3, Operations: 3 }
+languages: [en]
+locations: [Dubai]
+named: 6
+expect:
+  risks: [NO_COMPARABLES]
+  confidence_at_most: MEDIUM
+no_comparables: true

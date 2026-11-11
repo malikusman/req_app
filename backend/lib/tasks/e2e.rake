@@ -222,4 +222,56 @@ namespace :e2e do
          "manager link /leadership/#{manager_link}"
   end
 
+  # Stage 1 pricing in the browser (e2e/pricing.spec.ts): an engagement in
+  # STAGE_1_PRICING with its quote proposed and explained (scripted P24), which
+  # the demo administrator and consultant can see.
+  desc "Seed an engagement waiting on its Stage 1 quote, for e2e/pricing.spec.ts"
+  task seed_pricing: :environment do
+    abort "Refusing to run in production" if Rails.env.production?
+
+    email = ENV.fetch("E2E_PRICING_EMAIL", "pricing-e2e@mjadi.test")
+    password = ENV.fetch("E2E_PRICING_PASSWORD", "PricingE2E123!")
+    Pricing::Defaults.ensure!
+
+    company = Company.find_or_create_by!(slug: "pricing-e2e") do |c|
+      c.name = "Pricing E2E Co"
+      c.display_name = "Pricing E2E Co"
+      c.locale = "en"
+    end
+    company.subscription&.destroy!
+    AiRun.where(engagement_id: company.engagements.select(:id)).delete_all
+    company.engagements.destroy_all
+    company.employees.destroy_all
+    company.update!(
+      approval_status: "approved", portal_onboarding_completed_at: Time.current,
+      company_profile: { "industry" => "wholesale_distribution", "country" => "United Arab Emirates",
+                         "locations" => ["Dubai"] },
+      settings: Company::DEFAULT_SETTINGS.merge("pricing_scripted_replies" => true)
+    )
+
+    user = CompanyUser.find_or_initialize_by(email: email)
+    user.assign_attributes(company: company, name: "Huda Saleh", role: "company_admin", status: "active",
+                           password: password, onboarding_completed_at: Time.current, job_title: "General Manager")
+    user.save!
+
+    consultant = ConsultantUser.find_by(email: "consultant@reqapp.local")
+    if consultant
+      assignment = ConsultantAssignment.find_or_initialize_by(company: company, consultant_user: consultant)
+      assignment.assigned_by_platform_user ||= PlatformUser.find_by(email: "admin@reqapp.local")
+      assignment.assigned_at ||= Time.current
+      assignment.update!(status: "active")
+    end
+
+    engagement = company.engagements.create!(
+      status: "STAGE_1_PRICING", scope_type: "COMPANY", languages: %w[en ar], key_user: user, lead_consultant: consultant,
+      onboarding_submitted_at: Time.current, confidentiality_acknowledged_at: Time.current,
+      planned_departments: [{ "name" => "Sales", "count" => 2 }, { "name" => "Procurement", "count" => 1 }],
+      status_history: [{ "from" => nil, "to" => "STAGE_1_PRICING", "at" => Time.current.iso8601, "reason" => "e2e seed" }]
+    )
+    quote = Pricing::ProposeStage1.call(engagement, reason: "e2e seed").quote
+    Pricing::Explainer.call(quote)
+
+    puts "Seeded #{email} / #{password} (company ##{company.id}, engagement ##{engagement.id}, " \
+         "quote ##{quote.id}, explained by #{quote.reload.explanation_source})"
+  end
 end

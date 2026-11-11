@@ -1,0 +1,8 @@
+# P24 §9: participation thin for the scope — one person from finance.
+name: thin_participation
+departments: { Sales: 4, Procurement: 3, Finance: 1 }
+languages: [en]
+locations: [Dubai]
+named: 2
+expect:
+  risks: [THIN_DEPARTMENT, PARTICIPANTS_NOT_NAMED]

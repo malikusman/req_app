@@ -1,0 +1,9 @@
+# P24 §9: two languages, two locations — named as complexity and as risk.
+name: languages_and_locations
+departments: { Sales: 2, Procurement: 2 }
+languages: [en, ar]
+locations: [Dubai, Riyadh]
+named: 4
+expect:
+  complexity: "1750.0"
+  risks: [SEVERAL_LANGUAGES, SEVERAL_LOCATIONS]

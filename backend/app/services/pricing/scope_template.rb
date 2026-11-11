@@ -20,7 +20,7 @@ module Pricing
       {
         "what_is_included" => [
           "A conversation with you about the business and where you want to take it",
-          "Conversations with #{people(@quote.participants_included)} of your team#{departments_phrase}",
+          "Conversations with #{members(@quote.participants_included)} of your team#{departments_phrase}",
           "#{sessions(@quote.deep_dives_included)} on specific pieces of work we agree are worth understanding properly",
           "A full Diagnostic Report showing where time and money are going, what can change, and what it is worth",
           "The report continues to update as further sessions complete during the engagement"
@@ -65,6 +65,7 @@ module Pricing
     end
 
     def people(count) = count.to_i == 1 ? "one person" : "#{count} people"
+    def members(count) = count.to_i == 1 ? "one member" : "#{count} members"
     def sessions(count) = count.to_i == 1 ? "One detailed session" : "#{count} detailed sessions"
   end
 end

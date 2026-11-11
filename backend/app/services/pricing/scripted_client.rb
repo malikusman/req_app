@@ -42,7 +42,7 @@ module Pricing
         "client_scope_statement" => {
           "what_is_included" => [
             "A conversation with you about the business and where you want to take it",
-            "Conversations with #{people['total']} of your team across #{departments.to_sentence}",
+            "Conversations with #{people['total']} members of your team across #{departments.to_sentence}",
             "#{sessions} detailed sessions on the specific pieces of work we agree are worth understanding properly",
             "A full diagnostic report showing where time and money are going, what can change, and what it is worth",
             "The report continues to update as further sessions complete during the engagement"
