@@ -323,6 +323,11 @@ function FindingRow({
           {f.needs_review && (
             <Badge variant="warning">{duplicateOf && f.status === 'draft' ? 'Possible double count' : 'Review before release'}</Badge>
           )}
+          {f.process_cluster && (
+            <Link to={`/consultant/companies/${companyId}/synthesis`} title="Shared work, on the Synthesis page">
+              <Badge variant="neutral">Part of: {f.process_cluster.name}</Badge>
+            </Link>
+          )}
         </div>
       </div>
 
@@ -479,6 +484,10 @@ function FindingRow({
 
       {merging && (
         <div className="flex flex-wrap items-end gap-2 rounded-md border border-border p-3">
+          <p className="m-0 w-full text-sm text-muted-foreground">
+            Only for the very same piece of work described twice — its hours are then counted once. Two people doing the same kind of work
+            for their own customers belong together on the Synthesis page instead, where each person's hours still count.
+          </p>
           <div className="min-w-[16rem] flex-1">
             <Select
               label="The same work as"

@@ -46,7 +46,8 @@ module Synthesis
 
     def run_json(run, latest)
       {
-        "version" => run.version, "status" => run.status, "trigger" => run.trigger, "finished_at" => run.finished_at,
+        "id" => run.id, "version" => run.version, "status" => run.status, "trigger" => run.trigger,
+        "finished_at" => run.finished_at,
         "fallback_reason" => run.fallback_reason, "confidence" => run.confidence, "coverage_notes" => run.coverage_notes,
         "validator_drops" => run.validation_drops.size, "counts" => run.counts.except("suggested_additions"),
         "suggested_additions" => Array(run.counts["suggested_additions"]).map do |s|

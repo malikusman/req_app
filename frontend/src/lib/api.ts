@@ -1556,6 +1556,31 @@ export const api = {
       { method, body: body ? JSON.stringify(body) : undefined },
       token
     ),
+  consultantSynthesis: (token: string, companyId: number) =>
+    request<ConsultantSynthesis>(`/api/v1/consultant/companies/${companyId}/synthesis`, {}, token),
+
+  consultantSynthesisRun: (token: string, companyId: number) =>
+    request<ConsultantSynthesis>(`/api/v1/consultant/companies/${companyId}/synthesis/run`, { method: 'POST' }, token),
+
+  /** A consultant's decision on synthesis (Doc 10 §17.2). Every one needs a reason. */
+  consultantSynthesisDecide: (
+    token: string,
+    companyId: number,
+    decision: { action: SynthesisAction; subjectId?: number; rationale: string; details?: Record<string, unknown> }
+  ) =>
+    request<ConsultantSynthesis>(
+      `/api/v1/consultant/companies/${companyId}/synthesis/decisions`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          decision_action: decision.action,
+          subject_id: decision.subjectId,
+          rationale: decision.rationale,
+          details: decision.details ?? {},
+        }),
+      },
+      token
+    ),
   updateConsultantCompanyFacts: (token: string, companyId: number, answers: QuestionnaireAnswerPayload) =>
     request<CompanyFactsUpdate>(
       `/api/v1/consultant/companies/${companyId}/facts`,
@@ -2525,6 +2550,198 @@ export interface ConsultantLeadership {
   participants: ConsultantLeadershipParticipant[];
 }
 
+// Consolidation and synthesis (Doc 10), as the consultant reviews it.
+export type SynthesisAction =
+  | 'APPROVE_CLUSTER'
+  | 'REJECT_CLUSTER'
+  | 'SPLIT_CLUSTER'
+  | 'MERGE_CLUSTERS'
+  | 'CHANGE_VARIANT'
+  | 'OVERRIDE_EFFORT'
+  | 'APPROVE_OPPORTUNITY'
+  | 'RECLASSIFY_OPPORTUNITY'
+  | 'ADD_OPPORTUNITY'
+  | 'DEFER'
+  | 'REJECT_OPPORTUNITY'
+  | 'APPROVE_ROOT_CAUSE'
+  | 'REJECT_ROOT_CAUSE'
+  | 'APPROVE_VALIDATION'
+  | 'RESOLVE_VALIDATION'
+  | 'REQUEST_CLARIFICATION'
+  | 'EDIT_OPERATING_PICTURE'
+  | 'APPROVE_OPERATING_PICTURE'
+  | 'CLASSIFY_PAIR';
+
+export type SynthesisState = 'not_started' | 'queued' | 'running' | 'failed' | 'stale' | 'needs_review' | 'approved';
+export type SynthesisConfidence = 'HIGH' | 'MEDIUM' | 'LOW';
+export type SynthesisLevel = 'HIGH' | 'MEDIUM' | 'LOW';
+
+export interface SynthesisMember {
+  finding_id: number;
+  title: string;
+  role?: string | null;
+  department?: string | null;
+  hours_min?: number | null;
+  hours_max?: number | null;
+  effort_type?: string;
+  single_occupant_role?: boolean;
+  variant?: string | null;
+  stale?: boolean;
+}
+
+export interface SynthesisCluster {
+  id: number;
+  key: string;
+  version: number;
+  status: 'PROVISIONAL' | 'APPROVED';
+  origin: 'AI' | 'CONSULTANT';
+  name: string;
+  type: 'SHARED_IDENTICAL' | 'SHARED_VARIANT' | 'END_TO_END' | 'SEQUENTIAL_STAGE';
+  departments: string[];
+  roles: string[];
+  single_member: boolean;
+  confidence: SynthesisConfidence | null;
+  why: string | null;
+  variants: { label: string; item_ids: number[]; distinguishing_factors?: string[]; material_differences?: string[] }[];
+  stages: { role: string | null; department: string | null; item_ids: number[] }[];
+  members: SynthesisMember[];
+  effort: {
+    raw_min: number | null;
+    raw_max: number | null;
+    dedup_min: number | null;
+    dedup_max: number | null;
+    hours_min: number | null;
+    hours_max: number | null;
+    overridden: boolean;
+    override_rationale: string | null;
+    conservative: boolean;
+    double_count_warning: boolean;
+    warning_reason: string | null;
+    duplication: boolean;
+    adjustments: { reason: string; removed_item_id?: number; kept_item_id?: number }[];
+  } | null;
+  sampling: { recommended: { role: string | null; covers: string }[]; not_needed: number };
+}
+
+export interface SynthesisPair {
+  id: number;
+  relationship_type: string;
+  recommendation: string;
+  confidence: SynthesisConfidence;
+  origin: 'AI' | 'FALLBACK' | 'CONSULTANT';
+  rationale: string | null;
+  clarification: string | null;
+  a: SynthesisMember;
+  b: SynthesisMember;
+}
+
+export interface SynthesisOpportunity {
+  id: number;
+  opportunity_key: string;
+  version: number;
+  status: 'PROPOSED' | 'APPROVED' | 'DEFERRED' | 'REJECTED';
+  origin: 'AI' | 'CONSULTANT';
+  level: string;
+  category: string;
+  title: string;
+  problem_statement: string;
+  evidence_summary: string | null;
+  affected_departments: string[];
+  root_cause_key: string | null;
+  capacity_reference: string | null;
+  intervention_direction: string | null;
+  ai_relevance: 'PRIMARY' | 'SUPPORTING' | 'NONE' | null;
+  ai_note: string | null;
+  management_alignment: string | null;
+  planned_initiative_conflict: string | null;
+  recommended_next_action: string;
+  priority_reason: string | null;
+  /** What leadership said mattered. */
+  management_importance: SynthesisLevel | null;
+  /** The platform's rule over the evidence — kept apart from management importance. */
+  platform_priority: SynthesisLevel | null;
+  confidence: SynthesisConfidence;
+}
+
+export interface SynthesisRootCause {
+  id: number;
+  root_cause_key: string;
+  status: 'PROPOSED' | 'APPROVED' | 'REJECTED';
+  statement: string;
+  affected_departments: string[];
+  supporting_signals: string[];
+  fact_status: 'INFERRED' | 'CONSULTANT_CONFIRMED';
+  confidence: SynthesisConfidence;
+  what_would_confirm: string | null;
+}
+
+export interface SynthesisValidation {
+  id: number;
+  status: 'PROPOSED' | 'APPROVED' | 'RESOLVED' | 'CLARIFY' | 'REJECTED';
+  management_view: string;
+  what_evidence_shows: string | null;
+  relationship: 'SUPPORTED' | 'PARTLY_SUPPORTED' | 'NOT_YET_OBSERVED' | 'POINTS_ELSEWHERE';
+  material: boolean;
+  note: string | null;
+  resolution: string | null;
+  fact_status: 'REPORTED' | 'CONTRADICTED';
+  strategic_finding: {
+    id: number;
+    statement: string;
+    category: string;
+    management_importance: SynthesisLevel | null;
+    persona: string | null;
+    validation_need: string | null;
+  };
+}
+
+export interface OperatingPicture {
+  how_the_business_runs?: string;
+  departments?: { name: string; what_it_does?: string; main_systems?: string[] }[];
+  work_flows_between?: { from: string; to: string; what_moves: string; how?: string }[];
+  where_information_lives?: string[];
+  ai_and_automation_in_use?: string[];
+}
+
+export interface ConsultantSynthesis {
+  status: SynthesisState;
+  review: Record<'clusters' | 'pairs' | 'opportunities' | 'root_causes' | 'validations' | 'operating_picture', number>;
+  run: {
+    id: number;
+    version: number;
+    status: 'COMPLETE' | 'PARTIAL';
+    trigger: string;
+    finished_at: string | null;
+    fallback_reason: string | null;
+    confidence: SynthesisConfidence | null;
+    coverage_notes: { note: string }[];
+    validator_drops: number;
+    counts: Record<string, unknown>;
+    suggested_additions: {
+      cluster_key: string;
+      finding_id: number;
+      relationship: string;
+      rationale: string | null;
+      finding: SynthesisMember;
+    }[];
+    queued: 'QUEUED' | 'RUNNING' | null;
+  } | null;
+  clusters: SynthesisCluster[];
+  pairs_to_review: SynthesisPair[];
+  opportunities: SynthesisOpportunity[];
+  root_causes: SynthesisRootCause[];
+  validations: SynthesisValidation[];
+  strategic_findings_without_verdict: { id: number; statement: string; management_importance: string | null }[];
+  operating_picture: {
+    proposed: OperatingPicture;
+    consultant: OperatingPicture | null;
+    status: 'PROPOSED' | 'APPROVED' | 'REJECTED';
+  } | null;
+  initiative_conflicts: { initiative: string; effect: string; recommendation: string }[];
+  role_potential: { role: string; department?: string; potential_focus: string[]; basis: string }[];
+  decisions: { action: SynthesisAction; rationale: string; subject_type: string; at: string }[];
+}
+
 export interface CompanyDashboardPayload {
   user: CompanyUser;
   company: {
@@ -3287,6 +3504,8 @@ export interface Finding {
   conversation_id: number | null;
   reviewed_at: string | null;
   reviewed_by: string | null;
+  /** The shared work synthesis grouped this into (Doc 10), if any. */
+  process_cluster: { key: string; name: string; status: string } | null;
 }
 
 /** How one company's interviews are going (Platform::InterviewHealth). Counts only. */

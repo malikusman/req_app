@@ -11,6 +11,7 @@ import {
   MessagesSquare,
   FileText,
   Package,
+  Network,
 } from 'lucide-react';
 import {
   api,
@@ -419,6 +420,18 @@ export function ConsultantCompanyOverview() {
               </Card>
 
               {token && companyId ? <ConsultantProposalCard token={token} companyId={Number(companyId)} /> : null}
+
+              <Card title="Synthesis">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <p className="m-0 text-sm text-muted-foreground">
+                    Work several people describe, counted once; leadership's concerns set against what staff describe; and
+                    opportunities above any one task. Confirm what should reach the report.
+                  </p>
+                  <Link to={`/consultant/companies/${companyId}/synthesis`}>
+                    <Button variant="secondary" icon={<Network className="h-4 w-4" />}>Open</Button>
+                  </Link>
+                </div>
+              </Card>
 
               <Card title="Findings">
                 <div className="flex flex-wrap items-center justify-between gap-4">
