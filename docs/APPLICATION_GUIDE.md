@@ -198,6 +198,7 @@ From `frontend/src/portals/platform/nav.ts`:
 | Nav item | Path | What it is for |
 |----------|------|----------------|
 | Dashboard | `/platform/dashboard` | Operator snapshot |
+| Pricing | `/platform/pricing` | Stage 1 quotes waiting for approval (badge), with the client, accepted, closed (§3.10a) |
 | Registrations | `/platform/registrations` | Approve/reject company signups and consultant applications |
 | Companies | `/platform/companies` | List/create companies; open detail; impersonate |
 | Consultants | `/platform/consultants` | Consultant directory and detail |
@@ -269,6 +270,39 @@ When consultants are assigned:
 
 Settings such as `allow_early_report` affect whether generation can run before readiness thresholds (used in demos/seeds).
 
+### 3.10a Stage 1 pricing (administrator gate)
+
+Doc 17; see [STAGE_1_PRICING.md](STAGE_1_PRICING.md). When an engagement reaches
+*Preparing Stage 1 proposal*, the platform works out its fee and the quote waits on
+**Pricing** (`/platform/pricing`). A quote's page (`/platform/pricing/:id`) shows:
+
+- how the fee was derived, line by line, with P24's account of each part;
+- what could make it wrong, and the confidence;
+- the margin against fully loaded cost and the floor, and what that cost is made of;
+- the consultant hours by activity;
+- the inputs, with any an administrator corrected marked;
+- comparables;
+- every version, event and override;
+- exactly what the client will see.
+
+Banners flag placeholder rate-card values, a quote below the floor, and a quote that was
+sent back, declined, expired or accepted.
+
+Only a **super admin** acts:
+
+- **Approve and issue** — below the floor only with a structured reason;
+- **Adjust price** — with a structured reason; makes a new version;
+- **Change inputs** — deep dives, locations, country; recalculates as a new version;
+- **Send back** — with a note to the lead consultant;
+- after a decline, an expiry or a send-back: **Prepare a fresh version** or **Close
+  engagement**, with a reason.
+
+Every platform user sees the same page. The company page's Engagement card links to the
+quote, or offers *Calculate Stage 1 proposal* for an engagement that reached pricing
+without one. Super admins are emailed when a quote is waiting (subject flagged when below
+the floor), when pricing can't go ahead, and when the client accepts or declines, or the
+quote expires.
+
 ### 3.11 UI/UX notes (platform)
 
 - Dense operator UI: tables, tabs, status badges.
@@ -298,6 +332,7 @@ flowchart LR
   Profile --> Submit[Submit] --> Leadership[Conversation with leadership]
   Submit --> Managers[Other managers invited by link]
   Leadership --> Scope[Scope card: counts settled] --> Pricing[Stage 1 pricing]
+  Pricing --> Approved[Mjadi approves the fee] --> Proposal[Proposal: key user accepts] --> Team[Invite your team]
 ```
 
 1. **Engagement set-up** (platform → Companies → *New engagement*, S1–S8): company, website,
@@ -313,7 +348,9 @@ flowchart LR
 5. Otherwise **Dashboard**. After onboarding it leads with the key user's **conversation
    with leadership** (§4.5); the other managers named in onboarding are emailed a link of
    their own. When the key user's conversation is finished and every planned count is a
-   number, the engagement moves to *Preparing Stage 1 proposal*.
+   number, the engagement moves to *Preparing Stage 1 proposal*. Once Mjadi approves the
+   fee, the key user is told their **proposal** is ready (§4.4b); accepting it starts
+   Stage 1 and opens team invitations.
 
 Public sign-up (`/company/signup`) is switched off unless `PUBLIC_COMPANY_SIGNUP_ENABLED`
 is set. When on, a request does nothing until a Mjadi admin approves it on
@@ -330,8 +367,9 @@ From `frontend/src/portals/company/nav.ts`:
 | — | Home | `/company/dashboard` | Next step, progress, the other managers' status |
 | Set up | Company profile | `/company/onboarding` | Facts, who takes part, acknowledgement |
 | Set up | Leadership conversation | `/company/leadership` | The key user's own conversation (§4.4a); shown once it exists, *To do* until finished |
+| Set up | Proposal | `/company/proposal` | The Stage 1 proposal (§4.4b); shown once one has been sent, *To do* while it waits on the key user |
 | Set up | Documents | `/company/documents` | Upload and analyse files |
-| Set up | Your team | `/company/employees` | Invite and nudge staff — after the Stage 1 fee is agreed |
+| Set up | Your team | `/company/employees` | Invite and nudge staff — once the Stage 1 proposal is accepted |
 | Insights | Reports | `/company/reports` | View, download, share |
 | Insights | What we found | `/company/intelligence` | Signals, patterns, recommendations |
 | Working with you | Consultant questions | `/company/outreaches` | Approve and answer consultant outreaches |
@@ -402,6 +440,27 @@ after a pause, one for documents still to come. Consultants see everything — c
 findings, planned changes, the transcript and the notes for consultants only — on the
 company's *Leadership conversations* page.
 
+### 4.4b Stage 1 proposal
+
+Doc 17 §10. Once Mjadi has approved the fee, `/company/proposal` shows:
+
+- the total including VAT;
+- the price line by line, with VAT on its own line;
+- the rate for anyone added later;
+- what is and isn't included, and what happens next;
+- how long it stands, the payment terms, and the terms it is governed by;
+- a PDF to download.
+
+It never shows Mjadi's cost, hours or margin.
+
+- **The key user decides.** They tick that they've read what's included and the
+  extra-person rate, then **Accept** — which starts Stage 1 and takes them to *Your team*
+  — or **Decline**, with a reason if they wish. Everyone else at the company can read it.
+- **While Mjadi prepares a version,** the page says the proposal is being prepared.
+- **After a decline or expiry,** the consultant follows up with a fresh one.
+- **After acceptance,** the page also shows anyone added beyond the price: the number ×
+  the rate.
+
 ### 4.5 Dashboard
 
 Adapts to engagement phase:
@@ -410,11 +469,13 @@ Adapts to engagement phase:
 |-------|----------|
 | Leadership conversation | Start or carry on the conversation; other managers' status; the participant-count task while any count is "Not sure" |
 | Preparing Stage 1 proposal | "We're preparing your Stage 1 proposal" — nothing needs the client |
+| Proposal ready | "Your Stage 1 proposal is ready": the total and what it covers; *Review and accept* for the key user, "your key user reviews it" for others; a *Proposal* journey step |
+| Proposal declined or expired | "Your consultant will be in touch" / "will send a fresh one" |
 | Docs processing, no signals yet | Action tiles (upload, profile, etc.) |
 | Docs-only | KPIs: Documents / Signals / Patterns / Recommendations |
 | Hybrid (interviews started) | In progress / Signals / Patterns / Recommendations |
 
-Typical action tiles: Profile %, Assigned consultant, Conversations, Discovery questions (unanswered badge), Shared reports, Upload documents, Invite employees, WhatsApp media. "Add documents or invite your team" appears only once Stage 1 is under way (or for a company from before engagements): staff are invited after the Stage 1 fee is agreed. Blocking staff invitations on the server until then is part of the pricing work.
+Typical action tiles: Profile %, Assigned consultant, Conversations, Discovery questions (unanswered badge), Shared reports, Upload documents, Invite employees, WhatsApp media. "Add documents or invite your team" appears only once Stage 1 is under way (or for a company from before engagements): staff are invited after the Stage 1 proposal is accepted, which the server enforces (§4.8).
 
 Also: stalled employees card (nudge CTA), participation funnel, department coverage, top pain points, emerging patterns, recent activity, trial usage line.
 
@@ -436,6 +497,12 @@ Downstream: Knowledge entries + clarification questions; intelligence can update
 - Knowledge base entries with type, department, confidence, content.
 
 ### 4.8 Employees
+
+**Before the Stage 1 proposal is accepted** the page says the team can be invited once it
+is, and hides its invite controls; the server refuses any invitation until then. After
+that, it says how many people the price covers and the extra-person rate. Inviting
+someone beyond that number asks the client to confirm the extra charge first, and the
+person is flagged as added after pricing (Doc 17 §12).
 
 **Invite form**
 
@@ -585,6 +652,11 @@ Tabs typically include: **overview, profile, interviews, intelligence, clarifica
 - Employee roster → follow-up pages.
 - Clarifications: portal outreaches to **company admin** (no WhatsApp required).
 - Agentic ideas panel; co-consultant chat drawer.
+- **Stage 1 proposal** card: where the engagement and its proposal stand (the newest
+  version's status, a send-back note or the client's reason for declining), and what the
+  client sees — never Mjadi's cost, hours or margin. *Who takes part* on the leadership
+  page can still be changed until the client accepts; a change in pricing makes a fresh
+  quote.
 
 ### 5.8 Report review workspace
 

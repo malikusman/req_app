@@ -153,6 +153,6 @@ weighting columns.
 
 Streaming voice; WhatsApp replies from key persons (the inbound handler only knows
 employees, so reminders are email); document masking and OCR, so P04 doesn't read
-uploads; the `EvidenceReference` table (turn locators stand in); the server-side block on
-inviting staff before the Stage 1 fee is agreed (part of the pricing work); wiring the
-neutral context into the employee interview (the teammate's side).
+uploads; the `EvidenceReference` table (turn locators stand in); wiring the neutral
+context into the employee interview (the teammate's side). The block on inviting staff
+before the Stage 1 price is agreed is now built — see [STAGE_1_PRICING.md](STAGE_1_PRICING.md).

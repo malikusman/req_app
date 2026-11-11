@@ -168,6 +168,7 @@ flowchart LR
 | 18 | **Leadership question** (P02) | Rails `KeyPerson::Interviewer`, in `KeyPerson::Turn` | every assistant turn of a conversation with leadership | 1 text call; one more if the guard refuses it | what the assistant says this turn, worded for the mode and area the planner chose (`KeyPerson::Planner`). `KeyPerson::Guard` refuses it if it is empty or too long, asks other than one question, brings up AI, automation, agents, price or reports before the participant did, mentions consultants, readiness or assessment, repeats an earlier question or asks a fact the company already gave | the area's safe question from `KeyPerson::Intents` (P02 §11); a pause is acknowledged with no call |
 | 19 | **Leadership turn capture** (P03) | Rails `KeyPerson::Capture` | every answer in a conversation with leadership, before the next question | 1 JSON call (one retry for invalid JSON) | which of the 16 areas the answer covered, graded against the previous question's area; statements (`REPORTED`); planned changes, people, documents, profile facts, numbers as said; sensitive and political notes kept apart. Code keeps only valid enums and items citing this turn, and moves any statement criticising a named person to `sensitive` | nothing captured: the area counts as not filled and may be asked again (P03 §9) |
 | 20 | **Leadership context and findings** (P04) | Rails `KeyPerson::ContextBuilder` (`KeyPersonContextJob`) | a conversation with leadership finishing, or a consultant closing it | 1 JSON call (one retry) | the person's `ManagementDiscoveryContext`, `StrategicFinding`s, `PlannedInitiative`s, political context (consultant only) and neutral lines that may reach staff. Code drops items citing turns that don't exist, findings that name a person, prescribe a solution or carry a figure not in the transcript, and neutral lines that attribute views, name someone, suggest a solution or carry a number | built from the turn captures alone, marked `INCOMPLETE` and flagged for the consultant (P04 §9) |
+| 21 | **Stage 1 price explainer** (P24) | Rails `Pricing::Explainer` (`ExplainStage1QuoteJob`) | each new version of a Stage 1 quote | 1 JSON call (one retry for invalid JSON) | for the administrator: what drove the fee, where the consultant hours go, comparables, margin note, confidence, what could make it wrong; for the client: the scope statement (included, not included, participants, deliverable, extra-person rate, what happens next). `Pricing::ExplanationValidator` drops the reply if any amount isn't one the platform computed, the client's text carries anything internal or AI/methodology words, anything reads as a discount, or flagged risks go unnamed. Never writes to a quote that has left the administrator | the computed derivation for the administrator and `Pricing::ScopeTemplate` for the client; the quote can still be approved (P24 §7) |
 
 Not model-backed, but central: the **dossier and area flow** (what to ask next and when
 to stop), **findings and hours**, **signal extraction** (keyword rules), the **report
@@ -548,6 +549,33 @@ the dashboard says the team will arrange it. Outside production a company can ru
 
 ---
 
+## 12B. Flow 10 — Stage 1 pricing
+
+Doc 17 §2, §8–10, prompt P24. All in Rails (`app/services/pricing/`); details in
+[STAGE_1_PRICING.md](STAGE_1_PRICING.md).
+
+1. **Proposed.** The engagement reaching `STAGE_1_PRICING` queues `ProposeStage1Job`
+   (after the commit). `Pricing::Stage1Calculator` works the fee out in code from the plan,
+   the languages, the locations and the rate card: base, per participant, per deep dive,
+   complexity, VAT, the additional-participant rate, and behind it the consultant hours,
+   fully loaded cost and margin against the floor. A rate card missing a value or a
+   country's tax rate stops it and emails the super admins.
+2. **Explained.** P24 (`Pricing::Explainer`) writes the administrator's explanation and the
+   client's scope statement from the computed figures, or the template stands.
+3. **Reviewed.** A super admin approves and issues it (below the floor only with a
+   structured reason), adjusts the price with a reason, corrects the deep dives, locations
+   or country, or sends it back. Each change makes a new version.
+4. **Agreed.** The key user accepts at `/company/proposal`; the engagement moves to
+   `STAGE_1_ACTIVE` and staff can be invited. Past what the price covers, each invitation
+   needs the client's confirmation and is flagged `added_after_pricing`.
+
+**What never leaves:** cost, hours, margin, rates and override reasons stay out of every
+client and consultant view — all are built from `Pricing::ClientQuoteView`'s field list.
+P24 sees the pricing context only (`Pricing::Stage1Context`), and nothing on the discovery
+side reads quotes.
+
+---
+
 ## 13. How the agents collaborate
 
 There are no agent-to-agent calls. Every hand-off goes through Rails and a stored
@@ -606,6 +634,9 @@ All model calls go to one OpenAI-compatible endpoint (`OPENAI_BASE_URL`, default
 | `KEY_PERSON_MODEL`, `KEY_PERSON_CAPTURE_MODEL`, `KEY_PERSON_CONTEXT_MODEL` | P02, P03, P04; each falls back to `OPENAI_MODEL`. Doc 05 §3.1 asks for a strong model for all three |
 | `AI_KEY_PERSON` | `false` switches the conversation with leadership off |
 | `KEY_PERSON_FLOOR`, `KEY_PERSON_CEILING`, `KEY_PERSON_STALL` | the conversation's limits (8, 24, 3), after a company's `key_person_limits` setting |
+| `PRICING_EXPLAINER_MODEL` | P24; falls back to `OPENAI_MODEL` |
+| `AI_PRICING_EXPLAINER` | `false` switches P24 off; the template scope statement is used |
+| `PRICING_SCRIPTED_REPLIES` | outside production, P24 on scripted replies (demo, browser test, benchmark) |
 
 Compatibility handled in code: newer OpenAI models take `max_completion_tokens` (sent
 automatically to the official endpoint) and accept only their default temperature
