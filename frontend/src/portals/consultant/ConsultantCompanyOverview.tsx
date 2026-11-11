@@ -39,6 +39,7 @@ import { ConsultantChatDrawer } from './workspace/ConsultantChatDrawer';
 import { AgenticIdeasPanel } from '../shared/AgenticIdeasPanel';
 import { CompanyProfileSummary, ProfileChanges } from '../shared/CompanyProfileFacts';
 import { CompanyFactsEditor } from './CompanyFactsEditor';
+import { ConsultantProposalCard } from './ConsultantProposalCard';
 
 type ConversationRow = {
   id: number;
@@ -416,6 +417,8 @@ export function ConsultantCompanyOverview() {
                   </Link>
                 </div>
               </Card>
+
+              {token && companyId ? <ConsultantProposalCard token={token} companyId={Number(companyId)} /> : null}
 
               <Card title="Findings">
                 <div className="flex flex-wrap items-center justify-between gap-4">

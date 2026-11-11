@@ -28,6 +28,7 @@ import { CompanyLayout } from './portals/company/CompanyLayout';
 import { CompanyDashboard } from './portals/company/CompanyDashboard';
 import { CompanyOnboarding } from './portals/company/CompanyOnboarding';
 import { CompanyLeadership } from './portals/company/CompanyLeadership';
+import { CompanyProposal } from './portals/company/CompanyProposal';
 import { LeadershipLink } from './portals/public/LeadershipLink';
 import { CompanyEmployees } from './portals/company/CompanyEmployees';
 import { CompanyIntelligence } from './portals/company/CompanyIntelligence';
@@ -191,6 +192,7 @@ export default function App() {
               <Route path="dashboard" element={<CompanyDashboard />} />
               <Route path="onboarding" element={<CompanyOnboarding />} />
               <Route path="leadership" element={<CompanyLeadership />} />
+              <Route path="proposal" element={<CompanyProposal />} />
               <Route path="employees" element={<CompanyEmployees />} />
               {/* The client sees who has taken part, never what they said — see
                   Your team. Old links land there rather than on a 404. */}

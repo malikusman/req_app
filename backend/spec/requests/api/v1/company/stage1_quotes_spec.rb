@@ -63,6 +63,18 @@ RSpec.describe "Company: the Stage 1 proposal", type: :request do
     expect(quote.events.map(&:event)).to include("viewed")
   end
 
+  it "puts the issued proposal on the dashboard, with nothing internal" do
+    stub_request(:get, %r{gotenberg:3000/health}).to_return(status: 200, body: "")
+    quote
+    get "/api/v1/company/dashboard", headers: auth_headers_for(key_user)
+    expect(body["stage1_quote"]).to be_nil
+
+    issue!
+    get "/api/v1/company/dashboard", headers: auth_headers_for(key_user)
+    expect(body["stage1_quote"]).to include("status" => "ISSUED", "total" => quote.total.to_s("F"), "can_decide" => true)
+    expect(body["stage1_quote"].to_json).not_to match(INTERNAL)
+  end
+
   it "lets the key user accept, recorded, which starts Stage 1" do
     issue!
     decide(:accept)

@@ -461,7 +461,7 @@ export const api = {
     ),
 
   companyEmployees: (token: string) =>
-    request<{ employees: Employee[] }>('/api/v1/company/employees', {}, token),
+    request<{ employees: Employee[]; invitations?: StaffInvitationState }>('/api/v1/company/employees', {}, token),
 
   employeeValuePreference: (token: string, employeeId: number) =>
     request<{
@@ -510,13 +510,23 @@ export const api = {
     email?: string,
     preferred_channel?: 'whatsapp' | 'web' | 'both',
     /** The person planned during onboarding this invitation is for, if any. */
-    engagement_participant_id?: number
+    engagement_participant_id?: number,
+    /** The client has agreed to the extra charge for someone beyond the Stage 1 price. */
+    confirm_additional?: boolean
   ) =>
-    request<{ employee: Employee; discover_url?: string }>(
+    request<{ employee: Employee; discover_url?: string; additional?: boolean }>(
       '/api/v1/company/employees',
       {
         method: 'POST',
-        body: JSON.stringify({ phone_e164, display_name, department, email, preferred_channel, engagement_participant_id }),
+        body: JSON.stringify({
+          phone_e164,
+          display_name,
+          department,
+          email,
+          preferred_channel,
+          engagement_participant_id,
+          confirm_additional,
+        }),
       },
       token
     ),
@@ -2540,6 +2550,8 @@ export interface CompanyDashboardPayload {
       reminders_used_up: boolean;
     }[];
   } | null;
+  /** The Stage 1 proposal the client should see now, if any (Doc 17 §10). */
+  stage1_quote?: Stage1QuoteGlance | null;
   usage: { conversations_used: number; conversation_limit: number | null; remaining: number | null; limit_reached: boolean };
   latest_report: Report | null;
   opportunity_estimate: {
@@ -3659,4 +3671,31 @@ export interface StaffInvitationState {
   invited?: number;
   rate?: string | null;
   currency?: string | null;
+}
+
+/** The proposal at a glance, for the dashboard. */
+export interface Stage1QuoteGlance {
+  id: number;
+  version: number;
+  status: Stage1QuoteStatus;
+  currency: string;
+  total: string;
+  valid_until: string | null;
+  past_validity: boolean;
+  participants_included: number;
+  deep_dives_included: number;
+  additional_participant_rate: string;
+  can_decide: boolean;
+}
+
+/** The server's answer when an invitation goes beyond what the Stage 1 price covers. */
+export interface ConfirmAdditional {
+  code: 'confirm_additional';
+  error: string;
+  included: number;
+  invited: number;
+  adding: number;
+  extra: number;
+  rate: string;
+  currency: string;
 }

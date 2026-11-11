@@ -1,4 +1,5 @@
 import type { CompanyDashboardPayload } from '../../lib/api';
+import { formatMoney } from '../../lib/money';
 
 export type DashboardActionId =
   | 'get-started'
@@ -9,6 +10,7 @@ export type DashboardActionId =
   | 'participant-counts'
   | 'leadership'
   | 'pricing'
+  | 'proposal'
   | 'running';
 
 export interface DashboardAction {
@@ -97,7 +99,41 @@ export function nextBestAction(
           }
     );
   }
-  if (status === 'STAGE_1_PRICING') {
+  // The Stage 1 proposal (Doc 17 §10): being prepared, ready to review, or
+  // answered. Only the key user accepts; others are told it's with them.
+  const quote = payload.stage1_quote ?? null;
+  if (status === 'STAGE_1_PRICING' && quote?.status === 'ISSUED' && !quote.past_validity) {
+    const total = formatMoney(quote.total, quote.currency);
+    candidates.push({
+      id: 'proposal',
+      eyebrow: quote.can_decide ? 'Do this next' : 'With your key user',
+      title: 'Your Stage 1 proposal is ready',
+      description: `${total} including VAT, for ${quote.participants_included} people and ${quote.deep_dives_included} detailed sessions.${
+        quote.can_decide ? ' Read what’s included and accept it to invite your team.' : ' Your key user reviews and accepts it.'
+      }`,
+      primaryLabel: quote.can_decide ? 'Review and accept' : 'Read the proposal',
+      to: '/company/proposal',
+      tone: quote.can_decide ? 'attention' : 'neutral',
+      attnTitle: 'Your Stage 1 proposal is ready',
+      attnDetail: total,
+      attnActionLabel: 'Review',
+    });
+  } else if (status === 'STAGE_1_PRICING' && quote && ['DECLINED', 'EXPIRED', 'ISSUED'].includes(quote.status)) {
+    const declined = quote.status === 'DECLINED';
+    candidates.push({
+      id: 'proposal',
+      eyebrow: 'Next step',
+      title: declined ? 'Thank you — we’ll be in touch about the proposal' : 'Your proposal has expired',
+      description: declined
+        ? 'Your consultant will follow up on what would work for you.'
+        : 'Your consultant will send you a fresh one.',
+      primaryLabel: 'Your consultant',
+      to: '/company/consultants',
+      tone: 'neutral',
+      attnTitle: declined ? 'Proposal declined' : 'Proposal expired',
+      attnDetail: 'Your consultant will be in touch',
+    });
+  } else if (status === 'STAGE_1_PRICING') {
     candidates.push({
       id: 'pricing',
       eyebrow: 'In progress',

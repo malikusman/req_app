@@ -19,6 +19,7 @@ export function CompanyLayout() {
     reportVersion?: number | null;
     consultantQuestions?: number;
     leadership?: { finished: boolean } | null;
+    proposal?: { waitingOnYou: boolean } | null;
   }>({});
 
   const impersonating = Boolean(session?.portal === 'company' && session.impersonating);
@@ -34,6 +35,9 @@ export function CompanyLayout() {
           profileSubmitted: Boolean(d.onboarding_submitted_at),
           reportVersion: d.latest_report?.version ?? null,
           leadership: d.leadership?.is_key_user && d.leadership.own ? { finished: d.leadership.own.finished } : null,
+          proposal: d.stage1_quote
+            ? { waitingOnYou: d.stage1_quote.can_decide && d.stage1_quote.status === 'ISSUED' }
+            : null,
         }));
       })
       .catch(() => undefined);

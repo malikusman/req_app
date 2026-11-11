@@ -44,6 +44,7 @@ module Dashboard
         engagement_status: @company.current_engagement&.status,
         planned_participant_count: @company.current_engagement&.planned_participant_count,
         leadership: leadership_json,
+        stage1_quote: stage1_quote_json,
         usage: enforcer.usage_summary,
         latest_report: latest_report_json(latest_report),
         opportunity_estimate: opportunity_estimate_json,
@@ -56,6 +57,18 @@ module Dashboard
     end
 
     private
+
+    # The Stage 1 proposal the client should see now, if any — from the client
+    # view, so nothing internal (Doc 17 §15).
+    def stage1_quote_json
+      quote = Pricing::ClientQuoteView.current_for(@company.current_engagement)
+      return nil unless quote
+
+      Pricing::ClientQuoteView.new(quote, viewer: @company_user).json
+                              .slice(:id, :version, :status, :currency, :total, :valid_until, :past_validity,
+                                     :participants_included, :deep_dives_included, :additional_participant_rate,
+                                     :can_decide)
+    end
 
     # The conversations with leadership as the client sees them: the key user's
     # own, and each other manager's status — never what anyone said (Doc 14 §9.2).

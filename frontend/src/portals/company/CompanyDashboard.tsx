@@ -44,6 +44,7 @@ function iconFor(id: DashboardActionId): ReactNode {
       return <UserCircle className="h-[18px] w-[18px]" />;
     case 'get-started':
     case 'pricing':
+    case 'proposal':
       return <FileText className="h-[18px] w-[18px]" />;
     case 'leadership':
       return <MessagesSquare className="h-[18px] w-[18px]" />;
@@ -228,6 +229,7 @@ export function CompanyDashboard() {
           },
         ]
       : []),
+    ...proposalStep(data),
     {
       label: 'Documents',
       sublabel: readyDocs > 0 ? `${readyDocs} analyzed` : undefined,
@@ -497,4 +499,18 @@ export function CompanyDashboard() {
       )}
     </div>
   );
+}
+
+/** The Stage 1 proposal's place in the journey, once the engagement reaches pricing (Doc 17 §1). */
+function proposalStep(data: CompanyDashboardPayload): JourneyStep[] {
+  const status = data.engagement_status;
+  if (status !== 'STAGE_1_PRICING' && status !== 'STAGE_1_ACTIVE') return [];
+  if (status === 'STAGE_1_ACTIVE') return [{ label: 'Proposal', sublabel: 'agreed', status: 'done' }];
+  const quote = data.stage1_quote;
+  if (quote?.status === 'ISSUED' && !quote.past_validity) {
+    return [{ label: 'Proposal', sublabel: quote.can_decide ? 'waiting on you' : 'with your key user', status: 'now' }];
+  }
+  if (quote?.status === 'DECLINED') return [{ label: 'Proposal', sublabel: 'declined', status: 'now' }];
+  if (quote) return [{ label: 'Proposal', sublabel: 'expired', status: 'now' }];
+  return [{ label: 'Proposal', sublabel: 'in preparation', status: 'now' }];
 }

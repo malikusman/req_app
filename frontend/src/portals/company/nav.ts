@@ -1,6 +1,7 @@
 import {
   CreditCard,
   FileBarChart,
+  FileSignature,
   FileText,
   LayoutDashboard,
   MessagesSquare,
@@ -22,6 +23,8 @@ export interface CompanyNavOpts {
   consultantQuestions?: number;
   /** The key user's conversation with leadership: shown once it exists; 'To do' until finished. */
   leadership?: { finished: boolean } | null;
+  /** The Stage 1 proposal: shown once one has been sent; 'To do' while it waits on this user. */
+  proposal?: { waitingOnYou: boolean } | null;
 }
 
 /**
@@ -29,7 +32,7 @@ export interface CompanyNavOpts {
  * already fetches the dashboard payload) to light up the badges.
  */
 export function companyNavItems(opts: CompanyNavOpts = {}): SidebarItem[] {
-  const { profileSubmitted, reportVersion, consultantQuestions, leadership } = opts;
+  const { profileSubmitted, reportVersion, consultantQuestions, leadership, proposal } = opts;
 
   const items: SidebarItem[] = [
     { to: '/company/dashboard', label: 'Home', icon: LayoutDashboard },
@@ -38,6 +41,7 @@ export function companyNavItems(opts: CompanyNavOpts = {}): SidebarItem[] {
     ...(leadership
       ? [{ to: '/company/leadership', label: 'Leadership conversation', icon: MessagesSquare, section: 'Set up' }]
       : []),
+    ...(proposal ? [{ to: '/company/proposal', label: 'Proposal', icon: FileSignature, section: 'Set up' }] : []),
     { to: '/company/documents', label: 'Documents', icon: FileText, section: 'Set up' },
     { to: '/company/employees', label: 'Your team', icon: Users, section: 'Set up' },
 
@@ -55,6 +59,9 @@ export function companyNavItems(opts: CompanyNavOpts = {}): SidebarItem[] {
       return { ...item, badge: 'To do', badgeTone: 'attention' };
     }
     if (item.to === '/company/leadership' && leadership && !leadership.finished) {
+      return { ...item, badge: 'To do', badgeTone: 'attention' };
+    }
+    if (item.to === '/company/proposal' && proposal?.waitingOnYou) {
       return { ...item, badge: 'To do', badgeTone: 'attention' };
     }
     if (item.to === '/company/reports' && reportVersion != null) {
