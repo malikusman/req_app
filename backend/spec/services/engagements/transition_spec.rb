@@ -99,6 +99,30 @@ RSpec.describe Engagements::Transition do
     end
   end
 
+  describe "leaving Stage 1 pricing" do
+    before do
+      Pricing::Defaults.ensure!
+      engagement.update!(status: "STAGE_1_PRICING")
+    end
+
+    it "starts Stage 1 only once the client has accepted a quote" do
+      expect { move("STAGE_1_ACTIVE", actor: key_user) }.to raise_error(described_class::Error, /hasn't accepted/)
+
+      create(:quote, :issued, engagement: engagement).update!(status: "ACCEPTED", accepted_by: key_user,
+                                                              accepted_at: Time.current)
+      move("STAGE_1_ACTIVE", actor: key_user)
+      expect(engagement.reload.status).to eq("STAGE_1_ACTIVE")
+    end
+
+    it "closes only by Mjadi, with a reason" do
+      expect { move("CLOSED", actor: key_user, reason: "No budget") }.to raise_error(described_class::Error, /Only Mjadi/)
+      expect { move("CLOSED", actor: create(:platform_user)) }.to raise_error(described_class::Error, /Only Mjadi/)
+
+      move("CLOSED", actor: create(:platform_user), reason: "Client declined the proposal")
+      expect(engagement.reload.status).to eq("CLOSED")
+    end
+  end
+
   describe "forcing a move" do
     let(:admin) { create(:platform_user) }
 

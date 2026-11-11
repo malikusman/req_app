@@ -1,0 +1,13 @@
+<%= @company_name %>'s Stage 1 proposal (version <%= @quote.version %>, <%= @total %> including tax) was <%= @outcome %>.
+<% if @quote.status == "ACCEPTED" %>
+Accepted by <%= @quote.accepted_by&.name %>. The engagement is now in Stage 1 and the team can be invited.
+<% elsif @quote.status == "DECLINED" %>
+<% if @quote.decline_reason.present? %>Their reason: <%= @quote.decline_reason %>
+<% end %>
+Issue a revised version or close the engagement:
+<% else %>
+Issue a fresh version or close the engagement:
+<% end %>
+<%= @url %>
+
+— Mjadi pricing

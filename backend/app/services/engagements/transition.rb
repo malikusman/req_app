@@ -14,7 +14,7 @@ module Engagements
       "SET_UP" => %w[ONBOARDING],
       "ONBOARDING" => %w[KEY_PERSON_DISCOVERY],
       "KEY_PERSON_DISCOVERY" => %w[STAGE_1_PRICING],
-      "STAGE_1_PRICING" => [],
+      "STAGE_1_PRICING" => %w[STAGE_1_ACTIVE CLOSED],
       "STAGE_1_ACTIVE" => [],
       "CLOSED" => []
     }.freeze
@@ -72,6 +72,8 @@ module Engagements
       case @to
       when "KEY_PERSON_DISCOVERY" then check_onboarding_handed_over!
       when "STAGE_1_PRICING" then check_ready_for_pricing!
+      when "STAGE_1_ACTIVE" then check_price_accepted!
+      when "CLOSED" then check_closed_by_mjadi!
       end
     end
 
@@ -89,6 +91,18 @@ module Engagements
         raise Error, "The key user's conversation with leadership isn't finished yet"
       end
       raise Error, "Every department needs a number of people before pricing" if @engagement.planned_participant_count.nil?
+    end
+
+    # Stage 1 starts when the client's key user accepts the price (Doc 17
+    # §10.3, Doc 22 E12); from then it is fixed (Decision Register B8).
+    def check_price_accepted!
+      raise Error, "The client hasn't accepted a Stage 1 quote yet" unless @engagement.accepted_stage1_quote
+    end
+
+    # An engagement whose price wasn't agreed may be closed by Mjadi, with a
+    # reason — after a decline, say.
+    def check_closed_by_mjadi!
+      raise Error, "Only Mjadi can close an engagement, with a reason" unless @actor.is_a?(PlatformUser) && @reason
     end
 
     def history_entry(from)

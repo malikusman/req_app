@@ -1,0 +1,67 @@
+<%# The Stage 1 proposal as a document (Doc 17 §10). Rendered from
+    Pricing::ClientQuoteView only — nothing internal is available here. %>
+<% q = quote %>
+<% money = ->(amount) { Pricing::Money.format(amount, q[:currency]) } %>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Stage 1 proposal — <%= q[:company_name] %></title>
+<style>
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #1c2430; font-size: 11pt; line-height: 1.5; }
+  .page { padding: 22mm 20mm; }
+  .brand { font-weight: 700; letter-spacing: .08em; color: #0f5c55; font-size: 10pt; }
+  h1 { font-size: 22pt; margin: 6mm 0 1mm; font-weight: 600; }
+  .sub { color: #5b6573; margin: 0 0 8mm; }
+  h2 { font-size: 12pt; margin: 8mm 0 2mm; color: #0f5c55; text-transform: uppercase; letter-spacing: .05em; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 2.5mm 0; text-align: left; vertical-align: top; border-bottom: 1px solid #e3e7ec; }
+  th { font-size: 9pt; color: #5b6573; font-weight: 600; }
+  td.num, th.num { text-align: right; white-space: nowrap; }
+  .detail { color: #5b6573; font-size: 9.5pt; }
+  tr.total td { font-weight: 700; font-size: 12pt; border-bottom: none; padding-top: 3mm; }
+  ul { margin: 0; padding-left: 5mm; }
+  li { margin: 1mm 0; }
+  .note { color: #5b6573; font-size: 9.5pt; margin-top: 8mm; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="brand">MJADI</div>
+  <h1>Stage 1 proposal</h1>
+  <p class="sub"><%= q[:company_name] %> · Version <%= q[:version] %><% if q[:issued_at] %> · Issued <%= q[:issued_at].to_date.strftime("%-d %B %Y") %><% end %><% if q[:valid_until] %> · Valid until <%= q[:valid_until].strftime("%-d %B %Y") %><% end %></p>
+
+  <h2>The price</h2>
+  <table>
+    <tr><th>Item</th><th class="num">Quantity</th><th class="num">Amount</th></tr>
+    <% q[:line_items].each do |line| %>
+      <tr>
+        <td><%= line["label"] %><% if line["detail"].present? %><div class="detail"><%= line["detail"] %></div><% end %></td>
+        <td class="num"><%= line["quantity"] %></td>
+        <td class="num"><%= money.(line["amount"]) %></td>
+      </tr>
+    <% end %>
+    <tr><td>Subtotal</td><td></td><td class="num"><%= money.(q[:subtotal]) %></td></tr>
+    <tr><td>VAT (<%= (BigDecimal(q[:tax_rate]) * 100).round(2).to_s("F").sub(/\.0\z/, "") %>%)</td><td></td><td class="num"><%= money.(q[:tax_amount]) %></td></tr>
+    <tr class="total"><td>Total</td><td></td><td class="num"><%= money.(q[:total]) %></td></tr>
+  </table>
+  <p class="detail">Each additional person who takes part after this proposal: <%= money.(q[:additional_participant_rate]) %>.</p>
+
+  <% scope = q[:scope] %>
+  <h2>What is included</h2>
+  <ul><% Array(scope["what_is_included"]).each do |item| %><li><%= item %></li><% end %></ul>
+  <% if scope["participants_and_departments"].present? %><p><%= scope["participants_and_departments"] %></p><% end %>
+
+  <h2>What is not included</h2>
+  <ul><% Array(scope["what_is_not_included"]).each do |item| %><li><%= item %></li><% end %></ul>
+
+  <h2>What happens next</h2>
+  <p><%= scope["what_happens_next"] %></p>
+  <% if scope["additional_participants"].present? %><p><%= scope["additional_participants"] %></p><% end %>
+
+  <p class="note"><%= scope["validity"] %> <%= q[:payment_terms] %> <%= q[:terms_reference] %></p>
+</div>
+</body>
+</html>

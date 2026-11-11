@@ -34,8 +34,10 @@ Rails.application.routes.draw do
             post :resend_invitation
             post :reread_website
           end
-          # Stage 1 pricing (Doc 17 §9): work the quote out now.
+          # Stage 1 pricing (Doc 17 §9): work the quote out now, or close an
+          # engagement whose price wasn't agreed.
           post "stage1_quote", to: "stage1_quotes#calculate"
+          post "close", to: "stage1_quotes#close"
         end
         resources :stage1_quotes, only: %i[index show] do
           member do
@@ -154,6 +156,8 @@ Rails.application.routes.draw do
           post "leadership/participants/:participant_id/further_session", to: "key_person_sessions#further_session"
           patch "leadership/findings/:id", to: "key_person_sessions#update_finding"
           patch "leadership/plan", to: "key_person_sessions#update_plan"
+          # The Stage 1 proposal as the client sees it, and where it stands.
+          get "stage1_quote", to: "stage1_quotes#show"
           resources :employees, only: %i[index show], controller: "employees"
           resources :conversations, only: %i[index show], controller: "conversations"
           get "signals", to: "intelligence#signals"
@@ -226,6 +230,11 @@ Rails.application.routes.draw do
         patch "me", to: "me#update"
         get "dashboard", to: "dashboard#show"
         get "expert_consultants", to: "expert_consultants#index"
+        # The Stage 1 proposal (Doc 17 §10).
+        get "stage1_quote", to: "stage1_quotes#show"
+        get "stage1_quotes/:id/pdf", to: "stage1_quotes#pdf"
+        post "stage1_quotes/:id/accept", to: "stage1_quotes#accept"
+        post "stage1_quotes/:id/decline", to: "stage1_quotes#decline"
         get "onboarding", to: "onboarding#show"
         patch "onboarding/profile", to: "onboarding#update_profile"
         patch "onboarding/questionnaire", to: "onboarding#update_questionnaire"

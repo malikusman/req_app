@@ -9,7 +9,7 @@ module Api
       # card — are shown here and nowhere a client can reach (Doc 17 §15).
       class Stage1QuotesController < BaseController
         before_action :set_quote, only: %i[show approve adjust change_inputs reject]
-        before_action :authorize_act!, only: %i[approve adjust change_inputs reject calculate]
+        before_action :authorize_act!, only: %i[approve adjust change_inputs reject calculate close]
 
         # The queue: proposed quotes first, or any status asked for.
         def index
@@ -57,6 +57,26 @@ module Api
           engagement = Engagement.find(params[:engagement_id])
           render json: detail_json(review.calculate(engagement)), status: :created
         rescue Pricing::Review::Error => e
+          render json: { error: e.message }, status: :unprocessable_entity
+        end
+
+        # An engagement whose Stage 1 price wasn't agreed — after a decline, say —
+        # closed by Mjadi with a reason. A quote still open is withdrawn.
+        def close
+          engagement = Engagement.find(params[:engagement_id])
+          reason = params[:reason].to_s.strip
+          return render json: { error: "Say why the engagement is being closed" }, status: :unprocessable_entity if reason.empty?
+
+          engagement.with_lock do
+            if (open = engagement.open_stage1_quote)
+              open.update!(status: "SUPERSEDED")
+              open.record!("superseded", actor: current_platform_user, detail: { reason: "Engagement closed" })
+            end
+            Engagements::Transition.call(engagement: engagement, to: "CLOSED", actor: current_platform_user,
+                                         reason: reason, request: request)
+          end
+          render json: { engagement: { id: engagement.id, status: engagement.reload.status } }
+        rescue Engagements::Transition::Error => e
           render json: { error: e.message }, status: :unprocessable_entity
         end
 

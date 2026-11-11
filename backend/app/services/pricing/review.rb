@@ -37,6 +37,8 @@ module Pricing
         issue!(quote)
       end
       audit!("stage1_quote_issued", quote, total: quote.total.to_s("F"), below_floor: quote.below_floor)
+      Notifications.issued(quote)
+      QuotePdfJob.perform_later(quote.id)
       quote
     end
 

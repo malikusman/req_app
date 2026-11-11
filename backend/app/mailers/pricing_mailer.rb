@@ -23,6 +23,14 @@ class PricingMailer < ApplicationMailer
     mail(to: approvers, subject: "Stage 1 pricing for #{@company_name} can't go ahead")
   end
 
+  # The client accepted or declined, or the quote expired unanswered.
+  def client_outcome(quote)
+    setup(quote)
+    @outcome = Pricing::Notifications::OUTCOMES.fetch(quote.status)
+    @url = "#{NotificationService.app_host}/platform/pricing/#{quote.id}"
+    mail(to: approvers, subject: "Stage 1 proposal for #{@company_name} #{@outcome}")
+  end
+
   private
 
   def setup(quote)
