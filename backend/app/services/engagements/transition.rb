@@ -39,10 +39,18 @@ module Engagements
       check_allowed!(from)
       check_preconditions!
 
+      moved = false
       @engagement.with_lock do
+        # The lock reloads the row. Someone may have moved it in the meantime —
+        # two hand-overs at once, say — so the move is made only from where the
+        # checks above saw it, and only once.
+        next if @engagement.status == @to
+        raise Error, "The engagement moved to #{@engagement.status} while this was being decided" if @engagement.status != from
+
         @engagement.update!(status: @to, status_history: Array(@engagement.status_history) + [history_entry(from)])
+        moved = true
       end
-      audit!(from)
+      audit!(from) if moved
       @engagement
     end
 

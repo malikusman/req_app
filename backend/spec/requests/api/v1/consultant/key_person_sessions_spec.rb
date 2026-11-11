@@ -122,6 +122,14 @@ RSpec.describe "Consultant view of the leadership conversations", type: :request
     expect(engagement.reload.planned_participant_count).to eq(4)
   end
 
+  it "hands over to pricing as the consultant once the plan is settled" do
+    create(:conversation_session, participant: own, state: "COMPLETE")
+    patch "#{path}/plan", params: { departments: [{ name: "Sales", count: 4 }] }, headers: headers, as: :json
+
+    expect(engagement.reload.status).to eq("STAGE_1_PRICING")
+    expect(engagement.status_history.last).to include("by_type" => "ConsultantUser", "by_id" => consultant.id)
+  end
+
   it "sends an invitation again with a fresh link" do
     old = manager.reload.access_token_digest
     perform_enqueued_jobs { post "#{path}/participants/#{manager.id}/invite", headers: headers }

@@ -108,6 +108,18 @@ RSpec.describe "Company onboarding form", type: :request do
       expect(company.reload.portal_onboarding_completed_at).to be_present
     end
 
+    # After hand-over the scope card, consultant or platform settle the plan, and
+    # Stage 1 is priced from it (Doc 08 §13, Doc 17 §2.1); the form mustn't undo that.
+    it "leaves the plan alone when the form is saved again after hand-over" do
+      submit(complete)
+      engagement.reload.update!(planned_departments: [{ "name" => "Sales", "count" => 3 }])
+
+      save_group(p1_departments: %w[Sales Finance], p2_department_counts: { "Sales" => "Not sure" })
+
+      expect(response).to have_http_status(:ok)
+      expect(engagement.reload.planned_departments).to eq([{ "name" => "Sales", "count" => 3 }])
+    end
+
     # Counts may be "Not sure" here; they are settled before pricing (Doc 07 §10).
     it "accepts departments whose numbers aren't known yet" do
       submit(complete)

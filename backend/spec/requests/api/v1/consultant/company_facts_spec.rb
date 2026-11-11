@@ -54,6 +54,18 @@ RSpec.describe "Consultant: correcting a company's facts", type: :request do
     expect(engagement.reload.planned_departments).to eq([])
   end
 
+  it "doesn't put the onboarding counts back over a plan settled after hand-over" do
+    company.update!(questionnaire_answers: company.questionnaire_answers.merge(
+      "p1_departments" => %w[Sales], "p2_department_counts" => { "Sales" => "Not sure" }
+    ))
+    engagement.update!(planned_departments: [{ "name" => "Sales", "count" => 4 }])
+
+    save(o02_headcount: "51–200")
+
+    expect(response).to have_http_status(:ok)
+    expect(engagement.reload.planned_departments).to eq([{ "name" => "Sales", "count" => 4 }])
+  end
+
   it "turns a confirmed website proposal for that field into a correction" do
     candidate = create_candidate(target_field: "industry", status: "CONFIRMED")
     company.update!(profile_provenance: company.profile_provenance.merge(

@@ -81,6 +81,18 @@ RSpec.describe Engagements::Transition do
       expect(engagement.status_history.last).to include("from" => "KEY_PERSON_DISCOVERY", "to" => "STAGE_1_PRICING")
     end
 
+    # Two hand-overs at once — the key user finishing as a consultant settles the
+    # counts — each pass the checks; only the first may record the move.
+    it "records the move once when two callers make it at the same time" do
+      engagement.update!(planned_departments: [{ "name" => "Sales", "count" => 2 }])
+      stale = Engagement.find(engagement.id)
+      move("STAGE_1_PRICING", actor: key_user)
+
+      described_class.call(engagement: stale, to: "STAGE_1_PRICING", actor: key_user)
+
+      expect(engagement.reload.status_history.count { |h| h["to"] == "STAGE_1_PRICING" }).to eq(1)
+    end
+
     it "lets a Mjadi user move it on regardless, with a reason" do
       move("STAGE_1_PRICING", actor: create(:platform_user), reason: "Counts agreed by phone", force: true)
       expect(engagement.reload.status).to eq("STAGE_1_PRICING")

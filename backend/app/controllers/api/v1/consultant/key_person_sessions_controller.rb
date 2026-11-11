@@ -98,7 +98,7 @@ module Api
           return render json: { error: "Choose at least one department" }, status: :unprocessable_entity if planned.empty?
 
           @engagement.update!(planned_departments: planned)
-          KeyPerson::Completion.hand_over_to_pricing(@engagement)
+          KeyPerson::Completion.hand_over_to_pricing(@engagement, actor: current_consultant_user)
           render json: KeyPerson::ConsultantView.new(@engagement.reload).json
         end
 

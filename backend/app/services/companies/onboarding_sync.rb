@@ -98,9 +98,16 @@ module Companies
       picked + split(@answers["o08_systems_other"])
     end
 
+    # The form owns the plan only until onboarding is handed over. After that the
+    # scope card, the consultant and the platform settle it (Doc 08 §13), and
+    # Stage 1 is priced from it (Doc 17 §2.1), so a later save of the form — or a
+    # consultant correcting a fact, which re-runs this with the stored answers —
+    # must not put the onboarding counts back.
+    PLAN_FROM_FORM = %w[SET_UP ONBOARDING].freeze
+
     def sync_planned_departments!
       engagement = @company.current_engagement
-      return unless engagement && answered?("p1_departments")
+      return unless engagement && PLAN_FROM_FORM.include?(engagement.status) && answered?("p1_departments")
 
       departments = F.not_sure?(@answers["p1_departments"]) ? [] : Array(@answers["p1_departments"])
       counts = @answers["p2_department_counts"].is_a?(Hash) ? @answers["p2_department_counts"] : {}
