@@ -154,18 +154,26 @@ module Reports
     end
 
     # Every total must equal the rows beneath it: role = its findings, department =
-    # its roles, company = its departments, priority = the findings it names.
+    # its roles, company = its departments, priority = the findings it names. A
+    # finding counted with another (shared work, Doc 10 §10.3) adds nothing.
     def check_totals
       view = @snapshot["findings"]
       return unless view.is_a?(Hash)
 
       sum = ->(rows) { [rows.sum { |r| r["hours_min"].to_i }, rows.sum { |r| r["hours_max"].to_i }] }
+      # In a role, a finding counted with another never adds; in a priority, only
+      # when the one it is counted with is in the same priority.
+      in_role = ->(rows) { sum.call(rows.reject { |r| r["counted_in"] }) }
+      in_theme = lambda do |rows|
+        ids = rows.map { |r| r["id"] }
+        sum.call(rows.reject { |r| r["counted_in"] && ids.include?(r["counted_in"]["id"]) })
+      end
       pair = ->(row) { [row["hours_min"].to_i, row["hours_max"].to_i] }
       broken = []
       departments = Array(view["departments"])
       departments.each do |department|
         department["roles"].each do |role|
-          broken << role["title"] if pair.call(role) != sum.call(role["findings"])
+          broken << role["title"] if pair.call(role) != in_role.call(role["findings"])
         end
         broken << department["name"] if pair.call(department) != sum.call(department["roles"])
       end
@@ -175,7 +183,7 @@ module Reports
       Array(@snapshot["priorities"]).each do |priority|
         members = Array(priority["finding_ids"]).filter_map { |id| by_id[id] }
         broken << "priority “#{priority['title']}”" if members.size != Array(priority["finding_ids"]).size ||
-                                                      pair.call(priority) != sum.call(members)
+                                                      pair.call(priority) != in_theme.call(members)
       end
       return if broken.empty?
 

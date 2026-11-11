@@ -15,6 +15,12 @@ module Findings
   #   - never an unreviewed finding about a role only one person holds, because it
   #     describes that person. Those are counted in `withheld` for the consultant,
   #     not shown.
+  #
+  # Shared work a consultant confirmed in synthesis (Doc 10 §10.3) is counted
+  # once: where two findings describe the same execution, the one synthesis
+  # set aside keeps its row and its own figures but is marked as counted with
+  # the other, and no total adds it again. Each finding in shared work spanning
+  # departments points to where else it appears (Doc 15 §4.5).
   class ForReport
     CONFIDENCE = 0.6
 
@@ -42,6 +48,7 @@ module Findings
       departments = pool_small_roles(departments) if @company.merged_settings["report_small_roles"] != "show"
       departments.sort_by! { |d| [-d["hours_max"].to_i, d["name"]] }
       attach_links(departments)
+      attach_shared_work(departments)
 
       all = departments.flat_map { |d| d["roles"] }.flat_map { |r| r["findings"] }
       {
@@ -115,6 +122,7 @@ module Findings
           "people" => people,
           "confidence" => f.confidence,
           "basis" => f.basis,
+          **counted_once(f),
           # Only a cause and direction drafted from the wording shown here, or the
           # consultant's own; a draft for wording since changed is left out.
           **cause_and_direction(f)
@@ -196,8 +204,52 @@ module Findings
         "potential" => nil, "pooled" => true }.merge(range(findings))
     end
 
+    # Confirmed shared work, by finding: the cluster it is in, and for a finding
+    # synthesis set aside as the same execution as another, which one stands.
+    def shared_work
+      @shared_work ||= begin
+        engagement = @company.current_engagement
+        clusters = engagement ? ProcessCluster.current.approved.where(engagement: engagement)
+                                              .includes(:members, :effort_normalization).to_a : []
+        counted_in = {}
+        clusters.each do |cluster|
+          Array(cluster.effort_normalization&.overlap_adjustments).each do |adjustment|
+            next unless adjustment["removed_item_id"] && adjustment["kept_item_id"]
+
+            counted_in[adjustment["removed_item_id"]] = adjustment["kept_item_id"]
+          end
+        end
+        { clusters: clusters, cluster_of: clusters.flat_map { |c| c.finding_ids.map { |id| [id, c] } }.to_h,
+          counted_in: counted_in }
+      end
+    end
+
+    # Only when both findings are shown: counting a finding "with" one the
+    # client can't see would hide its hours altogether.
+    def counted_once(finding)
+      cluster = shared_work[:cluster_of][finding.id]
+      return {} unless cluster
+
+      kept = shown_findings.find { |f| f.id == shared_work[:counted_in][finding.id] }
+      { "shared_work" => cluster.name, "shared_work_key" => cluster.cluster_key, "deduplication_applied" => true,
+        "counted_in" => kept && { "id" => kept.id, "title" => kept.display_title.to_s.upcase_first } }.compact
+    end
+
+    # Where else the same shared work appears, as the report shows it: read after
+    # pooling, so a row pooled across the company carries no department here
+    # either.
+    def attach_shared_work(departments)
+      rows = departments.flat_map { |d| d["roles"].flat_map { |r| r["findings"] } }
+      rows.group_by { |r| r["shared_work_key"] }.except(nil).each_value do |group|
+        group.each do |row|
+          row["also_in"] = (group - [row]).select { |o| o["department"].present? && o["department"] != row["department"] }
+                                         .map { |o| o.slice("id", "title", "department") }
+        end
+      end
+    end
+
     def range(findings)
-      quantified = findings.select { |f| f["hours_min"] }
+      quantified = findings.select { |f| f["hours_min"] && f["counted_in"].nil? }
       return { "hours_min" => nil, "hours_max" => nil } if quantified.empty?
 
       out = { "hours_min" => quantified.sum { |f| f["hours_min"] }, "hours_max" => quantified.sum { |f| f["hours_max"] } }

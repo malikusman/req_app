@@ -16,6 +16,7 @@ module Reports
       intel = Intelligence::SnapshotBuilder.call(company: @company)
 
       @findings_view = Findings::ForReport.new(company: @company)
+      @synthesis = synthesis_json
       snapshot = base_snapshot(docs_first, intel)
       apply_narrative!(snapshot)
       # Roadmap is LLM-written when available, else derived from recommendation
@@ -52,13 +53,18 @@ module Reports
         "findings" => findings_json,
         # Where to act first, grouped from the findings; hours summed from them.
         "priorities" => priorities_json,
-        # What a reader might expect us to suggest, and why we don't, for this company.
-        "not_recommended" => @not_recommended || [],
+        # What a reader might expect us to suggest, and why we don't, for this company
+        # — including opportunities a consultant marked not recommended in synthesis.
+        "not_recommended" => (@not_recommended || []) + Array(@synthesis["not_recommended"]),
+        # What synthesis concluded, as far as a consultant approved it (Doc 10, Doc 15
+        # §4.4, §8.4). Empty until then.
+        "synthesis" => @synthesis.except("not_recommended"),
         "coverage" => coverage_json(intel),
         "layout" => { "signals" => signals_placement, "stage2_previews" => stage2_previews },
         "situation" => situation_json(docs_first),
         "signals" => signals_json,
-        "patterns" => patterns_json,
+        # Synthesis's approved conclusions replace the older keyword patterns.
+        "patterns" => synthesis_concluded? ? [] : patterns_json,
         "implications" => implications_json,
         "key_metrics" => key_metrics_json,
         "recommendations" => recommendations_json,
@@ -304,6 +310,15 @@ module Reports
         }
       end
     end
+
+    def synthesis_json
+      Synthesis::ForReport.call(@company)
+    rescue StandardError => e
+      Rails.logger.warn("[Reports::SnapshotBuilder] synthesis skipped: #{e.class}: #{e.message}")
+      {}
+    end
+
+    def synthesis_concluded? = Array(@synthesis["opportunities"]).any? || Array(@synthesis["root_causes"]).any?
 
     def patterns_json
       signals_by_id = @company.company_signals.index_by(&:id)

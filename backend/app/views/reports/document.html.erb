@@ -64,6 +64,10 @@
   <%= ai_or_edit.call("company_context", true, -> { render "reports/company_context", snapshot: snapshot, report_version: report_version }) %>
 <% end %>
 <%= custom_after.call("company_context") %>
+<%# How the business runs today (Doc 15 §4.4), once a consultant approved it. %>
+<% unless report_section_hidden?(snapshot, "company_context") %>
+  <%= render "reports/operating_picture", snapshot: snapshot %>
+<% end %>
 
 <%# Findings by role: the unit the report is built from — role by role, task by
     task, with the hours each costs. Everything after it (patterns, actions) is read
@@ -83,6 +87,10 @@
           "<strong>#{findings_totals['findings']}</strong> #{'finding'.pluralize(findings_totals['findings'].to_i)} across <strong>#{findings_totals['roles']}</strong> #{'role'.pluralize(findings_totals['roles'].to_i)}.".html_safe
         ].compact %>
   <%= ai_or_edit.call("role_findings", true, -> { render "reports/role_findings", snapshot: snapshot, report_version: report_version }) %>
+  <%# Shared work and causes, inside the findings rather than a section of their own (Doc 00 C7). %>
+  <% unless section_edited.call("role_findings") %>
+    <%= render "reports/shared_work", snapshot: snapshot %>
+  <% end %>
 <% end %>
 <%= custom_after.call("role_findings") %>
 

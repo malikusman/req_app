@@ -1,0 +1,40 @@
+<% company_name = snapshot.dig("company", "name") %>
+<% picture = snapshot.dig("synthesis", "operating_picture") || {} %>
+<%# How the business runs today (Doc 15 §4.4): the consultant-approved operating
+    picture from synthesis. Descriptive only — no criticism, no recommendations. %>
+<% if picture["how_the_business_runs"].present? %>
+<section class="page" id="operating-picture">
+  <div class="eyebrow">How the business runs today</div>
+  <h1 class="page-title">How work moves through <%= h company_name %></h1>
+  <p class="lead"><%= h picture["how_the_business_runs"] %></p>
+  <% departments = Array(picture["departments"]).select { |d| d["name"].present? } %>
+  <% if departments.any? %>
+    <h3 style="margin-top:5mm;">What each part of the business does</h3>
+    <ul class="plain" style="padding-left:4mm;">
+      <% departments.each do |d| %>
+        <li><strong><%= h d["name"] %></strong><%= " — #{d['what_it_does']}" if d["what_it_does"].present? %><% if Array(d["main_systems"]).any? %> <span class="muted">(<%= h Array(d["main_systems"]).join(", ") %>)</span><% end %></li>
+      <% end %>
+    </ul>
+  <% end %>
+  <% flows = Array(picture["work_flows_between"]) %>
+  <% if flows.any? %>
+    <h3 style="margin-top:5mm;">How work passes between them</h3>
+    <ul class="plain" style="padding-left:4mm;">
+      <% flows.each do |f| %>
+        <li><%= h f["from"] %> → <%= h f["to"] %>: <%= h f["what_moves"] %><%= " (#{f['how']})" if f["how"].present? %></li>
+      <% end %>
+    </ul>
+  <% end %>
+  <% places = Array(picture["where_information_lives"]) %>
+  <% if places.any? %>
+    <h3 style="margin-top:5mm;">Where information lives</h3>
+    <p><%= h places.to_sentence %>.</p>
+  <% end %>
+  <% ai = Array(picture["ai_and_automation_in_use"]) %>
+  <% if ai.any? %>
+    <h3 style="margin-top:5mm;">AI and automation already in use</h3>
+    <p><%= h ai.to_sentence %>.</p>
+  <% end %>
+  <%= render "reports/page_footer", company_name: company_name %>
+</section>
+<% end %>

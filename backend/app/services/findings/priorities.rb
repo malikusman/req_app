@@ -150,7 +150,8 @@ module Findings
 
     def theme(title:, what:, ids:, goal:)
       members = ids.map { |id| @by_id[id] }
-      quantified = members.select { |f| f["hours_min"] }
+      # A finding counted with another in the same theme (shared work) adds nothing.
+      quantified = members.select { |f| f["hours_min"] && !(f["counted_in"] && ids.include?(f["counted_in"]["id"])) }
       {
         "title" => title,
         "what" => what,
