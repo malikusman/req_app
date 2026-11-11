@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_11_12_090000) do
+ActiveRecord::Schema[7.1].define(version: 2026_11_12_100000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -1142,6 +1142,42 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_12_090000) do
     t.index ["jti"], name: "index_platform_users_on_jti", unique: true
   end
 
+  create_table "process_cluster_memberships", force: :cascade do |t|
+    t.bigint "process_cluster_revision_id", null: false
+    t.bigint "task_source_id", null: false
+    t.jsonb "effort_observations", default: [], null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["process_cluster_revision_id", "task_source_id"], name: "index_process_cluster_memberships_on_revision_and_source", unique: true
+    t.index ["process_cluster_revision_id"], name: "idx_on_process_cluster_revision_id_1102843480"
+    t.index ["task_source_id"], name: "index_process_cluster_memberships_on_task_source_id"
+  end
+
+  create_table "process_cluster_revisions", force: :cascade do |t|
+    t.bigint "process_cluster_id", null: false
+    t.integer "number", null: false
+    t.string "status", null: false
+    t.string "confidence", null: false
+    t.text "rationale", null: false
+    t.string "fingerprint", null: false
+    t.jsonb "relationships", default: [], null: false
+    t.jsonb "effort_summary", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["process_cluster_id", "number"], name: "idx_on_process_cluster_id_number_451f5bf844", unique: true
+    t.index ["process_cluster_id"], name: "index_process_cluster_revisions_on_process_cluster_id"
+  end
+
+  create_table "process_clusters", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.string "anchor_key", null: false
+    t.boolean "active", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id", "anchor_key"], name: "index_process_clusters_on_company_id_and_anchor_key", unique: true
+    t.index ["company_id"], name: "index_process_clusters_on_company_id"
+  end
+
   create_table "recommendation_feedbacks", force: :cascade do |t|
     t.bigint "recommendation_id", null: false
     t.bigint "company_user_id", null: false
@@ -1565,6 +1601,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_12_090000) do
   add_foreign_key "notifications", "companies"
   add_foreign_key "patterns", "companies"
   add_foreign_key "platform_audit_logs", "platform_users"
+  add_foreign_key "process_cluster_memberships", "process_cluster_revisions", on_delete: :cascade
+  add_foreign_key "process_cluster_memberships", "task_sources", on_delete: :cascade
+  add_foreign_key "process_cluster_revisions", "process_clusters", on_delete: :cascade
+  add_foreign_key "process_clusters", "companies", on_delete: :cascade
   add_foreign_key "recommendation_feedbacks", "company_users"
   add_foreign_key "recommendation_feedbacks", "recommendations"
   add_foreign_key "recommendations", "companies"
