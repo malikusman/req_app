@@ -98,7 +98,8 @@ RSpec.describe "Consultant view of the leadership conversations", type: :request
                                capture: { "statements" => [{ "domain" => "STRATEGIC_OBJECTIVES", "statement" => "Wants to grow.", "evidence" => "t1" }] })
     engagement.update!(planned_departments: [{ "name" => "Sales", "count" => 2 }])
 
-    perform_enqueued_jobs { post "#{path}/participants/#{own.id}/close", headers: headers }
+    # P24 isn't what this is about; the fake model here only speaks for P02–P04.
+    perform_enqueued_jobs(except: ExplainStage1QuoteJob) { post "#{path}/participants/#{own.id}/close", headers: headers }
 
     expect(session.reload).to have_attributes(state: "ABANDONED", close_reason: "ABANDONED")
     expect(own.reload.participation_status).to eq("ABANDONED")

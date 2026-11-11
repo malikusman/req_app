@@ -9,8 +9,9 @@ class AiRun < ApplicationRecord
   belongs_to :engagement, optional: true
   belongs_to :subject, polymorphic: true, optional: true
 
-  # P02 interviewer, P03 turn capture, P04 findings and context.
-  STAGES = %w[P02 P03 P04].freeze
+  # P02 interviewer, P03 turn capture, P04 findings and context, P24 Stage 1
+  # price explainer.
+  STAGES = %w[P02 P03 P04 P24].freeze
   # RETRIED: worked on a second attempt. FALLBACK: the platform used its own
   # safe output instead. FAILED: nothing usable, and no fallback applies.
   STATUSES = %w[OK RETRIED FALLBACK FAILED].freeze

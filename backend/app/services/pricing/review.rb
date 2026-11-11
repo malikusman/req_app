@@ -62,6 +62,7 @@ module Pricing
                                                 reason: reason, free_text: free_text.presence }.compact)
       end
       audit!("stage1_quote_adjusted", new_quote, reason: reason, subtotal: new_quote.subtotal.to_s("F"))
+      ExplainStage1QuoteJob.perform_later(new_quote.id)
       new_quote
     end
 

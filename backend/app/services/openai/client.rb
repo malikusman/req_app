@@ -747,6 +747,24 @@ module Openai
       )
     end
 
+    # P24: the administrator's explanation of a Stage 1 fee and the client's
+    # scope statement, written from figures the platform computed (Doc 17 §16).
+    STAGE1_PRICE_EXPLAINER_PROMPT_VERSION = "P24.v1"
+
+    def stage1_price_explanation(system:, context:)
+      raise Error, "No model configured" unless configured?
+
+      chat_with_meta(
+        {
+          model: ENV.fetch("PRICING_EXPLAINER_MODEL", ENV.fetch("OPENAI_MODEL", "gpt-4o-mini")),
+          messages: [{ role: "system", content: system }, { role: "user", content: context }],
+          temperature: 0.2,
+          max_tokens: chat_max_tokens(3000)
+        },
+        json: true
+      )
+    end
+
     # Parses a JSON reply the way every other step does: reasoning channels and
     # code fences stripped, the first object found if there is prose around it.
     def parse_reply(content)

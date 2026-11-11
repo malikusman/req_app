@@ -107,10 +107,12 @@ module Pricing
       quote
     end
 
-    # A new quote from the platform, not from the administrator's own hand,
-    # waits for them (Doc 21 §42).
+    # Each new version is explained by P24. One from the platform, not from the
+    # administrator's own hand, waits for them (Doc 21 §42).
     def announce(result)
       return unless result.fresh
+
+      ExplainStage1QuoteJob.perform_later(result.quote.id)
       return if @actor.is_a?(PlatformUser)
 
       PricingMailer.quote_awaiting_approval(result.quote).deliver_later
