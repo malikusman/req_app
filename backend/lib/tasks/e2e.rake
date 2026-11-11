@@ -274,4 +274,96 @@ namespace :e2e do
     puts "Seeded #{email} / #{password} (company ##{company.id}, engagement ##{engagement.id}, " \
          "quote ##{quote.id}, explained by #{quote.reload.explanation_source})"
   end
+
+  desc "Seed an engagement with scripted synthesis to review, for e2e/synthesis.spec.ts"
+  task seed_synthesis: :environment do
+    abort "Refusing to run in production" if Rails.env.production?
+
+    email = ENV.fetch("E2E_SYNTHESIS_EMAIL", "synthesis-e2e@mjadi.test")
+    password = ENV.fetch("E2E_SYNTHESIS_PASSWORD", "SynthesisE2E123!")
+
+    company = Company.find_or_create_by!(slug: "synthesis-e2e") do |c|
+      c.name = "Synthesis E2E Co"
+      c.display_name = "Synthesis E2E Co"
+      c.locale = "en"
+    end
+    engagement_ids = company.engagements.pluck(:id)
+    # Synthesis keeps everything; clear this company's so the seed starts clean.
+    SynthesisDecision.where(engagement_id: engagement_ids).delete_all
+    EffortNormalization.where(engagement_id: engagement_ids).delete_all
+    ProcessClusterMember.where(process_cluster_id: ProcessCluster.where(engagement_id: engagement_ids).select(:id)).delete_all
+    [ProcessCluster, ProcessRelationship, ConsultancyOpportunity, RootCause, ManagementValidation].each do |model|
+      model.where(engagement_id: engagement_ids).delete_all
+    end
+    AiRun.where(engagement_id: engagement_ids).delete_all
+    SynthesisRun.where(engagement_id: engagement_ids).delete_all
+    company.subscription&.destroy!
+    company.engagements.destroy_all
+    company.findings.delete_all
+    company.employees.destroy_all
+    company.update!(
+      approval_status: "approved", portal_onboarding_completed_at: Time.current,
+      company_profile: { "industry" => "wholesale_distribution", "country" => "United Arab Emirates",
+                         "org_departments" => %w[Sales Procurement Finance] },
+      settings: Company::DEFAULT_SETTINGS.merge("synthesis_scripted_replies" => true)
+    )
+
+    user = CompanyUser.find_or_initialize_by(email: email)
+    user.assign_attributes(company: company, name: "Huda Saleh", role: "company_admin", status: "active",
+                           password: password, onboarding_completed_at: Time.current, job_title: "General Manager")
+    user.save!
+
+    consultant = ConsultantUser.find_by(email: "consultant@reqapp.local")
+    if consultant
+      assignment = ConsultantAssignment.find_or_initialize_by(company: company, consultant_user: consultant)
+      assignment.assigned_by_platform_user ||= PlatformUser.find_by(email: "admin@reqapp.local")
+      assignment.assigned_at ||= Time.current
+      assignment.update!(status: "active")
+    end
+
+    engagement = company.engagements.create!(
+      status: "STAGE_1_ACTIVE", scope_type: "COMPANY", languages: %w[en], key_user: user, lead_consultant: consultant,
+      onboarding_submitted_at: Time.current, confidentiality_acknowledged_at: Time.current,
+      planned_departments: [{ "name" => "Sales", "count" => 3 }, { "name" => "Procurement", "count" => 1 },
+                            { "name" => "Finance", "count" => 1 }],
+      status_history: [{ "from" => nil, "to" => "STAGE_1_ACTIVE", "at" => Time.current.iso8601, "reason" => "e2e seed" }]
+    )
+
+    quote_work = "Check stock and the price list, fill the quotation template and email it to the customer"
+    [["Sales Coordinator", "Sales", [150, 200]], ["Sales Coordinator", "Sales", [120, 160]],
+     ["Sales Coordinator", "Sales", [100, 140]], ["Buyer", "Procurement", [60, 90]]].each_with_index do |(role, dept, hours), i|
+      employee = company.employees.create!(display_name: "E2E Person #{i + 1}", role_title: role, department: dept,
+                                           phone_e164: "+97150990#{format('%04d', i)}", participation_status: "completed",
+                                           onboarding_step: "verified", preferred_language: "en")
+      company.findings.create!(
+        employee: employee, source_key: "synthesis-e2e-#{i}", department: dept, role_title: role,
+        area: role == "Buyer" ? "Supplier prices" : "Preparing quotes",
+        title: role == "Buyer" ? "Entering supplier prices" : "Preparing quotes",
+        what_happens_now: role == "Buyer" ? "Key supplier price sheets into the ERP every week" : quote_work,
+        friction: role == "Buyer" ? "Every supplier sends a different format" : "The price list is often out of date",
+        annual_hours_min: hours.first, annual_hours_max: hours.last, status: "draft"
+      )
+    end
+
+    owner = engagement.participants.create!(company: company, participant_type: "KEY_PERSON", name: "Huda Saleh",
+                                            persona: "CEO_OWNER_MD", participation_status: "COMPLETED")
+    session = ConversationSession.create!(company: company, engagement: engagement, participant: owner,
+                                          session_type: "KEY_PERSON", state: "COMPLETE")
+    context = ManagementDiscoveryContext.create!(
+      company: company, engagement: engagement, participant: owner, session: session, status: "COMPLETE",
+      schema_version: "MDC.v1", persona: "CEO_OWNER_MD",
+      content: { "concerns" => [{ "text" => "Quotes take too long to reach customers", "evidence" => ["t2"] }] },
+      consultant_private: { "political_context" => { "decision_makers" => [{ "note" => "SENTINEL-POLITICS" }] } }
+    )
+    context.strategic_findings.create!(company: company, engagement: engagement, category: "PROCESS", scope: "DEPARTMENT",
+                                       statement: "Quotes take too long to reach customers", source_basis: "MANAGEMENT_STATEMENT",
+                                       fact_status: "REPORTED", management_importance: "HIGH", evidence: ["t2"])
+
+    run = SynthesisRun.create!(company: company, engagement: engagement, version: 1, trigger: "MANUAL",
+                               requested_at: Time.current)
+    Synthesis::Run.call(run)
+    puts "Seeded #{email} / #{password} (company ##{company.id}, engagement ##{engagement.id}, synthesis " \
+         "#{run.reload.status}: #{ProcessCluster.current.where(engagement: engagement).count} cluster(s), " \
+         "#{ConsultancyOpportunity.current.where(engagement: engagement).count} opportunity(ies))"
+  end
 end

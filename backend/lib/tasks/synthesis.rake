@@ -1,6 +1,13 @@
 # frozen_string_literal: true
 
+require_relative "../synthesis_eval"
+
 namespace :synthesis do
+  desc "Play the consolidation and synthesis benchmark against the configured model. ONLY=name REAL=1"
+  task eval: :environment do
+    SynthesisEval.call
+  end
+
   # Runs consolidation and synthesis now for one company's current engagement,
   # in this process — for a consultant who doesn't want to wait for the
   # debounce, and for checking the real model against real evidence.

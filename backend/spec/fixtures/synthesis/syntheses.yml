@@ -1,0 +1,84 @@
+# P11 benchmark engagements (P11 §11, Doc 20 §16). Each is a small engagement:
+# findings, optionally leadership's concerns and planned initiatives. The whole
+# pass runs; the expectations are about what synthesis concludes.
+
+- name: one_integration_gap
+  departments: [Procurement, Sales, E-commerce]
+  items:
+    - { name: Omar Siddiqui, role: Buyer, department: Procurement, title: Entering supplier prices, hours: [130, 170],
+        what: "I key supplier price sheets into the ERP every week.", friction: "Different formats from each supplier." }
+    - { name: Rania Saleh, role: Sales Coordinator, department: Sales, title: Keeping a price sheet for quotes, hours: [80, 110],
+        what: "I keep our own price spreadsheet from the supplier sheets because the ERP is not trusted.", friction: "Prices drift apart." }
+    - { name: Huda Karim, role: E-commerce Executive, department: E-commerce, title: Updating online prices, hours: [60, 90],
+        what: "I update the online store prices by hand from the same supplier sheets.", friction: "Customers see old prices." }
+  leadership:
+    - { statement: "Pricing errors reach customers", importance: HIGH, category: DATA }
+  expect: { root_causes: "1..3", some_opportunity_level_in: [CROSS_DEPARTMENT, COMPANY_WIDE], verdict_in: [SUPPORTED, PARTLY_SUPPORTED] }
+
+- name: unrelated_problems
+  departments: [Logistics, HR, Marketing]
+  items:
+    - { role: Driver, department: Logistics, title: Fuel logs, hours: [30, 50],
+        what: "I write fuel receipts into a paper log each evening.", friction: "Receipts get lost." }
+    - { role: HR Officer, department: HR, title: Leave requests, hours: [40, 60],
+        what: "Leave requests come on paper forms that I type into a spreadsheet.", friction: "Managers sign late." }
+    - { role: Marketing Executive, department: Marketing, title: Product photos, hours: [50, 70],
+        what: "I resize product photos for the website one by one.", friction: "Hundreds of photos each season." }
+  expect: { root_causes: "0..1" }
+
+- name: shared_by_five
+  departments: [Sales]
+  items:
+    - { role: Sales Coordinator, department: Sales, title: Preparing quotes, hours: [150, 200], what: "Check stock and the price list, fill the quotation template and email it.", friction: "Price list out of date." }
+    - { role: Sales Coordinator, department: Sales, title: Preparing quotes, hours: [140, 190], what: "Check stock and the price list, fill the quotation template and email it.", friction: "Price list out of date." }
+    - { role: Sales Coordinator, department: Sales, title: Preparing quotes, hours: [120, 170], what: "Check stock and the price list, fill the quotation template and email it.", friction: "Price list out of date." }
+    - { role: Sales Coordinator, department: Sales, title: Preparing quotes, hours: [160, 210], what: "Check stock and the price list, fill the quotation template and email it.", friction: "Price list out of date." }
+    - { role: Sales Coordinator, department: Sales, title: Preparing quotes, hours: [130, 180], what: "Check stock and the price list, fill the quotation template and email it.", friction: "Price list out of date." }
+  expect: { some_opportunity_level_in: [SHARED_TASK, PROCESS, DEPARTMENT], no_company_wide: true }
+
+- name: erp_in_three_months
+  departments: [Finance, Procurement]
+  items:
+    - { role: Accounts Clerk, department: Finance, title: Matching invoices to purchase orders, hours: [200, 260],
+        what: "I match supplier invoices to purchase orders by hand between the old accounting system and Excel.", friction: "No link between the two systems." }
+    - { role: Buyer, department: Procurement, title: Re-keying purchase orders, hours: [100, 150],
+        what: "I re-key purchase orders from Excel into the old accounting system.", friction: "Double entry." }
+  initiatives:
+    - { type: ERP, description: "Confirmed replacement of the accounting system with a new ERP covering purchasing and invoices", timing: "In three months", status: CONFIRMED, affected_areas: [Finance, Procurement] }
+  expect: { some_next_action_in: [DEFER] }
+
+- name: management_blames_finance
+  departments: [Finance, Sales]
+  items:
+    - { role: Accounts Clerk, department: Finance, title: Waiting for invoice approvals, hours: [60, 90],
+        what: "I can't post customer invoices until sales managers approve the discounts, which takes days.", friction: "Approvals wait in managers' email." }
+    - { role: Sales Manager, department: Sales, title: Approving discounts, hours: [80, 120],
+        what: "I approve every discount by email before finance can invoice.", friction: "Dozens a week, all by email." }
+  leadership:
+    - { statement: "Finance is slow to close the month", importance: HIGH, category: PROCESS }
+  expect: { verdict_in: [POINTS_ELSEWHERE, PARTLY_SUPPORTED] }
+
+- name: training_is_the_answer
+  departments: [Operations]
+  items:
+    - { role: Planner, department: Operations, title: Building the weekly plan, hours: [100, 140],
+        what: "I build the weekly plan in Excel by copying rows by hand because I don't know how to use lookups or pivot tables.", friction: "Nobody showed me how to use Excel properly." }
+    - { role: Planner, department: Operations, title: Monthly summary, hours: [40, 60],
+        what: "I add up the month by hand from the weekly sheets because I don't know the Excel formulas.", friction: "Mistakes when adding up." }
+  expect: { some_ai_relevance_none_or_training: true }
+
+- name: one_department_only
+  departments: [Sales, Finance, Operations]
+  items:
+    - { role: Sales Coordinator, department: Sales, title: Preparing quotes, hours: [150, 200], what: "Check stock and prices, fill the template, email it.", friction: "Prices out of date." }
+    - { role: Sales Administrator, department: Sales, title: Following up quotes, hours: [60, 90], what: "Call customers who haven't replied to a quote.", friction: "No list of open quotes." }
+  expect: { coverage_note: true, no_company_wide: true }
+
+- name: supported_concern
+  departments: [Sales]
+  items:
+    - { role: Sales Coordinator, department: Sales, title: Preparing quotes, hours: [150, 200],
+        what: "Each quote takes most of a day because stock and prices have to be checked by phone.", friction: "Customers wait two days for a quote." }
+  leadership:
+    - { statement: "Quotes take too long to reach customers", importance: HIGH, category: PROCESS }
+  expect: { verdict_in: [SUPPORTED, PARTLY_SUPPORTED] }

@@ -26,6 +26,8 @@ For the interview's design rationale see also
 11. [Flow 7 — company intelligence](#11-flow-7--company-intelligence)
 12. [Flow 8 — findings to the client's report](#12-flow-8--findings-to-the-clients-report)
     - [Flow 9 — the conversation with leadership](#12a-flow-9--the-conversation-with-leadership)
+    - [Flow 10 — Stage 1 pricing](#12b-flow-10--stage-1-pricing)
+    - [Flow 11 — consolidation and synthesis](#12c-flow-11--consolidation-and-synthesis)
 13. [How the agents collaborate](#13-how-the-agents-collaborate)
 14. [Reliability, safety and failure modes](#14-reliability-safety-and-failure-modes)
 15. [Models and configuration](#15-models-and-configuration)
@@ -169,6 +171,8 @@ flowchart LR
 | 19 | **Leadership turn capture** (P03) | Rails `KeyPerson::Capture` | every answer in a conversation with leadership, before the next question | 1 JSON call (one retry for invalid JSON) | which of the 16 areas the answer covered, graded against the previous question's area; statements (`REPORTED`); planned changes, people, documents, profile facts, numbers as said; sensitive and political notes kept apart. Code keeps only valid enums and items citing this turn, and moves any statement criticising a named person to `sensitive` | nothing captured: the area counts as not filled and may be asked again (P03 §9) |
 | 20 | **Leadership context and findings** (P04) | Rails `KeyPerson::ContextBuilder` (`KeyPersonContextJob`) | a conversation with leadership finishing, or a consultant closing it | 1 JSON call (one retry) | the person's `ManagementDiscoveryContext`, `StrategicFinding`s, `PlannedInitiative`s, political context (consultant only) and neutral lines that may reach staff. Code drops items citing turns that don't exist, findings that name a person, prescribe a solution or carry a figure not in the transcript, and neutral lines that attribute views, name someone, suggest a solution or carry a number | built from the turn captures alone, marked `INCOMPLETE` and flagged for the consultant (P04 §9) |
 | 21 | **Stage 1 price explainer** (P24) | Rails `Pricing::Explainer` (`ExplainStage1QuoteJob`) | each new version of a Stage 1 quote | 1 JSON call (one retry for invalid JSON) | for the administrator: what drove the fee, where the consultant hours go, comparables, margin note, confidence, what could make it wrong; for the client: the scope statement (included, not included, participants, deliverable, extra-person rate, what happens next). `Pricing::ExplanationValidator` drops the reply if any amount isn't one the platform computed, the client's text carries anything internal or AI/methodology words, anything reads as a discount, or flagged risks go unnamed. Never writes to a quote that has left the administrator | the computed derivation for the administrator and `Pricing::ScopeTemplate` for the client; the quote can still be approved (P24 §7) |
+| 22 | **Process relationship classifier** (P10) | Rails `Synthesis::RelationshipClassifier` (`SynthesisRunJob`) | each pair of work items the platform shortlisted and hasn't judged in its current form | 1 JSON call per pair (one retry) | how two pieces of work relate (same process, duplicate, stage, shared sub-step, variant, shared cause, dependency, obsoleted, independent), with confidence, a clustering recommendation and whether it is the same execution — in words only. `Synthesis::RelationshipValidator` leans every correction towards keeping things apart: auto-cluster only at HIGH for the same process or a shared sub-step, nothing clusters at LOW, unrelated work never clusters, and any text with a figure is dropped | the pair is kept separate (`INDEPENDENT`) and queued for the consultant (P10 §8) |
+| 23 | **Synthesis** (P11) | Rails `Synthesis::Synthesizer` (`SynthesisRunJob`) | each synthesis run, after consolidation | 1 JSON call (one retry) | the operating picture, root causes, opportunities above task level with a next step, a verdict on each leadership concern, initiative conflicts, role potential and coverage notes. `Synthesis::SynthesisValidator` drops items citing nothing real, root causes explaining fewer than two things, capacity figures that aren't the platform's quoted exactly, designs, and text that names or describes a person or carries an ungrounded figure | findings and clusters pass forward unsynthesised; the run is `PARTIAL` and the last synthesis is carried forward (P11 §9) |
 
 Not model-backed, but central: the **dossier and area flow** (what to ask next and when
 to stop), **findings and hours**, **signal extraction** (keyword rules), the **report
@@ -574,6 +578,32 @@ client and consultant view — all are built from `Pricing::ClientQuoteView`'s f
 P24 sees the pricing context only (`Pricing::Stage1Context`), and nothing on the discovery
 side reads quotes.
 
+## 12C. Flow 11 — consolidation and synthesis
+
+Doc 10, prompts P10 and P11. All in Rails (`app/services/synthesis/`). Details are in
+[SYNTHESIS.md](SYNTHESIS.md).
+
+1. **Asked for.** An interview's findings being drafted, a leadership context being built,
+   or a consultant's change calls `SynthesisRunJob.request`. Runs are debounced, ten minutes
+   after the latest request, and there is one per engagement at a time.
+2. **Consolidated.** `Synthesis::Run` reads findings as work items, shortlists pairs in code,
+   and asks P10 about each new pair. It assembles clusters, keeping variants and leaving the
+   consultant's alone. `Synthesis::EffortNormalizer` then works out raw against
+   de-duplicated hours. The model never does the arithmetic.
+3. **Synthesised.** P11 reads clusters, figures, unclustered work, leadership's contexts and
+   strategic findings, and planned initiatives. It never sees anything consultant-private, a
+   transcript or a name. Its reply is checked and versioned; management importance and
+   platform priority are stored apart.
+4. **Reviewed.** The consultant decides on the Synthesis page (`Synthesis::Decide`). Every
+   decision has a reason and makes new versions; changes to effort re-run synthesis and
+   publish `synthesis.changed`.
+5. **Handed on.** The report reads only what was approved (`Synthesis::ForReport`); task
+   intelligence reads `Synthesis::ForTaskIntelligence`.
+
+**What never leaves:** nothing synthesis produced reaches employees, their interviews, the
+agent pack, the neutral line to staff, or the client's portal. The client sees approved
+content only inside a released report (`spec/firewall/synthesis_context_spec.rb`).
+
 ---
 
 ## 13. How the agents collaborate
@@ -637,6 +667,9 @@ All model calls go to one OpenAI-compatible endpoint (`OPENAI_BASE_URL`, default
 | `PRICING_EXPLAINER_MODEL` | P24; falls back to `OPENAI_MODEL` |
 | `AI_PRICING_EXPLAINER` | `false` switches P24 off; the template scope statement is used |
 | `PRICING_SCRIPTED_REPLIES` | outside production, P24 on scripted replies (demo, browser test, benchmark) |
+| `SYNTHESIS_CLASSIFIER_MODEL`, `SYNTHESIS_MODEL` | P10 and P11; fall back to `OPENAI_MODEL`. A strong reasoning model is expected (Doc 05) |
+| `AI_SYNTHESIS` | `false` switches P10 and P11 off; pairs are kept separate and runs finish `PARTIAL` |
+| `SYNTHESIS_SCRIPTED_REPLIES` | outside production, P10 and P11 on scripted replies (demo, browser test, benchmark plumbing) |
 
 Compatibility handled in code: newer OpenAI models take `max_completion_tokens` (sent
 automatically to the official endpoint) and accept only their default temperature

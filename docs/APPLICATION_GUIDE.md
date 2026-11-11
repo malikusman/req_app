@@ -664,6 +664,30 @@ Tabs typically include: **overview, profile, interviews, intelligence, clarifica
   page can still be changed until the client accepts; a change in pricing makes a fresh
   quote.
 
+### 5.7a Synthesis
+
+Doc 10; see [SYNTHESIS.md](SYNTHESIS.md). Reached from the company overview's **Synthesis**
+card (`/consultant/companies/:id/synthesis`). A status line says whether synthesis is
+queued, running, stale (new evidence since) or waiting on the consultant, and **Run again**
+queues a run straight away.
+
+- **Shared work:** clusters of work several people described, shown by role and
+  department, never by name. Each has everyone's own estimates beside the hours counted
+  once, why it was grouped, variants, double-count and single-person warnings, and who a
+  deep dive would need. The consultant can confirm, split off ticked items, correct the
+  hours or say it isn't the same work. Pairs the model couldn't settle, and newcomers that
+  may belong in a confirmed cluster, sit above.
+- **Leadership vs evidence:** each strategic finding with leadership's importance, the
+  verdict (supported, partly, not yet observed, points elsewhere) and what staff
+  describe — to agree with, resolve or ask about.
+- **Opportunities:** management importance beside platform priority, the next step, any
+  planned-change conflict, and root causes; approve, reclassify, defer, reject, or add one.
+- **How the business runs:** the operating picture, to approve or edit before it reaches
+  the report.
+
+Every action asks for a reason. On the Findings page, a finding in a cluster links here.
+The merge panel says it is only for the very same work described twice.
+
 ### 5.8 Report review workspace
 
 Full-bleed layout. Guided steps (conceptually):
