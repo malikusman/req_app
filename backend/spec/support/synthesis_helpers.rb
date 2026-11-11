@@ -9,7 +9,7 @@ module SynthesisHelpers
       {
         employee: employee, source_key: SecureRandom.hex(4), department: department, role_title: role,
         area: "work #{SecureRandom.hex(2)}", title: "Work #{SecureRandom.hex(2)}", friction: "It snags",
-        effort_type: "active", annual_hours_min: hours&.first, annual_hours_max: hours&.last,
+        annual_hours_min: hours&.first, annual_hours_max: hours&.last,
         evidence: { "conversation_id" => nil, "slots" => { "friction" => 4 } }
       }.merge(attrs)
     )
