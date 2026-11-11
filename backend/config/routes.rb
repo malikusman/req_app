@@ -134,6 +134,7 @@ Rails.application.routes.draw do
         resources :companies, only: %i[index show] do
           resources :employees, only: %i[index show], controller: "employees"
           resources :conversations, only: %i[index show], controller: "conversations"
+          resources :task_sources, only: :index
           get "signals", to: "intelligence#signals"
           get "patterns", to: "intelligence#patterns"
           get "recommendations", to: "intelligence#recommendations"

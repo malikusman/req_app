@@ -12,6 +12,7 @@ class Conversation < ApplicationRecord
   # discovery_packages.conversation_id had nothing telling Rails to clean these up,
   # so deleting a conversation with a package raised a bare ForeignKeyViolation.
   has_many :discovery_packages, dependent: :destroy
+  has_many :task_sources
 
   STATUSES = %w[onboarding profiling discovery completed abandoned].freeze
 

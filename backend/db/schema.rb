@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_10_29_100000) do
+ActiveRecord::Schema[7.1].define(version: 2026_11_12_090000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -1400,6 +1400,28 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_29_100000) do
     t.index ["company_id"], name: "index_subscriptions_on_company_id", unique: true
   end
 
+  create_table "task_sources", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "employee_id", null: false
+    t.bigint "conversation_id", null: false
+    t.bigint "finding_id"
+    t.string "source_kind", null: false
+    t.string "local_task_id", null: false
+    t.text "name", null: false
+    t.text "description"
+    t.integer "discovery_revision"
+    t.integer "version", null: false
+    t.jsonb "source_snapshot", null: false
+    t.jsonb "evidence_references", default: [], null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_task_sources_on_company_id"
+    t.index ["conversation_id", "source_kind", "local_task_id", "version"], name: "index_task_sources_on_local_identity_and_version", unique: true
+    t.index ["conversation_id"], name: "index_task_sources_on_conversation_id"
+    t.index ["employee_id"], name: "index_task_sources_on_employee_id"
+    t.index ["finding_id"], name: "index_task_sources_on_finding_id"
+  end
+
   create_table "webhook_events", force: :cascade do |t|
     t.string "provider", default: "meta_whatsapp", null: false
     t.string "external_id", null: false
@@ -1571,4 +1593,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_29_100000) do
   add_foreign_key "review_discussions", "reports"
   add_foreign_key "review_discussions", "review_discussions", column: "parent_id"
   add_foreign_key "subscriptions", "companies"
+  add_foreign_key "task_sources", "companies"
+  add_foreign_key "task_sources", "conversations", on_delete: :cascade
+  add_foreign_key "task_sources", "employees"
+  add_foreign_key "task_sources", "findings", on_delete: :nullify
 end

@@ -63,7 +63,8 @@ module Findings
       # person's own time, and the wait is in the words.
       effort_type = "mixed" if effort_type == "waiting" && duration["unit"] == "minutes" && duration["min"].present?
 
-      finding = @company.findings.find_or_initialize_by(source_key: source_key(area))
+      key = Finding.discovery_source_key(conversation_id: @conversation.id, area: area)
+      finding = @company.findings.find_or_initialize_by(source_key: key)
       finding.assign_attributes(
         employee: @employee,
         conversation: @conversation,
@@ -117,10 +118,6 @@ module Findings
 
       [finding.frequency_min, finding.frequency_max, finding.frequency_unit,
        finding.duration_min, finding.duration_max, finding.duration_unit].map { |v| v.is_a?(BigDecimal) ? v.to_f : v }
-    end
-
-    def source_key(area)
-      "conversation:#{@conversation.id}:#{area.to_s.downcase.squish}"
     end
 
     def confidence(friction, cost, hours)

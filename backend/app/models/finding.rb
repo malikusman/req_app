@@ -37,6 +37,10 @@ class Finding < ApplicationRecord
 
   scope :live, -> { where.not(status: %w[hidden merged]) }
 
+  def self.discovery_source_key(conversation_id:, area:)
+    "conversation:#{conversation_id}:#{area.to_s.downcase.squish}"
+  end
+
   validate :merge_target_is_a_live_sibling
   validate :consultant_effort_is_coherent
   validate :consultant_links_are_sound, if: :consultant_depends_on_ids_changed?
