@@ -125,6 +125,7 @@ module Api
                           planned_departments: engagement.planned_departments,
                           lead_consultant: engagement.lead_consultant&.name },
             comparables: Pricing::Comparables.for(engagement, quote.participants_included),
+            additional_participants: (Pricing::AdditionalParticipants.for(engagement) if quote.accepted?),
             rate_card: { version: quote.rate_card_version.version, placeholder: quote.rate_card_version.placeholder },
             margin_floor: { version: quote.margin_floor_version.version,
                             percent: quote.margin_floor_version.percent.to_s("F") },

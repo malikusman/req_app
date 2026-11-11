@@ -4,9 +4,19 @@ module Api
   module V1
     module Company
       class EmployeesController < BaseController
+        # Staff are invited once the Stage 1 price is accepted; someone beyond it
+        # needs the client to confirm the extra charge (Doc 14 §4.1, Doc 17 §12).
+        rescue_from Engagements::StaffInvitations::NotYetAllowed do |e|
+          render json: { code: "invitations_locked", error: e.message }, status: :conflict
+        end
+        rescue_from Engagements::StaffInvitations::ConfirmationRequired do |e|
+          render json: e.details.merge(error: e.message), status: :conflict
+        end
+
         def index
           employees = policy_scope(Employee).order(created_at: :desc)
-          render json: { employees: employees.map { |e| employee_json(e, include_nudge: true) } }
+          render json: { employees: employees.map { |e| employee_json(e, include_nudge: true) },
+                         invitations: Engagements::StaffInvitations.new(current_company).summary }
         end
 
         def show
@@ -32,31 +42,36 @@ module Api
             email: params[:email],
             invited_by: current_company_user,
             send_whatsapp: params[:send_whatsapp] != false,
-            preferred_channel: params[:preferred_channel].presence || "whatsapp"
+            preferred_channel: params[:preferred_channel].presence || "whatsapp",
+            confirm_additional: confirm_additional?,
+            planned_participant: planned_participant
           )
-          link_planned_participant!(result[:employee])
 
           render json: {
             employee: employee_json(result[:employee]),
             invitation_id: result[:invitation].id,
-            discover_url: result[:discover_url]
+            discover_url: result[:discover_url],
+            additional: result[:additional]
           }, status: :created
         end
 
+        # Every row is checked — the invitations are open, the extras confirmed,
+        # each person valid — before anyone is invited, so a bad row leaves
+        # nobody half-invited.
         def bulk_create
           authorize Employee, :create?
+          rows = Array(params[:employees]).map { |row| bulk_row(row) }
+          return render json: { error: "Add at least one person" }, status: :unprocessable_entity if rows.empty?
+
+          Engagements::StaffInvitations.new(current_company).check!(adding: rows.size, confirmed: confirm_additional?)
+          errors = bulk_errors(rows)
+          return render json: { errors: errors }, status: :unprocessable_entity if errors.any?
+
           created = []
           batch_id = SecureRandom.uuid
-
-          Array(params[:employees]).each do |row|
-            result = InviteEmployeeService.call(
-              company: current_company,
-              phone_e164: row[:phone_e164] || row["phone_e164"],
-              display_name: row[:display_name] || row["display_name"],
-              department: row[:department] || row["department"],
-              email: row[:email] || row["email"],
-              invited_by: current_company_user
-            )
+          rows.each do |row|
+            result = InviteEmployeeService.call(company: current_company, invited_by: current_company_user,
+                                                confirm_additional: confirm_additional?, **row)
             result[:invitation].update!(batch_id: batch_id)
             created << employee_json(result[:employee]).merge(
               invitation_id: result[:invitation].id
@@ -104,14 +119,38 @@ module Api
 
         private
 
+        def confirm_additional? = ActiveModel::Type::Boolean.new.cast(params[:confirm_additional]) == true
+
         # Inviting someone the key user planned for during onboarding (P3) ties the
         # plan to the employee, so the plan shows them as invited.
-        def link_planned_participant!(employee)
+        def planned_participant
           return if params[:engagement_participant_id].blank?
 
-          participant = current_company.current_engagement&.participants&.employees
-                                       &.find_by(id: params[:engagement_participant_id], employee_id: nil)
-          participant&.update!(employee: employee)
+          current_company.current_engagement&.participants&.employees
+                         &.find_by(id: params[:engagement_participant_id], employee_id: nil)
+        end
+
+        def bulk_row(row)
+          row = row.respond_to?(:permit) ? row.permit(:phone_e164, :display_name, :department, :email) : row.to_h
+          row.to_h.symbolize_keys.slice(:phone_e164, :display_name, :department, :email)
+        end
+
+        def bulk_errors(rows)
+          phones = []
+          rows.each_with_index.filter_map do |row, i|
+            phone = begin
+              PhoneNormalizer.call(row[:phone_e164])
+            rescue StandardError
+              nil
+            end
+            employee = current_company.employees.new(phone_e164: phone, display_name: row[:display_name],
+                                                     email: row[:email].to_s.strip.downcase.presence,
+                                                     participation_status: "invited", onboarding_step: "awaiting_name")
+            messages = employee.valid? ? [] : employee.errors.full_messages
+            messages << "Phone appears twice in this list" if phone && phones.include?(phone)
+            phones << phone
+            "Row #{i + 1}: #{messages.to_sentence}" if messages.any?
+          end
         end
 
         def employee_json(employee, include_nudge: false)

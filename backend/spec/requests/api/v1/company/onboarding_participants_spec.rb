@@ -64,6 +64,8 @@ RSpec.describe "Onboarding participant planning", type: :request do
   it "links a planned person to the employee once they are invited" do
     add(participant_type: "EMPLOYEE", name: "Omar Haddad", phone_e164: "+971501112222")
     planned = engagement.participants.last
+    # Staff are invited once the Stage 1 price is accepted (Doc 14 §4.1).
+    engagement.update!(status: "STAGE_1_ACTIVE")
 
     post "/api/v1/company/employees",
          params: { phone_e164: "+971501112222", display_name: "Omar Haddad", engagement_participant_id: planned.id,

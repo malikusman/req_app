@@ -7,6 +7,14 @@ class SendEmployeeInvitationJob < ApplicationJob
     invitation = EmployeeInvitation.find(employee_invitation_id)
     employee = invitation.employee
     company = invitation.company
+    # Staff are invited once the Stage 1 price is accepted (Doc 14 §4.1); an
+    # invitation queued otherwise is held, not sent.
+    unless Engagements::StaffInvitations.new(company).open?
+      invitation.update!(delivery_status: "failed", error_message: "Held: the Stage 1 proposal isn't accepted",
+                         sent_at: Time.current)
+      return
+    end
+
     client = Whatsapp::MetaClient.new
 
     unless client.configured?

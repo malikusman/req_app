@@ -15,14 +15,17 @@ class EngagementParticipant < ApplicationRecord
 
   PARTICIPANT_TYPES = %w[EMPLOYEE KEY_PERSON].freeze
   # KEY_PERSON_CONVERSATION: someone the key user confirmed during their
-  # conversation with leadership (Doc 08 §13).
-  SOURCES = %w[ONBOARDING CONSULTANT KEY_USER KEY_PERSON_CONVERSATION].freeze
+  # conversation with leadership (Doc 08 §13). INVITED: someone invited from the
+  # team page who wasn't in the plan — beyond what the Stage 1 price covers.
+  SOURCES = %w[ONBOARDING CONSULTANT KEY_USER KEY_PERSON_CONVERSATION INVITED].freeze
   # Doc 08 §3. Doc 06 §3.6 lists fewer; the extra functional heads are weighted as
   # department heads (Doc 08 §8.2).
   PERSONAS = %w[CEO_OWNER_MD GM_COO DEPARTMENT_HEAD CFO_FINANCE SALES_COMMERCIAL PROCUREMENT_SUPPLY MARKETING
                 OPERATIONS CUSTOMER_SERVICE HR IT_DIGITAL OTHER].freeze
   # Doc 06 §3.6, plus NOT_INVITED for someone planned but not yet asked.
   PARTICIPATION_STATUSES = %w[NOT_INVITED INVITED STARTED PAUSED COMPLETED ABANDONED DECLINED].freeze
+  # Engagement statuses at or after the hand-over to pricing.
+  PRICED_STATUSES = %w[STAGE_1_PRICING STAGE_1_ACTIVE].freeze
 
   validates :participant_type, inclusion: { in: PARTICIPANT_TYPES }
   validates :source, inclusion: { in: SOURCES }
@@ -33,6 +36,11 @@ class EngagementParticipant < ApplicationRecord
   validates :email, format: { with: URI::MailTo::EMAIL_REGEXP }, allow_blank: true
   validates :phone_e164, uniqueness: { scope: :engagement_id }, allow_nil: true
   validate :company_matches_engagement
+
+  # Another manager added once Stage 1 is being priced is flagged (Doc 06 §3.6,
+  # Doc 07 §7). Staff beyond the price are flagged when they are invited
+  # (Engagements::StaffInvitations).
+  before_create :flag_key_person_added_after_pricing
 
   scope :employees, -> { where(participant_type: "EMPLOYEE") }
   scope :key_persons, -> { where(participant_type: "KEY_PERSON") }
@@ -52,6 +60,12 @@ class EngagementParticipant < ApplicationRecord
   end
 
   private
+
+  def flag_key_person_added_after_pricing
+    return unless participant_type == "KEY_PERSON" && !key_user? && PRICED_STATUSES.include?(engagement&.status)
+
+    self.added_after_pricing = true
+  end
 
   def company_matches_engagement
     errors.add(:company, "must be the engagement's company") if engagement && company_id != engagement.company_id

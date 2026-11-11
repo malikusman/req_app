@@ -47,7 +47,8 @@ module Pricing
         issued_at: q.issued_at, valid_until: q.valid_until, past_validity: q.past_validity?,
         accepted_at: q.accepted_at, accepted_by: q.accepted_by&.name,
         declined_at: q.declined_at,
-        can_decide: can_decide?
+        can_decide: can_decide?,
+        additional_participants: (AdditionalParticipants.for(q.engagement) if q.accepted?)
       }
     end
 
