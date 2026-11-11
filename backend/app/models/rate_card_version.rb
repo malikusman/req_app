@@ -47,9 +47,15 @@ class RateCardVersion < ApplicationRecord
     missing = STAGE1_NUMBERS.reject { |path| numeric?(stage1_value(path)) }
     missing << "consultant internal cost" unless numeric?(consultant_internal_cost)
     errors.add(:stage1, "needs a number for #{missing.join(', ')}") if missing.any?
-    return if stage1["tax_rates"].is_a?(Hash) && stage1["tax_rates"].values.all? { |v| numeric?(v) }
+    if numeric?(stage1_value("deep_dives.min")) && numeric?(stage1_value("deep_dives.max")) &&
+       stage1_value("deep_dives.min") > stage1_value("deep_dives.max")
+      errors.add(:stage1, "needs the fewest deep dives to be no more than the most")
+    end
+    errors.add(:stage1, "needs a validity of at least one day") if numeric?(stage1["validity_days"]) && stage1["validity_days"] < 1
+    taxes = stage1["tax_rates"]
+    return if taxes.is_a?(Hash) && taxes.any? && taxes.values.all? { |v| numeric?(v) && v < 1 }
 
-    errors.add(:stage1, "needs tax rates by country")
+    errors.add(:stage1, "needs at least one country's tax rate, each below 100%")
   end
 
   def numeric?(value) = value.is_a?(Numeric) && value >= 0

@@ -297,6 +297,12 @@ Only a **super admin** acts:
 - after a decline, an expiry or a send-back: **Prepare a fresh version** or **Close
   engagement**, with a reason.
 
+**Rates and margin floor** (`/platform/pricing/rates`, from the Pricing page) shows the
+Stage 1 rate card and the floor in effect and every earlier version, with who set it, when,
+why and how many quotes used it. A super admin makes a new version of either; it needs a
+reason and is in effect from then on. Quotes keep the version they were made with. One
+still waiting for approval on older rates says so, with *Recalculate on the current rates*.
+
 Every platform user sees the same page. The company page's Engagement card links to the
 quote, or offers *Calculate Stage 1 proposal* for an engagement that reached pricing
 without one. Super admins are emailed when a quote is waiting (subject flagged when below

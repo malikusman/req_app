@@ -55,6 +55,14 @@ test.describe('Stage 1 pricing', () => {
     await page.getByRole('button', { name: 'Approve and issue' }).first().click();
     await page.getByRole('dialog').getByRole('button', { name: 'Approve and issue' }).click();
     await expect(page.getByText('With the client').first()).toBeVisible();
+
+    // What it was priced from: the rate card and floor in effect, and their history.
+    await page.goto('/platform/pricing');
+    await page.getByRole('button', { name: 'Rates and margin floor' }).click();
+    await expect(page.getByText(/Stage 1 rate card · v\d+/)).toBeVisible();
+    await expect(page.getByText('Margin floor', { exact: true })).toBeVisible();
+    await expect(page.getByText('Rate card history')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Make a new version' })).toBeVisible();
   });
 
   test('the client reads the proposal, with nothing internal on it, and accepts', async ({ page }) => {
@@ -82,7 +90,8 @@ test.describe('Stage 1 pricing', () => {
     await login(page, 'consultant', CONSULTANT);
     await page.getByRole('link', { name: COMPANY }).first().click();
 
-    await expect(page.getByText('Stage 1 proposal', { exact: true })).toBeVisible();
+    // The overview waits on several requests; a cold dev server takes a while.
+    await expect(page.getByText('Stage 1 proposal', { exact: true })).toBeVisible({ timeout: 45_000 });
     await expect(page.getByText('Engagement: Stage 1 in progress')).toBeVisible();
     await expect(page.getByText('Accepted', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'What the client sees' }).click();

@@ -273,6 +273,19 @@ export const api = {
       token
     ),
 
+  // The Stage 1 rate card and the margin floor, versioned (Doc 17 §7–8).
+  platformRateCard: (token: string) => request<RateCardPayload>('/api/v1/platform/rate_card', {}, token),
+
+  platformNewRateCard: (token: string, body: NewRateCardInput) =>
+    request<RateCardPayload>('/api/v1/platform/rate_card', { method: 'POST', body: JSON.stringify(body) }, token),
+
+  platformNewMarginFloor: (token: string, percent: string, reason: string) =>
+    request<RateCardPayload>(
+      '/api/v1/platform/margin_floor',
+      { method: 'POST', body: JSON.stringify({ percent, reason }) },
+      token
+    ),
+
   /** Works out the engagement's Stage 1 quote now (or a fresh one after a decline or expiry). */
   platformCalculateQuote: (token: string, engagementId: number) =>
     request<Stage1QuoteDetail>(`/api/v1/platform/engagements/${engagementId}/stage1_quote`, { method: 'POST' }, token),
@@ -3646,8 +3659,8 @@ export interface Stage1QuoteDetail {
     accepted_on: string | null;
   }[];
   additional_participants: AdditionalParticipants | null;
-  rate_card: { version: number; placeholder: boolean };
-  margin_floor: { version: number; percent: string };
+  rate_card: { version: number; placeholder: boolean; current_version: number | null };
+  margin_floor: { version: number; percent: string; current_version: number | null };
   overrides: {
     kind: 'ADJUST' | 'FLOOR_OVERRIDE';
     structured_reason: string;
@@ -3698,4 +3711,76 @@ export interface ConfirmAdditional {
   extra: number;
   rate: string;
   currency: string;
+}
+
+/** The Stage 1 formula's values (Doc 17 §2.3) and the quote's terms. INTERNAL_COMMERCIAL. */
+export interface Stage1Rates {
+  base_fee: number;
+  per_participant_fee: number;
+  per_deep_dive_fee: number;
+  additional_participant_rate: number;
+  complexity: {
+    per_extra_language: number;
+    per_extra_location: number;
+    departments_threshold: number;
+    per_department_over_threshold: number;
+  };
+  hours: {
+    base: number;
+    per_participant: number;
+    per_deep_dive: number;
+    per_key_person: number;
+    per_extra_language: number;
+    per_extra_location: number;
+  };
+  ai_cost: { per_participant: number; per_deep_dive: number; per_key_person: number };
+  platform_allocation: number;
+  licences: number;
+  deep_dives: { min: number; max: number };
+  tax_rates: Record<string, number>;
+  validity_days: number;
+  payment_terms_text: string;
+  terms_reference_text: string;
+}
+
+export interface RateCardVersionRow {
+  version: number;
+  effective_from: string;
+  currency: string;
+  placeholder: boolean;
+  reason: string;
+  changed_by: string | null;
+  quotes: number;
+}
+
+export interface MarginFloorRow {
+  version: number;
+  percent: string;
+  effective_from: string;
+  reason: string;
+  changed_by: string | null;
+}
+
+export interface RateCardPayload {
+  rate_card:
+    | (RateCardVersionRow & {
+        stage1: Stage1Rates;
+        consultant_internal_cost: number | null;
+        consultant_charge_rate: number | null;
+      })
+    | null;
+  rate_cards: RateCardVersionRow[];
+  margin_floor: MarginFloorRow | null;
+  margin_floors: MarginFloorRow[];
+  waiting_on_older_rates: number;
+  can_act: boolean;
+}
+
+export interface NewRateCardInput {
+  stage1: Record<string, unknown>;
+  consultant_internal_cost: string;
+  consultant_charge_rate: string;
+  currency: string;
+  placeholder: boolean;
+  reason: string;
 }

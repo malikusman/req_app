@@ -128,6 +128,11 @@ export function PlatformQuoteReview() {
   const canDecide = data.can_act && pricing && quote.status === 'PROPOSED';
   const canRevise = data.can_act && pricing && latest && ['PROPOSED', 'REJECTED', 'DECLINED', 'EXPIRED'].includes(quote.status);
   const canRestart = data.can_act && pricing && latest && ['REJECTED', 'DECLINED', 'EXPIRED'].includes(quote.status);
+  // Made on rates or a floor that have since changed, and still with the administrator.
+  const olderRates =
+    quote.status === 'PROPOSED' &&
+    ((data.rate_card.current_version != null && data.rate_card.current_version !== data.rate_card.version) ||
+      (data.margin_floor.current_version != null && data.margin_floor.current_version !== data.margin_floor.version));
   const explanation = quote.admin_explanation;
   const hasExplanation = Boolean(explanation?.headline);
   const reasonOptions = [{ value: '', label: 'Choose a reason' }].concat(
@@ -193,6 +198,25 @@ export function PlatformQuoteReview() {
 
       {!data.can_act ? (
         <Notice tone="info">You can review prices; only a super admin can approve or change them.</Notice>
+      ) : null}
+      {olderRates ? (
+        <Notice tone="warning">
+          This quote was made on rate card v{data.rate_card.version} and floor v{data.margin_floor.version}; the
+          current ones are v{data.rate_card.current_version} and v{data.margin_floor.current_version}.{' '}
+          {data.can_act ? (
+            <Button
+              size="sm"
+              variant="secondary"
+              loading={busy}
+              onClick={() => run(() => api.platformCalculateQuote(token, engagement.id), 'Recalculated on the current rates')}
+            >
+              Recalculate on the current rates
+            </Button>
+          ) : null}
+          <span className="block text-xs text-text-secondary">
+            A recalculation keeps corrected inputs but not a price adjustment.
+          </span>
+        </Notice>
       ) : null}
       {data.rate_card.placeholder ? (
         <Notice tone="warning">

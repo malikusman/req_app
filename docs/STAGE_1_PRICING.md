@@ -158,8 +158,15 @@ Nothing is invoiced.
 - Outside production, a company's `pricing_scripted_replies` setting (or
   `PRICING_SCRIPTED_REPLIES=1`) runs P24 on `Pricing::ScriptedClient`, for the demo, the
   browser test and the benchmark only.
-- Rate card and floor values live in the database. Today they change by console, as a new
-  version with a reason. A screen for that is in "Not built yet".
+- Rate card and floor values live in the database, versioned. A super admin changes them
+  on **Pricing → Rates and margin floor** (`/platform/pricing/rates`, `Pricing::NewVersions`).
+  The form carries every value the formula reads, the consultant's internal cost and charge
+  rate, VAT by country, validity and the quote's terms text, plus a reason. Saving makes a
+  new version in effect from now; other skills' rates are carried over. Both actions are
+  audited (`rate_card_version_created`, `margin_floor_changed`).
+- **Quotes keep the version they were made with.** A quote still waiting on an older rate
+  card or floor says so and offers **Recalculate on the current rates**. That keeps corrected
+  inputs but drops a price adjustment, and is refused once the quote is with the client.
 
 ## Running it
 
@@ -225,7 +232,6 @@ Where the documents disagree or are silent, this build chose:
 
 ## Not built yet
 
-- **Rate card and floor:** no screen to make new versions (console only, with a reason).
 - **Not in this phase:** invoices, deposits and online payment; selection with dependency
   warnings; Stage 2 and 3 pricing; change quotes; actual consultant hours and the learning
   loop; a platform notifications inbox (administrators are emailed).

@@ -98,6 +98,9 @@ module Pricing
     end
 
     def calculate(engagement)
+      # Never moves the price under a client who is looking at it.
+      raise Error, "This engagement's quote is with the client" if engagement.open_stage1_quote&.issued?
+
       result = ProposeStage1.call(engagement, actor: @actor, reason: "Calculated by an administrator")
       raise Error, result.error unless result.ok?
 

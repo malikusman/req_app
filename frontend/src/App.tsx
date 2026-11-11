@@ -22,6 +22,7 @@ import { PlatformConsultants } from './portals/platform/PlatformConsultants';
 import { PlatformConsultantDetail } from './portals/platform/PlatformConsultantDetail';
 import { PlatformPricingQueue } from './portals/platform/PlatformPricingQueue';
 import { PlatformQuoteReview } from './portals/platform/PlatformQuoteReview';
+import { PlatformRateCard } from './portals/platform/PlatformRateCard';
 import { PlatformRegistrations } from './portals/platform/PlatformRegistrations';
 import { PlatformApprovals } from './portals/platform/PlatformApprovals';
 import { CompanyLayout } from './portals/company/CompanyLayout';
@@ -139,6 +140,7 @@ export default function App() {
               <Route path="dashboard" element={<PlatformDashboard />} />
               <Route path="approvals" element={<PlatformApprovals />} />
               <Route path="pricing" element={<PlatformPricingQueue />} />
+              <Route path="pricing/rates" element={<PlatformRateCard />} />
               <Route path="pricing/:id" element={<PlatformQuoteReview />} />
               <Route path="registrations" element={<PlatformRegistrations />} />
               <Route path="companies" element={<PlatformCompanies />} />

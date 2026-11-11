@@ -28,6 +28,7 @@ const titles: Record<string, string> = {
   '/company/knowledge': 'Knowledge',
   '/platform/registrations': 'Registrations',
   '/platform/pricing': 'Pricing',
+  '/platform/pricing/rates': 'Rates and margin floor',
   '/company/proposal': 'Your proposal',
   '/company/leadership': 'Conversation with leadership',
   '/consultant/dashboard': 'Dashboard',

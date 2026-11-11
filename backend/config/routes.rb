@@ -39,6 +39,10 @@ Rails.application.routes.draw do
           post "stage1_quote", to: "stage1_quotes#calculate"
           post "close", to: "stage1_quotes#close"
         end
+        # The Stage 1 rate card and the margin floor, versioned (Doc 17 §7–8).
+        get "rate_card", to: "rate_cards#show"
+        post "rate_card", to: "rate_cards#create"
+        post "margin_floor", to: "rate_cards#create_floor"
         resources :stage1_quotes, only: %i[index show] do
           member do
             post :approve

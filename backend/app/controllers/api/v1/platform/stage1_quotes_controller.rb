@@ -126,9 +126,11 @@ module Api
                           lead_consultant: engagement.lead_consultant&.name },
             comparables: Pricing::Comparables.for(engagement, quote.participants_included),
             additional_participants: (Pricing::AdditionalParticipants.for(engagement) if quote.accepted?),
-            rate_card: { version: quote.rate_card_version.version, placeholder: quote.rate_card_version.placeholder },
+            rate_card: { version: quote.rate_card_version.version, placeholder: quote.rate_card_version.placeholder,
+                         current_version: RateCardVersion.current&.version },
             margin_floor: { version: quote.margin_floor_version.version,
-                            percent: quote.margin_floor_version.percent.to_s("F") },
+                            percent: quote.margin_floor_version.percent.to_s("F"),
+                            current_version: MarginFloorVersion.current&.version },
             overrides: quote.estimate_overrides.order(:created_at).map do |o|
               o.slice(:kind, :structured_reason, :free_text, :created_at)
                .merge(original_total: o.original_total.to_s("F"), adjusted_total: o.adjusted_total.to_s("F"),

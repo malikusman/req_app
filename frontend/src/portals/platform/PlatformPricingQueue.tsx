@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api, type Stage1QuoteStatus, type Stage1QuoteSummary } from '../../lib/api';
 import { usePlatformToken } from '../../lib/auth';
 import { formatMoney, formatPercent } from '../../lib/money';
-import { Badge, DataTable, EmptyState, PageHeader, Tabs } from '../../components/ui';
+import { Badge, Button, DataTable, EmptyState, PageHeader, Tabs } from '../../components/ui';
 import { QUOTE_STATUS_LABELS, QUOTE_STATUS_VARIANTS } from './engagementStatus';
 
 /** Which quotes each tab lists. */
@@ -56,6 +56,13 @@ export function PlatformPricingQueue() {
           waiting > 0
             ? `${waiting} Stage 1 quote${waiting === 1 ? ' is' : 's are'} waiting for your approval. No price reaches a client until it is approved.`
             : 'Stage 1 quotes the platform proposes wait here for approval. No price reaches a client until it is approved.'
+        }
+        actions={
+          <Link to="/platform/pricing/rates">
+            <Button variant="secondary" size="sm">
+              Rates and margin floor
+            </Button>
+          </Link>
         }
       />
 
