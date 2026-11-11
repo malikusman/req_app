@@ -77,7 +77,7 @@ module Synthesis
     end
 
     def names_someone?(text)
-      @known_names.any? { |name| text.to_s.match?(/(?<![[:alnum:]])#{Regexp.escape(name)}(?![[:alnum:]])/i) }
+      @known_names.any? { |name| text.to_s.match?(/(?<![[:alnum:]])#{Regexp.escape(name)}(?![[:alnum:]])/) }
     end
 
     def context
@@ -255,7 +255,7 @@ module Synthesis
 
     def redact(text)
       @known_names.sort_by { |n| -n.length }.reduce(text) do |out, name|
-        out.gsub(/(?<![[:alnum:]])#{Regexp.escape(name)}(?![[:alnum:]])/i, REDACTED)
+        out.gsub(/(?<![[:alnum:]])#{Regexp.escape(name)}(?![[:alnum:]])/, REDACTED)
       end
     end
 
@@ -263,7 +263,7 @@ module Synthesis
       names = @engagement.participants.pluck(:name) + [@engagement.key_user&.name] +
               @company.employees.pluck(:display_name) + @company.company_users.pluck(:name)
       names.compact.flat_map { |n| [n, n.split.first] }.map { |n| n.to_s.strip }.select { |n| n.length >= 3 }
-           .reject { |n| n.match?(/\A(test|employee|participant|user)\z/i) }.uniq
+           .reject { |n| n.match?(/\A(test|employee|participant|user|team|staff|member|manager|owner|admin|sales|customer|demo|guest|new)\z/i) }.uniq
     end
 
     def range(min, max)

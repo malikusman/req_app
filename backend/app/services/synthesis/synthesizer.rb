@@ -161,7 +161,8 @@ module Synthesis
       evidence = row["evidence"]
       cluster_keys = (row["affected"] + evidence).select { |e| e["type"] == "cluster" }.map { |e| e["key"] }.uniq
       finding_ids = (row["affected"] + evidence).select { |e| e["type"] == "finding" }.map { |e| e["id"] }.uniq
-      sf_ids = evidence.select { |e| e["type"] == "strategic_finding" }.map { |e| e["id"] }.uniq
+      sf_ids = (evidence.select { |e| e["type"] == "strategic_finding" }.map { |e| e["id"] } +
+                borne_out_by_same_work(row["affected"] + evidence, validations)).uniq
       linked = @pack.strategic_findings.select { |sf| sf_ids.include?(sf.id) }
       support = sf_ids.filter_map { |id| validations[id]&.relationship }.max_by { |r| SUPPORT_ORDER.index(r) || -1 }
       priority, reason = Priority.call(level: row["level"], confidence: row["confidence"],
@@ -185,6 +186,18 @@ module Synthesis
         "platform_priority" => priority, "platform_priority_rule_version" => Priority::RULE_VERSION,
         "strategic_finding_ids" => sf_ids, "confidence" => row["confidence"], "evidence" => evidence
       }
+    end
+
+    # Leadership concerns this opportunity answers even where P11 didn't cite
+    # them: those the staff evidence bears out through the same work or
+    # clusters the opportunity rests on.
+    def borne_out_by_same_work(refs, validations)
+      work = refs.reject { |r| r["type"] == "strategic_finding" }.map { |r| r.slice("type", "id", "key") }
+      validations.filter_map do |sf_id, validation|
+        next unless %w[SUPPORTED PARTLY_SUPPORTED].include?(validation.relationship)
+
+        sf_id if Array(validation.evidence).any? { |e| work.include?(e.slice("type", "id", "key")) }
+      end
     end
 
     # The largest platform figure behind it — quoted, or of what it affects.
