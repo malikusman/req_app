@@ -7,7 +7,10 @@ module Synthesis
   # turns that into figures.
   #
   # The rules (Doc 10 §10.2), by what P10 said about each pair:
-  #   - the same execution (YES)              → counted once
+  #   - the same execution (YES)              → counted once; across two
+  #                                             people, only a consultant's YES
+  #                                             is taken as certain
+  #   - one person's work named twice         → counted once, whatever P10 said
   #   - different executions (NO)             → both count — including genuine
   #                                             duplication, which is flagged
   #   - unclear, and the same process or a
@@ -23,6 +26,7 @@ module Synthesis
   class EffortNormalizer
     METHOD_VERSION = "EN.v1"
     COLLAPSE_WHEN_UNKNOWN = %w[SAME_PROCESS SHARED_SUBPROCESS].freeze
+    SAME_PERSON_TWICE = %w[SAME_PROCESS DUPLICATE_WORK SHARED_SUBPROCESS].freeze
 
     Result = Struct.new(:raw_min, :raw_max, :dedup_min, :dedup_max, :overlap_adjustments, :conservative_adjustment,
                         :double_count_warning, :warning_reason, :duplication_flag, :participants_counted,
@@ -45,16 +49,25 @@ module Synthesis
       warnings = []
       parent = counted.to_h { |i| [i.id, i.id] }
 
+      @certain = Set.new
       @edges.sort_by { |e| [e.from_id, e.to_id] }.each do |edge|
         next unless parent.key?(edge.from_id) && parent.key?(edge.to_id)
 
         reason = collapse_reason(edge)
-        next unless reason
+        unless reason
+          if same_person_same_figures?(edge)
+            warnings << "Items #{edge.from_id} and #{edge.to_id} come from one person with the same figures; " \
+                        "check they are not one piece of work counted twice"
+          end
+          next
+        end
 
         union(parent, edge.from_id, edge.to_id)
-        if edge.same_execution != "YES"
+        if reason == :unclear
           conservative = true
           warnings << "Whether items #{edge.from_id} and #{edge.to_id} are the same execution is unclear; counted once"
+        else
+          @certain << [edge.from_id, edge.to_id].sort
         end
       end
 
@@ -94,17 +107,29 @@ module Synthesis
     private
 
     # Why two items collapse into one execution, or nil when both count.
+    #
+    # Two rules are the platform's, whatever the model said (Doc 10 §10.2): one
+    # person describing the same work twice is counted once; and two different
+    # people's accounts are one execution only with the consultant's say-so —
+    # until then it is counted once, as unclear, with a warning.
     def collapse_reason(edge)
-      return :same_execution if edge.same_execution == "YES"
+      a = @items[edge.from_id]
+      b = @items[edge.to_id]
+      same_person = a.employee_id.present? && a.employee_id == b.employee_id
+      return :same_person if same_person && SAME_PERSON_TWICE.include?(edge.relationship_type)
+      return(same_person || edge.origin == "CONSULTANT" ? :same_execution : :unclear) if edge.same_execution == "YES"
       return nil if edge.same_execution == "NO"
 
       :unclear if COLLAPSE_WHEN_UNKNOWN.include?(edge.relationship_type)
     end
 
-    def same_execution?(a, b)
-      @edges.any? do |e|
-        e.same_execution == "YES" && [e.from_id, e.to_id].sort == [a.id, b.id].sort
-      end
+    def same_execution?(a, b) = @certain.include?([a.id, b.id].sort)
+
+    def same_person_same_figures?(edge)
+      a = @items[edge.from_id]
+      b = @items[edge.to_id]
+      a.employee_id.present? && a.employee_id == b.employee_id &&
+        [a.hours_min, a.hours_max] == [b.hours_min, b.hours_max]
     end
 
     def confidence(conservative)

@@ -52,8 +52,10 @@ module Synthesis
         role: finding.role_title.presence || finding.employee&.role_title,
         title: finding.display_title, wording: finding.display_what_happens_now, friction: finding.display_friction,
         area: finding.area,
-        words: Findings::Words.of([finding.display_what_happens_now, finding.display_friction, finding.area].join(" ")),
-        title_words: Findings::Words.of(finding.display_title),
+        # What the work is, from how it was described. The title and the role
+        # area are names, and a name alone is never evidence (Doc 10 §9.1).
+        words: Findings::Words.of([finding.display_what_happens_now, finding.display_friction].join(" ")),
+        title_words: Findings::Words.of([finding.display_title, finding.area].join(" ")),
         systems: @systems.select { |name| text.match?(/\b#{Regexp.escape(name)}\b/i) },
         hours_min: finding.annual_hours_min&.to_f, hours_max: finding.annual_hours_max&.to_f,
         effort_type: finding.effective_effort_type, frequency: finding.display_frequency,

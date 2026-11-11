@@ -76,13 +76,21 @@ module Synthesis
         signals << "Same frequency and duration"
       end
 
-      if a.department.present? && a.department.casecmp?(b.department.to_s)
+      same_department = a.department.present? && a.department.casecmp?(b.department.to_s)
+      if same_department
         score += 1
         signals << "Same department"
       end
       if a.role.present? && a.role.casecmp?(b.role.to_s)
         score += 0.5
         signals << "Same role title"
+        # Several people in one role in one department are the likeliest to
+        # describe the same work in different words (P10 §7.1) — worth asking
+        # about, and the same-title trap is P10's to rule out, not ours.
+        if same_department && a.employee_id != b.employee_id
+          score += 1
+          substance = true
+        end
       end
       if Findings::Words.overlap(a.title_words, b.title_words) >= STRONG_OVERLAP
         score += 0.5
@@ -91,6 +99,10 @@ module Synthesis
 
       return unless substance && score >= THRESHOLD
 
+      # Who described each — never by name. Without it P10 cannot tell one
+      # person's two accounts of one task from two people's own work.
+      signals << (a.employee_id && a.employee_id == b.employee_id ? "Both described by the same person" :
+                                                                    "Described by two different people")
       Pair.new(a: a, b: b, score: score, signals: signals, digest: self.class.digest_for(a, b))
     end
 

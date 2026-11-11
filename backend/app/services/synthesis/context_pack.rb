@@ -51,7 +51,18 @@ module Synthesis
     def ref_for_finding(id) = "wi_#{id}"
     def ref_for_cluster(cluster) = cluster.cluster_key
 
-    def allowed_numbers = @allowed_numbers ||= Llm::GroundedNumbers.allowed_numbers(@figures.map(&:text) + item_phrases)
+    # Every figure the evidence carries: the platform's computed ranges, how
+    # often and how long people said, and what leadership and the planned
+    # initiatives said — with number words as digits too, so "in three months"
+    # allows "3 months" without allowing anything new.
+    def allowed_numbers
+      @allowed_numbers ||= begin
+        sources = @figures.map(&:text) + item_phrases + leadership_phrases
+        Llm::GroundedNumbers.allowed_numbers(sources + sources.map { |s| digits(s) })
+      end
+    end
+
+    NUMBER_WORDS = %w[zero one two three four five six seven eight nine ten eleven twelve].each_with_index.to_h.freeze
 
     # The figure a quoted capacity reference matches exactly — quoted whole, or
     # with the same lower and upper bound and no other number — or nil.
@@ -231,7 +242,16 @@ module Synthesis
       end
     end
 
-    def item_phrases = @items.flat_map { |i| [i.frequency, i.duration] }.compact
+    def item_phrases = @items.flat_map { |i| [i.frequency, i.duration, i.wording, i.friction] }.compact
+
+    def leadership_phrases
+      @strategic_findings.flat_map { |sf| [sf.statement, sf.business_consequence] }.compact +
+        @initiatives.flat_map { |i| [i.description, i.timing] }.compact
+    end
+
+    def digits(text)
+      text.to_s.gsub(/\b(#{NUMBER_WORDS.keys.join('|')})\b/i) { |w| NUMBER_WORDS[w.downcase].to_s }
+    end
 
     def redact(text)
       @known_names.sort_by { |n| -n.length }.reduce(text) do |out, name|

@@ -257,7 +257,10 @@ module Synthesis
 
       problem = if @pack.names_someone?(value) then "names a person"
                 elsif value.match?(ABOUT_A_PERSON) then "describes a person"
-                elsif !Llm::GroundedNumbers.grounded?(value, @pack.allowed_numbers) then "carries a figure the platform never computed"
+                elsif !Llm::GroundedNumbers.grounded?(value, @pack.allowed_numbers)
+                  # The figure alone, never the text: the text may name someone.
+                  stray = (Llm::GroundedNumbers.figures(value) - @pack.allowed_numbers.to_set).first(3).join(", ")
+                  "carries a figure the platform never computed (#{stray})"
                 elsif value.length > TEXT_MAX then "too long"
                 end
       return value unless problem

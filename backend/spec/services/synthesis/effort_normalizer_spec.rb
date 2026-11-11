@@ -84,6 +84,25 @@ RSpec.describe Synthesis::EffortNormalizer do
     expect(result.overlap_adjustments.size).to eq(2)
   end
 
+  it "counts one person's work named twice once, even when P10 called them different executions" do
+    result = normalise([item(1, 10, [150, 200]), item(2, 10, [150, 200])], [edge(1, 2, "SAME_PROCESS", "NO")])
+
+    expect([result.dedup_min, result.dedup_max]).to eq([150.0, 200.0])
+    expect(result.conservative_adjustment).to be(false)
+  end
+
+  it "takes two people's accounts as one execution only on a consultant's word; otherwise warns" do
+    model = normalise([item(1, 10, [100, 150]), item(2, 11, [80, 120])], [edge(1, 2, "SAME_PROCESS", "YES")])
+    expect([model.dedup_min, model.dedup_max]).to eq([100.0, 150.0])
+    expect(model.double_count_warning).to be(true)
+
+    consultant = Synthesis::Edge.new(from_id: 1, to_id: 2, relationship_type: "SAME_PROCESS", same_execution: "YES",
+                                     confidence: "HIGH", recommendation: "PROVISIONAL_CLUSTER", origin: "CONSULTANT")
+    decided = normalise([item(1, 10, [100, 150]), item(2, 11, [80, 120])], [consultant])
+    expect([decided.dedup_min, decided.dedup_max]).to eq([100.0, 150.0])
+    expect(decided.double_count_warning).to be(false)
+  end
+
   it "never reports more de-duplicated effort than the raw sum" do
     rng = Random.new(42)
     50.times do
