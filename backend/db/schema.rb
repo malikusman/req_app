@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_11_11_100100) do
+ActiveRecord::Schema[7.1].define(version: 2026_11_12_100000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -412,6 +412,51 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_11_100100) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["locale", "active"], name: "index_consent_text_versions_on_locale_and_active"
+  end
+
+  create_table "consultancy_opportunities", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "engagement_id", null: false
+    t.bigint "synthesis_run_id"
+    t.string "opportunity_key", null: false
+    t.integer "version", default: 1, null: false
+    t.bigint "parent_version_id"
+    t.string "status", default: "PROPOSED", null: false
+    t.string "level", null: false
+    t.string "category", null: false
+    t.string "title", null: false
+    t.text "problem_statement", null: false
+    t.text "evidence_summary"
+    t.string "affected_cluster_keys", default: [], null: false, array: true
+    t.bigint "affected_finding_ids", default: [], null: false, array: true
+    t.string "affected_departments", default: [], null: false, array: true
+    t.string "root_cause_key"
+    t.text "capacity_reference"
+    t.string "other_value", default: [], null: false, array: true
+    t.text "intervention_direction"
+    t.string "ai_relevance"
+    t.text "ai_note"
+    t.text "management_alignment"
+    t.text "planned_initiative_conflict"
+    t.jsonb "dependencies", default: [], null: false
+    t.string "recommended_next_action", null: false
+    t.text "priority_reason"
+    t.string "management_importance"
+    t.string "platform_priority"
+    t.string "platform_priority_rule_version"
+    t.bigint "strategic_finding_ids", default: [], null: false, array: true
+    t.string "confidence", null: false
+    t.jsonb "evidence", default: [], null: false
+    t.string "origin", default: "AI", null: false
+    t.string "prompt_version"
+    t.string "schema_version", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_consultancy_opportunities_on_company_id"
+    t.index ["engagement_id", "opportunity_key", "version"], name: "idx_opportunities_key_version", unique: true
+    t.index ["engagement_id", "status"], name: "index_consultancy_opportunities_on_engagement_id_and_status"
+    t.index ["engagement_id"], name: "index_consultancy_opportunities_on_engagement_id"
+    t.index ["synthesis_run_id"], name: "index_consultancy_opportunities_on_synthesis_run_id"
   end
 
   create_table "consultant_assignments", force: :cascade do |t|
@@ -887,6 +932,33 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_11_100100) do
     t.index ["uploaded_by_company_user_id"], name: "index_documents_on_uploaded_by_company_user_id"
   end
 
+  create_table "effort_normalizations", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "engagement_id", null: false
+    t.bigint "process_cluster_id", null: false
+    t.decimal "raw_min", precision: 10, scale: 1
+    t.decimal "raw_max", precision: 10, scale: 1
+    t.decimal "dedup_min", precision: 10, scale: 1
+    t.decimal "dedup_max", precision: 10, scale: 1
+    t.decimal "waiting_hours_max", precision: 10, scale: 1
+    t.jsonb "overlap_adjustments", default: [], null: false
+    t.boolean "conservative_adjustment", default: false, null: false
+    t.boolean "double_count_warning", default: false, null: false
+    t.text "warning_reason"
+    t.boolean "duplication_flag", default: false, null: false
+    t.bigint "participants_counted", default: [], null: false, array: true
+    t.string "method_version", null: false
+    t.string "confidence"
+    t.decimal "consultant_min", precision: 10, scale: 1
+    t.decimal "consultant_max", precision: 10, scale: 1
+    t.text "override_rationale"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_effort_normalizations_on_company_id"
+    t.index ["engagement_id"], name: "index_effort_normalizations_on_engagement_id"
+    t.index ["process_cluster_id"], name: "index_effort_normalizations_on_process_cluster_id", unique: true
+  end
+
   create_table "employee_invitations", force: :cascade do |t|
     t.bigint "company_id", null: false
     t.bigint "employee_id", null: false
@@ -1222,6 +1294,34 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_11_100100) do
     t.index ["engagement_participant_id", "version"], name: "idx_on_engagement_participant_id_version_2e610d2200", unique: true
   end
 
+  create_table "management_validations", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "engagement_id", null: false
+    t.bigint "synthesis_run_id"
+    t.bigint "strategic_finding_id", null: false
+    t.integer "strategic_finding_version", null: false
+    t.integer "version", default: 1, null: false
+    t.bigint "parent_version_id"
+    t.string "status", default: "PROPOSED", null: false
+    t.text "management_view", null: false
+    t.text "what_evidence_shows"
+    t.string "relationship", null: false
+    t.boolean "material", default: false, null: false
+    t.text "note"
+    t.jsonb "evidence", default: [], null: false
+    t.text "resolution"
+    t.string "origin", default: "AI", null: false
+    t.string "prompt_version"
+    t.string "schema_version", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_management_validations_on_company_id"
+    t.index ["engagement_id", "status"], name: "index_management_validations_on_engagement_id_and_status"
+    t.index ["engagement_id"], name: "index_management_validations_on_engagement_id"
+    t.index ["strategic_finding_id"], name: "index_management_validations_on_strategic_finding_id"
+    t.index ["synthesis_run_id"], name: "index_management_validations_on_synthesis_run_id"
+  end
+
   create_table "margin_floor_versions", force: :cascade do |t|
     t.integer "version", null: false
     t.decimal "value", precision: 5, scale: 4, null: false
@@ -1389,6 +1489,91 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_11_100100) do
     t.index ["decided_by_type", "decided_by_id"], name: "index_prefill_candidates_on_decided_by"
     t.index ["engagement_id", "status"], name: "index_prefill_candidates_on_engagement_id_and_status"
     t.index ["engagement_id"], name: "index_prefill_candidates_on_engagement_id"
+  end
+
+  create_table "process_cluster_members", force: :cascade do |t|
+    t.bigint "process_cluster_id", null: false
+    t.bigint "finding_id", null: false
+    t.bigint "employee_id"
+    t.string "variant_label"
+    t.integer "stage_order"
+    t.string "member_digest", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["employee_id"], name: "index_process_cluster_members_on_employee_id"
+    t.index ["finding_id"], name: "index_process_cluster_members_on_finding_id"
+    t.index ["process_cluster_id", "finding_id"], name: "idx_on_process_cluster_id_finding_id_1afc7bc261", unique: true
+    t.index ["process_cluster_id"], name: "index_process_cluster_members_on_process_cluster_id"
+  end
+
+  create_table "process_clusters", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "engagement_id", null: false
+    t.bigint "synthesis_run_id"
+    t.string "cluster_key", null: false
+    t.integer "version", default: 1, null: false
+    t.bigint "parent_version_id"
+    t.string "status", default: "PROVISIONAL", null: false
+    t.string "name", null: false
+    t.text "description"
+    t.string "cluster_type", null: false
+    t.string "departments", default: [], null: false, array: true
+    t.string "roles", default: [], null: false, array: true
+    t.jsonb "variants", default: [], null: false
+    t.jsonb "stages", default: [], null: false
+    t.boolean "single_member", default: false, null: false
+    t.string "fact_status", default: "INFERRED", null: false
+    t.string "confidence"
+    t.string "origin", default: "AI", null: false
+    t.text "rationale"
+    t.jsonb "evidence", default: [], null: false
+    t.string "decided_by_type"
+    t.bigint "decided_by_id"
+    t.text "decision_rationale"
+    t.string "schema_version", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_process_clusters_on_company_id"
+    t.index ["decided_by_type", "decided_by_id"], name: "index_process_clusters_on_decided_by"
+    t.index ["engagement_id", "cluster_key", "version"], name: "idx_on_engagement_id_cluster_key_version_fff63f1aa6", unique: true
+    t.index ["engagement_id", "status"], name: "index_process_clusters_on_engagement_id_and_status"
+    t.index ["engagement_id"], name: "index_process_clusters_on_engagement_id"
+    t.index ["synthesis_run_id"], name: "index_process_clusters_on_synthesis_run_id"
+  end
+
+  create_table "process_relationships", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "engagement_id", null: false
+    t.bigint "synthesis_run_id"
+    t.bigint "from_finding_id", null: false
+    t.bigint "to_finding_id", null: false
+    t.string "pair_digest", null: false
+    t.integer "version", default: 1, null: false
+    t.bigint "parent_version_id"
+    t.string "status", default: "CURRENT", null: false
+    t.string "relationship_type", null: false
+    t.string "confidence", null: false
+    t.string "recommendation", null: false
+    t.string "same_execution", default: "UNKNOWN", null: false
+    t.jsonb "tests", default: {}, null: false
+    t.jsonb "variant_assessment", default: {}, null: false
+    t.jsonb "evidence_for", default: [], null: false
+    t.jsonb "evidence_against", default: [], null: false
+    t.text "effort_note"
+    t.text "rationale"
+    t.text "clarification"
+    t.string "origin", default: "AI", null: false
+    t.string "prompt_version"
+    t.string "schema_version", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_process_relationships_on_company_id"
+    t.index ["engagement_id", "pair_digest"], name: "index_process_relationships_on_engagement_id_and_pair_digest"
+    t.index ["engagement_id", "status"], name: "index_process_relationships_on_engagement_id_and_status"
+    t.index ["engagement_id"], name: "index_process_relationships_on_engagement_id"
+    t.index ["from_finding_id"], name: "index_process_relationships_on_from_finding_id"
+    t.index ["synthesis_run_id"], name: "index_process_relationships_on_synthesis_run_id"
+    t.index ["to_finding_id"], name: "index_process_relationships_on_to_finding_id"
   end
 
   create_table "profile_changes", force: :cascade do |t|
@@ -1694,6 +1879,33 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_11_100100) do
     t.index ["target_consultant_user_id"], name: "index_review_discussions_on_target_consultant_user_id"
   end
 
+  create_table "root_causes", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "engagement_id", null: false
+    t.bigint "synthesis_run_id"
+    t.string "root_cause_key", null: false
+    t.integer "version", default: 1, null: false
+    t.bigint "parent_version_id"
+    t.string "status", default: "PROPOSED", null: false
+    t.text "statement", null: false
+    t.jsonb "explains", default: [], null: false
+    t.string "affected_departments", default: [], null: false, array: true
+    t.jsonb "supporting_signals", default: [], null: false
+    t.string "fact_status", default: "INFERRED", null: false
+    t.string "confidence", null: false
+    t.text "what_would_confirm"
+    t.jsonb "evidence", default: [], null: false
+    t.string "origin", default: "AI", null: false
+    t.string "prompt_version"
+    t.string "schema_version", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_root_causes_on_company_id"
+    t.index ["engagement_id", "root_cause_key", "version"], name: "idx_on_engagement_id_root_cause_key_version_a8c471e19f", unique: true
+    t.index ["engagement_id"], name: "index_root_causes_on_engagement_id"
+    t.index ["synthesis_run_id"], name: "index_root_causes_on_synthesis_run_id"
+  end
+
   create_table "solution_catalog", force: :cascade do |t|
     t.string "name", null: false
     t.string "vendor"
@@ -1776,6 +1988,56 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_11_100100) do
     t.index ["company_id"], name: "index_subscriptions_on_company_id", unique: true
   end
 
+  create_table "synthesis_decisions", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "engagement_id", null: false
+    t.string "action", null: false
+    t.string "subject_type", null: false
+    t.bigint "subject_id", null: false
+    t.bigint "before_version_id"
+    t.bigint "after_version_id"
+    t.text "rationale", null: false
+    t.string "actor_type", null: false
+    t.bigint "actor_id", null: false
+    t.jsonb "details", default: {}, null: false
+    t.jsonb "rerun_scope", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.index ["actor_type", "actor_id"], name: "index_synthesis_decisions_on_actor"
+    t.index ["company_id"], name: "index_synthesis_decisions_on_company_id"
+    t.index ["engagement_id"], name: "index_synthesis_decisions_on_engagement_id"
+    t.index ["subject_type", "subject_id"], name: "index_synthesis_decisions_on_subject"
+  end
+
+  create_table "synthesis_runs", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "engagement_id", null: false
+    t.integer "version", null: false
+    t.string "trigger", null: false
+    t.string "status", default: "QUEUED", null: false
+    t.datetime "requested_at", null: false
+    t.datetime "started_at"
+    t.datetime "finished_at"
+    t.string "input_digest"
+    t.jsonb "coverage", default: {}, null: false
+    t.jsonb "prompt_versions", default: {}, null: false
+    t.jsonb "operating_picture", default: {}, null: false
+    t.jsonb "consultant_operating_picture"
+    t.string "operating_picture_status", default: "PROPOSED", null: false
+    t.jsonb "initiative_conflicts", default: [], null: false
+    t.jsonb "role_potential", default: [], null: false
+    t.jsonb "coverage_notes", default: [], null: false
+    t.string "confidence"
+    t.jsonb "validation_drops", default: [], null: false
+    t.jsonb "counts", default: {}, null: false
+    t.string "fallback_reason"
+    t.text "error"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_synthesis_runs_on_company_id"
+    t.index ["engagement_id", "version"], name: "index_synthesis_runs_on_engagement_id_and_version", unique: true
+    t.index ["engagement_id"], name: "index_synthesis_runs_on_engagement_id"
+  end
+
   create_table "webhook_events", force: :cascade do |t|
     t.string "provider", default: "meta_whatsapp", null: false
     t.string "external_id", null: false
@@ -1832,6 +2094,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_11_100100) do
   add_foreign_key "company_systems", "companies"
   add_foreign_key "company_users", "companies"
   add_foreign_key "company_users", "company_users", column: "invited_by_id"
+  add_foreign_key "consultancy_opportunities", "companies"
+  add_foreign_key "consultancy_opportunities", "engagements"
+  add_foreign_key "consultancy_opportunities", "synthesis_runs"
   add_foreign_key "consultant_assignments", "companies"
   add_foreign_key "consultant_assignments", "consultant_users"
   add_foreign_key "consultant_assignments", "platform_users", column: "assigned_by_platform_user_id"
@@ -1894,6 +2159,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_11_100100) do
   add_foreign_key "documents", "document_requests"
   add_foreign_key "documents", "employees"
   add_foreign_key "documents", "messages"
+  add_foreign_key "effort_normalizations", "companies"
+  add_foreign_key "effort_normalizations", "engagements"
+  add_foreign_key "effort_normalizations", "process_clusters"
   add_foreign_key "employee_invitations", "companies"
   add_foreign_key "employee_invitations", "company_users"
   add_foreign_key "employee_invitations", "employees"
@@ -1933,6 +2201,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_11_100100) do
   add_foreign_key "management_discovery_contexts", "conversation_sessions"
   add_foreign_key "management_discovery_contexts", "engagement_participants"
   add_foreign_key "management_discovery_contexts", "engagements"
+  add_foreign_key "management_validations", "companies"
+  add_foreign_key "management_validations", "engagements"
+  add_foreign_key "management_validations", "strategic_findings"
+  add_foreign_key "management_validations", "synthesis_runs"
   add_foreign_key "media_attachments", "companies"
   add_foreign_key "media_attachments", "conversations"
   add_foreign_key "media_attachments", "documents"
@@ -1947,6 +2219,17 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_11_100100) do
   add_foreign_key "platform_audit_logs", "platform_users"
   add_foreign_key "prefill_candidates", "companies"
   add_foreign_key "prefill_candidates", "engagements"
+  add_foreign_key "process_cluster_members", "employees"
+  add_foreign_key "process_cluster_members", "findings"
+  add_foreign_key "process_cluster_members", "process_clusters"
+  add_foreign_key "process_clusters", "companies"
+  add_foreign_key "process_clusters", "engagements"
+  add_foreign_key "process_clusters", "synthesis_runs"
+  add_foreign_key "process_relationships", "companies"
+  add_foreign_key "process_relationships", "engagements"
+  add_foreign_key "process_relationships", "findings", column: "from_finding_id"
+  add_foreign_key "process_relationships", "findings", column: "to_finding_id"
+  add_foreign_key "process_relationships", "synthesis_runs"
   add_foreign_key "profile_changes", "companies"
   add_foreign_key "quote_events", "quotes"
   add_foreign_key "quotes", "companies"
@@ -1985,8 +2268,15 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_11_100100) do
   add_foreign_key "review_discussions", "employees"
   add_foreign_key "review_discussions", "reports"
   add_foreign_key "review_discussions", "review_discussions", column: "parent_id"
+  add_foreign_key "root_causes", "companies"
+  add_foreign_key "root_causes", "engagements"
+  add_foreign_key "root_causes", "synthesis_runs"
   add_foreign_key "strategic_findings", "companies"
   add_foreign_key "strategic_findings", "engagements"
   add_foreign_key "strategic_findings", "management_discovery_contexts"
   add_foreign_key "subscriptions", "companies"
+  add_foreign_key "synthesis_decisions", "companies"
+  add_foreign_key "synthesis_decisions", "engagements"
+  add_foreign_key "synthesis_runs", "companies"
+  add_foreign_key "synthesis_runs", "engagements"
 end
