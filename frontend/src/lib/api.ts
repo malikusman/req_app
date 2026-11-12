@@ -74,7 +74,7 @@ export const api = {
   consultantTaskSelection: (token: string, companyId: string, runId: string, version: string | null) =>
     request<SelectionReview>(
       `/api/v1/consultant/companies/${companyId}/task_intelligence_runs/${runId}/selection_review${version ? `?version=${version}` : ''}`, {}, token),
-  consultantTaskSelectionCommand: (token: string, companyId: string, runId: string, command: ReviewCommand & { expected_version: number; reason: string }) =>
+  consultantTaskSelectionCommand: (token: string, companyId: string, runId: string, command: ReviewCommand & { expected_version: number; reason?: string }) =>
     request<SelectionReview>(
       `/api/v1/consultant/companies/${companyId}/task_intelligence_runs/${runId}/selection_review/commands`,
       { method: 'POST', body: JSON.stringify(command) }, token),

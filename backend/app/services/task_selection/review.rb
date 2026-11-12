@@ -41,7 +41,11 @@ module TaskSelection
         raise Conflict, "This review has already been finalized." if head&.status == "finalized"
 
         action = command["action"]
-        reason = required_text(command["reason"], "Decision reason", 2_000)
+        reason = command["reason"]
+        if action == "participants" && (reason.nil? || (reason.is_a?(String) && reason.strip.empty?))
+          reason = "Updated interview participants."
+        end
+        reason = required_text(reason, "Decision reason", 2_000)
         snapshot = head&.snapshot&.deep_dup || initial_snapshot
         apply_action(snapshot, command, action, reason)
         update_summary(snapshot)
@@ -109,7 +113,7 @@ module TaskSelection
       when "finalize"
         raise Invalid, "Select at least one task before finalizing." if snapshot["selected_order"].empty?
 
-        selected_tasks(snapshot).each { |task| participant_ids(task["participant_ids"]) }
+        selected_tasks(snapshot).each { |task| participant_ids(task["participant_ids"], task) }
       else
         raise Invalid, "Unknown review action."
       end
@@ -121,7 +125,7 @@ module TaskSelection
       when "annotate"
         task["notes"] << reason
       when "participants"
-        task["participant_ids"] = participant_ids(command["participant_ids"])
+        task["participant_ids"] = participant_ids(command["participant_ids"], task)
         task["participant_reason"] = reason
       when "effort"
         source_id = command["source_id"]
@@ -195,10 +199,10 @@ module TaskSelection
       ids
     end
 
-    def participant_ids(ids)
+    def participant_ids(ids, task)
       unless ids.is_a?(Array) && ids.all? { |id| id.is_a?(Integer) } && ids == ids.uniq &&
-             (ids - evidence.participants.pluck("id")).empty?
-        raise Invalid, "Choose distinct eligible employees from this company."
+             (ids - evidence.participants_for(task).pluck("id")).empty?
+        raise Invalid, "Choose eligible employees with Discovery evidence linked to this task."
       end
 
       ids

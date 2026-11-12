@@ -10,11 +10,18 @@ export function workload(value?: AnnualWorkload) {
   if (!value) return 'No supported annual range';
   const hours = value.annual_hours_min != null && value.annual_hours_max != null
     ? `${value.annual_hours_min}–${value.annual_hours_max} hours/year · ` : '';
-  return hours + words(value.status);
+  const labels: Record<string, string> = {
+    unknown: 'No estimate yet', unknown_active_effort: 'Active work time is unknown',
+    withheld_possible_overlap: 'Estimate withheld because work may overlap',
+    withheld_shared_evidence: 'Estimate withheld because tasks share evidence',
+    reported_active_workload: 'Reported active work', conditional_consultant_assumption: 'Based on consultant assumptions',
+    unresolved_overlap: 'Overlap needs review',
+  };
+  return hours + (labels[value.status] ?? words(value.status));
 }
 
 export function sourceLabel(source: TaskSource) {
-  return `${source.name} · source #${source.id} v${source.version} · employee #${source.employee_id}`;
+  return `${source.name} · source #${source.id} v${source.version}`;
 }
 
 function range(value: EffortRange) {
@@ -50,15 +57,20 @@ export function ProposalEvidence({ proposal, sources }: { proposal: Proposal; so
 
 export function RelationshipEvidence({ relationship, sources }: { relationship: Relationship; sources: TaskSource[] }) {
   const request = relationship.clarification_request;
-  return <div className="space-y-2 rounded-md border border-border p-3 text-sm">
-    <p className="font-semibold">{words(relationship.classification ?? relationship.kind ?? 'unresolved')}</p>
-    {relationship.source_ids.map(id => <p key={id}>{sources.find(source => source.id === id)?.name ?? 'Source'} #{id}</p>)}
+  const classification = relationship.classification ?? relationship.kind ?? 'UNRESOLVED';
+  const labels: Record<string, string> = {
+    SHARED_IDENTICAL: 'Same reported work', SHARED_VARIANT: 'Different versions of the same work',
+    DISTINCT: 'Distinct work', UNRESOLVED: 'Possible overlap', uncertain: 'Possible overlap',
+  };
+  return <details className="space-y-2 rounded-md border border-border p-3 text-sm">
+    <summary className="cursor-pointer font-semibold">{request ? 'Clarification · ' : ''}{labels[classification] ?? words(classification)}</summary>
+    {relationship.source_ids.map(id => <p key={id}>{sources.find(source => source.id === id)?.name ?? 'Discovery activity'}</p>)}
     <p>{relationship.rationale}</p>
     {request && <>
-      <p className="font-semibold">Clarification #{request.id} · {request.status}</p>
+      <p className="font-semibold">Clarification · {request.status}</p>
       <h4 className="font-medium">Missing facts</h4><TextList items={request.missing_evidence} />
       <h4 className="font-medium">Why it matters</h4><TextList items={request.why_it_matters} />
       <h4 className="font-medium">Unknowns</h4><TextList items={request.unknowns} />
     </>}
-  </div>;
+  </details>;
 }

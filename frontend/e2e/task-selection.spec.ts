@@ -9,8 +9,8 @@ const makeTask = (id: string, title: string, source_ids: number[], proposal_ids:
 });
 const tasks = [makeTask('proposal-1', 'Invoice matching', [10], [1]), makeTask('proposal-2', 'Invoice exception handling', [20], [2])];
 
-async function mockReview(page: Page) {
-  const commands: (ReviewCommand & { expected_version: number; reason: string })[] = [];
+async function mockReview(page: Page, failParticipantSave = false) {
+  const commands: (ReviewCommand & { expected_version: number; reason?: string })[] = [];
   const review: SelectionReview = {
     run, version: 0, latest_version: 0, status: 'draft', latest_status: 'draft', history: [],
     snapshot: { tasks: structuredClone(tasks), selected_order: [], relationship_overrides: {},
@@ -28,7 +28,10 @@ async function mockReview(page: Page) {
     relationships: [{ source_ids: [10, 20], classification: 'UNRESOLVED', rationale: 'Similar steps with insufficient boundaries.',
       clarification_request: { id: 19, status: 'open', missing_evidence: ['Which output closes each activity?'],
         why_it_matters: ['Avoid counting effort twice.'], unknowns: ['One process or two?'] } }],
-    eligible_participants: [{ id: 1, name: 'Adam', discovery_consent_recorded: true }],
+    eligible_participants: [
+      { id: 1, name: 'Adam', discovery_consent_recorded: true },
+      { id: 2, name: 'Sam', discovery_consent_recorded: false },
+    ],
   };
   const initial = structuredClone(review);
   await page.addInitScript(() => localStorage.setItem('req_app_session', JSON.stringify({
@@ -42,12 +45,21 @@ async function mockReview(page: Page) {
   await page.route('**/selection_review/commands', async route => {
     const command = route.request().postDataJSON() as typeof commands[number];
     commands.push(command);
+    if (command.action === 'participants' && failParticipantSave) {
+      await route.fulfill({ status: 422, json: { error: 'Choose eligible employees with Discovery evidence linked to this task.' } });
+      return;
+    }
     const snapshot = review.snapshot;
     const task = snapshot.tasks.find(row => row.id === command.task_id);
     switch (command.action) {
       case 'select':
         task!.status = 'selected';
         snapshot.selected_order.push(task!.id);
+        break;
+      case 'reject':
+      case 'defer':
+        task!.status = command.action === 'reject' ? 'rejected' : 'deferred';
+        snapshot.selected_order = snapshot.selected_order.filter(id => id !== task!.id);
         break;
       case 'participants':
         task!.participant_ids = command.participant_ids!;
@@ -67,64 +79,110 @@ async function mockReview(page: Page) {
         break;
     }
     review.latest_version = ++review.version;
-    review.history.unshift({ version: review.version, action: command.action, reason: command.reason, status: review.status,
+    review.history.unshift({ version: review.version, action: command.action, reason: command.reason ?? 'Updated interview participants.', status: review.status,
       consultant_user_id: 12, created_at: '2026-11-12T00:00:00Z' });
     await route.fulfill({ json: review });
   });
   await page.goto(companyPath);
-  await expect(page.getByRole('main').getByRole('heading', { name: 'Task selection', exact: true })).toBeVisible();
+  await expect(page.getByRole('main').getByRole('heading', { name: 'Deep Dive Task Selection', exact: true })).toBeVisible();
   return commands;
+}
+
+async function decide(page: Page, reason: string, confirmation = 'Save decision') {
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Reason').fill(reason);
+  await dialog.getByRole('button', { name: confirmation, exact: true }).click();
+  await expect(dialog).toBeHidden();
 }
 
 test('shows proposals, uncertainty and reasons, then saves participants and provisional selection', async ({ page }) => {
   const commands = await mockReview(page);
-  await page.getByText('Outside shortlist · Invoice exception handling').click();
-  await expect(page.getByText(/deferred overlap · medium priority/)).toBeVisible();
-  await expect(page.getByText('Clarification #19 · open')).toBeVisible();
-  await expect(page.getByText('Which output closes each activity?')).toBeVisible();
-  await expect(page.getByText('Avoid counting effort twice.')).toBeVisible();
   const task = page.getByRole('region', { name: 'Invoice matching', exact: true });
+  const other = page.getByRole('region', { name: 'Invoice exception handling', exact: true });
+  await expect(task.getByText(/This task may overlap with other work/)).toBeVisible();
+  await expect(other.getByText('Which output closes each activity?')).toBeHidden();
+  await other.getByText('Evidence and options').click();
+  await other.getByText('Outside shortlist · Invoice exception handling').click();
+  await expect(other.getByText(/deferred overlap · medium priority/)).toBeVisible();
+  await other.getByText('Clarification · Possible overlap').click();
+  await expect(other.getByText('Which output closes each activity?')).toBeVisible();
+  await expect(other.getByText('Avoid counting effort twice.')).toBeVisible();
   await task.getByRole('button', { name: 'Select', exact: true }).click();
-  await expect(page.getByRole('alert')).toHaveText('Enter a reason for this decision.');
-  const reason = page.getByLabel('Reason for next decision');
-  await reason.fill('Validate the overlap first');
-  await task.getByRole('button', { name: 'Select', exact: true }).click();
-  await expect(task.getByRole('heading', { level: 3 })).toHaveText('Invoice matching · selected');
+  await decide(page, 'Validate the overlap first');
+  await expect(task.getByText('selected', { exact: true })).toBeVisible();
   await task.getByText('Choose participants').click();
-  await task.getByRole('checkbox', { name: /Adam #1 · linked evidence/ }).check();
-  await reason.fill('Adam has linked evidence');
+  await expect(task.getByRole('checkbox', { name: /Sam/ })).toHaveCount(0);
+  await task.getByRole('checkbox', { name: 'Adam' }).check();
   await task.getByRole('button', { name: 'Save participants' }).click();
-  await expect(task.getByText('Participants · Adam #1')).toBeVisible();
-  await reason.fill('Proceed with gaps documented');
+  await expect(task.getByRole('status')).toHaveText('Participants saved.');
+  await expect(task.getByText('Participants · Adam')).toBeVisible();
+  expect(commands[1]).toMatchObject({ action: 'participants', participant_ids: [1], expected_version: 1 });
+  expect(commands[1]).not.toHaveProperty('reason');
+  await other.getByRole('button', { name: 'Reject', exact: true }).click();
+  await decide(page, 'Outside the investigation scope');
+  await expect(other.getByText('rejected', { exact: true })).toBeVisible();
+  await other.getByRole('button', { name: 'Defer', exact: true }).click();
+  await decide(page, 'Revisit later');
+  await page.reload();
+  await expect(other.getByText('deferred', { exact: true })).toBeVisible();
+  await expect(task.getByText('selected', { exact: true })).toBeVisible();
+  await expect(task.getByText('Participants · Adam')).toBeVisible();
+  await task.getByText('Choose participants').click();
+  await expect(task.getByRole('checkbox', { name: 'Adam' })).toBeChecked();
   await page.getByRole('button', { name: 'Finalize selection' }).click();
-  await expect(page.getByText(/Finalized with unresolved gaps · review v3/)).toBeVisible();
+  await expect(page.getByRole('dialog').getByText(/Finalizing locks this review/)).toBeVisible();
+  await decide(page, 'Proceed with gaps documented', 'Confirm finalization');
+  await expect(page.getByText('Finalized with unresolved gaps', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Finalize selection' })).toHaveCount(0);
-  expect(commands.map(command => [command.action, command.expected_version])).toEqual([['select', 0], ['participants', 1], ['finalize', 2]]);
+  expect(commands.map(command => [command.action, command.expected_version])).toEqual([
+    ['select', 0], ['participants', 1], ['reject', 2], ['defer', 3], ['finalize', 4],
+  ]);
+  await page.getByText('Recommendation versions and review history').click();
   await page.getByLabel('Review revision').selectOption('0');
-  await expect(page.getByText(/read-only revision/)).toBeVisible();
-  await expect(task.getByRole('heading', { level: 3 })).toHaveText('Invoice matching · pending');
+  await expect(page.getByText('Read-only revision', { exact: true })).toBeVisible();
+  await expect(task.getByText('To review', { exact: true })).toBeVisible();
 });
 
 test('submits a merge and a split with explicit source lineage', async ({ page }) => {
   const commands = await mockReview(page);
   for (const title of tasks.map(task => task.title)) {
-    await page.getByRole('region', { name: title, exact: true }).getByRole('checkbox', { name: 'Mark for merge' }).check();
+    const task = page.getByRole('region', { name: title, exact: true });
+    await task.getByText('Evidence and options').click();
+    await task.getByRole('checkbox', { name: 'Mark for merge' }).check();
   }
-  const reason = page.getByLabel('Reason for next decision');
-  await reason.fill('Compare linked scopes');
+  await page.getByText('Manage tasks · 2 marked for merge', { exact: true }).click();
   await page.getByText('Merge marked tasks (2)', { exact: true }).click();
   await page.getByLabel('Merged task title').fill('Invoice workflow');
-  await page.getByRole('button', { name: 'Merge marked tasks' }).click();
+  await page.getByRole('button', { name: 'Merge marked tasks', exact: true }).click();
+  await decide(page, 'Compare linked scopes');
   const merged = page.getByRole('region', { name: 'Invoice workflow' });
   await expect(merged).toBeVisible();
+  await merged.getByText('Choose participants').click();
+  await expect(merged.getByRole('checkbox', { name: 'Adam' })).toHaveCount(1);
+  await expect(merged.getByRole('checkbox', { name: /Sam/ })).toBeVisible();
+  await expect(merged.getByText('Discovery consent unrecorded')).toBeVisible();
+  await merged.getByText('Evidence and options').click();
   await merged.getByText('Split task').click();
   await merged.getByLabel('Child 1 title').fill('Validate invoice');
   await merged.getByLabel('Child 2 title').fill('Triage exceptions');
   await merged.locator('input[name="sources0"][value="10"]').check();
   await merged.locator('input[name="sources1"][value="20"]').check();
-  await reason.fill('Different investigation objectives');
   await merged.getByRole('button', { name: 'Save split' }).click();
+  await decide(page, 'Different investigation objectives');
   await expect(page.getByRole('region', { name: 'Triage exceptions' })).toBeVisible();
   expect(commands[0].task_ids).toEqual(['proposal-1', 'proposal-2']);
   expect(commands[1].children).toEqual([{ title: 'Validate invoice', source_ids: [10] }, { title: 'Triage exceptions', source_ids: [20] }]);
+});
+
+test('reports participant save errors beside the picker and preserves the retry selection', async ({ page }) => {
+  await mockReview(page, true);
+  const task = page.getByRole('region', { name: 'Invoice matching', exact: true });
+  await task.getByRole('button', { name: 'Select', exact: true }).click();
+  await decide(page, 'Investigate invoice matching');
+  await task.getByText('Choose participants').click();
+  await task.getByRole('checkbox', { name: 'Adam' }).check();
+  await task.getByRole('button', { name: 'Save participants' }).click();
+  await expect(task.getByRole('alert')).toHaveText('Choose eligible employees with Discovery evidence linked to this task.');
+  await expect(task.getByRole('checkbox', { name: 'Adam' })).toBeChecked();
+  await expect(task.getByText('Participants · None selected')).toBeVisible();
 });

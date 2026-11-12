@@ -16,10 +16,16 @@ module TaskSelection
                       .order(Arel.sql("rank NULLS LAST, score DESC, task_candidate_proposals.id")).map { |candidate| proposal(candidate) }
       @relationships.select! { |pair| pair.fetch("source_ids").all? { |id| sources.key?(id) } }
       @relationships.uniq! { |pair| pair.fetch("source_ids").sort }
-      @participants = Employee.where(company_id: run.company_id).where.not(participation_status: "declined")
+      @participants = Employee.where(company_id: run.company_id, id: sources.values.pluck("employee_id"))
+                              .where.not(participation_status: "declined")
                               .order(:display_name, :id).pluck(:id, :display_name, :consent_given_at).map do |id, name, consent|
         { "id" => id, "name" => name, "discovery_consent_recorded" => consent.present? }
       end
+    end
+
+    def participants_for(task)
+      employee_ids = task.fetch("source_ids").map { |id| sources.fetch(id).fetch("employee_id") }.to_set
+      participants.select { |person| employee_ids.include?(person.fetch("id")) }
     end
 
     def proposal(candidate)
@@ -117,9 +123,13 @@ module TaskSelection
       gaps << "No participant selected." if task.fetch("participant_ids").empty?
       task.fetch("participant_ids").each do |id|
         person = participants.find { |participant| participant["id"] == id }
-        gaps << "Employee ##{id} has no linked evidence for this task." unless employees.include?(id)
-        gaps << "Employee ##{id} has no recorded Discovery consent." if person && !person["discovery_consent_recorded"]
-        gaps << "Employee ##{id} is no longer eligible." unless person
+        if !employees.include?(id)
+          gaps << "A saved participant has no linked evidence for this task."
+        elsif !person
+          gaps << "A saved participant is no longer eligible."
+        elsif !person["discovery_consent_recorded"]
+          gaps << "A participant has no recorded Discovery consent."
+        end
       end
       gaps << "Active workload is unresolved or may overlap." if task.dig("effective_effort", "status").match?(/\A(?:unknown|withheld)/)
       gaps

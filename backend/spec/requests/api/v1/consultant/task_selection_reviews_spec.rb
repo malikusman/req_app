@@ -132,19 +132,22 @@ RSpec.describe "Consultant task selection", type: :request do
 
   it "validates participants and records unsupported sampling and capacity before provisional finalization" do
     foreign = create(:employee)
-    declined = create(:employee, company: company, participation_status: "declined")
-    [foreign, declined].each do |person|
+    unrelated = create(:employee, company: company)
+    [foreign, unrelated, right.employee].each do |person|
       command("participants", version: 0, task_id: first, participant_ids: [person.id], status: :unprocessable_entity)
     end
     command("finalize", version: 0, status: :unprocessable_entity)
     command("select", version: 0, task_id: first)
     command("select", version: 1, task_id: second)
-    command("participants", version: 2, task_id: first, participant_ids: [left.employee_id])
-    body = command("participants", version: 3, task_id: second, participant_ids: [left.employee_id])
-    expect(body.dig("snapshot", "tasks").flat_map { |row| row["gaps"] }).to include(include("no linked evidence"))
+    body = command("participants", version: 2, task_id: first, participant_ids: [left.employee_id], reason: nil)
+    expect(body["eligible_participants"].pluck("id")).to contain_exactly(left.employee_id, right.employee_id)
+    expect(task(body, first)).to include("participant_ids" => [left.employee_id], "participant_reason" => "Updated interview participants.")
+    get path, headers: headers
+    expect(task(response.parsed_body, first)["participant_ids"]).to eq([left.employee_id])
+    command("participants", version: 3, task_id: second, participant_ids: [right.employee_id])
     body = command("capacity", version: 4, slots: 1)
     expect(body.dig("snapshot", "sampling")).to include(
-      "planned_interviews" => 2, "available_slots" => 1, "gaps" => include(include("exceed"), include("multiple tasks"))
+      "planned_interviews" => 2, "available_slots" => 1, "gaps" => include(include("exceed"))
     )
     body = command("finalize", version: 5)
     selection = body.dig("snapshot", "final_selection")
@@ -160,6 +163,22 @@ RSpec.describe "Consultant task selection", type: :request do
     expect(response.parsed_body).to include("version" => 0, "status" => "draft")
     get path, headers: headers
     expect(response.parsed_body.dig("snapshot", "final_selection")).to eq(selection)
+  end
+
+  it "uses the merged task's source lineage and excludes declined employees" do
+    merged = command("merge", version: 0, task_ids: [first, second], title: "Invoice workflow")
+    id = merged.dig("snapshot", "tasks").last.fetch("id")
+    command("select", version: 1, task_id: id)
+    participants = [left.employee_id, right.employee_id]
+    command("participants", version: 2, task_id: id, participant_ids: [left.employee_id, left.employee_id], status: :unprocessable_entity)
+    body = command("participants", version: 2, task_id: id, participant_ids: participants, reason: "")
+    expect(task(body, id)).to include("participant_ids" => participants, "gaps" => include("A participant has no recorded Discovery consent."))
+    left.employee.update!(participation_status: "declined")
+    command("participants", version: 3, task_id: id, participant_ids: participants, status: :unprocessable_entity)
+    command("finalize", version: 3, status: :unprocessable_entity)
+    body = command("participants", version: 3, task_id: id, participant_ids: [right.employee_id])
+    expect(task(body, id)["participant_ids"]).to eq([right.employee_id])
+    expect(body["eligible_participants"].pluck("id")).to eq([right.employee_id])
   end
 
   it "rejects cross-tenant access, unknown sources and unauthenticated writes" do
