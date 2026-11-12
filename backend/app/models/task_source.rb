@@ -10,7 +10,8 @@ class TaskSource < ApplicationRecord
   belongs_to :finding, optional: true
 
   attr_readonly :company_id, :employee_id, :conversation_id, :source_kind, :local_task_id,
-                :name, :description, :discovery_revision, :version, :source_snapshot, :evidence_references
+                :name, :description, :discovery_revision, :version, :source_snapshot, :evidence_references,
+                :finding_id, :retired
 
   validates :source_kind, inclusion: { in: SOURCE_KINDS }
   validates :local_task_id, presence: true, length: { maximum: 255 }

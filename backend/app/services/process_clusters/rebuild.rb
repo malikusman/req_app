@@ -39,7 +39,7 @@ module ProcessClusters
       keys = "conversation_id, source_kind, local_task_id"
       TaskSource.where(company_id: @company.id)
                 .select("DISTINCT ON (#{keys}) task_sources.*, MIN(id) OVER (PARTITION BY #{keys}) AS first_source_id")
-                .order(Arel.sql("#{keys}, version DESC")).to_a.sort_by(&:first_source_id)
+                .order(Arel.sql("#{keys}, version DESC")).reject(&:retired?).sort_by(&:first_source_id)
     end
 
     def evidence_for(sources)

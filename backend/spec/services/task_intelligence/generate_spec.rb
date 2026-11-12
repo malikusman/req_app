@@ -43,7 +43,7 @@ RSpec.describe TaskIntelligence::Generate do
                       exceptions: "Hold mismatched supplier invoice", dependencies: "Send disputed amount for approval")
     finding = Finding.create!(company: company, employee: source.employee, conversation: source.conversation,
                               source_key: "test-invoices", area: "Invoice checking", status: "approved")
-    source.update!(finding: finding)
+    source.dup.update!(version: 2, finding: finding)
     activity(name: "Tax filing", steps: "Archive stamped payroll returns")
     activity(name: "Missing scope", trigger: "Supplier posts a status update")
 

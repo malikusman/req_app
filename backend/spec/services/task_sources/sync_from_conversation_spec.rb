@@ -37,7 +37,7 @@ RSpec.describe TaskSources::SyncFromConversation do
     )
   end
 
-  it "can link a finding built after the first projection without adding a source revision" do
+  it "adds a source version when a finding is linked after the first projection" do
     write_ledger(conversation, answer, revision: 4)
     source = sync(conversation).sole
     finding = Finding.create!(
@@ -46,8 +46,10 @@ RSpec.describe TaskSources::SyncFromConversation do
       area: "Payment matching", friction: "Matching is manual"
     )
 
+    linked = sync(conversation).sole
+    expect(linked).to have_attributes(version: 2, finding_id: finding.id)
+    expect(source.reload.finding_id).to be_nil
     expect { sync(conversation) }.not_to change(TaskSource, :count)
-    expect(source.reload.finding_id).to eq(finding.id)
   end
 
   it "runs from the existing findings job and is idempotent" do

@@ -33,7 +33,7 @@ module Api
             reference.slice("message_id", "turn")
           end
           source.as_json(only: %i[id company_id employee_id conversation_id finding_id source_kind
-                                  local_task_id name description discovery_revision version created_at])
+                                  local_task_id name description discovery_revision version retired created_at])
                 .merge(evidence_references: references)
         end
       end

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_11_12_110000) do
+ActiveRecord::Schema[7.1].define(version: 2026_11_12_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -1455,6 +1455,23 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_12_110000) do
     t.index ["task_intelligence_run_id"], name: "index_task_candidate_proposals_on_task_intelligence_run_id"
   end
 
+  create_table "task_evidence_refreshes", force: :cascade do |t|
+    t.bigint "conversation_id", null: false
+    t.boolean "projection_pending", default: false, null: false
+    t.bigint "source_generation", default: 0, null: false
+    t.bigint "published_generation", default: 0, null: false
+    t.integer "attempts", default: 0, null: false
+    t.datetime "retry_at"
+    t.string "failure_stage"
+    t.string "last_error_class"
+    t.datetime "last_failure_at"
+    t.datetime "last_published_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["conversation_id"], name: "index_task_evidence_refreshes_on_conversation_id", unique: true
+    t.index ["retry_at"], name: "index_task_evidence_refreshes_on_pending_retry", where: "(projection_pending OR (source_generation > published_generation))"
+  end
+
   create_table "task_intelligence_runs", force: :cascade do |t|
     t.bigint "company_id", null: false
     t.integer "version", null: false
@@ -1483,6 +1500,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_12_110000) do
     t.jsonb "evidence_references", default: [], null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "retired", default: false, null: false
     t.index ["company_id"], name: "index_task_sources_on_company_id"
     t.index ["conversation_id", "source_kind", "local_task_id", "version"], name: "index_task_sources_on_local_identity_and_version", unique: true
     t.index ["conversation_id"], name: "index_task_sources_on_conversation_id"
@@ -1667,6 +1685,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_12_110000) do
   add_foreign_key "subscriptions", "companies"
   add_foreign_key "task_candidate_proposals", "process_cluster_revisions", on_delete: :cascade
   add_foreign_key "task_candidate_proposals", "task_intelligence_runs", on_delete: :cascade
+  add_foreign_key "task_evidence_refreshes", "conversations", on_delete: :cascade
   add_foreign_key "task_intelligence_runs", "companies", on_delete: :cascade
   add_foreign_key "task_sources", "companies"
   add_foreign_key "task_sources", "conversations", on_delete: :cascade
