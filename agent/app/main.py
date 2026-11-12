@@ -1,4 +1,5 @@
 import uuid
+from hmac import compare_digest
 from typing import Any
 
 import httpx
@@ -283,6 +284,24 @@ def suggest_deep_dive_questions(body: DeepDiveRequest):
     from app.deep_dive import suggest_questions
 
     return suggest_questions(body.model_dump())
+
+
+class DeepDivePlanRequest(BaseModel):
+    context: dict[str, Any]
+
+
+@app.post("/v1/consultant/deep_dive/plan")
+def generate_deep_dive_plan(body: DeepDivePlanRequest, x_internal_token: str | None = Header(default=None)):
+    from app.deep_dive_plan import PlanUnavailable, generate_plan
+
+    if not settings.internal_api_token or not compare_digest(
+        (x_internal_token or "").encode(), settings.internal_api_token.encode()
+    ):
+        raise HTTPException(status_code=401, detail="unauthorized")
+    try:
+        return generate_plan(body.context)
+    except PlanUnavailable as exc:
+        raise HTTPException(status_code=503, detail={"error": str(exc)}) from exc
 
 
 @app.post("/v1/threads", response_model=dict)

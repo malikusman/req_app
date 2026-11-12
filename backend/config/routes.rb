@@ -169,6 +169,18 @@ Rails.application.routes.draw do
           get "stage1_quote", to: "stage1_quotes#show"
           resources :employees, only: %i[index show], controller: "employees"
           resources :conversations, only: %i[index show], controller: "conversations"
+          resources :task_sources, only: :index
+          resources :process_clusters, only: %i[index show]
+          resources :task_intelligence_runs, only: %i[index show] do
+            resources :deep_dive_plans, only: %i[index show update] do
+              post :generate, on: :member
+              post :approve, on: :member
+            end
+            resource :selection_review, only: :show, controller: "task_selection_reviews" do
+              post :commands, action: :command
+            end
+            get "candidates/:candidate_id", action: :candidate, on: :member
+          end
           get "signals", to: "intelligence#signals"
           get "patterns", to: "intelligence#patterns"
           get "recommendations", to: "intelligence#recommendations"

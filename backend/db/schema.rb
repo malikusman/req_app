@@ -201,6 +201,23 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_12_190000) do
     t.index ["catalog_source_id"], name: "index_catalog_sync_runs_on_catalog_source_id"
   end
 
+  create_table "clarification_requests", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "left_source_id", null: false
+    t.bigint "right_source_id", null: false
+    t.string "pair_key", null: false
+    t.string "status", null: false
+    t.integer "version", null: false
+    t.jsonb "details", null: false
+    t.jsonb "history", default: [], null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id", "pair_key"], name: "index_clarification_requests_on_company_id_and_pair_key", unique: true
+    t.index ["company_id"], name: "index_clarification_requests_on_company_id"
+    t.index ["left_source_id"], name: "index_clarification_requests_on_left_source_id"
+    t.index ["right_source_id"], name: "index_clarification_requests_on_right_source_id"
+  end
+
   create_table "companies", force: :cascade do |t|
     t.string "name", null: false
     t.string "slug", null: false
@@ -727,6 +744,35 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_12_190000) do
     t.datetime "updated_at", null: false
     t.index ["company_id"], name: "index_conversations_on_company_id"
     t.index ["employee_id"], name: "index_conversations_on_employee_id"
+  end
+
+  create_table "deep_dive_plan_revisions", force: :cascade do |t|
+    t.bigint "deep_dive_plan_id", null: false
+    t.bigint "consultant_user_id", null: false
+    t.integer "version", null: false
+    t.string "action", null: false
+    t.text "reason", null: false
+    t.jsonb "content", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["consultant_user_id"], name: "index_deep_dive_plan_revisions_on_consultant_user_id"
+    t.index ["deep_dive_plan_id", "version"], name: "idx_on_deep_dive_plan_id_version_cf83aba3ba", unique: true
+    t.index ["deep_dive_plan_id"], name: "index_deep_dive_plan_revisions_on_deep_dive_plan_id"
+    t.check_constraint "version > 0 AND (action::text = ANY (ARRAY['generated'::character varying, 'edited'::character varying, 'approved'::character varying]::text[]))", name: "deep_dive_plan_revision_valid"
+  end
+
+  create_table "deep_dive_plans", force: :cascade do |t|
+    t.bigint "task_selection_revision_id", null: false
+    t.string "task_key", null: false
+    t.string "status", null: false
+    t.string "generation_token", null: false
+    t.text "generation_error"
+    t.jsonb "context", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["task_selection_revision_id", "task_key"], name: "idx_on_task_selection_revision_id_task_key_30b2bb5409", unique: true
+    t.index ["task_selection_revision_id"], name: "index_deep_dive_plans_on_task_selection_revision_id"
+    t.check_constraint "status::text = ANY (ARRAY['queued'::character varying, 'generating'::character varying, 'failed'::character varying, 'draft'::character varying, 'approved'::character varying]::text[])", name: "deep_dive_plan_status"
   end
 
   create_table "demo_requests", force: :cascade do |t|
@@ -1491,6 +1537,42 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_12_190000) do
     t.index ["engagement_id"], name: "index_prefill_candidates_on_engagement_id"
   end
 
+  create_table "process_cluster_memberships", force: :cascade do |t|
+    t.bigint "process_cluster_revision_id", null: false
+    t.bigint "task_source_id", null: false
+    t.jsonb "effort_observations", default: [], null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["process_cluster_revision_id", "task_source_id"], name: "index_process_cluster_memberships_on_revision_and_source", unique: true
+    t.index ["process_cluster_revision_id"], name: "idx_on_process_cluster_revision_id_1102843480"
+    t.index ["task_source_id"], name: "index_process_cluster_memberships_on_task_source_id"
+  end
+
+  create_table "process_cluster_revisions", force: :cascade do |t|
+    t.bigint "process_cluster_id", null: false
+    t.integer "number", null: false
+    t.string "status", null: false
+    t.string "confidence", null: false
+    t.text "rationale", null: false
+    t.string "fingerprint", null: false
+    t.jsonb "relationships", default: [], null: false
+    t.jsonb "effort_summary", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["process_cluster_id", "number"], name: "idx_on_process_cluster_id_number_451f5bf844", unique: true
+    t.index ["process_cluster_id"], name: "index_process_cluster_revisions_on_process_cluster_id"
+  end
+
+  create_table "process_clusters", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.string "anchor_key", null: false
+    t.boolean "active", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id", "anchor_key"], name: "index_process_clusters_on_company_id_and_anchor_key", unique: true
+    t.index ["company_id"], name: "index_process_clusters_on_company_id"
+  end
+
   create_table "process_relationships", force: :cascade do |t|
     t.bigint "company_id", null: false
     t.bigint "engagement_id", null: false
@@ -2038,6 +2120,104 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_12_190000) do
     t.index ["engagement_id"], name: "index_synthesis_runs_on_engagement_id"
   end
 
+  create_table "task_candidate_proposals", force: :cascade do |t|
+    t.bigint "task_intelligence_run_id", null: false
+    t.bigint "process_cluster_revision_id", null: false
+    t.text "title", null: false
+    t.string "disposition", null: false
+    t.text "disposition_reason", null: false
+    t.integer "rank"
+    t.integer "score", null: false
+    t.string "priority", null: false
+    t.string "confidence", null: false
+    t.jsonb "assessment", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["process_cluster_revision_id"], name: "index_task_candidate_proposals_on_process_cluster_revision_id"
+    t.index ["task_intelligence_run_id", "process_cluster_revision_id"], name: "index_task_candidate_proposals_on_run_and_cluster_revision", unique: true
+    t.index ["task_intelligence_run_id", "rank"], name: "idx_on_task_intelligence_run_id_rank_bc4757c93f", unique: true, where: "(rank IS NOT NULL)"
+    t.index ["task_intelligence_run_id"], name: "index_task_candidate_proposals_on_task_intelligence_run_id"
+  end
+
+  create_table "task_evidence_refreshes", force: :cascade do |t|
+    t.bigint "conversation_id", null: false
+    t.boolean "projection_pending", default: false, null: false
+    t.bigint "source_generation", default: 0, null: false
+    t.bigint "published_generation", default: 0, null: false
+    t.integer "attempts", default: 0, null: false
+    t.datetime "retry_at"
+    t.string "failure_stage"
+    t.string "last_error_class"
+    t.datetime "last_failure_at"
+    t.datetime "last_published_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["conversation_id"], name: "index_task_evidence_refreshes_on_conversation_id", unique: true
+    t.index ["retry_at"], name: "index_task_evidence_refreshes_on_pending_retry", where: "(projection_pending OR (source_generation > published_generation))"
+  end
+
+  create_table "task_intelligence_runs", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.integer "version", null: false
+    t.integer "target_size", null: false
+    t.string "algorithm_version", null: false
+    t.string "evaluation_mode", null: false
+    t.string "fingerprint", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id", "version"], name: "index_task_intelligence_runs_on_company_id_and_version", unique: true
+    t.index ["company_id"], name: "index_task_intelligence_runs_on_company_id"
+  end
+
+  create_table "task_selection_reviews", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "task_intelligence_run_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_task_selection_reviews_on_company_id"
+    t.index ["task_intelligence_run_id"], name: "index_task_selection_reviews_on_task_intelligence_run_id", unique: true
+  end
+
+  create_table "task_selection_revisions", force: :cascade do |t|
+    t.bigint "task_selection_review_id", null: false
+    t.bigint "consultant_user_id", null: false
+    t.integer "version", null: false
+    t.string "action", null: false
+    t.text "reason", null: false
+    t.string "status", null: false
+    t.jsonb "snapshot", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["consultant_user_id"], name: "index_task_selection_revisions_on_consultant_user_id"
+    t.index ["task_selection_review_id", "version"], name: "idx_on_task_selection_review_id_version_efd8a39f0c", unique: true
+    t.index ["task_selection_review_id"], name: "index_task_selection_revisions_on_task_selection_review_id"
+    t.check_constraint "status::text = ANY (ARRAY['draft'::character varying, 'finalized'::character varying]::text[])", name: "task_selection_revision_status"
+    t.check_constraint "version > 0", name: "task_selection_positive_version"
+  end
+
+  create_table "task_sources", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "employee_id", null: false
+    t.bigint "conversation_id", null: false
+    t.bigint "finding_id"
+    t.string "source_kind", null: false
+    t.string "local_task_id", null: false
+    t.text "name", null: false
+    t.text "description"
+    t.integer "discovery_revision"
+    t.integer "version", null: false
+    t.jsonb "source_snapshot", null: false
+    t.jsonb "evidence_references", default: [], null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.boolean "retired", default: false, null: false
+    t.index ["company_id"], name: "index_task_sources_on_company_id"
+    t.index ["conversation_id", "source_kind", "local_task_id", "version"], name: "index_task_sources_on_local_identity_and_version", unique: true
+    t.index ["conversation_id"], name: "index_task_sources_on_conversation_id"
+    t.index ["employee_id"], name: "index_task_sources_on_employee_id"
+    t.index ["finding_id"], name: "index_task_sources_on_finding_id"
+  end
+
   create_table "webhook_events", force: :cascade do |t|
     t.string "provider", default: "meta_whatsapp", null: false
     t.string "external_id", null: false
@@ -2074,6 +2254,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_12_190000) do
   add_foreign_key "catalog_source_records", "catalog_sources"
   add_foreign_key "catalog_source_records", "catalog_sync_runs"
   add_foreign_key "catalog_sync_runs", "catalog_sources"
+  add_foreign_key "clarification_requests", "companies", on_delete: :cascade
+  add_foreign_key "clarification_requests", "task_sources", column: "left_source_id", on_delete: :cascade
+  add_foreign_key "clarification_requests", "task_sources", column: "right_source_id", on_delete: :cascade
   add_foreign_key "company_catalog_matches", "companies"
   add_foreign_key "company_catalog_matches", "consultant_users", column: "added_by_consultant_id"
   add_foreign_key "company_catalog_matches", "recommendations"
@@ -2133,6 +2316,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_12_190000) do
   add_foreign_key "conversation_turns", "conversation_sessions"
   add_foreign_key "conversations", "companies"
   add_foreign_key "conversations", "employees"
+  add_foreign_key "deep_dive_plan_revisions", "consultant_users"
+  add_foreign_key "deep_dive_plan_revisions", "deep_dive_plans"
+  add_foreign_key "deep_dive_plans", "task_selection_revisions"
   add_foreign_key "discovery_followup_questions", "consultant_info_requests"
   add_foreign_key "discovery_followup_questions", "consultant_requirements"
   add_foreign_key "discovery_followup_questions", "discovery_packages"
@@ -2219,6 +2405,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_12_190000) do
   add_foreign_key "platform_audit_logs", "platform_users"
   add_foreign_key "prefill_candidates", "companies"
   add_foreign_key "prefill_candidates", "engagements"
+  add_foreign_key "process_cluster_memberships", "process_cluster_revisions", on_delete: :cascade
+  add_foreign_key "process_cluster_memberships", "task_sources", on_delete: :cascade
+  add_foreign_key "process_cluster_revisions", "process_clusters", on_delete: :cascade
+  add_foreign_key "process_clusters", "companies", on_delete: :cascade
   add_foreign_key "process_relationships", "companies"
   add_foreign_key "process_relationships", "engagements"
   add_foreign_key "process_relationships", "findings", column: "from_finding_id"
@@ -2279,4 +2469,16 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_12_190000) do
   add_foreign_key "synthesis_decisions", "engagements"
   add_foreign_key "synthesis_runs", "companies"
   add_foreign_key "synthesis_runs", "engagements"
+  add_foreign_key "task_candidate_proposals", "process_cluster_revisions", on_delete: :cascade
+  add_foreign_key "task_candidate_proposals", "task_intelligence_runs", on_delete: :cascade
+  add_foreign_key "task_evidence_refreshes", "conversations", on_delete: :cascade
+  add_foreign_key "task_intelligence_runs", "companies", on_delete: :cascade
+  add_foreign_key "task_selection_reviews", "companies"
+  add_foreign_key "task_selection_reviews", "task_intelligence_runs"
+  add_foreign_key "task_selection_revisions", "consultant_users"
+  add_foreign_key "task_selection_revisions", "task_selection_reviews"
+  add_foreign_key "task_sources", "companies"
+  add_foreign_key "task_sources", "conversations", on_delete: :cascade
+  add_foreign_key "task_sources", "employees"
+  add_foreign_key "task_sources", "findings", on_delete: :nullify
 end
