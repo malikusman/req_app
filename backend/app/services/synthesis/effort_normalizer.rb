@@ -23,6 +23,10 @@ module Synthesis
   #
   # Where an execution is counted once, the fuller of the two accounts (the
   # larger range) stands for it.
+  #
+  # ProcessClusters::EffortReconciliation, in the deep-dive engine, gives no
+  # figure at all where work may overlap. The two need one rule
+  # (docs/CONSOLIDATION_ENGINES.md §3).
   class EffortNormalizer
     METHOD_VERSION = "EN.v1"
     COLLAPSE_WHEN_UNKNOWN = %w[SAME_PROCESS SHARED_SUBPROCESS].freeze

@@ -9,6 +9,9 @@ English. Say what we do now, and the reason in a few words if that helps. When t
 answers, write the answer and the date under the question, and change the code if the
 answer differs from the default.
 
+Questions for the team rather than the client, about joining synthesis and the deep-dive
+engine, are in [CONSOLIDATION_ENGINES.md](CONSOLIDATION_ENGINES.md) §10.
+
 - [Onboarding](#onboarding)
 - [Leadership conversations](#leadership-conversations)
 - [Stage 1 pricing](#stage-1-pricing)

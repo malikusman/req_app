@@ -84,6 +84,7 @@ module Synthesis
       [
         block("company_profile", company_profile),
         block("coverage", coverage),
+        # The P11 pack's block name, kept as written: these are SynthesisCluster rows.
         block("process_clusters", @clusters.map { |c| cluster_json(c) }),
         block("effort_normalisation", @figures.select { |f| f.ref.start_with?("cl-") }.map { |f| figure_json(f) }),
         block("work_items", unclustered.map { |i| item_json(i) }),

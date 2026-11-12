@@ -23,6 +23,10 @@ module Synthesis
   # "member_work_item_ids" are Finding ids until employee discovery keeps
   # WorkItem records. Subscribe to "synthesis.changed" to re-rank when effort
   # moves (Doc 10 §17).
+  #
+  # TaskIntelligence::Generate doesn't read this yet: it ranks the deep-dive
+  # engine's own clusters, without opportunities or leadership's view
+  # (docs/CONSOLIDATION_ENGINES.md §4).
   class ForTaskIntelligence
     CONTRACT_VERSION = "SYN-TI.v1"
 

@@ -7,6 +7,10 @@
 #
 # A cluster a consultant approved, split, merged or created is theirs: a re-run
 # never changes its boundaries, only proposes additions (Doc 10 §21).
+#
+# Doc 06 calls this a ProcessCluster. That name is held by the deep-dive
+# engine's clusters until the two engines keep one set; the one that remains
+# takes it (docs/CONSOLIDATION_ENGINES.md §3).
 class SynthesisCluster < ApplicationRecord
   include SynthesisVersioned
   version_key :cluster_key

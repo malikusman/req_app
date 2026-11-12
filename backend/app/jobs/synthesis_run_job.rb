@@ -8,6 +8,10 @@
 # job for the latest request runs; the others find they are early and stop.
 # One run per engagement at a time, held by a Postgres advisory lock — a second
 # job that cannot take it tries again shortly.
+#
+# RefreshTaskEvidenceJob reacts to the same interviews for the deep-dive engine.
+# The two become one chain when the engines are joined
+# (docs/CONSOLIDATION_ENGINES.md §7).
 class SynthesisRunJob < ApplicationJob
   queue_as :default
 

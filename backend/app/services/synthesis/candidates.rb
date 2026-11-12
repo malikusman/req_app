@@ -9,6 +9,10 @@ module Synthesis
   # reports" may serve different purposes. A pair is shortlisted only when
   # something beyond the name connects it — the work itself, a system, the same
   # figures given twice, or the platform's own duplicate flag.
+  #
+  # ProcessClusters::Relationship compares the same pairs by rules on each
+  # task's trigger, output and steps. Those rules are to become this shortlist
+  # and settle the clear cases before P10 (docs/CONSOLIDATION_ENGINES.md §3).
   class Candidates
     Pair = Struct.new(:a, :b, :score, :signals, :digest, keyword_init: true)
 

@@ -7,6 +7,11 @@ module Synthesis
   # yet keep WorkItem records. When it does, this is the one place that changes:
   # everything downstream reads Item, never Finding.
   #
+  # The deep-dive engine already keeps them: TaskSource, one per task the
+  # interview recorded, linked to its Finding by task_sources.finding_id. Reading
+  # those here is the first step in joining the two engines
+  # (docs/CONSOLIDATION_ENGINES.md §9).
+  #
   # Stage A, pre-normalisation, is deliberately light: the words that say which
   # work it is, and the company's known systems it mentions. The employee's own
   # wording is kept untouched beside them, because that is what the report uses.

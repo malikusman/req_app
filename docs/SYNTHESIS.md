@@ -147,6 +147,10 @@ unchanged.
 
 ## Hand-off to task intelligence (proposed contract SYN-TI.v1 — to be agreed)
 
+The deep-dive engine (task intelligence, task selection, plans) doesn't read this yet; it
+keeps its own clusters. How the two join is in
+[CONSOLIDATION_ENGINES.md](CONSOLIDATION_ENGINES.md).
+
 `Synthesis::ForTaskIntelligence.call(engagement)` is the one read P12 needs, as
 `Companies::AgentContext.neutral_management_context` is for leadership. Its shape is pinned
 by `spec/services/synthesis/for_task_intelligence_spec.rb`:

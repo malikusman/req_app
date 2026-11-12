@@ -4,6 +4,11 @@
 # Doc 06 §6.3), as P10 judged it or as the platform fell back to. A fallback is
 # always INDEPENDENT: under-merging shows as two similar findings a consultant
 # can group; over-merging hides work nobody notices is missing (P10 §8).
+#
+# The deep-dive engine keeps the same judgement in its own shape, on each
+# ProcessClusterRevision's relationships; one of the two goes when the engines
+# are joined, and a CLARIFY pair becomes a ClarificationRequest
+# (docs/CONSOLIDATION_ENGINES.md §3, §5).
 class ProcessRelationship < ApplicationRecord
   include SynthesisVersioned
   version_key :pair_digest

@@ -206,6 +206,9 @@ module Synthesis
       [@subject.revise!(changes), false]
     end
 
+    # Stays with the consultant for now. The deep-dive engine's
+    # ClarificationRequest is the record both should share, and the one that
+    # will reach employees (docs/CONSOLIDATION_ENGINES.md §5).
     def request_clarification
       question = @params["question"].to_s.strip
       raise Error, "Say what to ask" if question.blank?
