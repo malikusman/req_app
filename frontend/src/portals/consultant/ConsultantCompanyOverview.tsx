@@ -396,6 +396,15 @@ export function ConsultantCompanyOverview() {
                 </div>
               </Card>
 
+              <Card title="Task selection">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <p className="m-0 text-sm text-muted-foreground">Review Task Intelligence recommendations, evidence gaps, and the tasks to take into Deep Dive planning.</p>
+                  <Link className="text-sm font-medium text-primary underline" to={`/consultant/companies/${companyId}/task-selection`}>
+                    Review task selection
+                  </Link>
+                </div>
+              </Card>
+
               <Card title="Evidence explorer">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <p className="m-0 text-sm text-muted-foreground">

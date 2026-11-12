@@ -1,3 +1,5 @@
+import type { ReviewCommand, SelectionReview, SelectionRun } from './taskSelection';
+
 const API_URL = import.meta.env.VITE_API_URL || '';
 
 export type ApiError = { error?: string; errors?: string[] };
@@ -66,6 +68,16 @@ async function fetchPreviewBlob(token: string, path: string) {
 }
 
 export const api = {
+  consultantTaskIntelligenceRuns: (token: string, companyId: string, beforeId?: number) =>
+    request<{ task_intelligence_runs: SelectionRun[]; next_before_id: number | null }>(
+      `/api/v1/consultant/companies/${companyId}/task_intelligence_runs${beforeId ? `?before_id=${beforeId}` : ''}`, {}, token),
+  consultantTaskSelection: (token: string, companyId: string, runId: string, version: string | null) =>
+    request<SelectionReview>(
+      `/api/v1/consultant/companies/${companyId}/task_intelligence_runs/${runId}/selection_review${version ? `?version=${version}` : ''}`, {}, token),
+  consultantTaskSelectionCommand: (token: string, companyId: string, runId: string, command: ReviewCommand & { expected_version: number; reason: string }) =>
+    request<SelectionReview>(
+      `/api/v1/consultant/companies/${companyId}/task_intelligence_runs/${runId}/selection_review/commands`,
+      { method: 'POST', body: JSON.stringify(command) }, token),
   publicDemoRequest: (payload: {
     name: string;
     email: string;

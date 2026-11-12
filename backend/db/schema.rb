@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_11_12_130000) do
+ActiveRecord::Schema[7.1].define(version: 2026_11_12_140000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -1502,6 +1502,32 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_12_130000) do
     t.index ["company_id"], name: "index_task_intelligence_runs_on_company_id"
   end
 
+  create_table "task_selection_reviews", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "task_intelligence_run_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_task_selection_reviews_on_company_id"
+    t.index ["task_intelligence_run_id"], name: "index_task_selection_reviews_on_task_intelligence_run_id", unique: true
+  end
+
+  create_table "task_selection_revisions", force: :cascade do |t|
+    t.bigint "task_selection_review_id", null: false
+    t.bigint "consultant_user_id", null: false
+    t.integer "version", null: false
+    t.string "action", null: false
+    t.text "reason", null: false
+    t.string "status", null: false
+    t.jsonb "snapshot", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["consultant_user_id"], name: "index_task_selection_revisions_on_consultant_user_id"
+    t.index ["task_selection_review_id", "version"], name: "idx_on_task_selection_review_id_version_efd8a39f0c", unique: true
+    t.index ["task_selection_review_id"], name: "index_task_selection_revisions_on_task_selection_review_id"
+    t.check_constraint "status::text = ANY (ARRAY['draft'::character varying, 'finalized'::character varying]::text[])", name: "task_selection_revision_status"
+    t.check_constraint "version > 0", name: "task_selection_positive_version"
+  end
+
   create_table "task_sources", force: :cascade do |t|
     t.bigint "company_id", null: false
     t.bigint "employee_id", null: false
@@ -1707,6 +1733,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_12_130000) do
   add_foreign_key "task_candidate_proposals", "task_intelligence_runs", on_delete: :cascade
   add_foreign_key "task_evidence_refreshes", "conversations", on_delete: :cascade
   add_foreign_key "task_intelligence_runs", "companies", on_delete: :cascade
+  add_foreign_key "task_selection_reviews", "companies"
+  add_foreign_key "task_selection_reviews", "task_intelligence_runs"
+  add_foreign_key "task_selection_revisions", "consultant_users"
+  add_foreign_key "task_selection_revisions", "task_selection_reviews"
   add_foreign_key "task_sources", "companies"
   add_foreign_key "task_sources", "conversations", on_delete: :cascade
   add_foreign_key "task_sources", "employees"

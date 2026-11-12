@@ -137,6 +137,9 @@ Rails.application.routes.draw do
           resources :task_sources, only: :index
           resources :process_clusters, only: %i[index show]
           resources :task_intelligence_runs, only: %i[index show] do
+            resource :selection_review, only: :show, controller: "task_selection_reviews" do
+              post :commands, action: :command
+            end
             get "candidates/:candidate_id", action: :candidate, on: :member
           end
           get "signals", to: "intelligence#signals"
