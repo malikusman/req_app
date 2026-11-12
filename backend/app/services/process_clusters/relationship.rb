@@ -16,6 +16,8 @@ module ProcessClusters
       @facts = {}
     end
 
+    # These rules are to become synthesis's shortlist and first judgement:
+    # clear cases settled here, uncertain ones and variants sent to P10 (docs/CONSOLIDATION_ENGINES.md §3).
     def compare(left, right)
       return if left.conversation_id == right.conversation_id
 

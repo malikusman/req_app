@@ -48,6 +48,7 @@ module DeepDivePlans
 
     private
 
+    # Names reach the model here; synthesis sends none. Agree one rule (docs/CONSOLIDATION_ENGINES.md §8).
     def participants
       employees = Employee.where(company_id: @run.company_id, id: @task.fetch("participant_ids")).index_by(&:id)
       @task.fetch("participant_ids").map do |id|

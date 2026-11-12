@@ -50,6 +50,8 @@ module ProcessClusters
       }
     end
 
+    # Synthesis::EffortNormalizer counts possible overlap once, with the lower
+    # figure and a warning, rather than giving none. Agree one rule (docs/CONSOLIDATION_ENGINES.md §3).
     def self.combination(sources, active, relationships)
       return ["unknown", nil] if sources.empty?
       if sources.one?

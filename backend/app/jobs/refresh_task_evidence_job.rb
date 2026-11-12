@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+# Runs beside SynthesisRunJob, which reacts to the same interviews; the two
+# become one chain (docs/CONSOLIDATION_ENGINES.md §7).
 class RefreshTaskEvidenceJob < ApplicationJob
   queue_as :default
 

@@ -3,6 +3,8 @@
 require "digest"
 
 module ProcessClusters
+  # Synthesis's CLARIFY pairs (ProcessRelationship) and clarification on
+  # leadership's verdicts should become these requests (docs/CONSOLIDATION_ENGINES.md §5).
   class ReconcileClarifications
     def initialize(company:, evidence:, observations:)
       @requests = ClarificationRequest.where(company: company)

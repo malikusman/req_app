@@ -49,6 +49,8 @@ module ProcessClusters
       sources.index_by(&:id).transform_values { |source| SourceEvidence.new(source, evidence_conversations) }
     end
 
+    # Synthesis groups the same work again, with P10 and the consultant's
+    # decisions kept across runs (Synthesis::ClusterAssembler) (docs/CONSOLIDATION_ENGINES.md §3).
     def partition(sources, pairs)
       groups = []
       sources.each do |source|

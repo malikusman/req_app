@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 module TaskSources
+  # These rows are the work items synthesis should compare too; it reads
+  # Findings until then (Synthesis::WorkItems) (docs/CONSOLIDATION_ENGINES.md §9).
   class SyncFromConversation
     LEGACY_SLOTS = %w[how_it_works friction friction_cost].freeze
 

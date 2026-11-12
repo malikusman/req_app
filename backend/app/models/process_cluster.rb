@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+# Synthesis keeps its own clusters (SynthesisCluster) for the report. This is
+# the table meant to remain once the two engines keep one set (docs/CONSOLIDATION_ENGINES.md §3).
 class ProcessCluster < ApplicationRecord
   belongs_to :company
   has_many :revisions, class_name: "ProcessClusterRevision", inverse_of: :process_cluster

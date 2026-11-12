@@ -20,6 +20,8 @@ module TaskIntelligence
       @target = target
     end
 
+    # Ranks this engine's clusters only. Synthesis::ForTaskIntelligence adds
+    # opportunities, management importance and leadership's verdicts (docs/CONSOLIDATION_ENGINES.md §4).
     def call
       # Consolidation uses the same company lock. A run sees one set of current
       # cluster revisions and cannot race another generator for its version.

@@ -240,6 +240,8 @@ module TaskIntelligence
       "process"
     end
 
+    # To give way to management importance and platform priority from
+    # synthesis (docs/CONSOLIDATION_ENGINES.md §4).
     def goal_alignment?
       terms = @sources.flat_map { |source| goal_terms(source.name) }.uniq
       @goals.any? { |goal| (terms & goal_terms(goal)).size >= 2 }
