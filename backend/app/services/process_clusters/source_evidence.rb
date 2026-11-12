@@ -9,9 +9,9 @@ module ProcessClusters
       @evidence_conversations = evidence_conversations
     end
 
-    def fact(field)
+    def fact(field, status: "known")
       entry = source.source_snapshot.dig("facts", field)
-      return unless entry.is_a?(Hash) && entry["status"] == "known" && referenced?(entry["evidence"])
+      return unless entry.is_a?(Hash) && entry["status"] == status && referenced?(entry["evidence"])
 
       entry
     end

@@ -136,6 +136,9 @@ Rails.application.routes.draw do
           resources :conversations, only: %i[index show], controller: "conversations"
           resources :task_sources, only: :index
           resources :process_clusters, only: %i[index show]
+          resources :task_intelligence_runs, only: %i[index show] do
+            get "candidates/:candidate_id", action: :candidate, on: :member
+          end
           get "signals", to: "intelligence#signals"
           get "patterns", to: "intelligence#patterns"
           get "recommendations", to: "intelligence#recommendations"

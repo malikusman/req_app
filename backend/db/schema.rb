@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_11_12_100000) do
+ActiveRecord::Schema[7.1].define(version: 2026_11_12_110000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -1436,6 +1436,38 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_12_100000) do
     t.index ["company_id"], name: "index_subscriptions_on_company_id", unique: true
   end
 
+  create_table "task_candidate_proposals", force: :cascade do |t|
+    t.bigint "task_intelligence_run_id", null: false
+    t.bigint "process_cluster_revision_id", null: false
+    t.text "title", null: false
+    t.string "disposition", null: false
+    t.text "disposition_reason", null: false
+    t.integer "rank"
+    t.integer "score", null: false
+    t.string "priority", null: false
+    t.string "confidence", null: false
+    t.jsonb "assessment", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["process_cluster_revision_id"], name: "index_task_candidate_proposals_on_process_cluster_revision_id"
+    t.index ["task_intelligence_run_id", "process_cluster_revision_id"], name: "index_task_candidate_proposals_on_run_and_cluster_revision", unique: true
+    t.index ["task_intelligence_run_id", "rank"], name: "idx_on_task_intelligence_run_id_rank_bc4757c93f", unique: true, where: "(rank IS NOT NULL)"
+    t.index ["task_intelligence_run_id"], name: "index_task_candidate_proposals_on_task_intelligence_run_id"
+  end
+
+  create_table "task_intelligence_runs", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.integer "version", null: false
+    t.integer "target_size", null: false
+    t.string "algorithm_version", null: false
+    t.string "evaluation_mode", null: false
+    t.string "fingerprint", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id", "version"], name: "index_task_intelligence_runs_on_company_id_and_version", unique: true
+    t.index ["company_id"], name: "index_task_intelligence_runs_on_company_id"
+  end
+
   create_table "task_sources", force: :cascade do |t|
     t.bigint "company_id", null: false
     t.bigint "employee_id", null: false
@@ -1633,6 +1665,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_12_100000) do
   add_foreign_key "review_discussions", "reports"
   add_foreign_key "review_discussions", "review_discussions", column: "parent_id"
   add_foreign_key "subscriptions", "companies"
+  add_foreign_key "task_candidate_proposals", "process_cluster_revisions", on_delete: :cascade
+  add_foreign_key "task_candidate_proposals", "task_intelligence_runs", on_delete: :cascade
+  add_foreign_key "task_intelligence_runs", "companies", on_delete: :cascade
   add_foreign_key "task_sources", "companies"
   add_foreign_key "task_sources", "conversations", on_delete: :cascade
   add_foreign_key "task_sources", "employees"
