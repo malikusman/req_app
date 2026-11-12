@@ -57,7 +57,7 @@ RSpec.describe "Synthesis in the report" do
 
   it "counts one execution named twice once, once the consultant confirms it, and every total reconciles" do
     synthesise!
-    decide("APPROVE_CLUSTER", ProcessCluster.current.sole)
+    decide("APPROVE_CLUSTER", SynthesisCluster.current.sole)
 
     totals = view["totals"]
     expect(totals).to include("hours_min" => 220, "hours_max" => 330, "findings" => 3)
@@ -76,7 +76,7 @@ RSpec.describe "Synthesis in the report" do
                                      what_happens_now: "Chase suppliers about purchase orders", hours: [40, 60],
                                      status: "approved")
     synthesise!
-    ProcessCluster.current.each { |c| decide("APPROVE_CLUSTER", c) }
+    SynthesisCluster.current.each { |c| decide("APPROVE_CLUSTER", c) }
 
     procurement_row = rows.find { |r| r["id"] == orders.id }
     expect(Array(procurement_row["also_in"]).map { |a| a["id"] }).to include(sales_quotes.id)
@@ -108,7 +108,7 @@ RSpec.describe "Synthesis in the report" do
     context = leadership_context(engagement: engagement)
     strategic_finding(context, statement: "Purchase orders take too long")
     synthesise!
-    decide("APPROVE_CLUSTER", ProcessCluster.current.sole)
+    decide("APPROVE_CLUSTER", SynthesisCluster.current.sole)
     decide("APPROVE_OPERATING_PICTURE", SynthesisRun.latest_finished(engagement))
     decide("RECLASSIFY_OPPORTUNITY", ConsultancyOpportunity.current.first, level: "PROCESS")
     validation = ManagementValidation.current.first

@@ -26,7 +26,7 @@ namespace :synthesis do
     puts "#{company.name} — synthesis v#{run.version}: #{run.status}#{" (#{run.fallback_reason})" if run.fallback_reason}"
     puts "  Counts: #{run.counts.except('suggested_additions').to_json}"
     puts "  Suggested additions to consultant clusters: #{Array(run.counts['suggested_additions']).size}"
-    ProcessCluster.current.where(engagement: engagement).includes(:effort_normalization, :members).each do |c|
+    SynthesisCluster.current.where(engagement: engagement).includes(:effort_normalization, :members).each do |c|
       n = c.effort_normalization
       puts format("  %-10s %-11s %-40s members %d  raw %s  de-duplicated %s%s", c.cluster_key, c.status,
                   c.name.to_s.truncate(40), c.members.size, n && "#{n.raw_min}–#{n.raw_max}",

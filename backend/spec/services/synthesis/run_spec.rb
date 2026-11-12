@@ -36,7 +36,7 @@ RSpec.describe Synthesis::Run do
     expect(run).to have_attributes(status: "COMPLETE")
     expect(run.counts).to include("work_items" => 3, "pairs_judged" => 1, "clusters" => 1)
 
-    cluster = ProcessCluster.current.sole
+    cluster = SynthesisCluster.current.sole
     expect(cluster).to have_attributes(status: "PROVISIONAL", cluster_type: "SHARED_IDENTICAL", single_member: false)
     expect(cluster.effort_normalization).to have_attributes(raw_min: 180, raw_max: 270, dedup_min: 180, dedup_max: 270)
     expect(AiRun.where(stage: "P10", subject: run).count).to eq(1)
@@ -48,12 +48,12 @@ RSpec.describe Synthesis::Run do
     quote_finding
     quote_finding
     run!
-    cluster = ProcessCluster.current.sole
+    cluster = SynthesisCluster.current.sole
 
     second = run!
     expect(second.counts["pairs_judged"]).to eq(0)
-    expect(ProcessCluster.current.sole).to eq(cluster)
-    expect(ProcessCluster.count).to eq(1)
+    expect(SynthesisCluster.current.sole).to eq(cluster)
+    expect(SynthesisCluster.count).to eq(1)
     expect(ConsultancyOpportunity.count).to eq(1)
   end
 
@@ -61,11 +61,11 @@ RSpec.describe Synthesis::Run do
     quote_finding
     quote_finding
     run!
-    key = ProcessCluster.current.sole.cluster_key
+    key = SynthesisCluster.current.sole.cluster_key
 
     quote_finding(hours: [60, 90])
     run!
-    cluster = ProcessCluster.current.sole
+    cluster = SynthesisCluster.current.sole
     expect(cluster).to have_attributes(cluster_key: key, version: 2)
     expect(cluster.members.size).to eq(3)
     expect(cluster.parent_version.status).to eq("SUPERSEDED")
@@ -76,11 +76,11 @@ RSpec.describe Synthesis::Run do
     quote_finding
     quote_finding
     run!
-    approved = ProcessCluster.current.sole.revise!(status: "APPROVED")
+    approved = SynthesisCluster.current.sole.revise!(status: "APPROVED")
 
     newcomer = quote_finding(hours: [60, 90])
     run = run!
-    expect(ProcessCluster.current.sole).to eq(approved)
+    expect(SynthesisCluster.current.sole).to eq(approved)
     expect(approved.reload.members.size).to eq(2)
     expect(run.counts["suggested_additions"]).to include(include("cluster_key" => approved.cluster_key,
                                                                  "finding_id" => newcomer.id))
@@ -103,14 +103,14 @@ RSpec.describe Synthesis::Run do
     quote_finding
     quote_finding
     run!
-    cluster = ProcessCluster.current.sole
+    cluster = SynthesisCluster.current.sole
     allow(Synthesis::WorkItems).to receive(:call).and_raise(ActiveRecord::ConnectionTimeoutError, "db gone")
 
     failed = new_run
     expect { described_class.call(failed, client: client) }.to raise_error(ActiveRecord::ConnectionTimeoutError)
     expect(failed.reload).to have_attributes(status: "FAILED")
     expect(failed.error).to include("db gone")
-    expect(ProcessCluster.current.sole).to eq(cluster)
+    expect(SynthesisCluster.current.sole).to eq(cluster)
     expect(SynthesisRun.latest_finished(engagement).version).to eq(1)
   end
 

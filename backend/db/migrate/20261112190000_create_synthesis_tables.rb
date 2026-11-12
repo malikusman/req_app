@@ -77,7 +77,7 @@ class CreateSynthesisTables < ActiveRecord::Migration[7.1]
     add_index :process_relationships, %i[engagement_id pair_digest]
     add_index :process_relationships, %i[engagement_id status]
 
-    create_table :process_clusters do |t|
+    create_table :synthesis_clusters do |t|
       t.references :company, null: false, foreign_key: true
       t.references :engagement, null: false, foreign_key: true
       t.references :synthesis_run, foreign_key: true
@@ -104,11 +104,11 @@ class CreateSynthesisTables < ActiveRecord::Migration[7.1]
       t.string :schema_version, null: false
       t.timestamps
     end
-    add_index :process_clusters, %i[engagement_id cluster_key version], unique: true
-    add_index :process_clusters, %i[engagement_id status]
+    add_index :synthesis_clusters, %i[engagement_id cluster_key version], unique: true
+    add_index :synthesis_clusters, %i[engagement_id status]
 
-    create_table :process_cluster_members do |t|
-      t.references :process_cluster, null: false, foreign_key: true
+    create_table :synthesis_cluster_members do |t|
+      t.references :synthesis_cluster, null: false, foreign_key: true
       t.references :finding, null: false, foreign_key: true
       t.references :employee, foreign_key: true
       t.string :variant_label
@@ -117,14 +117,14 @@ class CreateSynthesisTables < ActiveRecord::Migration[7.1]
       t.string :member_digest, null: false
       t.timestamps
     end
-    add_index :process_cluster_members, %i[process_cluster_id finding_id], unique: true
+    add_index :synthesis_cluster_members, %i[synthesis_cluster_id finding_id], unique: true
 
     # Raw versus de-duplicated effort for one cluster version (Doc 10 §10.4,
     # Doc 06 §6.4). Every figure here is computed by Synthesis::EffortNormalizer.
     create_table :effort_normalizations do |t|
       t.references :company, null: false, foreign_key: true
       t.references :engagement, null: false, foreign_key: true
-      t.references :process_cluster, null: false, foreign_key: true, index: { unique: true }
+      t.references :synthesis_cluster, null: false, foreign_key: true, index: { unique: true }
       t.decimal :raw_min, precision: 10, scale: 1
       t.decimal :raw_max, precision: 10, scale: 1
       t.decimal :dedup_min, precision: 10, scale: 1

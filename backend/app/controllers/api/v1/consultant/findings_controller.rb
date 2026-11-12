@@ -165,16 +165,16 @@ module Api
             reviewed_at: finding.reviewed_at,
             reviewed_by: finding.reviewed_by&.name,
             # The shared work synthesis grouped it into (Doc 10), if any.
-            process_cluster: clusters_by_finding[finding.id]
+            synthesis_cluster: clusters_by_finding[finding.id]
           }
         end
 
         def clusters_by_finding
-          @clusters_by_finding ||= ProcessClusterMember
-                                   .joins(:process_cluster)
-                                   .merge(ProcessCluster.current.where(company_id: @company.id).where.not(status: "REJECTED"))
-                                   .pluck(:finding_id, "process_clusters.cluster_key", "process_clusters.name",
-                                          "process_clusters.status")
+          @clusters_by_finding ||= SynthesisClusterMember
+                                   .joins(:synthesis_cluster)
+                                   .merge(SynthesisCluster.current.where(company_id: @company.id).where.not(status: "REJECTED"))
+                                   .pluck(:finding_id, "synthesis_clusters.cluster_key", "synthesis_clusters.name",
+                                          "synthesis_clusters.status")
                                    .to_h { |id, key, name, status| [id, { key: key, name: name, status: status }] }
         end
       end

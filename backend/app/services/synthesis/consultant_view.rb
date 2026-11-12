@@ -58,7 +58,7 @@ module Synthesis
     end
 
     def clusters
-      current(ProcessCluster).where.not(status: "REJECTED").includes(:members, :effort_normalization).order(:id)
+      current(SynthesisCluster).where.not(status: "REJECTED").includes(:members, :effort_normalization).order(:id)
     end
 
     def cluster_json(cluster)

@@ -33,7 +33,7 @@ module Synthesis
     def review_counts(engagement, run)
       scope = { engagement_id: engagement.id }
       {
-        "clusters" => ProcessCluster.current.where(scope).where(status: "PROVISIONAL").count,
+        "clusters" => SynthesisCluster.current.where(scope).where(status: "PROVISIONAL").count,
         "pairs" => ProcessRelationship.current.where(scope)
                                       .where("origin = 'FALLBACK' OR recommendation IN ('CONSULTANT_REVIEW', 'CLARIFY')")
                                       .count,

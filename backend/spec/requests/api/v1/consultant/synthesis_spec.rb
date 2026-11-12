@@ -43,7 +43,7 @@ RSpec.describe "Consultant synthesis review", type: :request do
 
   before { synthesise! }
 
-  let(:cluster) { ProcessCluster.current.sole }
+  let(:cluster) { SynthesisCluster.current.sole }
 
   it "shows clusters by role with raw and de-duplicated effort, and no names" do
     get path, headers: headers
@@ -62,7 +62,7 @@ RSpec.describe "Consultant synthesis review", type: :request do
     decide("APPROVE_CLUSTER", subject_id: cluster.id)
     expect(response).to have_http_status(:ok)
 
-    approved = ProcessCluster.current.sole
+    approved = SynthesisCluster.current.sole
     expect(approved).to have_attributes(status: "APPROVED", version: 2, parent_version_id: cluster.id,
                                         fact_status: "CONSULTANT_CONFIRMED")
     expect(approved.effort_normalization).to be_present
@@ -83,13 +83,13 @@ RSpec.describe "Consultant synthesis review", type: :request do
     decide("SPLIT_CLUSTER", subject_id: cluster.id, groups: [[first.id, second.id], [third.id]])
     expect(response).to have_http_status(:ok)
 
-    split = ProcessCluster.current.where.not(status: "REJECTED").sole
+    split = SynthesisCluster.current.where.not(status: "REJECTED").sole
     expect(split.finding_ids).to contain_exactly(first.id, second.id)
     expect(split.effort_normalization).to have_attributes(raw_min: 180, raw_max: 270)
     expect(enqueued_jobs.map { |j| j["job_class"] }).to include("SynthesisRunJob")
 
     synthesise!
-    expect(ProcessCluster.current.flat_map(&:finding_ids)).not_to include(third.id)
+    expect(SynthesisCluster.current.flat_map(&:finding_ids)).not_to include(third.id)
   end
 
   it "refuses a split that loses or repeats an item" do
@@ -99,13 +99,13 @@ RSpec.describe "Consultant synthesis review", type: :request do
 
   it "overrides effort with a reason, keeping the raw figures" do
     decide("OVERRIDE_EFFORT", subject_id: cluster.id, min: 150, max: 200)
-    normalization = ProcessCluster.current.sole.effort_normalization
+    normalization = SynthesisCluster.current.sole.effort_normalization
 
     expect([normalization.hours_min, normalization.hours_max]).to eq([150, 200])
     expect(normalization.raw_min).to eq(240)
     expect(normalization.override_rationale).to eq("Checked against the interviews")
 
-    decide("OVERRIDE_EFFORT", subject_id: ProcessCluster.current.sole.id, min: -1, max: 10)
+    decide("OVERRIDE_EFFORT", subject_id: SynthesisCluster.current.sole.id, min: -1, max: 10)
     expect(response).to have_http_status(:unprocessable_entity)
   end
 
@@ -117,8 +117,8 @@ RSpec.describe "Consultant synthesis review", type: :request do
     get path, headers: headers
     expect(response.parsed_body.dig("run", "suggested_additions").map { |s| s["finding_id"] }).to include(newcomer.id)
 
-    decide("MERGE_CLUSTERS", subject_id: ProcessCluster.current.sole.id, finding_ids: [newcomer.id])
-    expect(ProcessCluster.current.sole.finding_ids).to include(newcomer.id)
+    decide("MERGE_CLUSTERS", subject_id: SynthesisCluster.current.sole.id, finding_ids: [newcomer.id])
+    expect(SynthesisCluster.current.sole.finding_ids).to include(newcomer.id)
   end
 
   it "resolves a leadership verdict, keeping the original conflict in the earlier version" do
@@ -180,7 +180,7 @@ RSpec.describe "Consultant synthesis review", type: :request do
 
   it "refuses a decision on another engagement's records" do
     other = create(:engagement, company: create(:company, :onboarded))
-    foreign = ProcessCluster.create!(company: other.company, engagement: other, cluster_key: "cl-x", name: "x",
+    foreign = SynthesisCluster.create!(company: other.company, engagement: other, cluster_key: "cl-x", name: "x",
                                      cluster_type: "SHARED_IDENTICAL", schema_version: "PC.v1")
     decide("APPROVE_CLUSTER", subject_id: foreign.id)
     expect(response).to have_http_status(:not_found)

@@ -61,7 +61,7 @@ module Synthesis
         effort_type: finding.effective_effort_type, frequency: finding.display_frequency,
         duration: finding.display_duration, confidence: finding.confidence,
         single_occupant_role: finding.single_occupant_role, duplicate_of_id: finding.possible_duplicate_of_id,
-        digest: ProcessClusterMember.digest_for(finding),
+        digest: SynthesisClusterMember.digest_for(finding),
         evidence: evidence(finding)
       )
     end

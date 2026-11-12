@@ -37,7 +37,7 @@ module Synthesis
       status = Status.for(@engagement)
       run = status["latest_finished_run"]
       @items = WorkItems.call(@company).index_by(&:id)
-      clusters = current(ProcessCluster).where.not(status: "REJECTED").includes(:members, :effort_normalization).order(:id).to_a
+      clusters = current(SynthesisCluster).where.not(status: "REJECTED").includes(:members, :effort_normalization).order(:id).to_a
       clustered = clusters.flat_map(&:finding_ids).to_set
       {
         "contract_version" => CONTRACT_VERSION,

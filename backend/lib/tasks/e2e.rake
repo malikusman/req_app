@@ -291,8 +291,8 @@ namespace :e2e do
     # Synthesis keeps everything; clear this company's so the seed starts clean.
     SynthesisDecision.where(engagement_id: engagement_ids).delete_all
     EffortNormalization.where(engagement_id: engagement_ids).delete_all
-    ProcessClusterMember.where(process_cluster_id: ProcessCluster.where(engagement_id: engagement_ids).select(:id)).delete_all
-    [ProcessCluster, ProcessRelationship, ConsultancyOpportunity, RootCause, ManagementValidation].each do |model|
+    SynthesisClusterMember.where(synthesis_cluster_id: SynthesisCluster.where(engagement_id: engagement_ids).select(:id)).delete_all
+    [SynthesisCluster, ProcessRelationship, ConsultancyOpportunity, RootCause, ManagementValidation].each do |model|
       model.where(engagement_id: engagement_ids).delete_all
     end
     AiRun.where(engagement_id: engagement_ids).delete_all
@@ -363,7 +363,7 @@ namespace :e2e do
                                requested_at: Time.current)
     Synthesis::Run.call(run)
     puts "Seeded #{email} / #{password} (company ##{company.id}, engagement ##{engagement.id}, synthesis " \
-         "#{run.reload.status}: #{ProcessCluster.current.where(engagement: engagement).count} cluster(s), " \
+         "#{run.reload.status}: #{SynthesisCluster.current.where(engagement: engagement).count} cluster(s), " \
          "#{ConsultancyOpportunity.current.where(engagement: engagement).count} opportunity(ies))"
   end
 end

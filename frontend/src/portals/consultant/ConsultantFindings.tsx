@@ -323,9 +323,9 @@ function FindingRow({
           {f.needs_review && (
             <Badge variant="warning">{duplicateOf && f.status === 'draft' ? 'Possible double count' : 'Review before release'}</Badge>
           )}
-          {f.process_cluster && (
+          {f.synthesis_cluster && (
             <Link to={`/consultant/companies/${companyId}/synthesis`} title="Shared work, on the Synthesis page">
-              <Badge variant="neutral">Part of: {f.process_cluster.name}</Badge>
+              <Badge variant="neutral">Part of: {f.synthesis_cluster.name}</Badge>
             </Link>
           )}
         </div>

@@ -28,7 +28,7 @@ module Synthesis
 
     RERUN_WAIT = 2.minutes
     SUBJECTS = {
-      "cluster" => ProcessCluster, "opportunity" => ConsultancyOpportunity, "root_cause" => RootCause,
+      "cluster" => SynthesisCluster, "opportunity" => ConsultancyOpportunity, "root_cause" => RootCause,
       "validation" => ManagementValidation, "relationship" => ProcessRelationship, "run" => SynthesisRun
     }.freeze
     ACTIONS = {
@@ -101,7 +101,7 @@ module Synthesis
       first, *rest = groups
       kept = rebuild(@subject.revise!(consultant_attrs), first)
       rest.select { |g| g.size > 1 }.each do |group|
-        cluster = ProcessCluster.create!(
+        cluster = SynthesisCluster.create!(
           @subject.attributes.slice("company_id", "engagement_id", "cluster_type", "departments", "roles", "schema_version")
                   .merge(consultant_attrs).merge("cluster_key" => next_cluster_key, "name" => "#{@subject.name} (split)",
                                                  "parent_version_id" => @subject.id, "variants" => [], "stages" => [])
@@ -115,7 +115,7 @@ module Synthesis
     # (finding_ids) — for instance a suggested newcomer. The merged clusters are
     # superseded, pointing at the combined one through the decision log.
     def merge_clusters
-      others = ProcessCluster.current.where(engagement: @engagement, id: Array(@params["cluster_ids"])).to_a
+      others = SynthesisCluster.current.where(engagement: @engagement, id: Array(@params["cluster_ids"])).to_a
       extra = Array(@params["finding_ids"]).map(&:to_i)
       raise Error, "Choose clusters or items to merge in" if others.empty? && extra.empty?
 
@@ -326,7 +326,7 @@ module Synthesis
       )
     end
 
-    def next_cluster_key = next_key(ProcessCluster, :cluster_key, "cl-c")
+    def next_cluster_key = next_key(SynthesisCluster, :cluster_key, "cl-c")
 
     def next_key(model, column, prefix)
       used = model.where(engagement_id: @engagement.id).pluck(column).filter_map { |k| k.to_s[/\A#{prefix}-(\d+)\z/, 1]&.to_i }

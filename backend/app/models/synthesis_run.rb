@@ -19,7 +19,7 @@ class SynthesisRun < ApplicationRecord
   belongs_to :company
   belongs_to :engagement
   has_many :process_relationships, dependent: :nullify
-  has_many :process_clusters, dependent: :nullify
+  has_many :synthesis_clusters, dependent: :nullify
   has_many :consultancy_opportunities, dependent: :nullify
   has_many :root_causes, dependent: :nullify
   has_many :management_validations, dependent: :nullify

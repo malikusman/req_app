@@ -11,8 +11,8 @@ RSpec.describe "Synthesis records" do
   let(:finding) { synthesis_finding(company: company, role: "Sales Coordinator", hours: [100, 150]) }
 
   def cluster(**attrs)
-    ProcessCluster.create!({ company: company, engagement: engagement, cluster_key: "cl-1", name: "Quotations",
-                             cluster_type: "SHARED_IDENTICAL", schema_version: ProcessCluster::SCHEMA_VERSION }
+    SynthesisCluster.create!({ company: company, engagement: engagement, cluster_key: "cl-1", name: "Quotations",
+                             cluster_type: "SHARED_IDENTICAL", schema_version: SynthesisCluster::SCHEMA_VERSION }
                              .merge(attrs))
   end
 
@@ -20,7 +20,7 @@ RSpec.describe "Synthesis records" do
     it "makes a new version on change, links it to the old one and keeps the old one readable" do
       original = cluster
       original.members.create!(finding: finding, employee: finding.employee,
-                               member_digest: ProcessClusterMember.digest_for(finding))
+                               member_digest: SynthesisClusterMember.digest_for(finding))
 
       revised = original.revise!(name: "Customer quotations", status: "APPROVED")
 
@@ -30,7 +30,7 @@ RSpec.describe "Synthesis records" do
       expect(revised.finding_ids).to eq([finding.id])
       expect(original.reload.status).to eq("SUPERSEDED")
       expect(original.name).to eq("Quotations")
-      expect(ProcessCluster.current.where(cluster_key: "cl-1")).to eq([revised])
+      expect(SynthesisCluster.current.where(cluster_key: "cl-1")).to eq([revised])
     end
 
     it "refuses to revise a version that is already superseded" do
@@ -71,7 +71,7 @@ RSpec.describe "Synthesis records" do
   describe "effort" do
     it "keeps raw and de-duplicated figures apart, and a consultant override wins only with a reason" do
       normalization = EffortNormalization.create!(
-        company: company, engagement: engagement, process_cluster: cluster, raw_min: 200, raw_max: 300,
+        company: company, engagement: engagement, synthesis_cluster: cluster, raw_min: 200, raw_max: 300,
         dedup_min: 100, dedup_max: 150, method_version: "EN.v1"
       )
       expect([normalization.hours_min, normalization.hours_max]).to eq([100, 150])
@@ -87,7 +87,7 @@ RSpec.describe "Synthesis records" do
     end
 
     it "rejects an override below zero or upside down" do
-      normalization = EffortNormalization.new(company: company, engagement: engagement, process_cluster: cluster,
+      normalization = EffortNormalization.new(company: company, engagement: engagement, synthesis_cluster: cluster,
                                               method_version: "EN.v1", override_rationale: "x")
       normalization.assign_attributes(consultant_min: -5, consultant_max: 10)
       expect(normalization).not_to be_valid
@@ -148,7 +148,7 @@ RSpec.describe "Synthesis records" do
 
   describe "staleness" do
     it "notices when a clustered finding is rebuilt" do
-      member = cluster.members.create!(finding: finding, member_digest: ProcessClusterMember.digest_for(finding))
+      member = cluster.members.create!(finding: finding, member_digest: SynthesisClusterMember.digest_for(finding))
       expect(member).not_to be_stale
 
       finding.update!(what_happens_now: "Now done another way")

@@ -3505,7 +3505,7 @@ export interface Finding {
   reviewed_at: string | null;
   reviewed_by: string | null;
   /** The shared work synthesis grouped this into (Doc 10), if any. */
-  process_cluster: { key: string; name: string; status: string } | null;
+  synthesis_cluster: { key: string; name: string; status: string } | null;
 }
 
 /** How one company's interviews are going (Platform::InterviewHealth). Counts only. */

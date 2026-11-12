@@ -10,7 +10,7 @@
 class EffortNormalization < ApplicationRecord
   belongs_to :company
   belongs_to :engagement
-  belongs_to :process_cluster
+  belongs_to :synthesis_cluster
 
   validates :method_version, presence: true
   validate :override_is_coherent

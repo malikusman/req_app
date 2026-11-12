@@ -53,7 +53,7 @@ RSpec.describe Synthesis::ForTaskIntelligence do
   end
 
   it "says whose each object is, and leaves rejected ones out" do
-    cluster = ProcessCluster.current.sole
+    cluster = SynthesisCluster.current.sole
     expect(handoff["clusters"].sole["status"]).to eq("PROVISIONAL")
 
     Synthesis::Decide.call(engagement: engagement, actor: create(:consultant_user), action: "REJECT_CLUSTER",

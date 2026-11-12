@@ -4,8 +4,8 @@
 # the finding as it stood when it was grouped. Findings are rebuilt in place, so
 # the digest is how a later change shows up as a stale cluster rather than
 # being trusted silently.
-class ProcessClusterMember < ApplicationRecord
-  belongs_to :process_cluster
+class SynthesisClusterMember < ApplicationRecord
+  belongs_to :synthesis_cluster
   belongs_to :finding
   belongs_to :employee, optional: true
 

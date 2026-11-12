@@ -209,7 +209,7 @@ module Findings
     def shared_work
       @shared_work ||= begin
         engagement = @company.current_engagement
-        clusters = engagement ? ProcessCluster.current.approved.where(engagement: engagement)
+        clusters = engagement ? SynthesisCluster.current.approved.where(engagement: engagement)
                                               .includes(:members, :effort_normalization).to_a : []
         counted_in = {}
         clusters.each do |cluster|

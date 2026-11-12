@@ -102,11 +102,11 @@ module Synthesis
         items: items, edges: edges,
         locked: locked.map { |c| { key: c.cluster_key, item_ids: c.finding_ids } },
         previous: previous.map { |c| { key: c.cluster_key, item_ids: c.finding_ids } },
-        taken_keys: ProcessCluster.where(engagement_id: @engagement.id).distinct.pluck(:cluster_key)
+        taken_keys: SynthesisCluster.where(engagement_id: @engagement.id).distinct.pluck(:cluster_key)
       )
       by_id = items.index_by(&:id)
 
-      kept = ProcessCluster.transaction do
+      kept = SynthesisCluster.transaction do
         stored = result.groups.map { |group| store_cluster(group, previous, by_id, edges) }
         (previous - stored).each { |cluster| cluster.update!(status: "SUPERSEDED") }
         stored
@@ -133,9 +133,9 @@ module Synthesis
                     c.reload
                   end
                 else
-                  ProcessCluster.create!(attrs.merge("company_id" => @run.company_id, "engagement_id" => @engagement.id,
+                  SynthesisCluster.create!(attrs.merge("company_id" => @run.company_id, "engagement_id" => @engagement.id,
                                                      "synthesis_run_id" => @run.id, "cluster_key" => group.key,
-                                                     "schema_version" => ProcessCluster::SCHEMA_VERSION))
+                                                     "schema_version" => SynthesisCluster::SCHEMA_VERSION))
                 end
       variant_of = Array(group.variants).each_with_object({}) { |v, map| v["item_ids"].each { |id| map[id] = v["label"] } }
       members.each do |item|
@@ -177,7 +177,7 @@ module Synthesis
 
     def current_clusters
       @current_clusters = nil if @current_clusters&.any?(&:superseded?)
-      @current_clusters ||= ProcessCluster.current.where(engagement_id: @engagement.id).where.not(status: "REJECTED")
+      @current_clusters ||= SynthesisCluster.current.where(engagement_id: @engagement.id).where.not(status: "REJECTED")
                                           .includes(:members, :effort_normalization).order(:id).to_a
     end
 

@@ -7,7 +7,7 @@
 #
 # A cluster a consultant approved, split, merged or created is theirs: a re-run
 # never changes its boundaries, only proposes additions (Doc 10 §21).
-class ProcessCluster < ApplicationRecord
+class SynthesisCluster < ApplicationRecord
   include SynthesisVersioned
   version_key :cluster_key
 
@@ -22,7 +22,7 @@ class ProcessCluster < ApplicationRecord
   belongs_to :engagement
   belongs_to :synthesis_run, optional: true
   belongs_to :decided_by, polymorphic: true, optional: true
-  has_many :members, class_name: "ProcessClusterMember", dependent: :destroy
+  has_many :members, class_name: "SynthesisClusterMember", dependent: :destroy
   has_many :findings, through: :members
   has_one :effort_normalization, dependent: :destroy
 
@@ -51,7 +51,7 @@ class ProcessCluster < ApplicationRecord
     end
     return unless effort_normalization
 
-    copy.create_effort_normalization!(effort_normalization.attributes.except("id", "process_cluster_id", "created_at",
+    copy.create_effort_normalization!(effort_normalization.attributes.except("id", "synthesis_cluster_id", "created_at",
                                                                              "updated_at"))
   end
 end

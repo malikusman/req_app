@@ -14,7 +14,7 @@ page, see [APPLICATION_GUIDE.md](APPLICATION_GUIDE.md) §5.7a.
 | Reads | Employees' work items (today: findings) | Clusters and their de-duplicated hours, unclustered work, each leader's context and strategic findings, planned initiatives, coverage |
 | Model does | Judges one shortlisted pair at a time; no numbers | Reasons once over the whole engagement; directions, never designs; quotes figures, never computes them |
 | Code does | Shortlists pairs, assembles clusters, **does all effort arithmetic** | Validates every reference and figure, sets platform priority, versions everything |
-| Produces | `ProcessCluster`, `ProcessRelationship`, `EffortNormalization`, sampling recommendation | `ConsultancyOpportunity`, `RootCause`, `ManagementValidation`, operating picture, initiative conflicts, role potential, coverage notes |
+| Produces | `SynthesisCluster` (Doc 06's ProcessCluster), `ProcessRelationship`, `EffortNormalization`, sampling recommendation | `ConsultancyOpportunity`, `RootCause`, `ManagementValidation`, operating picture, initiative conflicts, role potential, coverage notes |
 
 **Where it ends:** at approved, versioned clusters, de-duplicated effort, opportunities and
 root causes each with a next step, and leadership verdicts. **Task intelligence (P12, the
@@ -85,9 +85,12 @@ consultant "Run again" ─────┘                                       
 
 ## What it stores (Doc 06 §6)
 
-`synthesis_runs` · `process_relationships` · `process_clusters` + `process_cluster_members`
+`synthesis_runs` · `process_relationships` · `synthesis_clusters` + `synthesis_cluster_members`
 · `effort_normalizations` · `consultancy_opportunities` · `root_causes` ·
 `management_validations` · `synthesis_decisions`.
+
+Doc 06 calls the cluster `ProcessCluster`. That name belongs to the deep-dive engine's
+clusters for now; see [CONSOLIDATION_ENGINES.md](CONSOLIDATION_ENGINES.md).
 
 - Every object is versioned (`version`, `parent_version_id`, `SUPERSEDED`) through
   `SynthesisVersioned`. Nothing is edited in place, and rejected output is kept.
