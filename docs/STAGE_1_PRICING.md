@@ -192,6 +192,8 @@ participation, and below the floor. Each runs in a transaction that is rolled ba
 
 ## Decided here, open with the client
 
+The client-facing version of these, in plain English, is in [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md).
+
 Where the documents disagree or are silent, this build chose:
 
 1. **The key user's acceptance starts Stage 1** (Doc 22 E12, Doc 06's `ACCEPTED`).

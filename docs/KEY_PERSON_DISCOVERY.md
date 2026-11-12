@@ -128,6 +128,8 @@ answers per area, lines injected at given answers, and what the scenario expects
 
 ## Decided here, open with the client
 
+The client-facing version of these, in plain English, is in [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md).
+
 Where the documents disagree or are silent, this build chose:
 
 1. **Pricing waits for the key user's conversation only.** Other managers' conversations

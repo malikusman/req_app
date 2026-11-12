@@ -240,6 +240,8 @@ quotes and the finance case. Use a stronger model for P10 and P11 before release
 
 ## Decided here, open with the client
 
+The client-facing version of these, in plain English, is in [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md).
+
 1. **Work items are findings** until employee discovery keeps `WorkItem` records, so only
    areas where someone described a problem are compared.
 2. **Enums follow Doc 10 / P10 / P11**, which are newer and richer than Doc 06 §6.3/§6.5.
