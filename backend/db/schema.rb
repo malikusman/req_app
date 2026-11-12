@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_11_12_140000) do
+ActiveRecord::Schema[7.1].define(version: 2026_11_12_180000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -626,6 +626,35 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_12_140000) do
     t.datetime "updated_at", null: false
     t.index ["company_id"], name: "index_conversations_on_company_id"
     t.index ["employee_id"], name: "index_conversations_on_employee_id"
+  end
+
+  create_table "deep_dive_plan_revisions", force: :cascade do |t|
+    t.bigint "deep_dive_plan_id", null: false
+    t.bigint "consultant_user_id", null: false
+    t.integer "version", null: false
+    t.string "action", null: false
+    t.text "reason", null: false
+    t.jsonb "content", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["consultant_user_id"], name: "index_deep_dive_plan_revisions_on_consultant_user_id"
+    t.index ["deep_dive_plan_id", "version"], name: "idx_on_deep_dive_plan_id_version_cf83aba3ba", unique: true
+    t.index ["deep_dive_plan_id"], name: "index_deep_dive_plan_revisions_on_deep_dive_plan_id"
+    t.check_constraint "version > 0 AND (action::text = ANY (ARRAY['generated'::character varying, 'edited'::character varying, 'approved'::character varying]::text[]))", name: "deep_dive_plan_revision_valid"
+  end
+
+  create_table "deep_dive_plans", force: :cascade do |t|
+    t.bigint "task_selection_revision_id", null: false
+    t.string "task_key", null: false
+    t.string "status", null: false
+    t.string "generation_token", null: false
+    t.text "generation_error"
+    t.jsonb "context", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["task_selection_revision_id", "task_key"], name: "idx_on_task_selection_revision_id_task_key_30b2bb5409", unique: true
+    t.index ["task_selection_revision_id"], name: "index_deep_dive_plans_on_task_selection_revision_id"
+    t.check_constraint "status::text = ANY (ARRAY['queued'::character varying, 'generating'::character varying, 'failed'::character varying, 'draft'::character varying, 'approved'::character varying]::text[])", name: "deep_dive_plan_status"
   end
 
   create_table "demo_requests", force: :cascade do |t|
@@ -1640,6 +1669,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_12_140000) do
   add_foreign_key "conversation_insights", "messages"
   add_foreign_key "conversations", "companies"
   add_foreign_key "conversations", "employees"
+  add_foreign_key "deep_dive_plan_revisions", "consultant_users"
+  add_foreign_key "deep_dive_plan_revisions", "deep_dive_plans"
+  add_foreign_key "deep_dive_plans", "task_selection_revisions"
   add_foreign_key "discovery_followup_questions", "consultant_info_requests"
   add_foreign_key "discovery_followup_questions", "consultant_requirements"
   add_foreign_key "discovery_followup_questions", "discovery_packages"

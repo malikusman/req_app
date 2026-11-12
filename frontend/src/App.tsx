@@ -53,6 +53,7 @@ import { OutreachReplyPage } from './portals/public/OutreachReplyPage';
 import { ConsultantCatalog } from './portals/consultant/ConsultantCatalog';
 import { ConsultantFindings } from './portals/consultant/ConsultantFindings';
 import { ConsultantTaskSelection } from './portals/consultant/ConsultantTaskSelection';
+import { ConsultantDeepDivePlans } from './portals/consultant/ConsultantDeepDivePlans';
 import { DiscoverLanding } from './employee/DiscoverLanding';
 import { DiscoverChat } from './employee/DiscoverChat';
 
@@ -172,6 +173,7 @@ export default function App() {
               <Route path="companies/:companyId/catalog" element={<ConsultantCatalog />} />
               <Route path="companies/:companyId/findings" element={<ConsultantFindings />} />
               <Route path="companies/:companyId/task-selection" element={<ConsultantTaskSelection />} />
+              <Route path="companies/:companyId/deep-dive-plans/:runId" element={<ConsultantDeepDivePlans />} />
             </Route>
             <Route
               path="/company"

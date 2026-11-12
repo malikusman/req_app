@@ -137,6 +137,10 @@ Rails.application.routes.draw do
           resources :task_sources, only: :index
           resources :process_clusters, only: %i[index show]
           resources :task_intelligence_runs, only: %i[index show] do
+            resources :deep_dive_plans, only: %i[index show update] do
+              post :generate, on: :member
+              post :approve, on: :member
+            end
             resource :selection_review, only: :show, controller: "task_selection_reviews" do
               post :commands, action: :command
             end

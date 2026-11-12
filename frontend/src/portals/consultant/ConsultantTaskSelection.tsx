@@ -128,6 +128,9 @@ export function ConsultantTaskSelection() {
           <p className="max-w-prose text-sm text-muted-foreground">Review recommendations, choose tasks for Deep Dive, and assign employees who know the work.</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {current?.status === 'finalized' && version === null && <Link
+            className="inline-flex items-center rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+            to={`${base}/deep-dive-plans/${current.run.id}`}>Deep Dive plans</Link>}
           {run && <Button type="button" size="sm" variant="secondary" icon={<History />} disabled={busy} onClick={() => setHistoryOpen(true)}>Review history</Button>}
           <Button type="button" size="sm" variant="ghost" icon={<RefreshCw />} disabled={busy}
             onClick={() => { setError(''); setReload(value => value + 1); }}>Reload review</Button>

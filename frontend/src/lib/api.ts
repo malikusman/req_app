@@ -1,4 +1,5 @@
 import type { ReviewCommand, SelectionReview, SelectionRun } from './taskSelection';
+import type { PlanContent, PlanDetail, PlanSummary } from './deepDivePlan';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -68,6 +69,17 @@ async function fetchPreviewBlob(token: string, path: string) {
 }
 
 export const api = {
+  consultantDeepDivePlans: (token: string, companyId: string, runId: string) =>
+    request<{ selection_version: number; tasks: PlanSummary[] }>(
+      `/api/v1/consultant/companies/${companyId}/task_intelligence_runs/${runId}/deep_dive_plans`, {}, token),
+  consultantDeepDivePlan: (token: string, companyId: string, runId: string, taskId: string, version?: string) =>
+    request<PlanDetail>(
+      `/api/v1/consultant/companies/${companyId}/task_intelligence_runs/${runId}/deep_dive_plans/${encodeURIComponent(taskId)}${version ? `?version=${encodeURIComponent(version)}` : ''}`, {}, token),
+  consultantDeepDivePlanCommand: (token: string, companyId: string, runId: string, taskId: string,
+    action: 'generate' | 'edit' | 'approve', body?: { expected_version: number; reason: string; content?: PlanContent }) =>
+    request<PlanDetail>(
+      `/api/v1/consultant/companies/${companyId}/task_intelligence_runs/${runId}/deep_dive_plans/${encodeURIComponent(taskId)}${action === 'edit' ? '' : `/${action}`}`,
+      { method: action === 'edit' ? 'PATCH' : 'POST', body: body ? JSON.stringify(body) : undefined }, token),
   consultantTaskIntelligenceRuns: (token: string, companyId: string, beforeId?: number) =>
     request<{ task_intelligence_runs: SelectionRun[]; next_before_id: number | null }>(
       `/api/v1/consultant/companies/${companyId}/task_intelligence_runs${beforeId ? `?before_id=${beforeId}` : ''}`, {}, token),

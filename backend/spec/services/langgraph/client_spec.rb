@@ -5,6 +5,19 @@ require "rails_helper"
 RSpec.describe Langgraph::Client do
   subject(:client) { described_class.new(base_url: "http://langgraph.test") }
 
+  describe "#generate_deep_dive_plan!" do
+    it "sends the scoped context to the internal authenticated planning endpoint" do
+      context = { "task_id" => "proposal-10" }
+      request = stub_request(:post, "http://langgraph.test/v1/consultant/deep_dive/plan")
+                .with(body: { context: context }.to_json,
+                      headers: { "X-Internal-Token" => ENV.fetch("INTERNAL_API_TOKEN", "dev-internal-token") })
+                .to_return(status: 200, body: { generated_by: "llm", plan: {} }.to_json)
+
+      expect(client.generate_deep_dive_plan!(context: context)).to include("generated_by" => "llm")
+      expect(request).to have_been_requested.once
+    end
+  end
+
   describe "#run_turn!" do
     let(:playbook) do
       instance_double(

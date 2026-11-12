@@ -58,6 +58,9 @@ function resolveTitle(pathname: string, fallback: string): string {
   if (pathname.match(/\/consultant\/companies\/\d+\/task-selection$/)) {
     return 'Deep Dive Task Selection';
   }
+  if (pathname.match(/\/consultant\/companies\/\d+\/deep-dive-plans\/\d+$/)) {
+    return 'Deep Dive plans';
+  }
   if (pathname.match(/\/platform\/companies\/\d+/)) {
     return 'Company detail';
   }

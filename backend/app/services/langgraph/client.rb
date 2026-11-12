@@ -142,6 +142,16 @@ module Langgraph
       raise Langgraph::UnavailableError.new(e.message, retryable: true)
     end
 
+    def generate_deep_dive_plan!(context:)
+      post("/v1/consultant/deep_dive/plan", { context: context },
+           read_timeout: Integer(ENV.fetch("LANGGRAPH_DRAFT_READ_TIMEOUT", "180")),
+           headers: { "X-Internal-Token" => ENV.fetch("INTERNAL_API_TOKEN", "dev-internal-token") })
+    rescue Langgraph::UnavailableError
+      raise
+    rescue StandardError => e
+      raise Langgraph::UnavailableError.new(e.message, retryable: true)
+    end
+
     def run_docs_analysis!(payload)
       post(
         "/v1/docs_analysis/runs",
@@ -156,7 +166,7 @@ module Langgraph
 
     private
 
-    def post(path, body, read_timeout: READ_TIMEOUT)
+    def post(path, body, read_timeout: READ_TIMEOUT, headers: {})
       uri = URI.parse("#{@base_url}#{path}")
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = uri.scheme == "https"
@@ -165,6 +175,7 @@ module Langgraph
 
       request = Net::HTTP::Post.new(uri)
       request["Content-Type"] = "application/json"
+      headers.each { |key, value| request[key] = value }
       request.body = body.to_json
 
       response = http.request(request)
