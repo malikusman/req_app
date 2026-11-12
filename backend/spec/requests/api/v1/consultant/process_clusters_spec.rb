@@ -53,4 +53,22 @@ RSpec.describe "Consultant process clusters", type: :request do
     get "#{path(company)}/#{foreign.id}", headers: headers
     expect(response).to have_http_status(:not_found)
   end
+
+  it "shows an evidence-backed clarification on the affected revision without exposing private wording" do
+    2.times do
+      conversation = create(:conversation, employee: create(:employee, company: company))
+      conversation.update!(state_snapshot: { blackboard: { dossier: { slots: {
+        "how_it_works::Invoices" => { value: "Match confidential supplier invoices", confidence: 0.9, turn: 2 }
+      } } } })
+      TaskSources::SyncFromConversation.call(conversation: conversation)
+    end
+    cluster = ProcessClusters::Rebuild.call(company: company).first
+    request = ClarificationRequest.sole
+
+    get "#{path(company)}/#{cluster.id}", headers: headers
+    expect(response).to have_http_status(:ok)
+    comparison = response.parsed_body.fetch("process_cluster").fetch("relationships").sole
+    expect(comparison).to include("classification" => "UNRESOLVED", "clarification_request" => request.snapshot)
+    expect(response.body).not_to include("confidential supplier")
+  end
 end

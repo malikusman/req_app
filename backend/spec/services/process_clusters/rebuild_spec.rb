@@ -9,13 +9,13 @@ RSpec.describe ProcessClusters::Rebuild do
   let(:output) { "Validated invoice batch with approval stamps" }
 
   def activity(name: "Invoice processing", trigger: self.trigger, steps: self.steps, output: self.output,
-               effort: nil, bottleneck: nil, previous: nil, company: self.company)
-    conversation = previous&.conversation || create(:conversation, employee: create(:employee, company: company))
+               effort: nil, bottleneck: nil, tools: nil, previous: nil, company: self.company, employee: nil)
+    conversation = previous&.conversation || create(:conversation, employee: employee || create(:employee, company: company))
     message = create(:message, conversation: conversation, track: "discovery")
     anchor = { "message_id" => message.id, "turn" => 2 }
     facts = {
       "trigger_inputs" => trigger, "steps_decisions" => steps, "output_recipient" => output,
-      "active_effort" => effort, "bottlenecks" => bottleneck
+      "active_effort" => effort, "bottlenecks" => bottleneck, "tools" => tools
     }.compact.transform_values do |value|
       fact = { "status" => "known", "evidence" => anchor }
       value.is_a?(Hash) ? fact.merge("effort" => value) : fact.merge("value" => value)
@@ -47,12 +47,31 @@ RSpec.describe ProcessClusters::Rebuild do
     revision = rebuild.sole.current_revision
     expect(revision.memberships.pluck(:task_source_id)).to contain_exactly(left.id, right.id)
     expect(revision).to have_attributes(confidence: "high")
-    expect(revision.relationships).to contain_exactly(hash_including("kind" => "same_work"))
+    expect(revision.relationships).to contain_exactly(hash_including("kind" => "same_work", "classification" => "SHARED_IDENTICAL"))
     expect(revision.effort_summary).to include("status" => "potential_overlap", "annual_hours_max" => nil,
                                               "quantified_source_count" => 2)
     expect(revision.memberships.find_by!(task_source: left).effort_observations.sole).to include(
       "annual_hours_min" => 120, "annual_hours_max" => 145,
       "duration" => hash_including("unit" => "minutes", "as_said" => "My original estimate")
+    )
+  end
+
+  it "groups supported process variants without adding their effort" do
+    left = activity(steps: "Match supplier invoices against purchase orders and record exceptions", effort: reported_effort)
+    right = activity(steps: "Match supplier invoices against purchase orders and escalate exceptions", effort: reported_effort)
+
+    revision = rebuild.sole.current_revision
+    expect(revision.relationships).to contain_exactly(hash_including("classification" => "SHARED_VARIANT"))
+    expect(revision.memberships.pluck(:task_source_id)).to contain_exactly(left.id, right.id)
+    expect(revision.effort_summary).to include("status" => "potential_overlap", "annual_hours_max" => nil)
+  end
+
+  it "recognizes different reported tools within the same recorded scope" do
+    activity(tools: "SAP accounts payable")
+    activity(tools: "Local spreadsheet")
+
+    expect(rebuild.sole.current_revision.relationships).to contain_exactly(
+      hash_including("kind" => "shared_variant", "classification" => "SHARED_VARIANT")
     )
   end
 
@@ -64,8 +83,54 @@ RSpec.describe ProcessClusters::Rebuild do
     revisions = rebuild.map(&:current_revision)
     expect(revisions.map { |revision| revision.memberships.pluck(:task_source_id) })
       .to contain_exactly([left.id], [related.id], [unrelated.id])
-    expect(revisions.first.relationships).to contain_exactly(hash_including("kind" => "uncertain"))
+    expect(revisions.first.relationships).to contain_exactly(hash_including("kind" => "uncertain", "classification" => "UNRESOLVED"))
     expect(revisions.last.relationships).to be_empty
+  end
+
+  it "deduplicates a material request and versions the same request as the evidence changes" do
+    left = activity(effort: reported_effort)
+    right = activity(trigger: nil, output: nil)
+    clusters = rebuild
+    request = ClarificationRequest.sole
+    original = request.snapshot
+    expect(request).to have_attributes(status: "open", version: 1)
+    expect(request.details.fetch("impacts")).to contain_exactly("effort_estimation", "participant_sampling")
+    expect(request.details.fetch("affected_sources")).to contain_exactly(
+      hash_including("task_source_id" => left.id, "evidence_references" => include(hash_including("message_id"))),
+      hash_including("task_source_id" => right.id)
+    )
+    expect(clusters.first.current_revision.relationships.sole["clarification_request"]).to eq(original)
+
+    expect { rebuild }.not_to change(ProcessClusterRevision, :count)
+    expect(request.reload.version).to eq(1)
+    updated = activity(previous: right, output: nil)
+    rebuild
+    expect(request.reload).to have_attributes(status: "open", version: 2, right_source_id: updated.id)
+    expect(request.history).to eq([original])
+    expect(request.details.fetch("missing_evidence")).not_to include("Comparable trigger and inputs for both activities.")
+    expect(ClarificationRequest.count).to eq(1)
+  end
+
+  it "records uncertainty without a request when neither effort nor participant sampling is affected" do
+    left = activity
+    activity(employee: left.employee, trigger: nil, output: nil)
+
+    expect(rebuild.first.current_revision.relationships.sole["classification"]).to eq("UNRESOLVED")
+    expect(ClarificationRequest.count).to eq(0)
+  end
+
+  it "closes a request without claiming resolution when the comparison loses its evidence" do
+    activity
+    right = activity(trigger: nil, output: nil)
+    rebuild
+    request = ClarificationRequest.sole
+
+    activity(previous: right, trigger: nil, output: nil, steps: "Archive payroll remittance acknowledgements")
+    rebuild
+
+    expect(request.reload).to have_attributes(status: "closed", version: 2)
+    expect(request.details.fetch("resolution")).not_to have_key("classification")
+    expect(request.history.sole.fetch("status")).to eq("open")
   end
 
   it "flags related but distinct activities when only a boundary matches" do
@@ -74,7 +139,7 @@ RSpec.describe ProcessClusters::Rebuild do
 
     revisions = rebuild.map(&:current_revision)
     expect(revisions.size).to eq(2)
-    expect(revisions.first.relationships).to contain_exactly(hash_including("kind" => "related_distinct"))
+    expect(revisions.first.relationships).to contain_exactly(hash_including("kind" => "related_distinct", "classification" => "DISTINCT"))
   end
 
   it "sums independent active effort for evidenced stages while preserving waiting separately" do
@@ -84,7 +149,7 @@ RSpec.describe ProcessClusters::Rebuild do
 
     revision = rebuild.sole.current_revision
     expect(revision.relationships).to contain_exactly(
-      hash_including("kind" => "different_stages", "source_ids" => [left.id, right.id])
+      hash_including("kind" => "different_stages", "classification" => "DISTINCT", "source_ids" => [left.id, right.id])
     )
     expect(revision.effort_summary).to include("status" => "separate_stages", "annual_hours_min" => 200,
                                               "annual_hours_max" => 245, "waiting_observation_count" => 1)

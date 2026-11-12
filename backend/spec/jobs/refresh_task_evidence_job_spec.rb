@@ -49,6 +49,8 @@ RSpec.describe RefreshTaskEvidenceJob do
     first_run = TaskIntelligenceRun.where(company: company).sole
     first_proposals = first_run.candidates.order(:id).to_a
     first_members = first_proposals.map { |row| row.process_cluster_revision.memberships.pluck(:task_source_id) }
+    request = ClarificationRequest.sole
+    original_request = request.snapshot
     expect(first_proposals.map(&:disposition)).to contain_exactly("shortlisted", "needs_overlap_review")
     expect(first_proposals.first.process_cluster_revision.relationships.pluck("kind")).to include("uncertain")
 
@@ -72,6 +74,13 @@ RSpec.describe RefreshTaskEvidenceJob do
     expect(newer.version).to eq(2)
     revision = newer.candidates.sole.process_cluster_revision
     expect(revision.relationships.pluck("kind")).to eq(["same_work"])
+    expect(revision.relationships.pluck("classification")).to eq(["SHARED_IDENTICAL"])
+    expect(request.reload).to have_attributes(status: "resolved", version: 2)
+    expect(request.details.dig("resolution", "classification")).to eq("SHARED_IDENTICAL")
+    expect(request.history).to eq([original_request])
+    expect(newer.candidates.sole.assessment.fetch("clarification_requests")).to be_empty
+    expect(first_run.candidates.order(:id).map { |row| row.assessment.fetch("clarification_requests") })
+      .to eq([[original_request], [original_request]])
     expect(revision.memberships.map(&:task_source).map(&:version)).to contain_exactly(1, 2)
     expect(revision.memberships.map(&:task_source).flat_map(&:evidence_references).pluck("message_id").uniq)
       .to contain_exactly(left_answer.id, corrected_answer.id)

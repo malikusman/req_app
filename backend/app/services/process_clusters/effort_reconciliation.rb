@@ -56,7 +56,7 @@ module ProcessClusters
         return active.first ? ["independent_observation", active] : ["unknown", nil]
       end
 
-      if relationships.any? { |relationship| relationship["kind"] == "same_work" }
+      if relationships.any? { |relationship| Relationship::OVERLAP_KINDS.include?(relationship["kind"]) }
         return ["potential_overlap", nil]
       end
       if sources.map(&:employee_id).uniq.size != sources.size

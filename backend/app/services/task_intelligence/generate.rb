@@ -5,7 +5,7 @@ require "digest"
 module TaskIntelligence
   class Generate
     DEFAULT_TARGET = 5
-    ALGORITHM_VERSION = "1"
+    ALGORITHM_VERSION = "2"
     EVALUATION_MODE = "deterministic"
     FOCUS_BONUS = 2
 
@@ -64,7 +64,7 @@ module TaskIntelligence
         memberships.fetch(revision.id).each { |member| index[member.task_source_id] = revision.process_cluster_id }
       end
       revisions.flat_map(&:relationships).each_with_object(Hash.new { |hash, key| hash[key] = Set.new }) do |relationship, links|
-        next unless relationship["kind"].in?(%w[uncertain same_work])
+        next unless ProcessClusters::Relationship::OVERLAP_KINDS.include?(relationship["kind"])
 
         left, right = relationship.fetch("source_ids").map { |id| cluster_by_source[id] }
         next unless left && right && left != right
@@ -109,7 +109,7 @@ module TaskIntelligence
         factors = assessment.fetch("score_breakdown").sort_by { |key, value| [-value, key] }
                             .select { |_, value| value.positive? }.first(3).map { |key, _| key.tr("_", " ") }
         status = "shortlisted"
-        reason = "Ranked #{rank}. Main factors: #{factors.join(', ')}."
+        reason = "Ranked #{rank} based on #{factors.join(', ')}."
         reason += " Added a different investigation focus." if bonus.positive?
       elsif !assessment.fetch("grounded_for_investigation")
         status = "insufficient_evidence"
@@ -120,6 +120,11 @@ module TaskIntelligence
       else
         status = "deferred_capacity"
         reason = "Eligible for investigation. Other candidates ranked higher within this run's target size."
+      end
+      if assessment.fetch("clarification_requests").any?
+        reason += " Open clarification may change the effort estimate or which participants are needed."
+      elsif assessment.fetch("potential_overlap_cluster_ids").any?
+        reason += " The scope remains provisional until overlap is checked."
       end
 
       row.except(:cluster_id).merge(

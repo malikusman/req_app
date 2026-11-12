@@ -100,7 +100,17 @@ RSpec.describe TaskIntelligence::Generate do
     expect(selected.assessment.fetch("potential_overlap_cluster_ids"))
       .to eq([deferred.process_cluster_revision.process_cluster_id])
     expect(run.candidates.map { |row| row.assessment["possible_released_effort"] }).to eq([nil, nil])
-    expect(selected.assessment.fetch("observed_workload")).to include("cross_cluster_overlap_unresolved" => true)
+    expect(selected.assessment.fetch("observed_workload")).to include("cross_cluster_overlap_unresolved" => true,
+                                                                     "status" => "unresolved_overlap")
+    expect(selected.assessment.fetch("investigation_scope")).to eq("provisional_overlap_review")
+    request = ClarificationRequest.sole
+    expect(selected.assessment.fetch("clarification_requests")).to eq([request.snapshot])
+    expect(deferred.assessment.fetch("clarification_requests")).to eq([request.snapshot])
+    expect(selected.assessment.fetch("unknowns")).to include(*request.details.fetch("unknowns"))
+    expect(selected.assessment.fetch("risks")).to include("Open clarification may change the effort estimate or which participants are needed.")
+    expect(selected.disposition_reason).to include("Open clarification")
+    expect(deferred.disposition_reason).to include("Open clarification")
+    expect(generate.id).to eq(run.id)
   end
 
   it "keeps waiting and unquantified activity out of released effort" do

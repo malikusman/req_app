@@ -21,6 +21,8 @@ module TaskIntelligence
       @memberships = memberships
       @overlaps = overlaps
       @goals = goals
+      @clarifications = revision.relationships.filter_map { |relationship| relationship["clarification_request"] }
+                                .select { |request| request["status"] == "open" }.uniq { |request| request["id"] }
       @sources = memberships.map(&:task_source)
       @evidence = @sources.to_h do |source|
         [source.id, ProcessClusters::SourceEvidence.new(source, evidence_conversations)]
@@ -67,7 +69,9 @@ module TaskIntelligence
           "risks" => risks,
           "unknowns" => unknowns(known, conflicts, workload, frequency, release),
           "deep_dive_objectives" => objectives,
-          "potential_overlap_cluster_ids" => @overlaps
+          "potential_overlap_cluster_ids" => @overlaps,
+          "clarification_requests" => @clarifications,
+          "investigation_scope" => @overlaps.any? ? "provisional_overlap_review" : "cluster_observation"
         }
       }
     end
@@ -97,8 +101,14 @@ module TaskIntelligence
       return unless positive_number?(summary["annual_hours_min"]) && positive_number?(summary["annual_hours_max"])
       return if summary["annual_hours_min"] > summary["annual_hours_max"]
 
-      summary.slice("annual_hours_min", "annual_hours_max", "status")
-             .merge("cross_cluster_overlap_unresolved" => @overlaps.any?)
+      workload = summary.slice("annual_hours_min", "annual_hours_max", "status")
+      if @overlaps.any?
+        workload.merge!("status" => "unresolved_overlap", "reported_status" => summary.fetch("status"),
+                        "cross_cluster_overlap_unresolved" => true)
+      else
+        workload["cross_cluster_overlap_unresolved"] = false
+      end
+      workload
     end
 
     def possible_release(conflicts, workload)
@@ -163,6 +173,9 @@ module TaskIntelligence
       risks << "Discovery contains conflicting accounts." if conflicts.any?
       risks << "Possible overlap with other clusters could lead to double counting." if @overlaps.any? ||
         @revision.effort_summary["status"].in?(%w[potential_overlap unknown_overlap])
+      if @clarifications.any?
+        risks << "Open clarification may change the effort estimate or which participants are needed."
+      end
       risks
     end
 
@@ -175,6 +188,7 @@ module TaskIntelligence
       objectives << "Validate the reported exception path and controls." if known.include?("exceptions")
       objectives.unshift("Compare process boundaries and confirm whether the reported work overlaps.") if @overlaps.any?
       objectives.unshift("Resolve the conflicting Discovery accounts with the participant.") if conflicts.any?
+      objectives.unshift("Review the open consolidation clarification before defining the investigation scope.") if @clarifications.any?
       objectives.uniq
     end
 
@@ -186,7 +200,7 @@ module TaskIntelligence
           ("unquantified_frequency" unless frequency),
           ("released_effort_unvalidated" unless release),
           ("cross_cluster_overlap_unresolved" if @overlaps.any?)
-        ].compact
+        ].compact + @clarifications.flat_map { |request| request.dig("details", "unknowns") }.uniq
     end
 
     def confidence_for(sources, conflicts)

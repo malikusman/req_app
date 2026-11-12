@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_11_12_120000) do
+ActiveRecord::Schema[7.1].define(version: 2026_11_12_130000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -177,6 +177,23 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_12_120000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["catalog_source_id"], name: "index_catalog_sync_runs_on_catalog_source_id"
+  end
+
+  create_table "clarification_requests", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "left_source_id", null: false
+    t.bigint "right_source_id", null: false
+    t.string "pair_key", null: false
+    t.string "status", null: false
+    t.integer "version", null: false
+    t.jsonb "details", null: false
+    t.jsonb "history", default: [], null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id", "pair_key"], name: "index_clarification_requests_on_company_id_and_pair_key", unique: true
+    t.index ["company_id"], name: "index_clarification_requests_on_company_id"
+    t.index ["left_source_id"], name: "index_clarification_requests_on_left_source_id"
+    t.index ["right_source_id"], name: "index_clarification_requests_on_right_source_id"
   end
 
   create_table "companies", force: :cascade do |t|
@@ -1542,6 +1559,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_12_120000) do
   add_foreign_key "catalog_source_records", "catalog_sources"
   add_foreign_key "catalog_source_records", "catalog_sync_runs"
   add_foreign_key "catalog_sync_runs", "catalog_sources"
+  add_foreign_key "clarification_requests", "companies", on_delete: :cascade
+  add_foreign_key "clarification_requests", "task_sources", column: "left_source_id", on_delete: :cascade
+  add_foreign_key "clarification_requests", "task_sources", column: "right_source_id", on_delete: :cascade
   add_foreign_key "company_catalog_matches", "companies"
   add_foreign_key "company_catalog_matches", "consultant_users", column: "added_by_consultant_id"
   add_foreign_key "company_catalog_matches", "recommendations"

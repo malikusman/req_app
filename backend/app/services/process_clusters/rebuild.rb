@@ -22,6 +22,7 @@ module ProcessClusters
           relationship = matcher.compare(left, right)
           found[[left.id, right.id].sort] = relationship if relationship
         end
+        ReconcileClarifications.new(company: @company, evidence: evidence, observations: observations).call(pairs)
 
         clusters = partition(sources, pairs).map do |members|
           save_group(members, pairs, observations)
@@ -66,10 +67,14 @@ module ProcessClusters
       relationships = pairs.values.select { |pair| pair["source_ids"].intersect?(ids) }
       within = relationships.select { |pair| (pair["source_ids"] - ids).empty? }
       confidence, rationale = grouping_basis(members, within)
+      effort = EffortReconciliation.summarize(members, observations, within)
+      if (relationships - within).any? { |relationship| Relationship::OVERLAP_KINDS.include?(relationship["kind"]) }
+        effort["cross_cluster_overlap_unresolved"] = true
+      end
       cluster = ProcessCluster.find_or_create_by!(company: @company, anchor_key: members.first.first_source_id.to_s)
       append_revision(
         cluster, observations.slice(*ids), status: "active", confidence: confidence, rationale: rationale,
-        relationships: relationships, effort_summary: EffortReconciliation.summarize(members, observations, within)
+        relationships: relationships, effort_summary: effort
       )
       cluster
     end
@@ -80,7 +85,7 @@ module ProcessClusters
         return ["high", "All member pairs agree on recorded steps, trigger and output."]
       end
 
-      ["medium", "Each pair agrees on the work or has an evidenced output-to-trigger handoff."]
+      ["medium", "Each pair agrees on the work, supports a shared variant, or has an evidenced output-to-trigger handoff."]
     end
 
     def retire_absent_clusters(clusters)
