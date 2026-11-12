@@ -425,7 +425,8 @@ export function ConsultantCompanyOverview() {
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <p className="m-0 text-sm text-muted-foreground">
                     Work several people describe, counted once; leadership's concerns set against what staff describe; and
-                    opportunities above any one task. Confirm what should reach the report.
+                    opportunities above any one task. Confirm what should reach the report; what to investigate is chosen
+                    under Task selection.
                   </p>
                   <Link to={`/consultant/companies/${companyId}/synthesis`}>
                     <Button variant="secondary" icon={<Network className="h-4 w-4" />}>Open</Button>

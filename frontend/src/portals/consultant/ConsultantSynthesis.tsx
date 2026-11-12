@@ -105,6 +105,14 @@ export function ConsultantSynthesis() {
           </Button>
         }
       />
+      {/* Two pages group shared work until the engines are one (docs/CONSOLIDATION_ENGINES.md). */}
+      <p className="m-0 text-sm text-muted-foreground">
+        This decides what goes in the report. To choose what to investigate in deep dives, see{' '}
+        <Link className="font-medium text-primary underline" to={`/consultant/companies/${companyId}/task-selection`}>
+          Task selection
+        </Link>
+        .
+      </p>
       {error && <p className="m-0 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
       {!data ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
