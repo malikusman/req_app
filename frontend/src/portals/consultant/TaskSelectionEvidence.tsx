@@ -11,7 +11,7 @@ export function workload(value?: AnnualWorkload) {
   const hours = value.annual_hours_min != null && value.annual_hours_max != null
     ? `${value.annual_hours_min}–${value.annual_hours_max} hours/year · ` : '';
   const labels: Record<string, string> = {
-    unknown: 'No estimate yet', unknown_active_effort: 'Active work time is unknown',
+    unknown: 'No estimate yet', unknown_active_effort: 'Time estimate not yet confirmed',
     withheld_possible_overlap: 'Estimate withheld because work may overlap',
     withheld_shared_evidence: 'Estimate withheld because tasks share evidence',
     reported_active_workload: 'Reported active work', conditional_consultant_assumption: 'Based on consultant assumptions',
