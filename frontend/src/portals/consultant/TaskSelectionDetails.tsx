@@ -71,7 +71,7 @@ export function TaskSelectionDetails({ task, initialTab, review, readOnly, busy,
             <section className="space-y-2">
               <h3 className="font-semibold">What still needs review</h3>
               <TextList items={[...new Set(task.gaps)]} />
-              {relationships.map(pair => <RelationshipEvidence key={pair.source_ids.join(':')} relationship={pair} sources={review.sources} />)}
+              {relationships.map(pair => <RelationshipEvidence key={pair.source_ids.join(':')} relationship={pair} sources={review.sources} people={review.eligible_participants} />)}
             </section>
             <section className="space-y-2 border-t border-border pt-4">
               <h3 className="font-semibold">Original recommendations</h3>

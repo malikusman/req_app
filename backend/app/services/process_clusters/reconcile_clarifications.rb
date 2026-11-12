@@ -42,6 +42,23 @@ module ProcessClusters
       end
     end
 
+    # A partial comparison set must never close or reopen an existing request.
+    # The caller holds the same company lock used by Rebuild.
+    def backfill_missing(relationships)
+      relationships.filter_map do |relationship|
+        sources = sources_for(relationship)
+        impacts = material_impacts(sources)
+        next if impacts.empty?
+
+        key = pair_key(sources)
+        next if @requests.exists?(pair_key: key)
+
+        request = @requests.new(pair_key: key)
+        update(request, sources, "open", open_details(sources, relationship, impacts))
+        request
+      end
+    end
+
     private
 
     def sources_for(relationship)

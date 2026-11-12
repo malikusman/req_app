@@ -1,4 +1,4 @@
-import type { AnnualWorkload, EffortRange, Proposal, Relationship, TaskSource } from '../../lib/taskSelection';
+import type { AnnualWorkload, EffortRange, Proposal, Relationship, ReviewParticipant, TaskSource } from '../../lib/taskSelection';
 
 export const words = (value: string) => value.replaceAll('_', ' ');
 
@@ -55,8 +55,20 @@ export function ProposalEvidence({ proposal, sources }: { proposal: Proposal; so
   </details>;
 }
 
-export function RelationshipEvidence({ relationship, sources }: { relationship: Relationship; sources: TaskSource[] }) {
-  const request = relationship.clarification_request;
+export function unresolvedRelationship(relationship: Relationship) {
+  return relationship.classification ? relationship.classification === 'UNRESOLVED' : relationship.kind === 'uncertain';
+}
+
+export function RelationshipEvidence({ relationship, sources, people }: {
+  relationship: Relationship; sources: TaskSource[]; people: ReviewParticipant[];
+}) {
+  const current = relationship.current_clarification_request;
+  const request = current ?? relationship.clarification_request;
+  const unresolved = unresolvedRelationship(relationship);
+  const checks = request?.missing_evidence ?? relationship.missing_evidence ?? [
+    'Compare what starts each workflow, what it produces, and where the work is handed off.',
+    'Confirm which steps and workload are shared and which are performed separately.',
+  ];
   const classification = relationship.classification ?? relationship.kind ?? 'UNRESOLVED';
   const labels: Record<string, string> = {
     SHARED_IDENTICAL: 'Same reported work', SHARED_VARIANT: 'Different versions of the same work',
@@ -64,13 +76,20 @@ export function RelationshipEvidence({ relationship, sources }: { relationship: 
   };
   return <details className="space-y-2 rounded-md border border-border p-3 text-sm">
     <summary className="cursor-pointer font-semibold">{request ? 'Clarification · ' : ''}{labels[classification] ?? words(classification)}</summary>
-    {relationship.source_ids.map(id => <p key={id}>{sources.find(source => source.id === id)?.name ?? 'Discovery activity'}</p>)}
+    <ul className="space-y-1">
+      {relationship.source_ids.map(id => {
+        const source = sources.find(item => item.id === id);
+        if (!source) return null;
+        const person = people.find(item => item.id === source.employee_id);
+        return <li key={id}><strong>{source.name}</strong> · {person?.name || `Employee #${source.employee_id}`} <span className="text-muted-foreground">(Discovery source #{source.id})</span></li>;
+      })}
+    </ul>
     <p>{relationship.rationale}</p>
-    {request && <>
-      <p className="font-semibold">Clarification · {request.status}</p>
-      <h4 className="font-medium">Missing facts</h4><TextList items={request.missing_evidence} />
+    {request && <p className="font-semibold">{current ? 'Current clarification' : 'Clarification at time of run'} · {request.status}</p>}
+    {(unresolved || request) && <><h4 className="font-medium">What to verify</h4><TextList items={checks} /></>}
+    {request?.why_it_matters?.length ? <>
       <h4 className="font-medium">Why it matters</h4><TextList items={request.why_it_matters} />
-      <h4 className="font-medium">Unknowns</h4><TextList items={request.unknowns} />
-    </>}
+    </> : null}
+    {request?.unknowns?.length ? <><h4 className="font-medium">Unknowns</h4><TextList items={request.unknowns} /></> : null}
   </details>;
 }

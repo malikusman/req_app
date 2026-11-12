@@ -10,7 +10,7 @@ const makeTask = (id: string, title: string, source_ids: number[], proposal_ids:
 const tasks = [makeTask('proposal-1', 'Invoice matching', [10, 30], [1]), makeTask('proposal-2', 'Invoice exception handling', [20], [2])];
 tasks[1].effective_effort = { status: 'unknown_active_effort' };
 
-async function mockReview(page: Page, failParticipantSave = false) {
+async function mockReview(page: Page, failParticipantSave = false, requestStatus = 'open') {
   const commands: (ReviewCommand & { expected_version: number; reason?: string })[] = [];
   const review: SelectionReview = {
     run, version: 0, latest_version: 0, status: 'draft', latest_status: 'draft', history: [],
@@ -28,6 +28,8 @@ async function mockReview(page: Page, failParticipantSave = false) {
     }))),
     relationships: [{ source_ids: [10, 20], classification: 'UNRESOLVED', rationale: 'Similar steps with insufficient boundaries.',
       clarification_request: { id: 19, status: 'open', missing_evidence: ['Which output closes each activity?'],
+        why_it_matters: ['Avoid counting effort twice.'], unknowns: ['One process or two?'] },
+      current_clarification_request: { id: 19, status: requestStatus, missing_evidence: ['Which output closes each activity?'],
         why_it_matters: ['Avoid counting effort twice.'], unknowns: ['One process or two?'] } }],
     eligible_participants: [
       { id: 1, name: 'Adam', discovery_consent_recorded: true },
@@ -158,12 +160,17 @@ test('keeps clarifications in details and persists a linked participant through 
   const task = card(page, 'Invoice matching');
   const other = card(page, 'Invoice exception handling');
   await expect(task.getByText('Needs clarification', { exact: true })).toBeVisible();
+  await expect(page.getByText('Need clarification', { exact: true }).locator('..').locator('dd')).toHaveText('1');
+  await expect(task.getByText('Similar work reported by another employee — relationship not confirmed')).toBeVisible();
   await expect(page.getByText('Which output closes each activity?')).toBeHidden();
   await other.getByRole('button', { name: 'Details' }).click();
   const evidence = detail(page, 'Invoice exception handling');
   await evidence.getByText('Outside shortlist · Invoice exception handling').click();
   await expect(evidence.getByText(/deferred overlap · medium priority/)).toBeVisible();
   await evidence.getByText('Clarification · Possible overlap').click();
+  await expect(evidence.getByText('Invoice matching · Adam')).toBeVisible();
+  await expect(evidence.getByText('Invoice exception handling · Sam')).toBeVisible();
+  await expect(evidence.getByText('What to verify')).toBeVisible();
   await expect(evidence.getByText('Which output closes each activity?')).toBeVisible();
   await expect(evidence.getByText('Avoid counting effort twice.')).toBeVisible();
   await closePanel(evidence);
@@ -194,6 +201,14 @@ test('keeps clarifications in details and persists a linked participant through 
   await closePanel(history);
   await expect(page.getByText('Read-only revision', { exact: true })).toBeVisible();
   await expect(task.getByText('Pending', { exact: true })).toBeVisible();
+});
+
+test('an overlap and an old open snapshot do not count a closed clarification', async ({ page }) => {
+  await mockReview(page, false, 'closed');
+  const task = card(page, 'Invoice matching');
+  await expect(task.getByText('Similar work reported by another employee — relationship not confirmed')).toBeVisible();
+  await expect(task.getByText('Needs clarification', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('Need clarification', { exact: true }).locator('..').locator('dd')).toHaveText('0');
 });
 
 test('uses merged source lineage and splits from the Decisions panel', async ({ page }) => {

@@ -8,9 +8,12 @@ export type TaskSource = {
     scope: string; effort_type: string; frequency: EffortRange; duration: EffortRange; calculation_reason?: string;
   })[];
 };
+type Clarification = { id: number; status: string; missing_evidence: string[]; why_it_matters: string[]; unknowns: string[] };
 export type Relationship = {
   source_ids: number[]; classification?: string; kind?: string; rationale?: string;
-  clarification_request?: { id: number; status: string; missing_evidence: string[]; why_it_matters: string[]; unknowns: string[] };
+  missing_evidence?: string[];
+  clarification_request?: Clarification | null;
+  current_clarification_request?: Clarification | null;
 };
 export type Proposal = {
   id: number; title: string; rank: number | null; score: number; priority: string; confidence: string;

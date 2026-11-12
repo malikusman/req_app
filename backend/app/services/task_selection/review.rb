@@ -28,7 +28,7 @@ module TaskSelection
         snapshot: revision&.snapshot || initial_snapshot,
         history: review ? review.revisions.order(version: :desc).as_json(only: %i[version action reason status consultant_user_id created_at]) : [],
         proposals: evidence.proposals, sources: evidence.sources.values,
-        relationships: evidence.relationships, eligible_participants: evidence.participants
+        relationships: evidence.relationships_with_current_requests, eligible_participants: evidence.participants
       }
     end
 

@@ -65,11 +65,55 @@ RSpec.describe "Consultant task selection", type: :request do
     expect(body["proposals"].pluck("id")).to match_array(proposals.map(&:id))
     expect(body["relationships"].sole).to include(
       "classification" => "UNRESOLVED",
+      "current_clarification_request" => hash_including("id" => ClarificationRequest.sole.id, "status" => "open"),
       "clarification_request" => hash_including("id" => ClarificationRequest.sole.id, "version" => 1, "status" => "open",
                                                "missing_evidence" => be_present, "why_it_matters" => be_present)
     )
     expect(body["sources"].first["effort_observations"].sole).to include("annual_hours_min" => 120)
     expect(response.body).not_to include("Private", "as_said", "phone_e164", "evidence_references")
+  end
+
+  it "backfills only the requested current legacy pair and exposes it separately from pinned history" do
+    ClarificationRequest.sole.destroy!
+    company_clusters = ProcessCluster.where(company: company)
+    company_clusters.each do |cluster|
+      previous = cluster.current_revision
+      revision = cluster.revisions.create!(
+        previous.attributes.slice("status", "confidence", "rationale", "effort_summary").merge(
+          number: 2, fingerprint: "legacy-#{cluster.id}",
+          relationships: previous.relationships.map { |pair| pair.slice("kind", "source_ids", "rationale") }
+        )
+      )
+      previous.memberships.each do |member|
+        revision.memberships.create!(task_source: member.task_source, effort_observations: member.effort_observations)
+      end
+    end
+    legacy_run = TaskIntelligence::Generate.call(company: company, target: 1)
+    legacy_review = TaskSelection::Review.new(legacy_run)
+    task_id = "proposal-#{legacy_run.candidates.first.id}"
+    saved = legacy_review.apply({ "action" => "select", "expected_version" => 0, "task_id" => task_id, "reason" => "Review this work" },
+                                actor: consultant)
+    snapshot = saved.snapshot.deep_dup
+    pinned = legacy_run.candidates.map { |proposal| proposal.process_cluster_revision.relationships }
+    pair = [left.id, right.id]
+
+    expect(ProcessClusters::BackfillLegacyClarifications.call(company: company, source_pairs: [[left.id, -1]])).to be_empty
+    created = ProcessClusters::BackfillLegacyClarifications.call(company: company, source_pairs: [pair, pair.reverse]).sole
+    expect(created).to have_attributes(status: "open", version: 1)
+    expect(created.details["impacts"]).to contain_exactly("effort_estimation", "participant_sampling")
+    expect(ProcessClusters::BackfillLegacyClarifications.call(company: company, source_pairs: [pair])).to be_empty
+    expect(legacy_run.candidates.reload.map { |proposal| proposal.process_cluster_revision.relationships }).to eq(pinned)
+    expect(saved.reload.snapshot).to eq(snapshot)
+
+    get path(legacy_run), headers: headers
+    expect(response.parsed_body.fetch("relationships").sole).to include(
+      "kind" => "uncertain", "clarification_request" => nil,
+      "current_clarification_request" => hash_including("id" => created.id, "status" => "open")
+    )
+    created.update!(status: "closed")
+    expect(ProcessClusters::BackfillLegacyClarifications.call(company: company, source_pairs: [pair])).to be_empty
+    get path(legacy_run), headers: headers
+    expect(response.parsed_body.fetch("relationships").sole.fetch("current_clarification_request")["status"]).to eq("closed")
   end
 
   it "records selection, deferral, rejection, notes and exact ordering with history and conflict protection" do

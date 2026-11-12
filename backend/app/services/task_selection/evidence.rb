@@ -28,6 +28,16 @@ module TaskSelection
       participants.select { |person| employee_ids.include?(person.fetch("id")) }
     end
 
+    def relationships_with_current_requests
+      ids = relationships.flat_map { |pair| pair.fetch("source_ids") }.uniq
+      requests = ClarificationRequest.where(company_id: @run.company_id, left_source_id: ids, right_source_id: ids)
+                                     .index_by { |request| [request.left_source_id, request.right_source_id].sort }
+      relationships.map do |pair|
+        request = requests[pair.fetch("source_ids").sort]
+        pair.merge("current_clarification_request" => request && clarification_json(request.snapshot))
+      end
+    end
+
     def proposal(candidate)
       revision = candidate.process_cluster_revision
       ids = revision.memberships.sort_by(&:id).filter_map do |member|
@@ -45,9 +55,7 @@ module TaskSelection
       @relationships.concat(revision.relationships.map do |pair|
         request = pair["clarification_request"]
         pair.slice("source_ids", "kind", "classification", "rationale", "missing_evidence").merge(
-          "clarification_request" => request && request.slice("id", "version", "status").merge(
-            request.fetch("details").slice("missing_evidence", "why_it_matters", "unknowns", "impacts")
-          )
+          "clarification_request" => request && clarification_json(request)
         )
       end)
       candidate.as_json(only: %i[id title disposition disposition_reason rank score priority confidence]).merge(
@@ -136,6 +144,12 @@ module TaskSelection
     end
 
     private
+
+    def clarification_json(request)
+      request.slice("id", "version", "status").merge(
+        request.fetch("details").slice("missing_evidence", "why_it_matters", "unknowns", "impacts")
+      )
+    end
 
     def overlapping?(pair)
       pair["classification"].in?(%w[UNRESOLVED SHARED_IDENTICAL SHARED_VARIANT]) ||

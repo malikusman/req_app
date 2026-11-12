@@ -4,7 +4,7 @@ import { Badge, Button } from '../../components/ui';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/shadcn/tabs';
 import type { ReviewTask, SelectionReview } from '../../lib/taskSelection';
 import { linkedParticipants, participantName, TaskSelectionDetails, type DetailTab, type ParticipantFeedback } from './TaskSelectionDetails';
-import { ProposalEvidence, TextList, words, workload } from './TaskSelectionEvidence';
+import { ProposalEvidence, TextList, unresolvedRelationship, words, workload } from './TaskSelectionEvidence';
 import { field, RelationshipForm, TaskTitleForm, type Save } from './TaskSelectionForms';
 
 const status = {
@@ -29,12 +29,13 @@ export function TaskSelectionWorkspace({ review, readOnly, busy, feedback, onHis
   const replaced = snapshot.tasks.filter(task => !live.includes(task));
   const marked = merge.filter(id => live.some(task => task.id === id));
   const detailTask = live.find(task => task.id === details?.id);
-  const clarifications = new Set(review.relationships.filter(pair => pair.clarification_request?.status === 'open')
-    .flatMap(pair => pair.source_ids));
+  const openRequests = review.relationships.filter(pair => pair.current_clarification_request?.status === 'open' &&
+    live.some(task => pair.source_ids.some(id => task.source_ids.includes(id))));
+  const clarificationSources = new Set(openRequests.flatMap(pair => pair.source_ids));
   const metrics = [
     { label: 'Suggested tasks', value: review.proposals.filter(proposal => proposal.rank !== null).length, icon: ClipboardList, color: 'bg-primary/10 text-primary' },
     { label: 'Selected for Deep Dive', value: selected.length, icon: CheckCircle2, color: 'bg-success/10 text-success' },
-    { label: 'Need clarification', value: live.filter(task => task.source_ids.some(id => clarifications.has(id))).length, icon: AlertCircle, color: 'bg-warning/10 text-warning' },
+    { label: 'Need clarification', value: new Set(openRequests.map(pair => pair.current_clarification_request?.id)).size, icon: AlertCircle, color: 'bg-warning/10 text-warning' },
   ];
 
   function move(id: string, offset: number) {
@@ -52,7 +53,7 @@ export function TaskSelectionWorkspace({ review, readOnly, busy, feedback, onHis
       {tasks.length ? <div className="space-y-2.5">{tasks.map(task => {
         const index = snapshot.selected_order.indexOf(task.id);
         return <TaskOverviewCard key={task.id} task={task} review={review} readOnly={readOnly} busy={busy}
-          needsClarification={task.source_ids.some(id => clarifications.has(id))}
+          needsClarification={task.source_ids.some(id => clarificationSources.has(id))}
           open={tab => setDetails({ id: task.id, tab })}
           moveUp={index > 0 ? () => move(task.id, -1) : undefined}
           moveDown={index >= 0 && index < selected.length - 1 ? () => move(task.id, 1) : undefined}
@@ -160,7 +161,13 @@ function TaskOverviewCard({ task, review, readOnly, busy, needsClarification, op
   const people = linkedParticipants(review.sources.filter(source => task.source_ids.includes(source.id)), review.eligible_participants);
   const assigned = people.filter(person => task.participant_ids.includes(person.id)).map(participantName);
   const overlap = task.gaps.some(gap => /overlap|unresolved relationship/i.test(gap) && !gap.startsWith('Active workload'));
-  const warning = needsClarification ? 'Needs clarification' : overlap ? 'Possible overlap with other work' :
+  const differentEmployees = review.relationships.some(pair => {
+    if (!unresolvedRelationship(pair) || !pair.source_ids.some(id => task.source_ids.includes(id))) return false;
+    const owners = review.sources.filter(source => pair.source_ids.includes(source.id)).map(source => source.employee_id);
+    return new Set(owners).size > 1;
+  });
+  const warning = differentEmployees ? 'Similar work reported by another employee — relationship not confirmed' :
+    overlap ? 'Scope overlap needs review' :
     task.participant_ids.length !== assigned.length ? 'An assigned participant needs review' : '';
   return <article aria-label={task.title} className={`space-y-3 rounded-xl border border-l-[3px] px-4 py-3.5 ${style.surface}`}>
     <div className="flex flex-wrap items-start justify-between gap-2">
@@ -176,6 +183,7 @@ function TaskOverviewCard({ task, review, readOnly, busy, needsClarification, op
         <span><span className="sr-only">Participants · </span>{assigned.join(', ') || 'No participants assigned'}</span></p>
     </div>
     {warning && <p className="inline-flex items-center gap-1.5 rounded-md bg-warning/10 px-2 py-1 text-xs font-medium text-warning"><AlertCircle className="size-3.5 shrink-0" aria-hidden />{warning}</p>}
+    {needsClarification && <div><Badge variant="warning">Needs clarification</Badge></div>}
     <div className="flex flex-wrap items-center justify-between gap-2">
       <div className="flex flex-wrap items-center gap-1.5">
         {!readOnly && task.status === 'pending' && ['select', 'reject', 'defer'].map(action =>
