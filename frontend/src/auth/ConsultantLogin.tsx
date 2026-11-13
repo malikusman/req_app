@@ -1,11 +1,20 @@
-import { useNavigate, Link } from 'react-router-dom';
+import { useEffect } from 'react';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { LoginForm } from './LoginForm';
 
 export function ConsultantLogin() {
-  const { setSession } = useAuth();
+  const { setSession, logout } = useAuth();
+  const { state } = useLocation();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (state?.logout) {
+      logout();
+      void navigate('/consultant/login', { replace: true, state: null });
+    }
+  }, [logout, navigate, state]);
 
   return (
     <LoginForm

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, History, RefreshCw } from 'lucide-react';
+import { ArrowLeft, ClipboardList, History, RefreshCw } from 'lucide-react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { Badge, Button, Card, Skeleton, useToast } from '../../components/ui';
+import { Badge, Button, EmptyState, ErrorNotice, PageHeader, Skeleton, Textarea, useToast } from '../../components/ui';
+import { buttonVariants } from '../../components/shadcn/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/shadcn/dialog';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '../../components/shadcn/sheet';
 import { api } from '../../lib/api';
@@ -114,34 +115,30 @@ export function ConsultantTaskSelection() {
 
   const reviewLabel = current?.status === 'finalized' ? 'Finalized' : readOnly ? 'Historical review' : 'Draft review';
 
-  return <div className="mx-auto max-w-[90rem] space-y-5 sm:space-y-7">
-    <header className="rounded-2xl border border-border bg-card px-4 py-5 sm:px-7 sm:py-6">
-      <Link className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline" to={base}>
-        <ArrowLeft className="size-4" aria-hidden /> Company overview
-      </Link>
-      <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
-        <div className="space-y-2">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">Deep Dive Task Selection</h1>
-            {current && <Badge variant={current.status === 'finalized' ? 'success' : 'neutral'}>{reviewLabel}</Badge>}
-          </div>
-          <p className="max-w-prose text-sm text-muted-foreground">Review recommendations, choose tasks for Deep Dive, and assign employees who know the work.</p>
-        </div>
+  return <div className="space-y-5 sm:space-y-7">
+    <div>
+      <PageHeader className="mb-4" title="Review recommended tasks"
+        description="Choose tasks for Deep Dive and assign employees who know the work."
+        breadcrumbs={[{ label: 'Company overview', href: base }, { label: 'Task selection' }]}
+        actions={<Link className={buttonVariants({ size: 'sm', variant: 'secondary', className: 'sm:hidden' })} to={base}>
+          <ArrowLeft aria-hidden /> Company overview
+        </Link>} />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {current && <Badge variant={current.status === 'finalized' ? 'success' : 'neutral'}>{reviewLabel}</Badge>}
         <div className="flex flex-wrap gap-2">
           {current?.status === 'finalized' && version === null && <Link
-            className="inline-flex items-center rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+            className={buttonVariants({ size: 'sm' })}
             to={`${base}/deep-dive-plans/${current.run.id}`}>Deep Dive plans</Link>}
           {run && <Button type="button" size="sm" variant="secondary" icon={<History />} disabled={busy} onClick={() => setHistoryOpen(true)}>Review history</Button>}
           <Button type="button" size="sm" variant="ghost" icon={<RefreshCw />} disabled={busy}
             onClick={() => { setError(''); setReload(value => value + 1); }}>Reload review</Button>
         </div>
       </div>
-    </header>
+    </div>
 
-    {error && <p role="alert" className="rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm">{error}</p>}
-    {runs && !runs.length && !run && <Card title="No recommendations yet"><p>Run Task Intelligence for this company to start a review.</p></Card>}
+    {error && <ErrorNotice message={error} />}
+    {runs && !runs.length && !run && <EmptyState icon={ClipboardList} title="No recommendations yet" description="Run Task Intelligence for this company to start a review." />}
     {!current && !error && (!runs || runs.length > 0 || run) && <div role="status" aria-label="Loading task selection" className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-3"><Skeleton variant="card" /><Skeleton variant="card" /><Skeleton variant="card" /></div>
       <Skeleton variant="card" />
     </div>}
     {current && <TaskSelectionWorkspace key={`${current.run.id}:${version ?? 'latest'}`} review={current} readOnly={readOnly}
@@ -195,10 +192,8 @@ export function ConsultantTaskSelection() {
         if (reason.trim()) void persist(pending, reason.trim());
         else setSaveError('Enter a reason for this decision.');
       }}>
-        <label className="block font-medium">Reason
-          <textarea autoFocus className={`${field} mt-1 block w-full`} rows={3} maxLength={2000} required value={reason} onChange={event => setReason(event.target.value)} />
-        </label>
-        {saveError && <p role="alert" className="text-destructive">{saveError}</p>}
+        <Textarea label="Reason" autoFocus rows={3} maxLength={2000} required value={reason} onChange={event => setReason(event.target.value)} />
+        {saveError && <ErrorNotice message={saveError} />}
         <div className="flex justify-end gap-2">
           <Button type="button" variant="secondary" disabled={busy} onClick={() => setPending(undefined)}>Cancel</Button>
           <Button type="submit" loading={busy}>{pending.action === 'finalize' ? 'Confirm finalization' : 'Save decision'}</Button>

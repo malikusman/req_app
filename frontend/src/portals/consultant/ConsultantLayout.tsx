@@ -7,7 +7,7 @@ import { consultantNavItems } from './nav';
 import { usePageMeta } from '../../lib/usePageMeta';
 
 export function ConsultantLayout() {
-  const { session, logout } = useAuth();
+  const { session } = useAuth();
   const token = useConsultantToken();
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -41,10 +41,8 @@ export function ConsultantLayout() {
         name: session.user.name,
         email: session.user.email,
         roleBadge: 'Consultant',
-        onLogout: () => {
-          logout();
-          navigate('/consultant/login');
-        },
+        // Clear the session after navigation so a dirty plan can block logout.
+        onLogout: () => navigate('/consultant/login', { state: { logout: true } }),
       }}
     >
       <Outlet />

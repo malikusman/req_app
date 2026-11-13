@@ -92,7 +92,7 @@ async function mockReview(page: Page, failParticipantSave = false, requestStatus
     await route.fulfill({ json: review });
   });
   await page.goto(companyPath);
-  await expect(page.getByRole('main').getByRole('heading', { name: 'Deep Dive Task Selection', exact: true })).toBeVisible();
+  await expect(page.getByRole('main').getByRole('heading', { name: 'Review recommended tasks', exact: true })).toBeVisible();
   return commands;
 }
 
@@ -160,7 +160,7 @@ test('keeps clarifications in details and persists a linked participant through 
   const task = card(page, 'Invoice matching');
   const other = card(page, 'Invoice exception handling');
   await expect(task.getByText('Needs clarification', { exact: true })).toBeVisible();
-  await expect(page.getByText('Need clarification', { exact: true }).locator('..').locator('dd')).toHaveText('1');
+  await expect(page.getByText('Open clarification requests', { exact: true }).locator('..').locator('dd')).toHaveText('1');
   await expect(task.getByText('Similar work reported by another employee — relationship not confirmed')).toBeVisible();
   await expect(page.getByText('Which output closes each activity?')).toBeHidden();
   await other.getByRole('button', { name: 'Details' }).click();
@@ -208,7 +208,7 @@ test('an overlap and an old open snapshot do not count a closed clarification', 
   const task = card(page, 'Invoice matching');
   await expect(task.getByText('Similar work reported by another employee — relationship not confirmed')).toBeVisible();
   await expect(task.getByText('Needs clarification', { exact: true })).toHaveCount(0);
-  await expect(page.getByText('Need clarification', { exact: true }).locator('..').locator('dd')).toHaveText('0');
+  await expect(page.getByText('Open clarification requests', { exact: true }).locator('..').locator('dd')).toHaveText('0');
 });
 
 test('uses merged source lineage and splits from the Decisions panel', async ({ page }) => {
@@ -265,6 +265,10 @@ test('preserves the selected task order across filters and reload', async ({ pag
 test('shows a participant save error beside the picker on mobile', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await mockReview(page, true);
+  const metrics = page.locator('dl').filter({ hasText: 'Open clarification requests' }).locator('dt');
+  await expect(metrics).toHaveCount(3);
+  const rows = await metrics.evaluateAll(terms => terms.map(term => term.getBoundingClientRect().top));
+  expect(new Set(rows).size).toBe(1);
   const task = card(page, 'Invoice matching');
   await task.getByRole('button', { name: 'Select', exact: true }).click();
   await decide(page, 'Investigate invoice matching');

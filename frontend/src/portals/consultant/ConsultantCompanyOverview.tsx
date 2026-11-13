@@ -23,6 +23,7 @@ import {
   type ConsultantCompanyDetail,
 } from '../../lib/api';
 import { useConsultantToken } from '../../lib/auth';
+import { buttonVariants } from '../../components/shadcn/button';
 import {
   PageHeader,
   Card,
@@ -449,7 +450,7 @@ export function ConsultantCompanyOverview() {
               <Card title="Task selection">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <p className="m-0 text-sm text-muted-foreground">Review Task Intelligence recommendations, evidence gaps, and the tasks to take into Deep Dive planning.</p>
-                  <Link className="text-sm font-medium text-primary underline" to={`/consultant/companies/${companyId}/task-selection`}>
+                  <Link className={buttonVariants({ variant: 'secondary' })} to={`/consultant/companies/${companyId}/task-selection`}>
                     Review task selection
                   </Link>
                 </div>

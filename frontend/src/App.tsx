@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { createBrowserRouter, createRoutesFromElements, Navigate, Route, RouterProvider, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './lib/auth';
 import { ToastProvider } from './components/ui/ToastProvider';
 import { Toaster } from './components/shadcn/sonner';
@@ -111,13 +111,9 @@ function LegacyReviewerRedirect() {
   return <Navigate to={`${target}${location.search}${location.hash}`} replace />;
 }
 
-export default function App() {
-  return (
-    <AuthProvider>
-      <ToastProvider>
-        <Toaster richColors closeButton position="top-right" />
-        <BrowserRouter>
-          <Routes>
+// A data router lets Deep Dive Plans guard both link navigation and browser history.
+const router = createBrowserRouter(createRoutesFromElements(
+          <>
             <Route path="/" element={<HomeRoute />} />
             <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="/dev/ui" element={<DevUiShowcase />} />
@@ -226,8 +222,15 @@ export default function App() {
             <Route path="/discover/:token/chat" element={<DiscoverChat />} />
             <Route path="/outreach/reply/:token" element={<OutreachReplyPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </BrowserRouter>
+          </>,
+));
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <ToastProvider>
+        <Toaster richColors closeButton position="top-right" />
+        <RouterProvider router={router} />
       </ToastProvider>
     </AuthProvider>
   );

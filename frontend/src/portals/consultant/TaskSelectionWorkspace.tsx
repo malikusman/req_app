@@ -35,7 +35,7 @@ export function TaskSelectionWorkspace({ review, readOnly, busy, feedback, onHis
   const metrics = [
     { label: 'Suggested tasks', value: review.proposals.filter(proposal => proposal.rank !== null).length, icon: ClipboardList, color: 'bg-primary/10 text-primary' },
     { label: 'Selected for Deep Dive', value: selected.length, icon: CheckCircle2, color: 'bg-success/10 text-success' },
-    { label: 'Need clarification', value: new Set(openRequests.map(pair => pair.current_clarification_request?.id)).size, icon: AlertCircle, color: 'bg-warning/10 text-warning' },
+    { label: 'Open clarification requests', value: new Set(openRequests.map(pair => pair.current_clarification_request?.id)).size, icon: AlertCircle, color: 'bg-warning/10 text-warning' },
   ];
 
   function move(id: string, offset: number) {
@@ -63,10 +63,10 @@ export function TaskSelectionWorkspace({ review, readOnly, busy, feedback, onHis
   }
 
   return <div className="space-y-5 sm:space-y-7">
-    <dl className="grid gap-3 sm:grid-cols-3">
-      {metrics.map(({ label, value, icon: Icon, color }) => <div key={label} className="flex items-center gap-4 rounded-2xl border border-border bg-card p-4 sm:p-5">
-        <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${color}`}><Icon className="size-5" aria-hidden /></span>
-        <div><dt className="text-sm text-muted-foreground">{label}</dt><dd className="text-2xl font-semibold tabular-nums">{value}</dd></div>
+    <dl className="grid grid-cols-3 gap-1.5 sm:gap-3">
+      {metrics.map(({ label, value, icon: Icon, color }) => <div key={label} className="rounded-xl border border-border bg-card p-2 sm:flex sm:items-center sm:gap-3 sm:rounded-2xl sm:p-4 lg:gap-4 lg:p-5">
+        <span className={`hidden size-10 shrink-0 place-items-center rounded-xl lg:grid ${color}`}><Icon className="size-5" aria-hidden /></span>
+        <div className="flex h-full flex-col justify-between gap-1"><dt className="text-xs leading-tight text-muted-foreground sm:text-sm">{label}</dt><dd className="text-xl font-semibold tabular-nums sm:text-2xl">{value}</dd></div>
       </div>)}
     </dl>
     <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_19rem] xl:gap-7">
@@ -173,7 +173,7 @@ function TaskOverviewCard({ task, review, readOnly, busy, needsClarification, op
     <div className="flex flex-wrap items-start justify-between gap-2">
       <div className="min-w-0">
         <h3 className="break-words font-semibold leading-snug">{task.title}</h3>
-        {priority && <p className="mt-0.5 text-xs text-muted-foreground"><span className="capitalize">{priority}</span> AI priority</p>}
+        {priority && <p className="mt-0.5 text-xs text-muted-foreground"><span className="capitalize">{priority}</span> priority</p>}
       </div>
       <Badge variant={style.variant}>{style.label}</Badge>
     </div>
