@@ -13,7 +13,7 @@ class PrepareOnboardingForm < ActiveRecord::Migration[7.1]
       UPDATE companies
       SET legacy_profile = legacy_profile || jsonb_build_object('questionnaire_v1', questionnaire_answers),
           questionnaire_answers = '{}'::jsonb,
-          questionnaire_step = NULL
+          questionnaire_step = 1
       WHERE questionnaire_answers <> '{}'::jsonb
         AND NOT legacy_profile ? 'questionnaire_v1'
     SQL
