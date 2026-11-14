@@ -46,6 +46,36 @@ module ReportsHelper
     edits.is_a?(Hash) ? edits[key.to_s] : nil
   end
 
+  # The one-sentence answer the cover and the brief lead with. A consultant who
+  # rewrote the executive summary is quoted, not the writer they replaced — else
+  # the report says one thing on the cover and another on page three.
+  def report_governing_message(snapshot)
+    edited = report_first_sentence(report_section_edit(snapshot, "executive_summary")&.dig("body"))
+    edited || snapshot.dig("narrative", "governing_thought").presence ||
+      report_first_sentence(snapshot["executive_summary"])
+  end
+
+  # A full stop after these ends a word, not a sentence — "Gulf Trading Co. spend…".
+  SENTENCE_ABBREVIATIONS = %w[co ltd inc corp llc plc bros est mr mrs ms dr st no vs etc approx e.g i.e].freeze
+
+  # First sentence of prose that may carry the consultant's light formatting:
+  # headings are skipped, list markers and emphasis dropped.
+  def report_first_sentence(text)
+    prose = text.to_s.lines.map(&:strip).reject { |l| l.blank? || l.start_with?("#") }
+                .map { |l| l.sub(/\A(?:[-*]|\d+\.)\s+/, "").delete("*_") }.join(" ")
+    pieces = prose.split(/(?<=[.!?])\s+/)
+    sentence = pieces.shift
+    while pieces.any? && sentence_continues?(sentence, pieces.first)
+      sentence = "#{sentence} #{pieces.shift}"
+    end
+    sentence.presence
+  end
+
+  def sentence_continues?(before, after)
+    last_word = before[/(\S+)\.\z/, 1].to_s.downcase
+    SENTENCE_ABBREVIATIONS.include?(last_word) || after.match?(/\A[a-z]/)
+  end
+
   # Custom sections a consultant added, anchored after a given built-in section
   # (or, when anchor is blank, only when `anchor` itself is nil — i.e. trailing).
   def report_custom_sections(snapshot, after: nil)
@@ -100,10 +130,17 @@ module ReportsHelper
     "Mjadi · #{company_name} #{report_kind_noun(snapshot || @_report_snapshot)} Report"
   end
 
-  # "Baseline" for docs-only companies, "Discovery" once interviews contribute.
+  # Every page carries its version, date and marking, so a forwarded page can never
+  # be mistaken for a current one (Doc 15 §9.3). The templates set the version and
+  # date once, as they do the snapshot.
+  def report_footer_meta
+    [@_report_version.present? ? "v#{@_report_version}" : nil, @_generated_label.presence, "Confidential"].compact.join(" · ")
+  end
+
+  # "Baseline" for docs-only companies, "Diagnostic" once interviews contribute.
   def report_kind_noun(snapshot)
     kind = snapshot.is_a?(Hash) ? snapshot["report_kind"].to_s : ""
-    kind == "baseline" ? "Baseline" : "Discovery"
+    kind == "baseline" ? "Baseline" : "Diagnostic"
   end
 
   # Plain-language band for a 0..1 (or 0..100) score. Consulting readers want
@@ -209,10 +246,21 @@ module ReportsHelper
     [[v.round, 0].max, 100].min
   end
 
+  # The signal-era "What changed" view. A findings-era delta is "What's new"
+  # instead, and renders up front (report_whats_new?).
   def report_has_delta?(delta)
     delta = delta || {}
+    return false if delta["findings"].is_a?(Hash)
+
     summary = delta["summary"].to_s
     summary.present? && summary != "Initial discovery report"
+  end
+
+  # From version 2 onward, when any finding was added, updated or superseded, or a
+  # department newly covered (Doc 15 §4.0).
+  def report_whats_new?(delta)
+    changes = (delta || {})["findings"]
+    changes.is_a?(Hash) && changes.values.any? { |v| Array(v).any? }
   end
 
   def report_priority_pill(priority)
@@ -279,9 +327,11 @@ module ReportsHelper
   # drops out of the contents page too.
   TOC_TITLE_TO_KEY = {
     "Executive summary" => "executive_summary", "Expert assessment" => "expert_verdict",
-    "Readiness" => "readiness",
-    "Company context" => "company_context", "Participation" => "participation",
-    "What changed" => "delta", "Signals" => "signals", "Patterns" => "patterns",
+    "Findings by role" => "role_findings", "Next steps" => "next_steps",
+    "Where to act first" => "recommendations", "What we advise against" => "recommendations",
+    "Scope & coverage" => "coverage",
+    "Company context" => "company_context",
+    "What changed" => "delta", "What's new" => "delta", "Signals" => "signals", "Patterns" => "patterns",
     "Implications" => "patterns", "Recommendations" => "recommendations",
     "Roadmap" => "roadmap", "Opportunities" => "opportunities",
     "Capabilities" => "tools_catalog",
@@ -299,6 +349,9 @@ module ReportsHelper
       entries << { n: format("%02d", n), title: title, description: description, rule: rule }
     end
 
+    if report_whats_new?(snapshot["delta_from_previous"])
+      add.call("What's new", "Findings added, updated or superseded since the last version", "rule-teal")
+    end
     add.call("Executive summary", "The headline story in one read", "rule-blue") if snapshot["executive_summary"].present?
     expert = report_expert(snapshot)
     if expert && (expert["verdict"] || expert["opportunity"])
@@ -308,27 +361,35 @@ module ReportsHelper
     stack = Array(snapshot["client_stack"])
     website = snapshot.dig("company", "website_url").presence || profile["website_url"].presence
     if profile.present? || stack.any? || website.present?
-      add.call("Company context", "Firmographics, systems, and public research", "rule-blue")
+      add.call("Company context", Array(snapshot["web_research"]).any? ? "Firmographics, systems, and public research" : "Firmographics and systems in use", "rule-blue")
+    end
+    if snapshot.dig("findings", "totals", "findings").to_i.positive?
+      add.call("Findings by role", "Where the time goes, role by role, in hours", "rule-magenta")
     end
     add.call("What changed", "Delta versus the previous version", "rule-teal") if report_has_delta?(snapshot["delta_from_previous"])
-    add.call("Signals", "Recurring pain points, ranked by weight of evidence", "rule-magenta") if Array(snapshot["signals"]).any?
-    add.call("Patterns", "Cross-team themes and confidence", "rule-magenta") if Array(snapshot["patterns"]).any?
-    add.call("Implications", "What the findings mean if left unaddressed", "rule-magenta") if Array(snapshot["implications"]).any?
-    add.call("Recommendations", "Prioritized actions, catalog-matched", "rule-blue") if Array(snapshot["recommendations"]).any?
+    placement = snapshot.dig("layout", "signals") || "main"
+    themes = lambda do
+      add.call("Signals", "Recurring pain points, ranked by weight of evidence", "rule-magenta") if Array(snapshot["signals"]).any?
+      add.call("Patterns", "Cross-team themes and confidence", "rule-magenta") if Array(snapshot["patterns"]).any?
+      add.call("Implications", "What the findings mean if left unaddressed", "rule-magenta") if Array(snapshot["implications"]).any?
+    end
+    themes.call if placement == "main"
+    if Array(snapshot["priorities"]).any?
+      add.call("Where to act first", "The findings grouped into priorities, ranked by hours", "rule-blue")
+      add.call("What we advise against", "What we are not recommending, and why", "rule-blue") if Array(snapshot["not_recommended"]).any?
+    elsif Array(snapshot["recommendations"]).any?
+      add.call("Recommendations", "Prioritized actions, catalog-matched", "rule-blue")
+    end
     add.call("Roadmap", "Sequenced now / next / later", "rule-blue") if snapshot["roadmap"].present?
     add.call("Opportunities", "Published agentic ideas for this company", "rule-blue") if Array(snapshot["agentic_ideas"]).any?
     if Array(snapshot.dig("tools_catalog", "curated_matches")).any?
       add.call("Capabilities", "Catalog matches assessed for fit", "rule-teal")
     end
+    add.call("Next steps", "What happens after this report", "rule-blue")
     # Back matter, matching the render order in document.html.erb.
-    if snapshot.dig("readiness", "score").present?
-      add.call("Readiness", "Score and its weighted breakdown", "rule-teal")
-    end
-    participation = snapshot["participation"] || {}
-    if participation["invited"].to_i.positive? || participation["completed"].to_i.positive?
-      add.call("Participation", "Invited, started, completed, by department", "rule-teal")
-    end
-    add.call("Methodology", "How readiness and findings were measured", "rule-teal")
+    add.call("Scope & coverage", "Who took part, and what this report does not cover", "rule-teal")
+    add.call("Methodology", "How the findings and hours were worked out", "rule-teal")
+    themes.call if placement == "appendix"
     entries
   end
 
@@ -367,11 +428,13 @@ module ReportsHelper
 
   def report_source_caption(company_name, version: nil)
     ver = version.present? ? "v#{version}" : "snapshot"
-    "Source: Mjadi discovery #{ver} · #{company_name}"
+    "Source: Mjadi diagnostic #{ver} · #{company_name}"
   end
 
   SECTION_LABELS = {
     "executive_summary" => "Executive summary",
+    "role_findings" => "Findings by role",
+    "coverage" => "Scope & coverage",
     "readiness" => "Readiness",
     "participation" => "Participation",
     "signals" => "Signals",
@@ -562,6 +625,111 @@ module ReportsHelper
     Array(list).each_slice([per_page.to_i, 1].max).to_a
   end
 
+  # --- Findings -------------------------------------------------------------
+
+  # "160–240", "240", or nil — hours as a range, never more precise than computed.
+  def report_hours(min, max)
+    return nil if min.nil?
+
+    fmt = ->(n) { number_with_delimiter(n) }
+    min == max ? fmt.call(min) : "#{fmt.call(min)}–#{fmt.call(max)}"
+  end
+
+  # "hr" → "HR", "finance" → "Finance"; anything already cased is left alone.
+  def report_department_label(name)
+    value = name.to_s
+    return value if value != value.downcase
+
+    value.length <= 3 ? value.upcase : value.upcase_first
+  end
+  module_function :report_department_label
+
+  # The role tables, packed onto pages, in units of one table row (about 13mm). A
+  # role's rows stay together unless the role alone is longer than a page; a role
+  # heading with its column headers and the Stage 2 note under its table costs
+  # about two rows, and a row whose text runs to extra lines costs more. Each row
+  # carries its basis and confidence under the task. Measured against the rendered
+  # sheet, with margin.
+  FINDINGS_PAGE_CAPACITY = 12.0
+  FINDINGS_HEADING_COST = 2.2
+  FINDINGS_POTENTIAL_COST = 0.5
+
+  def report_findings_pages(view)
+    pages = []
+    page = []
+    room = FINDINGS_PAGE_CAPACITY
+    Array(view&.dig("departments")).each do |department|
+      department["roles"].each do |role|
+        heading = FINDINGS_HEADING_COST + (role["potential"].present? ? FINDINGS_POTENTIAL_COST : 0)
+        whole = heading + role["findings"].sum { |f| report_finding_row_cost(f) }
+        if whole > room && page.any?
+          pages << page
+          page = []
+          room = FINDINGS_PAGE_CAPACITY
+        end
+
+        chunk = []
+        used = heading
+        continued = false
+        role["findings"].each do |finding|
+          cost = report_finding_row_cost(finding)
+          if chunk.any? && used + cost > room
+            page << { "department" => department, "role" => role, "findings" => chunk, "continued" => continued }
+            pages << page
+            page = []
+            room = FINDINGS_PAGE_CAPACITY
+            chunk = []
+            used = FINDINGS_HEADING_COST
+            continued = true
+          end
+          chunk << finding
+          used += cost
+        end
+        page << { "department" => department, "role" => role, "findings" => chunk, "continued" => continued }
+        room -= used
+      end
+    end
+    pages << page if page.any?
+    pages
+  end
+
+  def report_finding_row_cost(finding)
+    text = finding["friction"].to_s.length + [finding["what_happens_now"].to_s.length, 160].min
+    row = text > 200 ? 1.55 : 1.15
+    row + report_finding_detail_cost(finding)
+  end
+
+  # The cause, direction and dependency lines beneath a finding: about a third of a row a line,
+  # at some 140 characters a line across the table.
+  FINDING_DETAIL_LINE_COST = 0.32
+
+  def report_finding_detail_cost(finding)
+    after = Array(finding["depends_on"]).map { |d| "“#{d['title']}” (#{d['department']}); " }.join
+    lines = [[finding["cause"], 30], [finding["direction"], 45], [finding["dependency"], 20], [after, 12]].sum do |text, label|
+      text.present? ? ((text.to_s.length + label) / 140.0).ceil : 0
+    end
+    lines.zero? ? 0 : 0.1 + lines * FINDING_DETAIL_LINE_COST
+  end
+
+  FINDING_BASIS_LABELS = {
+    "discovery" => "Discovery conversation",
+    "discovery_partial" => "Unfinished conversation",
+    "deep_dive" => "Deep dive",
+    "consultant" => "Added by the consultant"
+  }.freeze
+
+  # Plain labels only; the internal grade is never shown (Doc 15 §8.3).
+  FINDING_CONFIDENCE_LABELS = {
+    "high" => "High confidence", "medium" => "Moderate confidence", "low" => "Requires validation"
+  }.freeze
+
+  # Where a finding comes from and how far to trust it, in the client's words:
+  # "Discovery conversation · Moderate confidence".
+  def report_finding_basis(finding)
+    [FINDING_BASIS_LABELS[finding["basis"].to_s], FINDING_CONFIDENCE_LABELS[finding["confidence"].to_s]]
+      .compact.join(" · ").presence
+  end
+
   # --- Expert layer -------------------------------------------------------
   def report_expert(snapshot)
     snapshot["expert"].is_a?(Hash) ? snapshot["expert"] : nil
@@ -601,6 +769,17 @@ module ReportsHelper
   # Deterministic stand-in for the LLM narrative's supporting points, so the
   # brief's first page is honest rather than sparse when no model is configured.
   def report_deterministic_support(snapshot, limit: 3)
+    # With findings, the points are where to act first and the hours behind each —
+    # the same figures as the priorities page — not the keyword-era signals.
+    if snapshot.dig("findings", "totals", "findings").to_i.positive?
+      return Array(snapshot["priorities"]).first(limit).filter_map do |priority|
+        next if priority["title"].blank?
+
+        hours = report_hours(priority["hours_min"], priority["hours_max"])
+        hours ? "#{priority['title']} — about #{hours} hours a year" : priority["title"]
+      end
+    end
+
     Array(snapshot["signals"]).sort_by { |s| -s["strength"].to_f }.first(limit).filter_map do |signal|
       label = signal["label"].to_s.strip
       next if label.blank?

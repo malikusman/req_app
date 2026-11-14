@@ -5,7 +5,7 @@ module Whatsapp
   # Collects role_title, department (if missing), seniority, responsibilities,
   # team_size (managers+), and primary_tools — then routes into multi-agent discovery.
   class ProfilingHandler
-    STEPS = %w[role_title department seniority responsibilities team_size primary_tools].freeze
+    STEPS = %w[role_title department seniority role_clarification responsibilities team_size primary_tools].freeze
 
     SENIORITY_KEYWORDS = {
       "individual_contributor" => /individual|contributor|\bic\b|specialist|analyst|associate|staff/i,
@@ -83,6 +83,10 @@ module Whatsapp
       when "role_title" then @employee.role_title.blank?
       when "department" then @employee.department.blank?
       when "seniority" then @employee.seniority.blank?
+      when "role_clarification"
+        @employee.seniority == "individual_contributor" &&
+          @employee.role_title.to_s.match?(/\b(manager|director|supervisor|chief|head of|team lead)\b/i) &&
+          !profiling_state["role_clarification_asked"]
       when "responsibilities" then @employee.profile_data["responsibilities"].blank?
       when "team_size" then @employee.manager_or_above? && @employee.profile_data["team_size"].blank?
       when "primary_tools" then @employee.profile_data["primary_tools"].blank?
@@ -98,6 +102,13 @@ module Whatsapp
         @employee.update!(department: normalize_department(text))
       when "seniority"
         @employee.update!(seniority: parse_seniority(text))
+      when "role_clarification"
+        # Titles such as Account Manager may legitimately be individual roles.
+        # Preserve the title and change work level only on an explicit answer.
+        title_only = text.match?(/\b(?:don't|do not|never)\s+(?:manage|supervise|lead)\b|\bnot\s+(?:a\s+)?(?:people\s+)?(?:manager|supervisor)\b|\b(?:just|only)\s+(?:my\s+|the\s+|a\s+)?(?:job\s+)?title\b|\bindividual contributor\b|\bno\s+(?:direct reports|staff|team)\b/i)
+        manages_people = !title_only && text.match?(/\b(yes|manage|supervise|lead)\b.*\b(people|staff|team|reports)\b|\b(?:a |the )?(manager|team lead)\b/i)
+        @employee.update!(seniority: "manager") if manages_people
+        merge_profile!("role_clarification" => text.truncate(500))
       when "responsibilities"
         merge_profile!("responsibilities" => text.truncate(500))
       when "team_size"
@@ -146,6 +157,11 @@ module Whatsapp
     end
 
     def ask_current_step
+      if current_step == "role_clarification"
+        @conversation.update!(state_snapshot: @conversation.state_snapshot.merge(
+          "profiling" => profiling_state.merge("role_clarification_asked" => true)
+        ))
+      end
       send_text(question_for(current_step))
     end
 
@@ -163,6 +179,10 @@ module Whatsapp
         "seniority" => {
           "en" => "Would you say you're an individual contributor, a team lead, a manager, or an executive?",
           "es" => "¿Dirías que eres contribuidor individual, líder de equipo, gerente o ejecutivo?"
+        },
+        "role_clarification" => {
+          "en" => "Your title is #{@employee.role_title}, and you selected individual contributor. Is that your job title only, or do you also manage people?",
+          "es" => "Tu puesto es #{@employee.role_title} y elegiste contribuidor individual. ¿Es solo el nombre del puesto o también diriges personas?"
         },
         "responsibilities" => {
           "en" => "In one or two sentences, what do you spend most of your time on at work?",

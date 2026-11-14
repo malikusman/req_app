@@ -13,6 +13,7 @@ supplied, and this module decides what that means and what to ask next. No LLM
 call is needed to evaluate completeness.
 """
 
+import re
 from typing import Any
 
 SEP = "::"
@@ -23,7 +24,12 @@ SEP = "::"
 # from bb["role_areas"], and is_complete() enforces it directly. Making it a slot
 # meant it could only be satisfied by the model volunteering a slots_filled entry
 # for it, so an otherwise-finished interview ran to the ceiling instead.
-GLOBAL_REQUIRED = ["ai_current_usage"]
+#
+# role_potential closes the interview on purpose: it is the positive question — what
+# the person would do with more time — and it is the raw material for the report's
+# "where this role's time could go". Asked last, it also ends the conversation on
+# opportunity rather than on problems.
+GLOBAL_REQUIRED = ["ai_current_usage", "role_potential"]
 # volume_or_frequency used to live here as an opportunistic "take it if they offer
 # it, never chase it" slot. It is gone: friction_cost below strictly supersedes it
 # (targeted at a named friction rather than the role generally, and shaped to
@@ -33,7 +39,11 @@ GLOBAL_OPPORTUNISTIC: list[str] = []
 
 # Asked per role area.
 AREA_REQUIRED = ["how_it_works", "friction"]
-AREA_OPPORTUNISTIC = ["ai_openness"]
+# ai_openness ("would you hand a slice of this to software or AI?") is retired.
+# Discovery must never suggest that AI is coming for someone's work or ask them to
+# design a solution; role_potential asks the useful version of that question. Old
+# blackboards may still hold ai_openness entries — they are simply ignored.
+AREA_OPPORTUNISTIC: list[str] = []
 
 # Required only once its trigger slot is filled, keyed slot -> trigger.
 #
@@ -63,13 +73,10 @@ SLOT_INTENT = {
     "friction": (
         "what's slow, manual, annoying or error-prone about this part — where it snags"
     ),
-    "ai_openness": (
-        "whether they'd hand a boring slice of this to software or AI, and what they'd try — "
-        "asked lightly, out of genuine curiosity, never as a pitch"
-    ),
     "ai_current_usage": (
-        "whether they already use any AI tools in their day-to-day work and what for — "
-        "a plain, easy question, no jargon, no judgement either way"
+        "whether they already use any AI tools, like ChatGPT, in their day-to-day work and "
+        "what for — a plain, easy question, no jargon, no judgement either way. Do NOT "
+        "describe what such tools could do for them"
     ),
     "friction_cost": (
         "what the friction they just described actually costs them in time — how often it "
@@ -77,7 +84,21 @@ SLOT_INTENT = {
         "(\"about an hour a day\", \"twenty minutes each, maybe thirty a week\"). Ask it as "
         "ONE natural question about time, not as two; their own phrasing is what we want"
     ),
+    "role_potential": (
+        "what they would spend their time on if some of the routine parts of their job took "
+        "care of themselves — something they know would help but never get round to. Ask it "
+        "as an easy, positive question about their role; never as 'if your job were automated'"
+    ),
 }
+
+# Units the capture call may use for a friction's cost. Closed sets, so a model cannot
+# invent a unit the hours arithmetic downstream does not understand.
+FREQUENCY_UNITS = {"per_day", "per_week", "per_month", "per_quarter", "per_year", "per_event"}
+# "days" is working days — "reconciliation takes two days" is how people say it, and
+# forcing it into hours at capture time would be the model doing arithmetic. The
+# conversion happens downstream, with the hours-per-day assumption stated.
+DURATION_UNITS = {"minutes", "hours", "days"}
+EFFORT_TYPES = {"active", "waiting", "mixed", "unknown"}
 
 # Cap so a chatty interview can't grow the blackboard without bound.
 MAX_PARKED = 12
@@ -138,7 +159,60 @@ def required_keys(bb: dict[str, Any], threshold: float | None = None) -> list[st
 
 def is_filled(dossier: dict[str, Any], key: str, threshold: float) -> bool:
     entry = (dossier.get("slots") or {}).get(key)
-    return bool(entry) and float(entry.get("confidence") or 0) >= threshold
+    if not entry or float(entry.get("confidence") or 0) < threshold:
+        return False
+    if key.startswith(f"friction_cost{SEP}"):
+        return effort_complete(entry)
+    return True
+
+
+def effort_complete(entry: dict[str, Any]) -> bool:
+    """A cost is answered when both halves are — how often AND how long.
+
+    Half a cost gives no hours: "wrong prices about twice a month" with no time per
+    occurrence left the slot looking filled, the interview moved on, and the finding
+    reached the report unquantified when one more question would have costed it.
+    Either half may be words ("it depends") — that is an answer. Waiting time needs
+    no duration, and a cost accepted after asking twice is taken as it stands.
+    """
+    if entry.get("accepted_after_retry"):
+        return True
+    effort = entry.get("effort") or {}
+    if effort.get("effort_type") == "waiting":
+        return True
+    return _frequency_answered(effort.get("frequency")) and bool(effort.get("duration"))
+
+
+# "per invoice", "each time something changes": the unit a duration is measured in,
+# restated — not how often it happens.
+_PER_OCCURRENCE = re.compile(r"^\s*(per|each|for each|every time|whenever)\b", re.IGNORECASE)
+
+
+def _frequency_answered(frequency: Any) -> bool:
+    """How often, in numbers, or in words that genuinely answer it ("it varies").
+
+    A count per event or a per-occurrence phrase is not an answer: it gives no number
+    of times a year, so the hours stay unknown while the slot looked filled.
+    """
+    if not isinstance(frequency, dict):
+        return False
+    if frequency.get("min") is not None and frequency.get("unit") not in (None, "per_event"):
+        return True
+    if frequency.get("unit") == "per_event":
+        return False
+    as_said = str(frequency.get("as_said") or "").strip()
+    return bool(as_said) and not _PER_OCCURRENCE.match(as_said)
+
+
+def missing_effort_half(entry: dict[str, Any] | None) -> str | None:
+    """"frequency" or "duration" when exactly one half of a cost is in, else None."""
+    effort = (entry or {}).get("effort") or {}
+    has_frequency, has_duration = _frequency_answered(effort.get("frequency")), bool(effort.get("duration"))
+    if has_frequency and not has_duration:
+        return "duration"
+    if has_duration and not has_frequency:
+        return "frequency"
+    return None
 
 
 def missing_required(bb: dict[str, Any], threshold: float) -> list[str]:
@@ -185,20 +259,108 @@ def merge_slots(bb: dict[str, Any], reported: Any, turn: int, threshold: float) 
         key = slot_key(name, area)
         confidence = float(item.get("confidence") or 0)
         existing = slots.get(key)
-        was_filled = bool(existing) and float(existing.get("confidence") or 0) >= threshold
+        was_filled = is_filled(dossier, key, threshold)
 
-        if existing and float(existing.get("confidence") or 0) >= confidence:
-            continue  # keep the stronger answer
+        if name == "friction_cost" and existing:
+            # "About fifty a week" in one answer and "ten minutes each" in the next are
+            # two halves of one cost. A later record replacing the earlier one lost
+            # the half it did not repeat, so the halves are combined instead.
+            merged = combine_effort(existing.get("effort"), clean_effort(item.get("effort")))
+            if merged:
+                existing["effort"] = merged
 
-        slots[key] = {
-            "value": str(item.get("value") or "")[:400],
-            "confidence": confidence,
-            "turn": turn,
-        }
-        if key in known_required and not was_filled and confidence >= threshold:
+        # Keep the stronger answer; a weaker one can still have completed its cost above.
+        if not existing or float(existing.get("confidence") or 0) < confidence:
+            entry = {
+                "value": str(item.get("value") or "")[:400],
+                "confidence": confidence,
+                "turn": turn,
+            }
+            if name == "friction_cost":
+                effort = combine_effort((existing or {}).get("effort"), clean_effort(item.get("effort")))
+                if effort:
+                    entry["effort"] = effort
+            slots[key] = entry
+
+        # The second half of a cost arriving is progress, as much as a new slot is.
+        if key in known_required and not was_filled and is_filled(dossier, key, threshold):
             progress += 1
 
     return progress
+
+
+def clean_effort(raw: Any) -> dict[str, Any] | None:
+    """Keep a friction's cost only in a shape the hours arithmetic can trust.
+
+    The capture call RECORDS what the employee said; it never calculates. This checks
+    that what it recorded is coherent — known units, positive numbers, min <= max —
+    and drops anything that is not, rather than guessing. The words they used are
+    kept beside the numbers (`as_said`), so a consultant can always see where a
+    figure came from. Returns None when nothing usable is left.
+    """
+    if not isinstance(raw, dict):
+        return None
+
+    def side(part: Any, units: set[str]) -> dict[str, Any] | None:
+        if not isinstance(part, dict):
+            return None
+        as_said = str(part.get("as_said") or "").strip()[:160]
+        unit = str(part.get("unit") or "").strip().lower() or None
+        if unit not in units:
+            unit = None
+        low, high = _number(part.get("min")), _number(part.get("max"))
+        if low is None and high is not None:
+            low = high
+        if high is None and low is not None:
+            high = low
+        if low is not None and high is not None and low > high:
+            low, high = high, low
+        # A number with no unit cannot be annualised; keep the words, drop the number.
+        if unit is None:
+            low = high = None
+        if not as_said and low is None and unit is None:
+            return None
+        return {"as_said": as_said or None, "min": low, "max": high, "unit": unit}
+
+    frequency = side(raw.get("frequency"), FREQUENCY_UNITS)
+    duration = side(raw.get("duration"), DURATION_UNITS)
+    if not frequency and not duration:
+        return None
+    effort_type = str(raw.get("effort_type") or "unknown").strip().lower()
+    return {
+        "frequency": frequency,
+        "duration": duration,
+        "effort_type": effort_type if effort_type in EFFORT_TYPES else "unknown",
+    }
+
+
+def combine_effort(old: dict[str, Any] | None, new: dict[str, Any] | None) -> dict[str, Any] | None:
+    """The newer half wins where it carries numbers; otherwise the older one is kept."""
+    if not new:
+        return old
+    if not old:
+        return new
+
+    def has_numbers(part: Any) -> bool:
+        return isinstance(part, dict) and part.get("min") is not None and bool(part.get("unit"))
+
+    out = dict(new)
+    for side in ("frequency", "duration"):
+        if not has_numbers(new.get(side)) and has_numbers(old.get(side)):
+            out[side] = old[side]
+        elif not new.get(side) and old.get(side):
+            out[side] = old[side]
+    if out.get("effort_type") == "unknown" and old.get("effort_type") not in (None, "unknown"):
+        out["effort_type"] = old["effort_type"]
+    return out
+
+
+def _number(value: Any) -> float | None:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if number > 0 else None
 
 
 def park(bb: dict[str, Any], note: Any, turn: int, area: str | None = None) -> None:
@@ -225,8 +387,9 @@ def next_beat(bb: dict[str, Any], threshold: float, switch_after: int) -> dict[s
 
     Priority, in order:
       1. required slots for the current area (rotating, force-switched)
-      2. ai_current_usage, once one area is fully understood
-      3. opportunistic slots
+      2. the global slots — ai_current_usage, then role_potential — once every
+         area is understood
+      3. opportunistic slots (none today; kept so one can be added back)
     """
     dossier = ensure_dossier(bb)
     areas = area_names(bb)
@@ -270,11 +433,13 @@ def next_beat(bb: dict[str, Any], threshold: float, switch_after: int) -> dict[s
     if missing:
         bb["current_area_idx"], bb["area_streak"] = idx, streak
         slot = missing[0]
-        return {"slot": slot, "area": area, "intent": SLOT_INTENT[slot]}
+        return {"slot": slot, "area": area, "intent": _intent(slot, dossier.get("slots", {}).get(slot_key(slot, area)))}
 
-    # Every area's required slots are in. Ask the one global slot that's left.
-    if not is_filled(dossier, "ai_current_usage", threshold):
-        return {"slot": "ai_current_usage", "area": None, "intent": SLOT_INTENT["ai_current_usage"]}
+    # Every area's required slots are in. Ask the global slots that are left, in order —
+    # role_potential last, so the conversation ends on what they'd do with more time.
+    for slot in GLOBAL_REQUIRED:
+        if not is_filled(dossier, slot, threshold):
+            return {"slot": slot, "area": None, "intent": SLOT_INTENT[slot]}
 
     # Nothing required left — take an opportunistic slot if one is open.
     for area in areas:
@@ -286,6 +451,23 @@ def next_beat(bb: dict[str, Any], threshold: float, switch_after: int) -> dict[s
             return {"slot": slot, "area": None, "intent": SLOT_INTENT[slot]}
 
     return None
+
+
+def _intent(slot: str, entry: dict[str, Any] | None) -> str:
+    """The slot's intent, narrowed to the half of a cost still missing, so the
+    question asks for that half instead of repeating the one already answered."""
+    if slot != "friction_cost":
+        return SLOT_INTENT[slot]
+    half = missing_effort_half(entry)
+    effort = (entry or {}).get("effort") or {}
+    if half == "duration":
+        said = (effort.get("frequency") or {}).get("as_said") or "how often it happens"
+        return (f"They already said how often ({said}). Ask only how long it takes them each "
+                "time — their own working time, not time spent waiting on others.")
+    if half == "frequency":
+        said = (effort.get("duration") or {}).get("as_said") or "how long it takes"
+        return f"They already said how long it takes ({said}). Ask only how often it happens."
+    return SLOT_INTENT[slot]
 
 
 def _quantifiable_areas(bb: dict[str, Any], dossier: dict[str, Any], threshold: float) -> set[str]:

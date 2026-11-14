@@ -39,8 +39,12 @@ module Dashboard
         report_readiness_breakdown: @company.report_readiness_breakdown,
         engagement_mode: @company.engagement_mode,
         docs_first_phase: @company.docs_first_phase?,
-        questionnaire_completed_at: @company.questionnaire_completed_at,
-        questionnaire_completion_percent: Companies::QuestionnaireProgress.call(@company.questionnaire_answers)[:completion_percent],
+        # Onboarding is one short form, submitted or not; there is no percentage.
+        onboarding_submitted_at: @company.current_engagement&.onboarding_submitted_at,
+        engagement_status: @company.current_engagement&.status,
+        planned_participant_count: @company.current_engagement&.planned_participant_count,
+        leadership: leadership_json,
+        stage1_quote: stage1_quote_json,
         usage: enforcer.usage_summary,
         latest_report: latest_report_json(latest_report),
         opportunity_estimate: opportunity_estimate_json,
@@ -53,6 +57,40 @@ module Dashboard
     end
 
     private
+
+    # The Stage 1 proposal the client should see now, if any — from the client
+    # view, so nothing internal (Doc 17 §15).
+    def stage1_quote_json
+      quote = Pricing::ClientQuoteView.current_for(@company.current_engagement)
+      return nil unless quote
+
+      Pricing::ClientQuoteView.new(quote, viewer: @company_user).json
+                              .slice(:id, :version, :status, :currency, :total, :valid_until, :past_validity,
+                                     :participants_included, :deep_dives_included, :additional_participant_rate,
+                                     :can_decide)
+    end
+
+    # The conversations with leadership as the client sees them: the key user's
+    # own, and each other manager's status — never what anyone said (Doc 14 §9.2).
+    def leadership_json
+      engagement = @company.current_engagement
+      return nil unless engagement
+
+      own = engagement.participants.find_by(source: "KEY_USER")
+      managers = engagement.participants.planned.key_persons.order(:created_at)
+      return nil if own.nil? && managers.none?
+
+      session = own&.conversation_sessions&.last
+      {
+        available: KeyPerson::Conversation.available?(@company),
+        is_key_user: engagement.key_user_id == @company_user.id,
+        own: own && { participation_status: own.participation_status, finished: session&.finished? || false },
+        managers: managers.map do |m|
+          { id: m.id, name: m.name, role_title: m.role_title, participation_status: m.participation_status,
+            can_invite: m.email.present?, reminders_used_up: m.reminder_count >= KeyPerson::Reminders::NOT_STARTED_AFTER.size }
+        end
+      }
+    end
 
     # The consultant's opportunity estimate — surfaced only from a report that has
     # actually shipped to the company (never leaked pre-approval), newest first.
@@ -76,12 +114,15 @@ module Dashboard
     end
 
     def intel_counts
-      docs = @company.documents.where(purged_at: nil)
+      docs = @company.documents.not_leadership.where(purged_at: nil)
       snapshot = @company.intelligence_snapshot.is_a?(Hash) ? @company.intelligence_snapshot : {}
 
       {
         total_documents: docs.count,
         ready_documents: docs.ready.count,
+        # Uploaded and still being worked on — what "we're analyzing your
+        # documents" means. A failed upload is not "in progress".
+        processing_documents: docs.where(status: %w[uploaded pending processing]).count,
         open_clarifications: @company.company_clarification_questions.open_for_admin.count,
         signal_count: (snapshot["signal_count"].presence || Array(snapshot["top_pain_points"]).size).to_i,
         pattern_count: Array(snapshot["emerging_patterns"]).size,
@@ -95,7 +136,8 @@ module Dashboard
         openai_configured: ENV["OPENAI_API_KEY"].present?,
         stripe_configured: ENV["STRIPE_SECRET_KEY"].present?,
         gotenberg_ok: gotenberg_healthy?,
-        mocks_allowed: MocksAllowed.allowed?
+        mocks_allowed: MocksAllowed.allowed?,
+        billing_visible: @company.merged_settings["client_billing_visible"] == true
       }
     end
 

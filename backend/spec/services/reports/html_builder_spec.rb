@@ -30,9 +30,10 @@ RSpec.describe Reports::HtmlBuilder do
   it "renders snapshot sections from the ERB template" do
     html = described_class.call(snapshot: snapshot)
 
-    expect(html).to include("Discovery Report")
+    expect(html).to include("Diagnostic Report")
     expect(html).to include("Acme Corp")
-    expect(html).to include("Readiness breakdown")
+    expect(html).to include("Who took part")
+    expect(html).not_to include("Readiness breakdown")
     expect(html).to include("Manual re-entry")
     expect(html).to include("Approval bottlenecks")
     expect(html).to include("Automate invoice intake")
@@ -40,6 +41,132 @@ RSpec.describe Reports::HtmlBuilder do
     expect(html).to include("@page")
     # The evidence base is stated as method, not reproduced as content.
     expect(html).to include("3 internal documents")
+  end
+
+  describe "findings by role" do
+    let(:with_findings) do
+      finding = lambda do |title, hours, **extra|
+        { "id" => title.hash, "title" => title, "friction" => "#{title} is re-keyed by hand",
+          "what_happens_now" => nil, "frequency" => "every day", "duration" => "an hour", "effort_type" => "active",
+          "hours_min" => hours&.first, "hours_max" => hours&.last, "people" => 1 }.merge(extra)
+      end
+      snapshot.merge(
+        "findings" => {
+          "totals" => { "findings" => 3, "quantified" => 2, "roles" => 2, "departments" => 1, "people" => 2,
+                        "hours_min" => 400, "hours_max" => 480 },
+          "departments" => [{
+            "name" => "procurement", "hours_min" => 400, "hours_max" => 480,
+            "roles" => [
+              { "title" => "Procurement Officer", "people" => 2, "hours_min" => 400, "hours_max" => 420,
+                "potential" => "With time back, this role could put more into sourcing new suppliers.",
+                "findings" => [finding.call("Supplier price updates", [240, 240]), finding.call("Purchase orders", [160, 180])] },
+              { "title" => "Buyer", "people" => 1, "hours_min" => nil, "hours_max" => nil,
+                "findings" => [finding.call("Approvals", nil, "effort_type" => "waiting")] }
+            ]
+          }],
+          "delays" => [{ "title" => "Approvals", "role" => "Buyer", "department" => "procurement", "duration" => "days" }],
+          "withheld" => 1
+        },
+        "coverage" => { "invited" => 5, "completed" => 2, "roles_interviewed" => 2, "documents" => 0,
+                        "departments" => [{ "department" => "procurement", "invited" => 5, "completed" => 2 }],
+                        "not_interviewed" => ["Finance"] }
+      )
+    end
+
+    it "leads with the hours, role by role, and never prints a build outline" do
+      html = described_class.call(snapshot: with_findings)
+
+      expect(html).to include("hours a year go into the work people described")
+      expect(html).to include("400–480")
+      expect(html).to include("Procurement Officer", "described by 2 people", "400–420 hours a year")
+      expect(html).to include("With time back, this role could put more into sourcing new suppliers.")
+      expect(html).to include("Waiting — not counted")
+      expect(html).to include("No one from Finance took part")
+      expect(html).to include("Full design is available at Stage 2")
+      expect(html).not_to include("How:</strong>")
+      expect(html).not_to include("Pilot OCR.")
+    end
+
+    it "says where each finding comes from and how far to trust it, in plain words" do
+      role = with_findings.dig("findings", "departments", 0, "roles", 0)
+      role["findings"][0].merge!("basis" => "discovery", "confidence" => "medium")
+      role["findings"][1].merge!("basis" => "discovery_partial", "confidence" => "low")
+      html = described_class.call(snapshot: with_findings)
+
+      expect(html).to include("Discovery conversation · Moderate confidence")
+      expect(html).to include("Unfinished conversation · Requires validation")
+      expect(html).not_to include(">medium<")
+      expect(html.scan("A deep dive and full design are available at Stage 2.").size).to be >= 2
+    end
+
+    it "says why each finding happens and the kind of change, labelling analysis as analysis" do
+      role = with_findings.dig("findings", "departments", 0, "roles", 0)
+      role["findings"][0].merge!("cause" => "Sheets differ by supplier.", "cause_stated" => true,
+                                 "intervention" => "Integration or data fix", "direction" => "Bring sheets in directly.")
+      role["findings"][1].merge!("cause" => "Nobody owns the supplier list.", "cause_stated" => false)
+      text = Nokogiri::HTML(described_class.call(snapshot: with_findings)).text.squish
+
+      expect(text).to include("Why it happens: Sheets differ by supplier.")
+      expect(text).to include("Direction · Integration or data fix: Bring sheets in directly.")
+      expect(text).to include("Why it happens (our analysis): Nobody owns the supplier list.")
+    end
+
+    it "says what must be true first, and which findings come before" do
+      role = with_findings.dig("findings", "departments", 0, "roles", 0)
+      role["findings"][0].merge!("dependency" => "Supplier codes are consistent.",
+                                 "depends_on" => [{ "id" => 9, "title" => "Supplier set-up", "department" => "hr" },
+                                                  { "id" => 10, "title" => "Pooled work", "department" => nil }])
+      text = Nokogiri::HTML(described_class.call(snapshot: with_findings)).text.squish
+
+      expect(text).to include("Must be true first: Supplier codes are consistent.")
+      expect(text).to include("Comes after: “Supplier set-up” (HR); “Pooled work”")
+    end
+
+    it "puts the priorities grouped from the findings where the catalog recommendations used to be" do
+      priorities = [{ "rank" => 1, "title" => "Supplier data re-keyed by hand", "what" => "Prices are typed twice.",
+                      "roles" => ["Procurement Officer"], "departments" => ["procurement"], "serves_goal" => nil,
+                      "hours_min" => 400, "hours_max" => 420, "finding_ids" => [1, 2],
+                      "findings" => [{ "title" => "Supplier price updates", "role" => "Procurement Officer",
+                                       "hours_min" => 240, "hours_max" => 240 }] }]
+      html = described_class.call(snapshot: with_findings.merge("priorities" => priorities))
+
+      expect(html).to include("Where to act first", "Start with", "supplier data re-keyed by hand", "400–420")
+      expect(html).not_to include("Automate invoice intake") # the catalog-era card
+      expect(html).not_to include("Impact vs feasibility")
+    end
+
+    it "puts signals and patterns where the company's setting says" do
+      body = ->(placement) { described_class.call(snapshot: with_findings.merge("layout" => { "signals" => placement })) }
+      method_page = "How we measured"
+
+      appendix = body.call("appendix")
+      expect(appendix).to include("Supporting themes", "Manual re-entry")
+      expect(appendix.index("Manual re-entry")).to be > appendix.index(method_page)
+
+      main = body.call("main")
+      expect(main.index("Manual re-entry")).to be < main.index(method_page)
+      expect(main).not_to include("Supporting themes")
+
+      expect(body.call("hidden")).not_to include("Manual re-entry")
+    end
+
+    it "shows the kind of change and what we advise against, without vendors" do
+      priorities = [{ "rank" => 1, "title" => "Supplier data re-keyed by hand", "what" => "Prices are typed twice.",
+                      "intervention_label" => "A ready-made tool", "direction" => "Bring prices in one format",
+                      "roles" => ["Procurement Officer"], "departments" => ["procurement"], "hours_min" => 400,
+                      "hours_max" => 420, "finding_ids" => [1], "findings" => [] }]
+      html = described_class.call(snapshot: with_findings.merge(
+        "priorities" => priorities,
+        "not_recommended" => [{ "title" => "Automating approvals first", "why" => "Nobody owns the rules yet.", "finding_ids" => [1] }]
+      ))
+      expect(html).to include("A ready-made tool.", "Bring prices in one format", "And what we advise against",
+                              "Automating approvals first")
+    end
+
+    it "never tells the client how many findings were held back for review" do
+      html = described_class.call(snapshot: with_findings)
+      expect(html).not_to match(/held back|withheld/i)
+    end
   end
 
   it "reproduces no interview excerpt, media caption or document filename" do

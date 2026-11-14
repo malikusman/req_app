@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Download, HelpCircle, Pencil, Trash2, Upload } from 'lucide-react';
+import { Download, Pencil, Trash2, Upload } from 'lucide-react';
 import { api, type CompanyDocument, type DocumentAnalysisRun } from '../../lib/api';
 import { useCompanyToken } from '../../lib/auth';
 import { PageHeader, Card, Input, DataTable, Badge, FileDropzone, EmptyState, Button, ErrorNotice} from '../../components/ui';
@@ -296,11 +296,6 @@ export function CompanyDocuments() {
         description="Upload SOPs, policies, and finance exports to build a baseline."
         actions={
           <div className="flex flex-wrap gap-2">
-            <Link to="/company/discovery-questions">
-              <Button variant="secondary" size="sm" icon={<HelpCircle className="h-4 w-4" />}>
-                Questions asked
-              </Button>
-            </Link>
             <Link to="/company/knowledge">
               <Button variant="secondary" size="sm">
                 Knowledge

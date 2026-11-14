@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { usePublicConfig } from '../lib/usePublicConfig';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { Menu, X } from 'lucide-react';
 import { Button } from '@/components/shadcn/button';
@@ -13,6 +14,7 @@ export function MarketingNav() {
   const [menuOpen, setMenuOpen] = useState(false);
   const reduced = useReducedMotion();
   const { nav } = marketingContent;
+  const signupEnabled = usePublicConfig()?.companySignupEnabled === true;
 
   const scrollTo = (href: string) => {
     if (!href.startsWith('#')) return;
@@ -100,13 +102,15 @@ export function MarketingNav() {
               >
                 {nav.signInLabel}
               </Link>
-              <Link
-                to={nav.signupHref}
-                className="text-sm text-marketing-muted"
-                onClick={() => setMenuOpen(false)}
-              >
-                {nav.signupLabel}
-              </Link>
+              {signupEnabled && (
+                <Link
+                  to={nav.signupHref}
+                  className="text-sm text-marketing-muted"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  {nav.signupLabel}
+                </Link>
+              )}
               <Button
                 size="sm"
                 className="w-full"

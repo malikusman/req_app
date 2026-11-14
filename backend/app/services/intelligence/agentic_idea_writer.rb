@@ -52,7 +52,10 @@ module Intelligence
         "company" => { "name" => @company.display_name || @company.name, "profile" => @company.company_profile.slice("industry", "size_band") },
         "signals" => @signals.map { |s| { "label" => s.label, "strength" => s.strength, "departments" => s.departments, "signal_type" => s.signal_type } },
         "patterns" => @patterns.map { |p| { "title" => p.title, "description" => p.description, "departments" => p.departments } },
-        "current_stack" => @stack.map(&:name).compact
+        "current_stack" => @stack.map(&:name).compact,
+        # So a regeneration keeps an idea's name instead of inventing a new one
+        # for the same idea every run.
+        "existing_ideas" => @company.agentic_ideas.active_backlog.order(updated_at: :desc).limit(20).pluck(:title)
       }
     end
 

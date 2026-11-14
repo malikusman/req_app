@@ -198,6 +198,7 @@ From `frontend/src/portals/platform/nav.ts`:
 | Nav item | Path | What it is for |
 |----------|------|----------------|
 | Dashboard | `/platform/dashboard` | Operator snapshot |
+| Pricing | `/platform/pricing` | Stage 1 quotes waiting for approval (badge), with the client, accepted, closed (§3.10a) |
 | Registrations | `/platform/registrations` | Approve/reject company signups and consultant applications |
 | Companies | `/platform/companies` | List/create companies; open detail; impersonate |
 | Consultants | `/platform/consultants` | Consultant directory and detail |
@@ -269,6 +270,45 @@ When consultants are assigned:
 
 Settings such as `allow_early_report` affect whether generation can run before readiness thresholds (used in demos/seeds).
 
+### 3.10a Stage 1 pricing (administrator gate)
+
+Doc 17; see [STAGE_1_PRICING.md](STAGE_1_PRICING.md). When an engagement reaches
+*Preparing Stage 1 proposal*, the platform works out its fee and the quote waits on
+**Pricing** (`/platform/pricing`). A quote's page (`/platform/pricing/:id`) shows:
+
+- how the fee was derived, line by line, with P24's account of each part;
+- what could make it wrong, and the confidence;
+- the margin against fully loaded cost and the floor, and what that cost is made of;
+- the consultant hours by activity;
+- the inputs, with any an administrator corrected marked;
+- comparables;
+- every version, event and override;
+- exactly what the client will see.
+
+Banners flag placeholder rate-card values, a quote below the floor, and a quote that was
+sent back, declined, expired or accepted.
+
+Only a **super admin** acts:
+
+- **Approve and issue** — below the floor only with a structured reason;
+- **Adjust price** — with a structured reason; makes a new version;
+- **Change inputs** — deep dives, locations, country; recalculates as a new version;
+- **Send back** — with a note to the lead consultant;
+- after a decline, an expiry or a send-back: **Prepare a fresh version** or **Close
+  engagement**, with a reason.
+
+**Rates and margin floor** (`/platform/pricing/rates`, from the Pricing page) shows the
+Stage 1 rate card and the floor in effect and every earlier version, with who set it, when,
+why and how many quotes used it. A super admin makes a new version of either; it needs a
+reason and is in effect from then on. Quotes keep the version they were made with. One
+still waiting for approval on older rates says so, with *Recalculate on the current rates*.
+
+Every platform user sees the same page. The company page's Engagement card links to the
+quote, or offers *Calculate Stage 1 proposal* for an engagement that reached pricing
+without one. Super admins are emailed when a quote is waiting (subject flagged when below
+the floor), when pricing can't go ahead, and when the client accepts or declines, or the
+quote expires.
+
 ### 3.11 UI/UX notes (platform)
 
 - Dense operator UI: tables, tabs, status badges.
@@ -285,22 +325,42 @@ The customer’s home: configure the organization, upload documents, invite empl
 
 ### 4.2 Access journey
 
+Mjadi is not self-serve (Doc 07 §1): a company account exists only once Mjadi has set up
+the engagement.
+
 ```mermaid
 flowchart LR
-  Signup[PublicSignup] --> Pending[PlatformPending]
-  Pending --> Approve[PlatformApproves]
-  Approve --> SetPw[SetPasswordLink]
-  SetPw --> Login[CompanyLogin]
-  Login --> Profile[SoftProfileWizard]
-  Profile --> Dashboard[Dashboard]
+  Setup[Mjadi sets up the engagement] --> Invite[Key user invited: 7-day set-password link]
+  Setup --> Read[Website read for proposals]
+  Invite --> SetPw[Set password]
+  SetPw --> Profile[Company profile: one screen]
+  Read --> Profile
+  Profile --> Submit[Submit] --> Leadership[Conversation with leadership]
+  Submit --> Managers[Other managers invited by link]
+  Leadership --> Scope[Scope card: counts settled] --> Pricing[Stage 1 pricing]
+  Pricing --> Approved[Mjadi approves the fee] --> Proposal[Proposal: key user accepts] --> Team[Invite your team]
 ```
 
-1. **Signup** `/company/signup` — company + admin identity (phone required).
-2. Wait for platform approval + confirmation email.
-3. **Set password** `/auth/set-password`.
-4. **Login** `/company/login` — blocked if not approved or subscription inactive.
-5. If `portal_onboarding_completed_at` blank → forced to **Profile** wizard (can Skip).
-6. Otherwise **Dashboard**.
+1. **Engagement set-up** (platform → Companies → *New engagement*, S1–S8): company, website,
+   scope (whole company or named departments), key user, lead consultant, languages,
+   proposal reference. No trial and no admin-chosen password; *Resend invitation* issues a
+   fresh link. The engagement card shows how reading the website went, and *Read website
+   again* reads it for new proposals (not while a read is still under way).
+2. **Set password** `/auth/set-password` from the invitation (link valid 7 days). The
+   engagement moves from *Invited* to *Onboarding*.
+3. **Login** `/company/login` — allowed while the company has an engagement that isn't
+   closed (companies from before engagements keep the old subscription rule).
+4. Until onboarding is submitted, the key user is taken to **Company profile**.
+5. Otherwise **Dashboard**. After onboarding it leads with the key user's **conversation
+   with leadership** (§4.5); the other managers named in onboarding are emailed a link of
+   their own. When the key user's conversation is finished and every planned count is a
+   number, the engagement moves to *Preparing Stage 1 proposal*. Once Mjadi approves the
+   fee, the key user is told their **proposal** is ready (§4.4b); accepting it starts
+   Stage 1 and opens team invitations.
+
+Public sign-up (`/company/signup`) is switched off unless `PUBLIC_COMPANY_SIGNUP_ENABLED`
+is set. When on, a request does nothing until a Mjadi admin approves it on
+*Registrations* through the same set-up form.
 
 Forgot password: `/auth/forgot-password?portal=company`.
 
@@ -308,50 +368,104 @@ Forgot password: `/auth/forgot-password?portal=company`.
 
 From `frontend/src/portals/company/nav.ts`:
 
-| Order | Label | Path | Role |
-|-------|-------|------|------|
-| 1 | Dashboard | `/company/dashboard` | Home / KPIs / next actions |
-| 2 | Documents | `/company/documents` | Upload & analyze files |
-| 3 | Knowledge | `/company/knowledge` | KB + clarification answers |
-| 4 | Employees | `/company/employees` | Invite, nudge, phone edit |
-| 5 | Conversations | `/company/conversations` | Interview transcripts |
-| 6 | Discovery questions | `/company/discovery-questions` | Question-level feedback (not answers) |
-| 7 | Intelligence | `/company/intelligence` | Signals / patterns / recs / timeline |
-| 8 | Consultant questions | `/company/outreaches` | Approve/answer consultant outreaches |
-| 9 | Consultants | `/company/consultants` | See assigned published experts |
-| 10 | Reports | `/company/reports` | View / download / share |
-| 11 | Profile | `/company/onboarding` | Org questionnaire + account |
-| 12 | Settings | `/company/settings` | Org prefs; links to Billing & Media |
+| Section | Label | Path | Role |
+|---------|-------|------|------|
+| — | Home | `/company/dashboard` | Next step, progress, the other managers' status |
+| Set up | Company profile | `/company/onboarding` | Facts, who takes part, acknowledgement |
+| Set up | Leadership conversation | `/company/leadership` | The key user's own conversation (§4.4a); shown once it exists, *To do* until finished |
+| Set up | Proposal | `/company/proposal` | The Stage 1 proposal (§4.4b); shown once one has been sent, *To do* while it waits on the key user |
+| Set up | Documents | `/company/documents` | Upload and analyse files |
+| Set up | Your team | `/company/employees` | Invite and nudge staff — once the Stage 1 proposal is accepted |
+| Insights | Reports | `/company/reports` | View, download, share |
+| Insights | What we found | `/company/intelligence` | Signals, patterns, recommendations |
+| Working with you | Consultant questions | `/company/outreaches` | Approve and answer consultant outreaches |
+| Working with you | Your consultant | `/company/consultants` | The assigned experts |
+| — | Settings | `/company/settings` | Org preferences; links to Billing and Media |
+
+Old paths (`/company/conversations`, `/company/discovery-questions`) redirect: clients see
+participation, never transcripts. `/company/knowledge` still opens but isn't in the menu.
 
 **Under Settings (secondary):**
 
 - **Billing** `/company/billing` — trial/plan, conversation usage, Stripe/mock upgrade  
-- **WhatsApp media** `/company/media` — inbound media library  
+- **WhatsApp media** — `/company/media` now opens *Your team*  
 
 Shell: sidebar, notification bell (poll ~30s), optional integration warnings (OpenAI / Gotenberg / Stripe), impersonation banner when applicable.
 
-### 4.4 Profile / onboarding wizard
+### 4.4 Company profile (onboarding)
 
-Soft-required **10 sections** (nothing hard-required; “fill what you can”):
+One screen, about five minutes (Doc 07). Facts only — never goals, pain points, budget,
+revenue or readiness, which belong in the conversation with leadership.
 
-1. Company Profile  
-2. Departments & Operations  
-3. Current Technology  
-4. Business Processes  
-5. Data & Documents  
-6. Customer Engagement  
-7. Business Challenges  
-8. AI Readiness  
-9. Security & Infrastructure  
-10. Business Goals  
+1. **From your website** — what we read on the company's site, each marked as from the
+   website with the words it came from. *Confirm*, *Edit* or *Not right*; nothing is used
+   until confirmed. While the site is still being read, the screen checks back.
+2. **About the company** — industry, what exactly they do, headcount, headquarters and
+   other locations, business model, products and services, departments.
+3. **How work arrives and where it lives** — customer channels, systems, where data is
+   kept, AI tools in use ("None" is an answer, never a score), constraints.
+4. **Who takes part** — departments to involve and how many people from each (a count may
+   be "Not sure" until the fee is agreed), people already in mind (optional), other
+   managers to speak with (optional), the key user's language, and a link to upload an
+   organisation chart or process documents.
+5. The **confidentiality acknowledgement** (required) and **Submit**.
 
-Also on this page:
+Every fact accepts "Not sure". Answers save as they are given. Submitting hands the
+engagement over to the leadership conversation; afterwards the same screen edits the facts
+(*Save changes*). Each fact records where it came from — confirmed from the website,
+entered by the client, found later in conversation, or the old questionnaire — and the
+platform company page shows that alongside the value.
 
-- Account name + **admin phone** (`PATCH /me`)
-- Website URL (feeds web research when set)
-- Progress, Save & continue, Finish, **Skip for now**
+Once onboarding is submitted, an assigned consultant may also correct the facts (consultant
+portal → company → *Profile* → *Edit facts*). Who takes part and the key user's language
+stay the key user's. A consultant's correction is recorded as found in conversation, under
+their name. Every change after submission, whoever makes it, is kept in the change history
+shown on the consultant and platform company pages.
 
-Completing sets `portal_onboarding_completed_at` and returns to dashboard.
+### 4.4a Conversation with leadership
+
+Doc 08. A short conversation — about fifteen to twenty minutes — on where the business is
+going, what gets in the way, what is planned and where Mjadi should look first. The key
+user has it in the portal (`/company/leadership`); each other manager named in onboarding
+has it by a signed 14-day link (`/leadership/:token`), with no password and no app.
+
+- **Before it starts:** a short note on how what they say is used, and consent.
+- **During:** one question at a time; type or send a voice note; *Pause* any time —
+  closing the page counts as a pause, and coming back picks up the same thread. English
+  by default; Modern Standard Arabic when they write in Arabic.
+- **Near the end:** what we've heard, read back; for the key user, the **scope card** —
+  each department and how many people from it (every "Not sure" becomes a number here),
+  and the people they mentioned, to add to the plan; then the documents they mentioned,
+  with an upload for each (optional, now or later).
+- **Afterwards:** "the team will be in touch". Nothing they said is shown to anyone else
+  in the company: the key user sees the other managers' **status only**, and leadership
+  uploads never appear in Documents.
+
+Reminders go by email in the company's working hours: two if someone hasn't started, one
+after a pause, one for documents still to come. Consultants see everything — coverage,
+findings, planned changes, the transcript and the notes for consultants only — on the
+company's *Leadership conversations* page.
+
+### 4.4b Stage 1 proposal
+
+Doc 17 §10. Once Mjadi has approved the fee, `/company/proposal` shows:
+
+- the total including VAT;
+- the price line by line, with VAT on its own line;
+- the rate for anyone added later;
+- what is and isn't included, and what happens next;
+- how long it stands, the payment terms, and the terms it is governed by;
+- a PDF to download.
+
+It never shows Mjadi's cost, hours or margin.
+
+- **The key user decides.** They tick that they've read what's included and the
+  extra-person rate, then **Accept** — which starts Stage 1 and takes them to *Your team*
+  — or **Decline**, with a reason if they wish. Everyone else at the company can read it.
+- **While Mjadi prepares a version,** the page says the proposal is being prepared.
+- **After a decline or expiry,** the consultant follows up with a fresh one.
+- **After acceptance,** the page also shows anyone added beyond the price: the number ×
+  the rate.
 
 ### 4.5 Dashboard
 
@@ -359,11 +473,15 @@ Adapts to engagement phase:
 
 | Phase | Emphasis |
 |-------|----------|
+| Leadership conversation | Start or carry on the conversation; other managers' status; the participant-count task while any count is "Not sure" |
+| Preparing Stage 1 proposal | "We're preparing your Stage 1 proposal" — nothing needs the client |
+| Proposal ready | "Your Stage 1 proposal is ready": the total and what it covers; *Review and accept* for the key user, "your key user reviews it" for others; a *Proposal* journey step |
+| Proposal declined or expired | "Your consultant will be in touch" / "will send a fresh one" |
 | Docs processing, no signals yet | Action tiles (upload, profile, etc.) |
 | Docs-only | KPIs: Documents / Signals / Patterns / Recommendations |
 | Hybrid (interviews started) | In progress / Signals / Patterns / Recommendations |
 
-Typical action tiles: Profile %, Assigned consultant, Conversations, Discovery questions (unanswered badge), Shared reports, Upload documents, Invite employees, WhatsApp media.
+Typical action tiles: Profile %, Assigned consultant, Conversations, Discovery questions (unanswered badge), Shared reports, Upload documents, Invite employees, WhatsApp media. "Add documents or invite your team" appears only once Stage 1 is under way (or for a company from before engagements): staff are invited after the Stage 1 proposal is accepted, which the server enforces (§4.8).
 
 Also: stalled employees card (nudge CTA), participation funnel, department coverage, top pain points, emerging patterns, recent activity, trial usage line.
 
@@ -385,6 +503,12 @@ Downstream: Knowledge entries + clarification questions; intelligence can update
 - Knowledge base entries with type, department, confidence, content.
 
 ### 4.8 Employees
+
+**Before the Stage 1 proposal is accepted** the page says the team can be invited once it
+is, and hides its invite controls; the server refuses any invitation until then. After
+that, it says how many people the price covers and the extra-person rate. Inviting
+someone beyond that number asks the client to confirm the extra charge first, and the
+person is flagged as added after pricing (Doc 17 §12).
 
 **Invite form**
 
@@ -534,6 +658,35 @@ Tabs typically include: **overview, profile, interviews, intelligence, clarifica
 - Employee roster → follow-up pages.
 - Clarifications: portal outreaches to **company admin** (no WhatsApp required).
 - Agentic ideas panel; co-consultant chat drawer.
+- **Stage 1 proposal** card: where the engagement and its proposal stand (the newest
+  version's status, a send-back note or the client's reason for declining), and what the
+  client sees — never Mjadi's cost, hours or margin. *Who takes part* on the leadership
+  page can still be changed until the client accepts; a change in pricing makes a fresh
+  quote.
+
+### 5.7a Synthesis
+
+Doc 10; see [SYNTHESIS.md](SYNTHESIS.md). Reached from the company overview's **Synthesis**
+card (`/consultant/companies/:id/synthesis`). A status line says whether synthesis is
+queued, running, stale (new evidence since) or waiting on the consultant, and **Run again**
+queues a run straight away.
+
+- **Shared work:** clusters of work several people described, shown by role and
+  department, never by name. Each has everyone's own estimates beside the hours counted
+  once, why it was grouped, variants, double-count and single-person warnings, and who a
+  deep dive would need. The consultant can confirm, split off ticked items, correct the
+  hours or say it isn't the same work. Pairs the model couldn't settle, and newcomers that
+  may belong in a confirmed cluster, sit above.
+- **Leadership vs evidence:** each strategic finding with leadership's importance, the
+  verdict (supported, partly, not yet observed, points elsewhere) and what staff
+  describe — to agree with, resolve or ask about.
+- **Opportunities:** management importance beside platform priority, the next step, any
+  planned-change conflict, and root causes; approve, reclassify, defer, reject, or add one.
+- **How the business runs:** the operating picture, to approve or edit before it reaches
+  the report.
+
+Every action asks for a reason. On the Findings page, a finding in a cluster links here.
+The merge panel says it is only for the very same work described twice.
 
 ### 5.8 Report review workspace
 

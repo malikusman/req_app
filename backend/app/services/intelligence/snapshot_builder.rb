@@ -11,15 +11,16 @@ module Intelligence
     end
 
     def call
-      invited = @company.invited_count
-      started = @company.employees.where(participation_status: %w[started completed]).count
-      completed = @company.employees.where(participation_status: "completed").count
-      # Never show "N of 0" when completed employees exist but invited_count drifted.
-      invited = [invited, completed].max
+      participation = @company.participation
+      invited, started, completed = participation.values_at("invited", "started", "completed")
 
       dept_targets = @company.merged_settings.fetch("department_targets", {})
       custom_depts = @company.merged_settings.fetch("custom_departments", [])
-      departments = (@company.employees.distinct.pluck(:department).compact + custom_depts).uniq
+      # The departments the client planned to take part come first (Doc 07 §7, P1),
+      # so coverage shows a planned department nobody has joined from yet.
+      engagement = @company.current_engagement
+      planned_depts = Array(engagement&.planned_departments).map { |d| d["name"] }
+      departments = (planned_depts + @company.employees.distinct.pluck(:department).compact + custom_depts).uniq
 
       {
         "participation" => {
@@ -30,7 +31,10 @@ module Intelligence
         },
         "department_coverage" => departments.map do |dept|
           done = @company.employees.where(department: dept, participation_status: "completed").count
-          target = dept_targets[dept].to_i
+          # How many the client planned from this department (P2), else the
+          # setting, else three.
+          target = engagement&.planned_count_for(dept).to_i
+          target = dept_targets[dept].to_i if target.zero?
           target = 3 if target.zero?
           { "department" => dept, "completed" => done, "target" => target }
         end,

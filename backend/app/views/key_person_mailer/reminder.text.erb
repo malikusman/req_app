@@ -1,0 +1,25 @@
+<% if @arabic %>مرحباً <%= @participant.name %>،
+
+<% case @kind %><% when "not_started" %>تذكير سريع: حديثك مع Mjadi حول <%= @company_name %> بانتظارك. يستغرق نحو خمس عشرة إلى عشرين دقيقة، ويمكنك الكتابة أو إرسال رسائل صوتية.
+<% when "not_started_again" %>ما زال حديثك مع Mjadi حول <%= @company_name %> بانتظارك. يستغرق نحو خمس عشرة دقيقة فقط، ويمكنك التوقف متى شئت.
+<% when "paused" %>يمكنك المتابعة من حيث توقفت، فكل ما قلته محفوظ.
+<% else %>شكراً مرة أخرى على حديثك. إن تيسّر لك، فهذه المستندات التي ذكرتها ستساعدنا:
+<% @documents.each do |d| %>- <%= d %>
+<% end %>الأمر اختياري.
+<% end %>
+<%= @url %>
+
+— Mjadi
+<% else %>Hi <%= @participant.name %>,
+
+<% case @kind %><% when "not_started" %>A quick reminder: your conversation with Mjadi about <%= @company_name %> is waiting. It takes about fifteen to twenty minutes, and you can type or send voice notes.
+<% when "not_started_again" %>Your conversation with Mjadi about <%= @company_name %> is still waiting. It only takes about fifteen minutes, and you can pause whenever you need.
+<% when "paused" %>Pick up where you left off whenever suits you. Everything you said is saved.
+<% else %>Thanks again for your time. If you can, these documents you mentioned would help:
+<% @documents.each do |d| %>- <%= d %>
+<% end %>It's optional.
+<% end %>
+<%= @url %>
+
+— Mjadi
+<% end %>

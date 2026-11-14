@@ -1,4 +1,5 @@
 import uuid
+from hmac import compare_digest
 from typing import Any
 
 import httpx
@@ -46,11 +47,15 @@ class TurnContext(BaseModel):
 class HistoryMessage(BaseModel):
     role: str
     content: str
+    message_id: int | None = None
+    area: str | None = None
+    task_id: str | None = None
 
 
 class TurnRequest(BaseModel):
     thread_id: str | None = None
     user_message: str
+    source_message_id: int | None = None
     playbook: PlaybookPayload
     context: TurnContext = Field(default_factory=TurnContext)
     history: list[HistoryMessage] = Field(default_factory=list)
@@ -82,7 +87,8 @@ class TurnResponse(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "openai_configured": bool(settings.openai_api_key or settings.openai_base_url)}
+    return {"status": "ok", "openai_configured": bool(settings.openai_api_key or settings.openai_base_url),
+            "discovery_workflow_version": 1}
 
 
 @app.post("/v1/threads/{thread_id}/turn", response_model=TurnResponse)
@@ -108,6 +114,7 @@ def run_turn(thread_id: str, body: TurnRequest):
         "business_goals": body.context.business_goals,
         "company_profile": body.context.company_profile or {},
         "user_message": body.user_message,
+        "source_message_id": body.source_message_id,
         "history": [m.model_dump() for m in body.history],
     }
 
@@ -277,6 +284,24 @@ def suggest_deep_dive_questions(body: DeepDiveRequest):
     from app.deep_dive import suggest_questions
 
     return suggest_questions(body.model_dump())
+
+
+class DeepDivePlanRequest(BaseModel):
+    context: dict[str, Any]
+
+
+@app.post("/v1/consultant/deep_dive/plan")
+def generate_deep_dive_plan(body: DeepDivePlanRequest, x_internal_token: str | None = Header(default=None)):
+    from app.deep_dive_plan import PlanUnavailable, generate_plan
+
+    if not settings.internal_api_token or not compare_digest(
+        (x_internal_token or "").encode(), settings.internal_api_token.encode()
+    ):
+        raise HTTPException(status_code=401, detail="unauthorized")
+    try:
+        return generate_plan(body.context)
+    except PlanUnavailable as exc:
+        raise HTTPException(status_code=503, detail={"error": str(exc)}) from exc
 
 
 @app.post("/v1/threads", response_model=dict)

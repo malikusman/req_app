@@ -1,0 +1,10 @@
+# Doc 17 §19: twelve participants, three departments, two languages.
+name: standard
+departments: { Sales: 5, Procurement: 4, Finance: 3 }
+languages: [en, ar]
+locations: [Dubai]
+named: 12
+expect:
+  subtotal: "45750.0"
+  below_floor: false
+  risks: [SEVERAL_LANGUAGES]

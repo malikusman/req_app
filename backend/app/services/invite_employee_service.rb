@@ -3,8 +3,16 @@
 class InviteEmployeeService
   PREFERRED_CHANNELS = %w[whatsapp web both].freeze
 
+  # Staff are invited only once the client has accepted the Stage 1 price, and
+  # someone beyond what it covers only when the client confirms the extra
+  # charge (Engagements::StaffInvitations). planned_participant: the onboarding
+  # plan's row for this person, if they were planned.
   def self.call(company:, phone_e164:, display_name: nil, department: nil, email: nil, invited_by: nil,
-                send_whatsapp: true, preferred_channel: "whatsapp")
+                send_whatsapp: true, preferred_channel: "whatsapp", confirm_additional: false,
+                planned_participant: nil)
+    staff = Engagements::StaffInvitations.new(company)
+    additional = staff.check!(adding: 1, confirmed: confirm_additional).positive?
+
     normalized_email = email.to_s.strip.downcase.presence
     channel = PREFERRED_CHANNELS.include?(preferred_channel.to_s) ? preferred_channel.to_s : "whatsapp"
 
@@ -43,13 +51,18 @@ class InviteEmployeeService
     should_send_whatsapp = send_whatsapp && channel != "web"
     SendEmployeeInvitationJob.perform_later(invitation.id) if should_send_whatsapp
 
-    company.increment!(:invited_count)
     company.promote_to_hybrid_engagement!
+    if additional
+      staff.flag_added!(employee, planned: planned_participant)
+    else
+      planned_participant&.update!(employee: employee)
+    end
 
     {
       employee: employee,
       invitation: invitation,
-      discover_url: web_session&.dig(:url)
+      discover_url: web_session&.dig(:url),
+      additional: additional
     }
   end
 end

@@ -1,8 +1,12 @@
 """Discovery interview graph.
 
-prepare (deterministic: what to ask, or whether to stop) -> interview (one LLM
-call) -> finalize (deterministic blackboard update), with a conditional edge to
-close when the dossier is full, the conversation has stalled, or the ceiling is hit.
+    record (model call 1: what did the reply supply?) -> prepare (deterministic: what
+    to ask next, or whether to stop) -> talk (model call 2: write the question)
+                                     \\-> close (farewell)
+
+Recording runs first so that the choice of what to ask next sees the answer it is
+reacting to. On the opening turn it reads the kickoff synthesised from the
+employee's profile, which is where role areas usually first appear.
 
 The graph is stateless across turns: the blackboard travels in/out via Rails.
 """
@@ -12,51 +16,82 @@ from typing import Any
 
 from langgraph.graph import END, StateGraph
 
+from app.interview_capture import EMPTY_CAPTURE, capture_reply
 from app.llm import OpenAIUnavailable
-from app.multi_agent_llm import closing_message, run_agent_turn
-from app.orchestrator import finalize_turn, prepare_turn
+from app.multi_agent_llm import closing_message, write_farewell, write_question
+from app.orchestrator import finalize_turn, needs_summary_refresh, prepare_turn, record_reply
 from app.state import MultiTurnState
+from app import workflow
+
+
+def _record(state: MultiTurnState) -> MultiTurnState:
+    current = dict(state)
+    # The opening turn is recorded too: its "message" is the kickoff built from the
+    # profile ("I'm Shiv, a Procurement Officer… supplier price updates, purchase
+    # orders…"), which is the best early source of role areas there is. Skipping it
+    # cost the interview areas the person had already named.
+    if not str(current.get("user_message") or "").strip():
+        return {**current, "insight": dict(EMPTY_CAPTURE["insight"]), "capture_status": "skipped"}
+    bb = current.get("blackboard") or {}
+    if workflow.enabled(bb) and bb.get("last_phase") == "review" and workflow.explicit_approval(current.get("user_message")):
+        # A plain confirmation adds no process facts; don't spend a model call
+        # re-extracting and paraphrasing the entire dossier on the closing turn.
+        return record_reply(current, {**EMPTY_CAPTURE, "workflow_updates": [], "summary_confirmed": True})
+    capture = capture_reply(current, refresh_summary=needs_summary_refresh(current))
+    return record_reply(current, capture)
 
 
 def _prepare(state: MultiTurnState) -> MultiTurnState:
     return prepare_turn(dict(state))
 
 
-def _interview(state: MultiTurnState) -> MultiTurnState:
-    llm_output = run_agent_turn(dict(state))
-    return finalize_turn(dict(state), llm_output)
+def _talk(state: MultiTurnState) -> MultiTurnState:
+    current = dict(state)
+    return finalize_turn(current, write_question(current))
 
 
 def _close(state: MultiTurnState) -> MultiTurnState:
-    message = closing_message(
-        state.get("preferred_language", "en"),
-        state.get("employee_name", ""),
-    )
+    reason = state.get("close_reason") or "dossier_complete"
+    if reason == "employee_ended":
+        message = write_farewell(dict(state))
+    else:
+        message = closing_message(state.get("preferred_language", "en"), state.get("employee_name", ""))
     bb = state.get("blackboard") or {}
+    if workflow.enabled(bb):
+        data = workflow.ledger(bb)
+        if reason == "employee_ended":
+            data["outcome"] = "employee_stopped"
+        elif reason == "dossier_complete" and data.get("outcome") == "successful":
+            message = "Thanks. Your workflow summary is confirmed and saved. That’s everything for now."
+        elif reason != "dossier_complete":
+            message = "Thank you. Your answers are saved. Some workflow details still need follow-up; this interview is not marked as successfully validated."
     # Why the interview ended is worth keeping: a high rate of "ceiling" means the
     # dossier is asking for more than an interview can reasonably get.
-    bb["close_reason"] = state.get("close_reason") or bb.get("close_reason") or "dossier_complete"
+    bb["close_reason"] = reason
     return {
         **state,
         "assistant_message": message,
-        "insight": {"summary": "", "topics": []},
+        # The last reply's insight is real evidence; keep it rather than blanking it.
+        "insight": state.get("insight") or {"summary": "", "topics": []},
         "completed": True,
         "blackboard": bb,
     }
 
 
 def _route_after_prepare(state: MultiTurnState) -> str:
-    return "close" if state.get("should_close") else "interview"
+    return "close" if state.get("should_close") else "talk"
 
 
 def build_multi_agent_graph():
     graph = StateGraph(MultiTurnState)
+    graph.add_node("record", _record)
     graph.add_node("prepare", _prepare)
-    graph.add_node("interview", _interview)
+    graph.add_node("talk", _talk)
     graph.add_node("close", _close)
-    graph.set_entry_point("prepare")
-    graph.add_conditional_edges("prepare", _route_after_prepare, {"interview": "interview", "close": "close"})
-    graph.add_edge("interview", END)
+    graph.set_entry_point("record")
+    graph.add_edge("record", "prepare")
+    graph.add_conditional_edges("prepare", _route_after_prepare, {"talk": "talk", "close": "close"})
+    graph.add_edge("talk", END)
     graph.add_edge("close", END)
     return graph.compile()
 

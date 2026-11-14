@@ -1,0 +1,9 @@
+# Doc 17 §19: an estimate below the floor can't be issued without an override.
+name: below_floor
+departments: { Sales: 3 }
+languages: [en]
+locations: [Dubai]
+named: 3
+floor: "0.90"
+expect:
+  below_floor: true

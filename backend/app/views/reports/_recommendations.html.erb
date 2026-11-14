@@ -4,7 +4,7 @@
   <div class="eyebrow">Recommendations<%= " · continued" if page_index.positive? %></div>
   <h1 class="page-title"><%= h report_action_title(snapshot, :recommendations, "What to do") %></h1>
   <% if page_index.zero? %>
-    <p class="lead" style="margin-bottom:5mm;">Prioritized actions drawn from the findings above. Each names a matched tool where one fits — the full product view follows in Capabilities.</p>
+    <p class="lead" style="margin-bottom:5mm;">What to address first, drawn from the findings above. How each would be done — its design, cost and timeline — is worked out in Stage 2.</p>
   <% end %>
   <div class="card-grid-3">
     <% group.each do |rec| %>
@@ -14,9 +14,8 @@
         <span class="pill <%= pill %>"><%= h report_priority_label(rec["priority"]) %></span>
         <h4><%= h rec["title"] %></h4>
         <p><%= h rec["description"] %></p>
-        <% if rec["implementation_outline"].present? %>
-          <p style="margin-top:2mm;font-size:8.5pt;"><strong>How:</strong> <%= h rec["implementation_outline"].to_s.truncate(220) %></p>
-        <% end %>
+        <%# No "How:" line. Stage 1 says what to address; how it would be built is
+            Stage 2's design work, and a one-line build outline read as a promise. %>
         <% matches.first(3).each do |match| %>
           <div class="match">
             <%= h match["name"] %>

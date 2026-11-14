@@ -29,19 +29,17 @@ module Companies
       "Other" => "other"
     }.freeze
 
-    # Q03 asks in eight bands; company_profile speaks in five, and
-    # Catalog::CompanyFitService matches on those five by string. Widening the
-    # stored vocabulary would silently stop that matching, so the finer question
-    # folds back into the coarser profile. The question is still worth asking at
-    # eight — the answer is kept verbatim in the questionnaire either way.
+    # Q03 asks in eight bands; company_profile speaks in Company::SIZE_BANDS, the
+    # one vocabulary Catalog::CompanyFitService also matches on. 101–250 straddles
+    # two bands and folds into the lower, as it always has.
     SIZE_MAP = {
       "1–10" => "1-10",
       "11–25" => "11-50",
       "26–50" => "11-50",
       "51–100" => "51-200",
       "101–250" => "51-200",
-      "251–500" => "201-1000",
-      "501–1,000" => "201-1000",
+      "251–500" => "201-500",
+      "501–1,000" => "501-1000",
       "1,000+" => "1000+"
     }.freeze
 
@@ -67,8 +65,7 @@ module Companies
         size_band: mapped_size,
         country: country,
         region: country,
-        org_departments: string_list("q07_departments"),
-        business_goals: string_list("q40_desired_outcomes")
+        org_departments: string_list("q07_departments")
       }.compact
 
       Companies::ProfileUpdater.call(

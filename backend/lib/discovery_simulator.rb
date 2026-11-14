@@ -32,13 +32,12 @@ class DiscoverySimulator
         team_size: nil,
         tools: "SAP, Excel and Outlook"
       },
-      expected_agents: %w[domain_finance process technical],
-      unexpected_agents: %w[strategic],
       answers: [
         "It starts when a vendor emails an invoice and ends when SAP shows it as paid, usually 8 days later",
         "Matching invoices to purchase orders goes wrong the most — about 1 in 5 needs rework",
         "I depend on department managers for approvals, mostly chased over email and Slack",
         "Invoices sit in managers' inboxes for 2-3 days before anyone acts on them",
+        "I do use ChatGPT sometimes to word the chase emails, nothing official",
         "Handoffs go through email with the invoice attached, no shared tracker",
         "When something upstream changes I redo the reconciliation from scratch, maybe twice a week",
         "At quarter end the approval step breaks first, the backlog doubles",
@@ -48,6 +47,7 @@ class DiscoverySimulator
         "When SAP is down I keep a paper list and batch-enter everything after",
         "A perfect version would auto-match POs and route approvals with reminders",
         "Honestly the weekly status email I compile could probably go away entirely",
+        "With more time I'd clean up the vendor master data, it's been on my list for months",
         "That covers pretty much everything about my work"
       ]
     },
@@ -62,8 +62,6 @@ class DiscoverySimulator
         team_size: "There are 5 of us",
         tools: "Workday, DocuSign and Google Sheets"
       },
-      expected_agents: %w[domain_hr technical strategic],
-      unexpected_agents: [],
       answers: [
         "Onboarding kicks off when recruiting closes a hire and is done when the person has IT access and a signed contract",
         "IT access provisioning goes wrong most — it takes two weeks because three departments must sign off",
@@ -91,8 +89,6 @@ class DiscoverySimulator
         team_size: nil,
         tools: "SAP, Excel and Outlook"
       },
-      expected_agents: %w[domain_finance process technical],
-      unexpected_agents: %w[strategic],
       answers: [
         "It starts when a vendor emails an invoice and ends when SAP shows it as paid, usually 8 days later",
         "Matching invoices to purchase orders goes wrong the most — about 1 in 5 needs rework",
@@ -120,8 +116,6 @@ class DiscoverySimulator
         team_size: nil,
         tools: "SAP, Excel and Outlook"
       },
-      expected_agents: %w[domain_finance process technical],
-      unexpected_agents: %w[strategic],
       answers: [
         "It starts when a vendor emails an invoice and ends when SAP shows it as paid",
         "Matching invoices to purchase orders goes wrong the most with manual spreadsheet work",
@@ -145,8 +139,16 @@ class DiscoverySimulator
 
   def initialize(slug:, persona:, cleanup:)
     @company = Company.find_by!(slug: slug)
-    @persona_key = persona
-    @persona = PERSONAS.fetch(persona) { raise ArgumentError, "Unknown persona '#{persona}'. Available: #{PERSONAS.keys.join(', ')}" }
+    # A persona is a key into PERSONAS (scripted answers), or a Hash carrying
+    # :facts instead of :answers — then each answer is improvised from the facts by
+    # a model, so the interview is tested against someone who answers the question
+    # actually asked (see DemoCompanyInterviews).
+    @persona_key = persona.is_a?(Hash) ? persona.fetch(:key) : persona
+    @persona = if persona.is_a?(Hash)
+                 persona
+               else
+                 PERSONAS.fetch(persona) { raise ArgumentError, "Unknown persona '#{persona}'. Available: #{PERSONAS.keys.join(', ')}" }
+               end
     @cleanup = cleanup
     @checks = []
     @turns = 0
@@ -232,6 +234,9 @@ class DiscoverySimulator
       ConsultantRequirement.where(discovery_package_id: package_ids).delete_all
       DiscoveryPackage.where(id: package_ids).delete_all
     end
+    finding_ids = Finding.where(employee_id: employee.id).select(:id)
+    Finding.where(merged_into_id: finding_ids).update_all(merged_into_id: nil, status: "draft")
+    Finding.where(id: finding_ids).delete_all
     employee.conversations.delete_all
     EmployeeInvitation.where(employee_id: employee.id).delete_all
     EmployeeValueDigest.where(employee_id: employee.id).delete_all
@@ -287,23 +292,17 @@ class DiscoverySimulator
           Array(@employee.profile_data["primary_tools"]).any?
     check "Transitioned to discovery", conversation.reload.status == "discovery"
 
-    queue_ids = (blackboard["agent_queue"] || []).map { |a| a["id"] }
-    check "Agent queue built (#{queue_ids.join(', ')})", queue_ids.any?
-    @persona[:expected_agents].each do |id|
-      check "  expected agent routed: #{id}", queue_ids.include?(id)
-    end
-    @persona[:unexpected_agents].each do |id|
-      check "  agent correctly skipped: #{id}", !queue_ids.include?(id)
-    end
+    # The specialist queue these checks used to assert is retired: the interview maps
+    # the person's own role areas instead (agent/app/area_flow.py).
     check "First discovery question delivered", last_outbound.present? && conversation.question_count >= 1
   end
 
   def run_discovery!
     stage "Discovery (multi-agent interview)"
-    answers = @persona[:answers].cycle
+    answers = @persona[:answers]&.cycle
 
     while conversation.reload.status == "discovery" && @turns < MAX_TURNS
-      simulate answers.next
+      simulate(@persona[:facts] ? improvised_answer : answers.next)
       @turns += 1
     end
 
@@ -404,6 +403,40 @@ class DiscoverySimulator
           end
     puts format("  %-10s %s| you: %s", conversation.status, tag, truncate(shown, 60))
     puts format("  %-10s %s|  bot: %s", "", " " * tag.length, truncate(last_outbound.to_s, 90))
+  end
+
+  EMPLOYEE_SYSTEM = <<~PROMPT
+    You are role-playing an employee being interviewed about their work by a friendly
+    assistant. Stay completely in character.
+
+    You are %<name>s, %<role_title>s. %<style>s
+
+    What is true about your work (your private notes — reveal things only when asked, the
+    way a real person would, in your own words):
+    %<facts>s
+
+    Rules:
+    - Answer ONLY the interviewer's latest message.
+    - Never invent numbers, frequencies or a schedule that are not in your notes. If asked
+      something your notes don't cover, say you're not sure.
+    - Write only your reply — no labels, no quotation marks.
+  PROMPT
+
+  # Mirrors agent/scripts/interview_replay.py: low temperature, because a simulated
+  # employee who improvises figures makes the interview look like it misheard them.
+  def improvised_answer
+    system = format(EMPLOYEE_SYSTEM, name: @persona[:name], role_title: @persona.dig(:profiling, :role_title),
+                                     style: @persona[:style].to_s, facts: @persona[:facts].strip)
+    history = conversation.messages.order(:created_at).last(12).map do |m|
+      # From the employee's side, the interviewer is the other party.
+      { role: m.direction == "outbound" ? "user" : "assistant", content: m.body.to_s }
+    end
+    client = Openai::Client.new
+    body = { model: ENV.fetch("OPENAI_MODEL", "gpt-4.1-mini"), temperature: 0.3, max_tokens: 400,
+             messages: [{ role: "system", content: system }, *history] }
+    # Dev tooling only: the production client has no free-text chat method, and this
+    # should not add one.
+    client.send(:message_text, client.send(:chat_completion, body)).strip.presence || "I'm not sure."
   end
 
   def answer_profiling_step(step, answer)

@@ -4,6 +4,7 @@ import {
   FileText,
   FileBarChart,
   HelpCircle,
+  MessagesSquare,
   Radio,
   Sparkles,
   UserCircle,
@@ -37,15 +38,30 @@ function iconFor(id: DashboardActionId): ReactNode {
     case 'answer-questions':
       return <HelpCircle className="h-[18px] w-[18px]" />;
     case 'nudge-stalled':
+    case 'participant-counts':
       return <Users className="h-[18px] w-[18px]" />;
     case 'add-profile':
       return <UserCircle className="h-[18px] w-[18px]" />;
     case 'get-started':
+    case 'pricing':
+    case 'proposal':
       return <FileText className="h-[18px] w-[18px]" />;
+    case 'leadership':
+      return <MessagesSquare className="h-[18px] w-[18px]" />;
     default:
       return <Radio className="h-[18px] w-[18px]" />;
   }
 }
+
+const MANAGER_STATUS: Record<string, { label: string; variant: 'success' | 'warning' | 'info' | 'neutral' }> = {
+  NOT_INVITED: { label: 'Not invited yet', variant: 'neutral' },
+  INVITED: { label: 'Invited', variant: 'info' },
+  STARTED: { label: 'Started', variant: 'info' },
+  PAUSED: { label: 'Paused', variant: 'warning' },
+  COMPLETED: { label: 'Done', variant: 'success' },
+  ABANDONED: { label: 'Closed', variant: 'neutral' },
+  DECLINED: { label: 'Declined', variant: 'neutral' },
+};
 
 function toAttentionItem(a: DashboardAction): AttentionItemData {
   return {
@@ -110,11 +126,15 @@ export function CompanyDashboard() {
       .companyExpertConsultants(token)
       .then((d) => setConsultants(d.expert_consultants || []))
       .catch(() => setConsultants([]));
+    // "Questions that need your input" are the consultant's questions to this
+    // admin — the same count, and the same destination, as the nav badge.
     api
-      .discoveryQuestions(token)
+      .companyOutreaches(token)
       .then((d) => {
-        const qs = d.questions || [];
-        setUnansweredQuestions(qs.filter((q) => !q.feedback).length);
+        const needsInput = (d.outreaches || []).filter(
+          (o) => o.status === 'pending_admin_approval' || (o.recipient_type === 'company_admin' && o.status === 'sent')
+        ).length;
+        setUnansweredQuestions(needsInput);
       })
       .catch(() => setUnansweredQuestions(0));
   }, [token]);
@@ -145,10 +165,13 @@ export function CompanyDashboard() {
   const recommendationCount = intel?.recommendation_count ?? snapshot?.recommendation_count ?? 0;
   const docsFirstPhase = Boolean(data.docs_first_phase ?? data.company.docs_first_phase);
   const docsFirstActive = docsFirstPhase && (readyDocs > 0 || score > 0 || signalCount > 0);
-  const processingDocs = docsFirstPhase && readyDocs === 0 && score === 0 && signalCount === 0;
+  const processingCount = Number(intel?.processing_documents ?? 0);
+  // Only when documents have actually been uploaded and are still being worked
+  // on. Before, a company that had uploaded nothing — every new engagement — was
+  // told its documents were being analysed.
+  const processingDocs = docsFirstPhase && processingCount > 0 && readyDocs === 0 && score === 0 && signalCount === 0;
   const docsOnlyView = docsFirstPhase && docsFirstActive;
-  const qPercent = Math.round(data.questionnaire_completion_percent ?? 0);
-  const qComplete = Boolean(data.questionnaire_completed_at) || qPercent >= 100;
+  const qComplete = Boolean(data.onboarding_submitted_at);
 
   const invited = data.company.invited_count ?? 0;
   const completed = data.company.completed_count ?? 0;
@@ -194,9 +217,19 @@ export function CompanyDashboard() {
   const journeySteps: JourneyStep[] = [
     {
       label: 'Profile',
-      sublabel: qComplete ? 'complete' : 'optional',
+      sublabel: qComplete ? 'complete' : 'to do',
       status: qComplete ? 'done' : 'optional',
     },
+    ...(data.leadership?.own
+      ? [
+          {
+            label: 'Leadership',
+            sublabel: data.leadership.own.finished ? 'done' : 'your conversation',
+            status: data.leadership.own.finished ? ('done' as const) : ('now' as const),
+          },
+        ]
+      : []),
+    ...proposalStep(data),
     {
       label: 'Documents',
       sublabel: readyDocs > 0 ? `${readyDocs} analyzed` : undefined,
@@ -256,6 +289,29 @@ export function CompanyDashboard() {
 
       {/* Also waiting */}
       <AttentionList items={attentionItems} />
+
+      {/* The other managers' conversations: who has taken part — never what they said (Doc 14 §9.2). */}
+      {data.leadership && data.leadership.managers.length > 0 && (
+        <Card title="Other managers we're speaking with">
+          <ul className="m-0 list-none space-y-2 p-0">
+            {data.leadership.managers.map((m) => (
+              <li key={m.id} className="flex items-center justify-between gap-3 text-sm">
+                <span className="min-w-0 truncate text-foreground">
+                  {m.name}
+                  {m.role_title ? <span className="text-muted-foreground"> · {m.role_title}</span> : null}
+                </span>
+                <Badge variant={MANAGER_STATUS[m.participation_status]?.variant ?? 'neutral'}>
+                  {!m.can_invite && m.participation_status === 'NOT_INVITED'
+                    ? 'Needs an email address'
+                    : m.reminders_used_up && m.participation_status === 'INVITED'
+                      ? 'Not started — worth a word'
+                      : MANAGER_STATUS[m.participation_status]?.label ?? m.participation_status}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       {/*
         Opportunity headline — the consultant's estimate of what acting is worth.
@@ -443,4 +499,18 @@ export function CompanyDashboard() {
       )}
     </div>
   );
+}
+
+/** The Stage 1 proposal's place in the journey, once the engagement reaches pricing (Doc 17 §1). */
+function proposalStep(data: CompanyDashboardPayload): JourneyStep[] {
+  const status = data.engagement_status;
+  if (status !== 'STAGE_1_PRICING' && status !== 'STAGE_1_ACTIVE') return [];
+  if (status === 'STAGE_1_ACTIVE') return [{ label: 'Proposal', sublabel: 'agreed', status: 'done' }];
+  const quote = data.stage1_quote;
+  if (quote?.status === 'ISSUED' && !quote.past_validity) {
+    return [{ label: 'Proposal', sublabel: quote.can_decide ? 'waiting on you' : 'with your key user', status: 'now' }];
+  }
+  if (quote?.status === 'DECLINED') return [{ label: 'Proposal', sublabel: 'declined', status: 'now' }];
+  if (quote) return [{ label: 'Proposal', sublabel: 'expired', status: 'now' }];
+  return [{ label: 'Proposal', sublabel: 'in preparation', status: 'now' }];
 }

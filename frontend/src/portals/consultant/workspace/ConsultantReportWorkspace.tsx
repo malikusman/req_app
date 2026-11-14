@@ -11,6 +11,7 @@ import { ConsultantAnnotationRail } from './ConsultantAnnotationRail';
 import { ConsultantChatDrawer } from './ConsultantChatDrawer';
 import { ConsultantEmployeeProfileCard } from './ConsultantEmployeeProfileCard';
 import { ConsultantPdfDrawer } from './ConsultantPdfDrawer';
+import { ConsultantReportChecksPanel } from './ConsultantReportChecksPanel';
 import { ConsultantSectionContent } from './ConsultantSectionContent';
 import { ConsultantSectionEditorPanel } from './ConsultantSectionEditorPanel';
 import { ConsultantDiscoveryPackagePanel } from './ConsultantDiscoveryPackagePanel';
@@ -112,6 +113,9 @@ export function ConsultantReportWorkspace() {
   const [sendingFollowup, setSendingFollowup] = useState(false);
   const [confirmSubmitOpen, setConfirmSubmitOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  // Why the last submit was refused: a section still open, a finding waiting for
+  // review, a report check that fails. Silent before, so nothing seemed to happen.
+  const [submitError, setSubmitError] = useState('');
   const noteSeeded = useRef(false);
   const [visited, setVisited] = useState<Set<WorkspaceStepId>>(() => new Set<WorkspaceStepId>(['context']));
 
@@ -383,6 +387,9 @@ export function ConsultantReportWorkspace() {
       await api.submitConsultantReportReview(token, Number(companyId), Number(reportId));
       await load();
       setConfirmSubmitOpen(false);
+      setSubmitError('');
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Could not submit the review');
     } finally {
       setSubmitting(false);
     }
@@ -642,7 +649,7 @@ export function ConsultantReportWorkspace() {
             <div className="space-y-4">
               <Card title="Engagement context">
                 <div className="grid gap-4 md:grid-cols-3">
-                  <StatCard label="Readiness" value={<AnimatedNumber value={readiness?.score ?? 0} suffix="%" />} />
+                  <StatCard label="Readiness at this version" value={<AnimatedNumber value={readiness?.score ?? 0} suffix="%" />} />
                   <StatCard label="Completed" value={<AnimatedNumber value={participation?.completed ?? workspace.conversations.filter((c) => c.status === 'completed').length} />} />
                   <StatCard label="Invited" value={<AnimatedNumber value={participation?.invited ?? workspace.conversations.length} />} />
                 </div>
@@ -1078,6 +1085,7 @@ export function ConsultantReportWorkspace() {
                   ))}
                 </ul>
               </Card>
+              <ConsultantReportChecksPanel companyId={Number(companyId)} reportId={Number(reportId)} />
               <ConsultantStructuredFindingsPanel
                 companyId={Number(companyId)}
                 reportId={Number(reportId)}
@@ -1201,14 +1209,31 @@ export function ConsultantReportWorkspace() {
 
       <ConfirmDialog
         open={confirmSubmitOpen}
-        onClose={() => setConfirmSubmitOpen(false)}
+        onClose={() => {
+          setConfirmSubmitOpen(false);
+          setSubmitError('');
+        }}
         onConfirm={handleSubmit}
         title="Submit your review?"
         description="This hands your review to the platform team for approval. You can still view co-consultant notes and the transcript afterwards, but your section decisions and note will be locked."
         confirmLabel="Submit review"
         variant="primary"
         loading={submitting}
-      />
+      >
+        {submitError && (
+          <div className="mt-3 rounded-button border border-status-error/30 bg-status-error/10 px-3 py-2 text-sm text-status-error">
+            <p className="m-0">{submitError}</p>
+            {/Findings page/.test(submitError) && (
+              <Link
+                to={`/consultant/companies/${companyId}/findings`}
+                className="mt-1 inline-block font-medium underline"
+              >
+                Open Findings
+              </Link>
+            )}
+          </div>
+        )}
+      </ConfirmDialog>
 
       <ConsultantPdfDrawer
         open={pdfOpen}

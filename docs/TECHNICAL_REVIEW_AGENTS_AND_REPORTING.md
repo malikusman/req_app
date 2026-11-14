@@ -1312,6 +1312,12 @@ Listed candidly, roughly in order of how much we would value an outside opinion.
 
 ### 9.1 The interview does not capture what a cost-quantified finding needs
 
+> **Update, 27 September 2026 — partly resolved.** `friction_cost` (13 Sept) asks what
+> a friction costs in time, and since the turn split (§9.2) it is recorded as structured
+> ranges — how often and how long, with units, the words used, and active versus
+> waiting — beside the free text. Nothing downstream turns it into hours yet; that is
+> the next step.
+
 This is the most significant structural gap, and it is a design question rather than a
 bug.
 
@@ -1338,6 +1344,15 @@ longer and more mechanical), or should quantification move to a separate consult
 step?
 
 ### 9.2 One LLM call is asked to do eight things
+
+> **Update, 27 September 2026 — resolved.** Each turn is now two calls: one records
+> what the reply supplied (`agent/app/interview_capture.py`), then the next topic is
+> chosen from the updated dossier, then one writes the question in plain text
+> (`multi_agent_llm.write_question`). Measured with `agent/scripts/interview_replay.py`
+> (eight simulated employees on gpt-4.1-mini): zero degraded recordings, repeated or
+> compound questions across the final runs; interviews close on `dossier_complete`
+> (or `employee_ended` when asked to stop); about 3.5–4.5 s per turn for both calls.
+> The description below is kept as the record of why.
 
 Per turn the model must react, ask, extract an insight, extract a finding, report
 `slots_filled`, park an aside, name role areas, and sometimes refresh the summary. On a

@@ -22,4 +22,16 @@ RSpec.describe Intelligence::SnapshotBuilder do
     expect(snapshot.dig("participation", "completed")).to eq(1)
     expect(snapshot.dig("participation", "invited")).to eq(1)
   end
+
+  it "measures department coverage against the client's plan" do
+    create(:engagement, company: company, planned_departments: [{ "name" => "Procurement", "count" => 2 },
+                                                                { "name" => "Sales", "count" => "UNKNOWN" }])
+    create(:employee, company: company, department: "Procurement", participation_status: "completed")
+
+    coverage = described_class.call(company: company)["department_coverage"].index_by { |d| d["department"] }
+
+    expect(coverage["Procurement"]).to include("completed" => 1, "target" => 2)
+    # Planned but not yet counted: shown, with the usual target until a number is given.
+    expect(coverage["Sales"]).to include("completed" => 0, "target" => 3)
+  end
 end

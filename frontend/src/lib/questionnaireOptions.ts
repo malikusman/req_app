@@ -9,79 +9,11 @@
  * are cross-checked by a spec, so a key added here must be added there too.
  */
 import { COUNTRIES } from './countries';
+import { fieldIsVisible, otherKey, detailKey, type FieldType, type FieldTier, type OptionGroup, type MatrixCategory, type QuestionnaireField, type QuestionnaireScreen, type QuestionnaireStep, type AnswerValue, type QuestionnaireAnswers } from './formFields';
+export { fieldIsVisible, otherKey, detailKey };
+export type { FieldType, FieldTier, OptionGroup, MatrixCategory, QuestionnaireField, QuestionnaireScreen, QuestionnaireStep, AnswerValue, QuestionnaireAnswers };
 
-export type FieldType =
-  | 'single_select'
-  | 'multi_select'
-  | 'searchable_select'
-  | 'text'
-  | 'textarea'
-  /** Explanatory copy between questions. Stores nothing. */
-  | 'static'
-  /** One numeric input per option the user picked in `sourceField`. */
-  | 'per_item_numeric'
-  /** A multi-select where each selection can carry a short free-text detail. */
-  | 'multi_select_with_detail'
-  /** Pick items, then pick sub-options for each item picked. */
-  | 'two_stage_matrix'
-  /** Several labelled inputs that together form one answer. */
-  | 'parallel_text'
-  /** One searchable row per category. */
-  | 'category_matrix';
 
-/**
- * Essential is the only tier that counts toward the completion percent.
- * Recommended and Optional are worth asking but must never hold someone at 99%.
- */
-export type FieldTier = 'essential' | 'recommended' | 'optional' | 'conditional';
-
-export type OptionGroup = { label: string; options: string[] };
-export type MatrixCategory = { id: string; label: string; options: string[] };
-
-export type QuestionnaireField = {
-  id: string;
-  type: FieldType;
-  label: string;
-  helper?: string;
-  tier?: FieldTier;
-  options?: string[];
-  groups?: OptionGroup[];
-  maxSelections?: number;
-  placeholder?: string;
-  /** Reveals a free-text "Please specify" box when an "Other" option is chosen. */
-  withOther?: boolean;
-  /** Gives each selection its own short detail input. */
-  withDetail?: boolean;
-  detailPlaceholder?: string;
-  /** per_item_numeric: the multi-select whose selections become the rows. */
-  sourceField?: string;
-  /** per_item_numeric: the opt-out shown beside each row. */
-  unknownLabel?: string;
-  /** two_stage_matrix: the sub-options offered for each chosen item. */
-  channelOptions?: string[];
-  stageOneLabel?: string;
-  stageTwoLabel?: string;
-  /** parallel_text: one input per label, answered in order. */
-  subLabels?: string[];
-  /** category_matrix: one searchable row per category. */
-  categories?: MatrixCategory[];
-  /** Shown only once `field` is answered and the answer is not one of `notOneOf`. */
-  showWhen?: { field: string; notOneOf: string[] };
-};
-
-/** A group of questions shown together under one step. */
-export type QuestionnaireScreen = { id: string; fields: QuestionnaireField[] };
-
-export type QuestionnaireStep = {
-  id: number;
-  title: string;
-  shortTitle: string;
-  screens: QuestionnaireScreen[];
-};
-
-/** An answer is a scalar, a list, or — for the matrix questions — a keyed map. */
-export type AnswerValue = string | string[] | Record<string, string | string[]> | undefined;
-export type QuestionnaireAnswers = Record<string, AnswerValue>;
 
 export const QUESTIONNAIRE_STEPS: QuestionnaireStep[] = [
   {
@@ -1307,22 +1239,11 @@ export const QUESTIONNAIRE_STEPS: QuestionnaireStep[] = [
 export const QUESTIONNAIRE_SECTIONS = QUESTIONNAIRE_STEPS;
 export const STEP_COUNT = QUESTIONNAIRE_STEPS.length;
 
-/** The free-text companion for an "Other" choice. */
-export const otherKey = (fieldId: string) => `${fieldId}_other`;
-/** The per-selection detail companion. */
-export const detailKey = (fieldId: string) => `${fieldId}_detail`;
 
 export function allFields(): QuestionnaireField[] {
   return QUESTIONNAIRE_STEPS.flatMap((step) => step.screens.flatMap((screen) => screen.fields));
 }
 
-export function fieldIsVisible(field: QuestionnaireField, answers: QuestionnaireAnswers): boolean {
-  if (!field.showWhen) return true;
-  const current = answers[field.showWhen.field];
-  const value = Array.isArray(current) ? current[0] : current;
-  if (!value || typeof value !== 'string') return false;
-  return !field.showWhen.notOneOf.includes(value);
-}
 
 export function isAnswered(value: AnswerValue): boolean {
   if (value == null) return false;

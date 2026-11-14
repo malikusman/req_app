@@ -1,3 +1,6 @@
+import type { ReviewCommand, SelectionReview, SelectionRun } from './taskSelection';
+import type { PlanContent, PlanDetail, PlanSummary } from './deepDivePlan';
+
 const API_URL = import.meta.env.VITE_API_URL || '';
 
 export type ApiError = { error?: string; errors?: string[] };
@@ -9,11 +12,14 @@ export type ApiError = { error?: string; errors?: string[] };
  */
 export class ApiRequestError extends Error {
   readonly status: number;
+  /** The response body, for errors that carry more than a message. */
+  readonly body: unknown;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, body?: unknown) {
     super(message);
     this.name = 'ApiRequestError';
     this.status = status;
+    this.body = body;
   }
 }
 
@@ -33,7 +39,7 @@ async function request<T>(
 
   if (!res.ok) {
     const err = (data as ApiError).error || (data as ApiError).errors?.join(', ') || res.statusText;
-    throw new ApiRequestError(err, res.status);
+    throw new ApiRequestError(err, res.status, data);
   }
   return data as T;
 }
@@ -66,6 +72,27 @@ async function fetchPreviewBlob(token: string, path: string) {
 }
 
 export const api = {
+  consultantDeepDivePlans: (token: string, companyId: string, runId: string) =>
+    request<{ selection_version: number; tasks: PlanSummary[] }>(
+      `/api/v1/consultant/companies/${companyId}/task_intelligence_runs/${runId}/deep_dive_plans`, {}, token),
+  consultantDeepDivePlan: (token: string, companyId: string, runId: string, taskId: string, version?: string) =>
+    request<PlanDetail>(
+      `/api/v1/consultant/companies/${companyId}/task_intelligence_runs/${runId}/deep_dive_plans/${encodeURIComponent(taskId)}${version ? `?version=${encodeURIComponent(version)}` : ''}`, {}, token),
+  consultantDeepDivePlanCommand: (token: string, companyId: string, runId: string, taskId: string,
+    action: 'generate' | 'edit' | 'approve', body?: { expected_version: number; reason: string; content?: PlanContent }) =>
+    request<PlanDetail>(
+      `/api/v1/consultant/companies/${companyId}/task_intelligence_runs/${runId}/deep_dive_plans/${encodeURIComponent(taskId)}${action === 'edit' ? '' : `/${action}`}`,
+      { method: action === 'edit' ? 'PATCH' : 'POST', body: body ? JSON.stringify(body) : undefined }, token),
+  consultantTaskIntelligenceRuns: (token: string, companyId: string, beforeId?: number) =>
+    request<{ task_intelligence_runs: SelectionRun[]; next_before_id: number | null }>(
+      `/api/v1/consultant/companies/${companyId}/task_intelligence_runs${beforeId ? `?before_id=${beforeId}` : ''}`, {}, token),
+  consultantTaskSelection: (token: string, companyId: string, runId: string, version: string | null) =>
+    request<SelectionReview>(
+      `/api/v1/consultant/companies/${companyId}/task_intelligence_runs/${runId}/selection_review${version ? `?version=${version}` : ''}`, {}, token),
+  consultantTaskSelectionCommand: (token: string, companyId: string, runId: string, command: ReviewCommand & { expected_version: number; reason?: string }) =>
+    request<SelectionReview>(
+      `/api/v1/consultant/companies/${companyId}/task_intelligence_runs/${runId}/selection_review/commands`,
+      { method: 'POST', body: JSON.stringify(command) }, token),
   publicDemoRequest: (payload: {
     name: string;
     email: string;
@@ -89,14 +116,13 @@ export const api = {
     notes?: string;
     website?: string;
     website_url?: string;
-    engagement_mode?: string;
-    company_profile?: CompanyProfile;
-    known_systems?: string[];
   }) =>
     request<{ ok: boolean; registration?: { id: number; status: string } }>(
       '/api/v1/public/company_registrations',
       { method: 'POST', body: JSON.stringify(payload) }
     ),
+
+  publicConfig: () => request<{ company_signup_enabled: boolean }>('/api/v1/public/config'),
 
   publicConsultantApplication: (payload: {
     name: string;
@@ -138,10 +164,16 @@ export const api = {
       token
     ),
 
-  approveCompanyRegistration: (token: string, id: number, review_note?: string) =>
+  approveCompanyRegistration: (
+    token: string,
+    id: number,
+    payload: { review_note?: string; engagement: Omit<EngagementSetupInput, 'company_name' | 'key_user'> & {
+      key_user?: { role_title?: string };
+    } }
+  ) =>
     request<{ company_registration: CompanyRegistrationRow }>(
       `/api/v1/platform/registrations/companies/${id}/approve`,
-      { method: 'POST', body: JSON.stringify({ review_note }) },
+      { method: 'POST', body: JSON.stringify(payload) },
       token
     ),
 
@@ -197,20 +229,141 @@ export const api = {
   platformCompany: (token: string, companyId: number) =>
     request<{ company: CompanyDetail }>(`/api/v1/platform/companies/${companyId}`, {}, token),
 
-  createPlatformCompany: (
-    token: string,
-    payload: { name: string; display_name?: string; company_admin: { email: string; name: string; password: string } }
-  ) =>
-    request<{ company: Company }>(
-      '/api/v1/platform/companies',
-      { method: 'POST', body: JSON.stringify({ company: { name: payload.name, display_name: payload.display_name }, company_admin: payload.company_admin }) },
+  interviewHealth: (token: string, days = 30) =>
+    request<{ days: number; companies: InterviewHealthRow[] }>(`/api/v1/platform/interview_health?days=${days}`, {}, token),
+
+  /** Settings are merged into the company's, never replaced. */
+  updatePlatformCompanySettings: (token: string, companyId: number, settings: Record<string, unknown>) =>
+    request<{ company: CompanyDetail }>(
+      `/api/v1/platform/companies/${companyId}`,
+      { method: 'PATCH', body: JSON.stringify({ company: { settings } }) },
       token
     ),
 
-  resetPlatformCompanyAdminPassword: (token: string, companyId: number, password: string) =>
+  createEngagement: (token: string, engagement: EngagementSetupInput) =>
+    request<{ engagement: Engagement }>(
+      '/api/v1/platform/engagements',
+      { method: 'POST', body: JSON.stringify({ engagement }) },
+      token
+    ),
+
+  updateEngagement: (token: string, id: number, engagement: Partial<EngagementSetupInput>) =>
+    request<{ engagement: Engagement }>(
+      `/api/v1/platform/engagements/${id}`,
+      { method: 'PATCH', body: JSON.stringify({ engagement }) },
+      token
+    ),
+
+  // Stage 1 pricing (Doc 17): the administrator's queue, review and actions.
+  platformStage1Quotes: (token: string, status: Stage1QuoteStatus[] = ['PROPOSED']) =>
+    request<{ quotes: Stage1QuoteSummary[]; proposed_count: number }>(
+      `/api/v1/platform/stage1_quotes?${status.map((s) => `status[]=${s}`).join('&')}`,
+      {},
+      token
+    ),
+
+  platformStage1Quote: (token: string, id: number) =>
+    request<Stage1QuoteDetail>(`/api/v1/platform/stage1_quotes/${id}`, {}, token),
+
+  platformApproveQuote: (token: string, id: number, floorOverride?: { reason: string; free_text?: string }) =>
+    request<Stage1QuoteDetail>(
+      `/api/v1/platform/stage1_quotes/${id}/approve`,
+      { method: 'POST', body: JSON.stringify(floorOverride ? { floor_override: floorOverride } : {}) },
+      token
+    ),
+
+  platformAdjustQuote: (token: string, id: number, body: { subtotal: string; reason: string; free_text?: string }) =>
+    request<Stage1QuoteDetail>(
+      `/api/v1/platform/stage1_quotes/${id}/adjust`,
+      { method: 'POST', body: JSON.stringify(body) },
+      token
+    ),
+
+  platformChangeQuoteInputs: (
+    token: string,
+    id: number,
+    inputs: { deep_dives?: string; locations?: string; country?: string }
+  ) =>
+    request<Stage1QuoteDetail>(
+      `/api/v1/platform/stage1_quotes/${id}/change_inputs`,
+      { method: 'POST', body: JSON.stringify(inputs) },
+      token
+    ),
+
+  platformRejectQuote: (token: string, id: number, note: string) =>
+    request<Stage1QuoteDetail>(
+      `/api/v1/platform/stage1_quotes/${id}/reject`,
+      { method: 'POST', body: JSON.stringify({ note }) },
+      token
+    ),
+
+  // The Stage 1 rate card and the margin floor, versioned (Doc 17 §7–8).
+  platformRateCard: (token: string) => request<RateCardPayload>('/api/v1/platform/rate_card', {}, token),
+
+  platformNewRateCard: (token: string, body: NewRateCardInput) =>
+    request<RateCardPayload>('/api/v1/platform/rate_card', { method: 'POST', body: JSON.stringify(body) }, token),
+
+  platformNewMarginFloor: (token: string, percent: string, reason: string) =>
+    request<RateCardPayload>(
+      '/api/v1/platform/margin_floor',
+      { method: 'POST', body: JSON.stringify({ percent, reason }) },
+      token
+    ),
+
+  /** Works out the engagement's Stage 1 quote now (or a fresh one after a decline or expiry). */
+  platformCalculateQuote: (token: string, engagementId: number) =>
+    request<Stage1QuoteDetail>(`/api/v1/platform/engagements/${engagementId}/stage1_quote`, { method: 'POST' }, token),
+
+  platformCloseEngagement: (token: string, engagementId: number, reason: string) =>
+    request<{ engagement: { id: number; status: EngagementStatus } }>(
+      `/api/v1/platform/engagements/${engagementId}/close`,
+      { method: 'POST', body: JSON.stringify({ reason }) },
+      token
+    ),
+
+  // The client's Stage 1 proposal (Doc 17 §10).
+  companyStage1Quote: (token: string) =>
+    request<{ quote: ClientQuote | null }>('/api/v1/company/stage1_quote', {}, token),
+
+  companyAcceptQuote: (token: string, id: number) =>
+    request<{ quote: ClientQuote }>(
+      `/api/v1/company/stage1_quotes/${id}/accept`,
+      { method: 'POST', body: JSON.stringify({ acknowledged: true }) },
+      token
+    ),
+
+  companyDeclineQuote: (token: string, id: number, reason: string) =>
+    request<{ quote: ClientQuote }>(
+      `/api/v1/company/stage1_quotes/${id}/decline`,
+      { method: 'POST', body: JSON.stringify({ reason }) },
+      token
+    ),
+
+  /** The proposal as a file: a PDF, or HTML where PDFs can't be made. */
+  companyQuoteDocument: async (token: string, id: number): Promise<{ blob: Blob; filename: string }> => {
+    const res = await fetch(`${API_URL}/api/v1/company/stage1_quotes/${id}/pdf`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new ApiRequestError('The proposal could not be downloaded', res.status);
+    const disposition = res.headers.get('Content-Disposition') || '';
+    const filename = /filename="?([^";]+)"?/.exec(disposition)?.[1] || `Mjadi-Stage-1-proposal-v${id}.pdf`;
+    return { blob: await res.blob(), filename };
+  },
+
+  consultantStage1Quote: (token: string, companyId: number) =>
+    request<ConsultantStage1Quote>(`/api/v1/consultant/companies/${companyId}/stage1_quote`, {}, token),
+
+  resendEngagementInvitation: (token: string, id: number) =>
     request<{ ok: boolean; email: string }>(
-      `/api/v1/platform/companies/${companyId}/reset_admin_password`,
-      { method: 'POST', body: JSON.stringify({ password }) },
+      `/api/v1/platform/engagements/${id}/resend_invitation`,
+      { method: 'POST' },
+      token
+    ),
+
+  rereadEngagementWebsite: (token: string, id: number) =>
+    request<{ engagement: Engagement }>(
+      `/api/v1/platform/engagements/${id}/reread_website`,
+      { method: 'POST' },
       token
     ),
 
@@ -235,24 +388,62 @@ export const api = {
   companyDashboard: (token: string) =>
     request<CompanyDashboardPayload>('/api/v1/company/dashboard', {}, token),
 
+  // The conversation with leadership (Doc 08). `door` is where it is reached: the
+  // key user's portal (with their token) or a manager's signed link (no token).
+  leadershipShow: (door: LeadershipDoor) => request<LeadershipConversation>(door.base, {}, door.token),
+
+  leadershipConsent: (door: LeadershipDoor) =>
+    request<LeadershipConversation>(`${door.base}/consent`, { method: 'POST' }, door.token),
+
+  leadershipMessage: (door: LeadershipDoor, text: string, clientMessageId: string) =>
+    request<LeadershipConversation>(
+      `${door.base}/messages`,
+      { method: 'POST', body: JSON.stringify({ text, client_message_id: clientMessageId }) },
+      door.token
+    ),
+
+  leadershipPause: (door: LeadershipDoor) =>
+    request<LeadershipConversation>(`${door.base}/pause`, { method: 'POST' }, door.token),
+
+  leadershipResume: (door: LeadershipDoor) =>
+    request<LeadershipConversation>(`${door.base}/resume`, { method: 'POST' }, door.token),
+
+  leadershipVoiceNote: (door: LeadershipDoor, audio: File) => {
+    const form = new FormData();
+    form.append('audio', audio);
+    return leadershipUpload(door, 'voice_note', form);
+  },
+
+  leadershipDocument: (door: LeadershipDoor, file: File, documentRequestId?: number) => {
+    const form = new FormData();
+    form.append('file', file);
+    if (documentRequestId) form.append('document_request_id', String(documentRequestId));
+    return leadershipUpload(door, 'documents', form);
+  },
+
+  leadershipScope: (token: string, departments: { name: string; count: number | string }[]) =>
+    request<LeadershipConversation>(
+      '/api/v1/company/leadership/scope',
+      { method: 'PATCH', body: JSON.stringify({ departments }) },
+      token
+    ),
+
+  leadershipConfirmPerson: (token: string, index: number, participant: LeadershipPersonInput) =>
+    request<LeadershipConversation>(
+      '/api/v1/company/leadership/people',
+      { method: 'POST', body: JSON.stringify({ index, participant }) },
+      token
+    ),
+
+  leadershipDismissPerson: (token: string, index: number) =>
+    request<LeadershipConversation>(
+      '/api/v1/company/leadership/people/dismiss',
+      { method: 'POST', body: JSON.stringify({ index }) },
+      token
+    ),
+
   companyOnboarding: (token: string) =>
-    request<{
-      step: number;
-      portal_onboarding_completed_at?: string | null;
-      questionnaire_completed_at?: string | null;
-      questionnaire_answers?: QuestionnaireAnswerMap;
-      completion_percent?: number;
-      section_status?: Record<string, { touched: boolean; complete: boolean }>;
-      company: {
-        display_name: string;
-        locale: string;
-        engagement_mode?: string;
-        company_profile?: CompanyProfile;
-        known_systems?: string[];
-        website_url?: string | null;
-      };
-      invited_count: number;
-    }>('/api/v1/company/onboarding', {}, token),
+    request<OnboardingState>('/api/v1/company/onboarding', {}, token),
 
   updateOnboardingProfile: (
     token: string,
@@ -280,43 +471,34 @@ export const api = {
       token
     ),
 
-  updateOnboardingQuestionnaire: (
-    token: string,
-    payload: {
-      questionnaire_answers: QuestionnaireAnswerMap;
-      questionnaire_step?: number;
-    }
-  ) =>
-    request<{
-      ok: boolean;
-      questionnaire_answers: QuestionnaireAnswerMap;
-      questionnaire_step: number;
-      questionnaire_completed_at?: string | null;
-      completion_percent: number;
-      section_status?: Record<string, { touched: boolean; complete: boolean }>;
-    }>('/api/v1/company/onboarding/questionnaire', { method: 'PATCH', body: JSON.stringify(payload) }, token),
-
   /**
-   * Autosave. Persists answers and nothing else — no profile sync, no completion
-   * stamping, no step tracking. Those run on step change and on finish, via
-   * updateOnboardingQuestionnaire.
+   * Autosave. Stores answers and nothing else; the profile is updated on submit
+   * (or when a group is saved), not on every keystroke.
    */
-  updateQuestionnaireAnswers: (token: string, answers: QuestionnaireAnswerMap) =>
+  updateQuestionnaireAnswers: (token: string, answers: QuestionnaireAnswerPayload) =>
     request<{ ok: boolean }>(
       '/api/v1/company/onboarding/questionnaire/answers',
-      { method: 'PATCH', body: JSON.stringify({ questionnaire_answers: answers }) },
+      { method: 'PATCH', body: JSON.stringify({ answers }) },
       token
     ),
 
-  completeOnboarding: (token: string, payload?: { mark_questionnaire_complete?: boolean }) =>
-    request<{ ok: boolean; redirect_to?: string; completion_percent?: number }>(
-      '/api/v1/company/onboarding/complete',
-      { method: 'POST', body: JSON.stringify(payload || {}) },
+  answerPrefillProposal: (token: string, id: number, action: 'confirm' | 'correct' | 'reject') =>
+    request<{ candidate: PrefillProposal; answers?: QuestionnaireAnswerMap }>(
+      `/api/v1/company/onboarding/prefill_candidates/${id}/${action}`,
+      { method: 'POST' },
+      token
+    ),
+
+  /** Submits onboarding the first time; afterwards, saves edits to the facts. */
+  submitOnboarding: (token: string, payload: { answers: QuestionnaireAnswerPayload; confidentiality_acknowledged: boolean }) =>
+    request<OnboardingState & { redirect_to?: string }>(
+      '/api/v1/company/onboarding/submit',
+      { method: 'POST', body: JSON.stringify(payload) },
       token
     ),
 
   companyEmployees: (token: string) =>
-    request<{ employees: Employee[] }>('/api/v1/company/employees', {}, token),
+    request<{ employees: Employee[]; invitations?: StaffInvitationState }>('/api/v1/company/employees', {}, token),
 
   employeeValuePreference: (token: string, employeeId: number) =>
     request<{
@@ -363,16 +545,48 @@ export const api = {
     display_name?: string,
     department?: string,
     email?: string,
-    preferred_channel?: 'whatsapp' | 'web' | 'both'
+    preferred_channel?: 'whatsapp' | 'web' | 'both',
+    /** The person planned during onboarding this invitation is for, if any. */
+    engagement_participant_id?: number,
+    /** The client has agreed to the extra charge for someone beyond the Stage 1 price. */
+    confirm_additional?: boolean
   ) =>
-    request<{ employee: Employee; discover_url?: string }>(
+    request<{ employee: Employee; discover_url?: string; additional?: boolean }>(
       '/api/v1/company/employees',
       {
         method: 'POST',
-        body: JSON.stringify({ phone_e164, display_name, department, email, preferred_channel }),
+        body: JSON.stringify({
+          phone_e164,
+          display_name,
+          department,
+          email,
+          preferred_channel,
+          engagement_participant_id,
+          confirm_additional,
+        }),
       },
       token
     ),
+
+  plannedParticipants: (token: string) =>
+    request<{ participants: PlannedParticipant[] }>('/api/v1/company/onboarding/participants', {}, token),
+
+  addPlannedParticipant: (token: string, participant: PlannedParticipantInput) =>
+    request<{ participant: PlannedParticipant; warnings: string[] }>(
+      '/api/v1/company/onboarding/participants',
+      { method: 'POST', body: JSON.stringify({ participant }) },
+      token
+    ),
+
+  updatePlannedParticipant: (token: string, id: number, participant: Partial<PlannedParticipantInput>) =>
+    request<{ participant: PlannedParticipant; warnings: string[] }>(
+      `/api/v1/company/onboarding/participants/${id}`,
+      { method: 'PATCH', body: JSON.stringify({ participant }) },
+      token
+    ),
+
+  removePlannedParticipant: (token: string, id: number) =>
+    request<void>(`/api/v1/company/onboarding/participants/${id}`, { method: 'DELETE' }, token),
 
   bulkInviteEmployees: (
     token: string,
@@ -403,24 +617,6 @@ export const api = {
     }
     return data as { ok: boolean; message: string; nudge: EmployeeNudge };
   },
-
-  companyConversations: (token: string) =>
-    request<{ conversations: CompanyConversation[] }>('/api/v1/company/conversations', {}, token),
-
-  companyConversation: (token: string, conversationId: number) =>
-    request<{
-      conversation: CompanyConversation;
-      discovery_provenance: DiscoveryProvenanceEntry[];
-      messages: CompanyConversationMessage[];
-      media_attachments: MediaAttachment[];
-    }>(
-      `/api/v1/company/conversations/${conversationId}`,
-      {},
-      token
-    ),
-
-  companyMediaAttachments: (token: string) =>
-    request<{ media_attachments: MediaAttachment[] }>('/api/v1/company/media_attachments', {}, token),
 
   fetchMediaBlob: async (token: string, downloadUrl: string) => {
     let path = downloadUrl;
@@ -859,10 +1055,25 @@ export const api = {
       token
     ),
 
-  approvePlatformReport: (token: string, companyId: number, reportId: number) =>
+  /** An override reason approves over blocking checks; it is audited. */
+  approvePlatformReport: (token: string, companyId: number, reportId: number, overrideReason?: string) =>
     request<{ report: PlatformReport }>(
       `/api/v1/platform/companies/${companyId}/reports/${reportId}/approve`,
-      { method: 'POST' },
+      { method: 'POST', body: JSON.stringify(overrideReason ? { override_reason: overrideReason } : {}) },
+      token
+    ),
+
+  platformReportChecks: (token: string, companyId: number, reportId: number) =>
+    request<{ checks: ReportCheck[] }>(
+      `/api/v1/platform/companies/${companyId}/reports/${reportId}/checks`,
+      {},
+      token
+    ),
+
+  consultantReportChecks: (token: string, companyId: number, reportId: number) =>
+    request<{ checks: ReportCheck[] }>(
+      `/api/v1/consultant/companies/${companyId}/reports/${reportId}/checks`,
+      {},
       token
     ),
 
@@ -912,16 +1123,6 @@ export const api = {
     request<GeneratedReport>(
       `/api/v1/consultant/companies/${companyId}/reports`,
       { method: 'POST', body: JSON.stringify({ force }) },
-      token
-    ),
-
-  discoveryQuestions: (token: string) =>
-    request<{ questions: DiscoveryQuestion[] }>('/api/v1/company/discovery_questions', {}, token),
-
-  discoveryQuestionFeedback: (token: string, messageId: number, feedback: string, note?: string) =>
-    request<{ feedback: { message_id: number; feedback: string; note?: string } }>(
-      `/api/v1/company/discovery_questions/${messageId}/feedback`,
-      { method: 'POST', body: JSON.stringify({ feedback, note }) },
       token
     ),
 
@@ -1026,6 +1227,27 @@ export const api = {
     request<{ agentic_ideas: AgenticIdea[]; synthesized: number }>(
       `/api/v1/platform/companies/${companyId}/agentic_ideas/synthesize`,
       { method: 'POST' },
+      token
+    ),
+
+  consultantFindings: (token: string, companyId: number) =>
+    request<{ findings: Finding[]; summary: FindingsSummary; intervention_types: { key: string; label: string }[] }>(
+      `/api/v1/consultant/companies/${companyId}/findings`,
+      {},
+      token
+    ),
+
+  updateConsultantFinding: (token: string, companyId: number, id: number, payload: FindingUpdate) =>
+    request<{ finding: Finding }>(
+      `/api/v1/consultant/companies/${companyId}/findings/${id}`,
+      { method: 'PATCH', body: JSON.stringify({ finding: payload }) },
+      token
+    ),
+
+  mergeConsultantFinding: (token: string, companyId: number, id: number, intoId: number) =>
+    request<{ finding: Finding }>(
+      `/api/v1/consultant/companies/${companyId}/findings/${id}/merge`,
+      { method: 'POST', body: JSON.stringify({ into_id: intoId }) },
       token
     ),
 
@@ -1342,6 +1564,53 @@ export const api = {
   consultantDashboard: (token: string) => request<ConsultantDashboardPayload>('/api/v1/consultant/dashboard', {}, token),
 
   consultantCompany: (token: string, id: number) => request<{ company: ConsultantCompanyDetail }>(`/api/v1/consultant/companies/${id}`, {}, token),
+
+  consultantLeadership: (token: string, companyId: number) =>
+    request<ConsultantLeadership>(`/api/v1/consultant/companies/${companyId}/leadership`, {}, token),
+
+  consultantLeadershipAction: (
+    token: string,
+    companyId: number,
+    path: string,
+    method: 'POST' | 'PATCH',
+    body?: Record<string, unknown>
+  ) =>
+    request<ConsultantLeadership>(
+      `/api/v1/consultant/companies/${companyId}/leadership/${path}`,
+      { method, body: body ? JSON.stringify(body) : undefined },
+      token
+    ),
+  consultantSynthesis: (token: string, companyId: number) =>
+    request<ConsultantSynthesis>(`/api/v1/consultant/companies/${companyId}/synthesis`, {}, token),
+
+  consultantSynthesisRun: (token: string, companyId: number) =>
+    request<ConsultantSynthesis>(`/api/v1/consultant/companies/${companyId}/synthesis/run`, { method: 'POST' }, token),
+
+  /** A consultant's decision on synthesis (Doc 10 §17.2). Every one needs a reason. */
+  consultantSynthesisDecide: (
+    token: string,
+    companyId: number,
+    decision: { action: SynthesisAction; subjectId?: number; rationale: string; details?: Record<string, unknown> }
+  ) =>
+    request<ConsultantSynthesis>(
+      `/api/v1/consultant/companies/${companyId}/synthesis/decisions`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          decision_action: decision.action,
+          subject_id: decision.subjectId,
+          rationale: decision.rationale,
+          details: decision.details ?? {},
+        }),
+      },
+      token
+    ),
+  updateConsultantCompanyFacts: (token: string, companyId: number, answers: QuestionnaireAnswerPayload) =>
+    request<CompanyFactsUpdate>(
+      `/api/v1/consultant/companies/${companyId}/facts`,
+      { method: 'PATCH', body: JSON.stringify({ answers }) },
+      token
+    ),
 
   consultantEmployees: (token: string, companyId: number) =>
     request<{ employees: Employee[] }>(`/api/v1/consultant/companies/${companyId}/employees`, {}, token),
@@ -1817,10 +2086,23 @@ export interface ConsultantCompanyDetail extends ConsultantCompanySummary {
   questionnaire_summary?: {
     industry?: string;
     size_band?: string;
-    business_goals?: string | string[];
     org_departments?: string[];
     systems?: string[];
   };
+  legacy_profile?: LegacyProfile;
+  /** The client's onboarding answers, which a consultant may correct once submitted. */
+  onboarding_answers?: QuestionnaireAnswerMap;
+  profile_provenance?: ProfileProvenance;
+  onboarding_submitted_at?: string | null;
+  profile_changes?: ProfileChangeEntry[];
+}
+
+/** What saving a consultant's correction to the company's facts returns. */
+export interface CompanyFactsUpdate {
+  company_profile: CompanyProfile;
+  profile_provenance: ProfileProvenance;
+  onboarding_answers: QuestionnaireAnswerMap;
+  profile_changes: ProfileChangeEntry[];
 }
 
 export interface ConsultantReportDetail {
@@ -1933,6 +2215,9 @@ export type QuestionnaireAnswerMap = Record<
   string,
   string | string[] | Record<string, string | string[]> | undefined
 >;
+
+/** Answers as sent: a cleared one is null (see answersForSending). */
+export type QuestionnaireAnswerPayload = Record<string, string | string[] | Record<string, string | string[]> | null>;
 
 export interface DeepDiveSuggestion {
   /** Addressed to the employee. Sent as-is if the consultant accepts it. */
@@ -2051,6 +2336,8 @@ export interface BillingSnapshot {
   usage: { conversations_used: number; conversation_limit: number | null; remaining: number | null; limit_reached: boolean };
   plans: { id: string; conversations: number; amount_cents: number }[];
   stripe_configured: boolean;
+  /** The client portal shows billing only when the company is sold as a subscription. */
+  billing_visible?: boolean;
 }
 
 export interface ImpersonationResponse {
@@ -2095,6 +2382,390 @@ export interface PlatformDashboardPayload {
   reports_awaiting_approval: PlatformApprovalRow[];
 }
 
+/** Where a conversation with leadership is reached: its API base, and a portal token if any. */
+export interface LeadershipDoor {
+  base: string;
+  token?: string | null;
+}
+
+async function leadershipUpload(door: LeadershipDoor, path: string, form: FormData) {
+  const res = await fetch(`${API_URL}${door.base}/${path}`, {
+    method: 'POST',
+    headers: door.token ? { Authorization: `Bearer ${door.token}` } : {},
+    body: form,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = (data as ApiError).error || (data as ApiError).errors?.join(', ') || res.statusText;
+    throw new ApiRequestError(err, res.status);
+  }
+  return data as LeadershipConversation;
+}
+
+export interface LeadershipTurn {
+  index: number;
+  from: 'assistant' | 'participant';
+  text: string;
+  input_mode: 'TEXT' | 'VOICE_NOTE';
+  at: string;
+}
+
+export interface LeadershipDocumentRequest {
+  id: number;
+  requested_item: string;
+  status: 'REQUESTED' | 'RECEIVED' | 'DECLINED' | 'NOT_AVAILABLE';
+  uploaded: number;
+}
+
+export interface LeadershipSession {
+  id: number;
+  state: string;
+  language: 'en' | 'ar';
+  finished: boolean;
+  needs_resume: boolean;
+  progress: 'early' | 'middle' | 'near_end' | 'done';
+  mode: string | null;
+  themes: string[];
+  document_requests: LeadershipDocumentRequest[];
+  turns: LeadershipTurn[];
+}
+
+export interface LeadershipScope {
+  editable: boolean;
+  departments: { name: string; count: number | 'UNKNOWN' }[];
+  counts_known: boolean;
+  suggested_departments: string[];
+  people_mentioned: { index: number; name: string | null; role: string | null; department: string | null; reason: string }[];
+  planned_people: { id: number; name: string; participant_type: 'EMPLOYEE' | 'KEY_PERSON'; department: string | null; role_title: string | null }[];
+}
+
+export interface LeadershipConversation {
+  available: boolean;
+  participant: {
+    name: string;
+    role_title: string | null;
+    key_user: boolean;
+    participation_status: string;
+    consented: boolean;
+  };
+  consent: { version: string; points: string[] };
+  session: LeadershipSession | null;
+  /** The key user's scope card; absent behind a manager's link. */
+  scope?: LeadershipScope;
+  warnings?: string[];
+}
+
+export interface LeadershipPersonInput {
+  participant_type: 'EMPLOYEE' | 'KEY_PERSON';
+  name: string;
+  role_title?: string;
+  department?: string;
+  email?: string;
+  phone_e164?: string;
+}
+
+export type ParticipationStatus =
+  | 'NOT_INVITED'
+  | 'INVITED'
+  | 'STARTED'
+  | 'PAUSED'
+  | 'COMPLETED'
+  | 'ABANDONED'
+  | 'DECLINED';
+
+export interface ConsultantLeadershipFinding {
+  id: number;
+  version: number;
+  status: 'ACTIVE' | 'SUPERSEDED' | 'REJECTED';
+  category: string;
+  scope: string;
+  statement: string;
+  business_consequence: string | null;
+  symptom_or_cause: string | null;
+  fact_status: string;
+  management_importance: string | null;
+  related_departments: string[];
+  validation_need: string | null;
+  evidence: string[];
+  edit_rationale: string | null;
+}
+
+export interface ConsultantLeadershipContext {
+  id: number;
+  version: number;
+  status: 'COMPLETE' | 'INCOMPLETE';
+  persona: string | null;
+  scope: string | null;
+  fallback_reason: string | null;
+  content: Record<string, unknown>;
+  unknowns: { domain: string; note: string }[];
+  contradictions: { between: string; note: string; evidence: string[] }[];
+  completion: { domains_adequate?: string[]; domains_thin?: string[]; confidence?: string };
+  neutral_employee_context: { department: string; context: string }[];
+  consultant_private: {
+    political_context?: Record<string, { note: string; evidence: string[] }[]>;
+    consultant_notes?: { type: string; note: string; evidence: string[] }[];
+  };
+  findings: ConsultantLeadershipFinding[];
+  initiatives: { id: number; initiative_type: string; description: string; timing: string | null; status: string; evidence: string[] }[];
+}
+
+export interface ConsultantLeadershipSession {
+  id: number;
+  version: number;
+  state: string;
+  close_reason: string | null;
+  language: string;
+  needs_review: boolean;
+  review_reasons: { type: string; turn?: string }[];
+  turn_count: number;
+  started_at: string | null;
+  completed_at: string | null;
+  last_activity_at: string | null;
+  coverage: Record<string, string>;
+  contradictions: { field: string; value: string; evidence: string }[];
+  people_mentioned: { name: string | null; role: string | null; department: string | null; reason: string; confirmed_id?: number; dismissed?: boolean }[];
+  document_requests: { id: number; requested_item: string; status: string }[];
+  documents: { id: number; filename: string; document_request_id: number | null }[];
+  transcript: {
+    index: number;
+    locator: string;
+    direction: 'AI' | 'PARTICIPANT' | 'SYSTEM';
+    text: string;
+    mode: string | null;
+    targeted_slot: string | null;
+    slots_filled: string[];
+    input_mode: string;
+    fallback_reason: string | null;
+    capture: Record<string, unknown> | null;
+    at: string;
+  }[];
+}
+
+export interface ConsultantLeadershipParticipant {
+  id: number;
+  name: string;
+  role_title: string | null;
+  email: string | null;
+  key_user: boolean;
+  source: string;
+  persona: string | null;
+  scope: string | null;
+  participation_status: ParticipationStatus;
+  invited_at: string | null;
+  can_invite: boolean;
+  reminder_count: number;
+  consultant_focus: string | null;
+  sessions: ConsultantLeadershipSession[];
+  contexts: ConsultantLeadershipContext[];
+}
+
+export interface ConsultantLeadership {
+  engagement: {
+    id: number;
+    status: EngagementStatus;
+    planned_departments: { name: string; count: number | 'UNKNOWN' }[];
+    planned_participant_count: number | null;
+    plan_editable: boolean;
+  };
+  available: boolean;
+  personas: string[];
+  areas: string[];
+  participants: ConsultantLeadershipParticipant[];
+}
+
+// Consolidation and synthesis (Doc 10), as the consultant reviews it.
+export type SynthesisAction =
+  | 'APPROVE_CLUSTER'
+  | 'REJECT_CLUSTER'
+  | 'SPLIT_CLUSTER'
+  | 'MERGE_CLUSTERS'
+  | 'CHANGE_VARIANT'
+  | 'OVERRIDE_EFFORT'
+  | 'APPROVE_OPPORTUNITY'
+  | 'RECLASSIFY_OPPORTUNITY'
+  | 'ADD_OPPORTUNITY'
+  | 'DEFER'
+  | 'REJECT_OPPORTUNITY'
+  | 'APPROVE_ROOT_CAUSE'
+  | 'REJECT_ROOT_CAUSE'
+  | 'APPROVE_VALIDATION'
+  | 'RESOLVE_VALIDATION'
+  | 'REQUEST_CLARIFICATION'
+  | 'EDIT_OPERATING_PICTURE'
+  | 'APPROVE_OPERATING_PICTURE'
+  | 'CLASSIFY_PAIR';
+
+export type SynthesisState = 'not_started' | 'queued' | 'running' | 'failed' | 'stale' | 'needs_review' | 'approved';
+export type SynthesisConfidence = 'HIGH' | 'MEDIUM' | 'LOW';
+export type SynthesisLevel = 'HIGH' | 'MEDIUM' | 'LOW';
+
+export interface SynthesisMember {
+  finding_id: number;
+  title: string;
+  role?: string | null;
+  department?: string | null;
+  hours_min?: number | null;
+  hours_max?: number | null;
+  effort_type?: string;
+  single_occupant_role?: boolean;
+  variant?: string | null;
+  stale?: boolean;
+}
+
+export interface SynthesisCluster {
+  id: number;
+  key: string;
+  version: number;
+  status: 'PROVISIONAL' | 'APPROVED';
+  origin: 'AI' | 'CONSULTANT';
+  name: string;
+  type: 'SHARED_IDENTICAL' | 'SHARED_VARIANT' | 'END_TO_END' | 'SEQUENTIAL_STAGE';
+  departments: string[];
+  roles: string[];
+  single_member: boolean;
+  confidence: SynthesisConfidence | null;
+  why: string | null;
+  variants: { label: string; item_ids: number[]; distinguishing_factors?: string[]; material_differences?: string[] }[];
+  stages: { role: string | null; department: string | null; item_ids: number[] }[];
+  members: SynthesisMember[];
+  effort: {
+    raw_min: number | null;
+    raw_max: number | null;
+    dedup_min: number | null;
+    dedup_max: number | null;
+    hours_min: number | null;
+    hours_max: number | null;
+    overridden: boolean;
+    override_rationale: string | null;
+    conservative: boolean;
+    double_count_warning: boolean;
+    warning_reason: string | null;
+    duplication: boolean;
+    adjustments: { reason: string; removed_item_id?: number; kept_item_id?: number }[];
+  } | null;
+  sampling: { recommended: { role: string | null; covers: string }[]; not_needed: number };
+}
+
+export interface SynthesisPair {
+  id: number;
+  relationship_type: string;
+  recommendation: string;
+  confidence: SynthesisConfidence;
+  origin: 'AI' | 'FALLBACK' | 'CONSULTANT';
+  rationale: string | null;
+  clarification: string | null;
+  a: SynthesisMember;
+  b: SynthesisMember;
+}
+
+export interface SynthesisOpportunity {
+  id: number;
+  opportunity_key: string;
+  version: number;
+  status: 'PROPOSED' | 'APPROVED' | 'DEFERRED' | 'REJECTED';
+  origin: 'AI' | 'CONSULTANT';
+  level: string;
+  category: string;
+  title: string;
+  problem_statement: string;
+  evidence_summary: string | null;
+  affected_departments: string[];
+  root_cause_key: string | null;
+  capacity_reference: string | null;
+  intervention_direction: string | null;
+  ai_relevance: 'PRIMARY' | 'SUPPORTING' | 'NONE' | null;
+  ai_note: string | null;
+  management_alignment: string | null;
+  planned_initiative_conflict: string | null;
+  recommended_next_action: string;
+  priority_reason: string | null;
+  /** What leadership said mattered. */
+  management_importance: SynthesisLevel | null;
+  /** The platform's rule over the evidence — kept apart from management importance. */
+  platform_priority: SynthesisLevel | null;
+  confidence: SynthesisConfidence;
+}
+
+export interface SynthesisRootCause {
+  id: number;
+  root_cause_key: string;
+  status: 'PROPOSED' | 'APPROVED' | 'REJECTED';
+  statement: string;
+  affected_departments: string[];
+  supporting_signals: string[];
+  fact_status: 'INFERRED' | 'CONSULTANT_CONFIRMED';
+  confidence: SynthesisConfidence;
+  what_would_confirm: string | null;
+}
+
+export interface SynthesisValidation {
+  id: number;
+  status: 'PROPOSED' | 'APPROVED' | 'RESOLVED' | 'CLARIFY' | 'REJECTED';
+  management_view: string;
+  what_evidence_shows: string | null;
+  relationship: 'SUPPORTED' | 'PARTLY_SUPPORTED' | 'NOT_YET_OBSERVED' | 'POINTS_ELSEWHERE';
+  material: boolean;
+  note: string | null;
+  resolution: string | null;
+  fact_status: 'REPORTED' | 'CONTRADICTED';
+  strategic_finding: {
+    id: number;
+    statement: string;
+    category: string;
+    management_importance: SynthesisLevel | null;
+    persona: string | null;
+    validation_need: string | null;
+  };
+}
+
+export interface OperatingPicture {
+  how_the_business_runs?: string;
+  departments?: { name: string; what_it_does?: string; main_systems?: string[] }[];
+  work_flows_between?: { from: string; to: string; what_moves: string; how?: string }[];
+  where_information_lives?: string[];
+  ai_and_automation_in_use?: string[];
+}
+
+export interface ConsultantSynthesis {
+  status: SynthesisState;
+  review: Record<'clusters' | 'pairs' | 'opportunities' | 'root_causes' | 'validations' | 'operating_picture', number>;
+  run: {
+    id: number;
+    version: number;
+    status: 'COMPLETE' | 'PARTIAL';
+    trigger: string;
+    finished_at: string | null;
+    fallback_reason: string | null;
+    confidence: SynthesisConfidence | null;
+    coverage_notes: { note: string }[];
+    validator_drops: number;
+    counts: Record<string, unknown>;
+    suggested_additions: {
+      cluster_key: string;
+      finding_id: number;
+      relationship: string;
+      rationale: string | null;
+      finding: SynthesisMember;
+    }[];
+    queued: 'QUEUED' | 'RUNNING' | null;
+  } | null;
+  clusters: SynthesisCluster[];
+  pairs_to_review: SynthesisPair[];
+  opportunities: SynthesisOpportunity[];
+  root_causes: SynthesisRootCause[];
+  validations: SynthesisValidation[];
+  strategic_findings_without_verdict: { id: number; statement: string; management_importance: string | null }[];
+  operating_picture: {
+    proposed: OperatingPicture;
+    consultant: OperatingPicture | null;
+    status: 'PROPOSED' | 'APPROVED' | 'REJECTED';
+  } | null;
+  initiative_conflicts: { initiative: string; effect: string; recommendation: string }[];
+  role_potential: { role: string; department?: string; potential_focus: string[]; basis: string }[];
+  decisions: { action: SynthesisAction; rationale: string; subject_type: string; at: string }[];
+}
+
 export interface CompanyDashboardPayload {
   user: CompanyUser;
   company: {
@@ -2115,8 +2786,26 @@ export interface CompanyDashboardPayload {
   report_readiness_breakdown: Record<string, number>;
   engagement_mode?: string;
   docs_first_phase?: boolean;
-  questionnaire_completed_at?: string | null;
-  questionnaire_completion_percent?: number;
+  onboarding_submitted_at?: string | null;
+  engagement_status?: EngagementStatus | null;
+  /** Null while any department's count is still "Not sure". */
+  planned_participant_count?: number | null;
+  /** The conversations with leadership: the key user's own, and the other managers' status only. */
+  leadership?: {
+    available: boolean;
+    is_key_user: boolean;
+    own: { participation_status: ParticipationStatus; finished: boolean } | null;
+    managers: {
+      id: number;
+      name: string;
+      role_title: string | null;
+      participation_status: ParticipationStatus;
+      can_invite: boolean;
+      reminders_used_up: boolean;
+    }[];
+  } | null;
+  /** The Stage 1 proposal the client should see now, if any (Doc 17 §10). */
+  stage1_quote?: Stage1QuoteGlance | null;
   usage: { conversations_used: number; conversation_limit: number | null; remaining: number | null; limit_reached: boolean };
   latest_report: Report | null;
   opportunity_estimate: {
@@ -2141,6 +2830,7 @@ export interface CompanyDashboardPayload {
   intel_counts?: {
     total_documents: number;
     ready_documents: number;
+    processing_documents?: number;
     open_clarifications: number;
     signal_count: number;
     pattern_count: number;
@@ -2152,6 +2842,8 @@ export interface CompanyDashboardPayload {
   integrations?: {
     openai_configured: boolean;
     stripe_configured: boolean;
+  /** The client portal shows billing only when the company is sold as a subscription. */
+  billing_visible?: boolean;
     gotenberg_ok: boolean;
     mocks_allowed: boolean;
   };
@@ -2301,15 +2993,28 @@ export interface PlatformSystemHealth {
   };
 }
 
+/** Confirmed company facts only (Doc 07 §13). Goals and revenue are never here. */
 export interface CompanyProfile {
   industry?: string;
+  industry_detail?: string;
   sub_industry?: string;
   size_band?: string;
   region?: string;
   country?: string;
-  annual_revenue_band?: string;
-  business_goals?: string | string[];
+  locations?: string[];
+  business_model?: string[];
+  products_services?: string;
   org_departments?: string[];
+  customer_channels?: string[];
+  data_storage?: string[];
+  current_ai_use?: string[];
+  security_constraints?: string;
+}
+
+/** What the old questionnaire held that the profile no longer may. Consultants only. */
+export interface LegacyProfile {
+  business_goals?: string | string[];
+  annual_revenue_band?: string;
 }
 
 export interface IntelligenceSnapshot {
@@ -2377,15 +3082,6 @@ export interface PlatformReport extends Report {
     overall_note?: string | null;
     comments: { id: number; section_key: string; body: string }[];
   }[];
-}
-
-export interface DiscoveryQuestion {
-  id: number;
-  body: string;
-  created_at: string;
-  employee: { id: number; display_name: string | null; department: string | null };
-  feedback: string | null;
-  feedback_note: string | null;
 }
 
 export interface Recommendation {
@@ -2543,7 +3239,132 @@ export interface Company {
   report_readiness_score: number;
   portal_onboarding_completed_at: string | null;
   approval_status?: string;
+  engagement_status?: EngagementStatus | null;
   subscription: { plan: string; status: string; trial_ends_at: string | null } | null;
+  created_at: string;
+}
+
+export type EngagementStatus =
+  | 'SET_UP'
+  | 'ONBOARDING'
+  | 'KEY_PERSON_DISCOVERY'
+  | 'STAGE_1_PRICING'
+  | 'STAGE_1_ACTIVE'
+  | 'CLOSED';
+
+/** What Mjadi enters to set up an engagement (Doc 07 §3, S1–S8). */
+export interface EngagementSetupInput {
+  company_name: string;
+  website_url?: string;
+  scope_type: 'COMPANY' | 'DEPARTMENT';
+  departments_in_scope: string[];
+  key_user: { name: string; role_title?: string; email: string; phone?: string };
+  lead_consultant_id: number | null;
+  languages: string[];
+  proposal_reference?: string;
+}
+
+/** Someone the key user plans to involve (Doc 07 §7): staff (P3) or another manager (P4). */
+export interface PlannedParticipantInput {
+  participant_type: 'EMPLOYEE' | 'KEY_PERSON';
+  name: string;
+  role_title?: string;
+  department?: string;
+  scope?: string;
+  email?: string;
+  phone_e164?: string;
+  preferred_language?: string;
+}
+
+export interface PlannedParticipant extends PlannedParticipantInput {
+  id: number;
+  nominated_by_client: boolean;
+  added_after_pricing: boolean;
+  employee_id: number | null;
+}
+
+/** The onboarding screen's state (Api::V1::Company::OnboardingController#state_json). */
+export interface OnboardingState {
+  answers: QuestionnaireAnswerMap;
+  step: number | null;
+  submitted_at: string | null;
+  missing_for_submit: string[];
+  company: {
+    display_name: string | null;
+    locale: string;
+    website_url: string | null;
+    company_profile: CompanyProfile;
+    profile_provenance: Record<string, { source: string; at: string; unknown?: boolean }>;
+  };
+  key_user: { name: string; phone: string | null; job_title: string | null; preferred_language: string | null };
+  engagement: {
+    status: EngagementStatus;
+    scope_type: 'COMPANY' | 'DEPARTMENT';
+    departments_in_scope: string[];
+    languages: string[];
+    planned_departments: { name: string; count: number | 'UNKNOWN' }[];
+    planned_participant_count: number | null;
+    confidentiality_acknowledged_at: string | null;
+  } | null;
+  prefill: {
+    status: PrefillStatus;
+    entity_note: string | null;
+    candidates: PrefillProposal[];
+  } | null;
+  confidentiality: { version: string; text: string };
+}
+
+/** Where reading the client's website for proposals has got to. */
+export type PrefillStatus = 'not_started' | 'pending' | 'running' | 'done' | 'empty' | 'failed';
+
+/** A value read from the client's website, waiting for them to confirm (Doc 07 §5). */
+export interface PrefillProposal {
+  id: number;
+  target_field: string;
+  display_text: string;
+  evidence_excerpt: string;
+  source_url: string;
+  confidence: 'HIGH' | 'MEDIUM' | 'LOW';
+  status: 'PROPOSED' | 'CONFIRMED' | 'CORRECTED' | 'REJECTED';
+  /** Disagrees with something the key user already entered. */
+  conflicts: boolean;
+}
+
+export interface Engagement {
+  id: number;
+  company_id: number;
+  status: EngagementStatus;
+  status_history: { from: string | null; to: string; at: string; reason?: string; by_type?: string; by_id?: number }[];
+  scope_type: 'COMPANY' | 'DEPARTMENT';
+  departments_in_scope: string[];
+  languages: string[];
+  proposal_reference: string | null;
+  planned_departments: { name: string; count: number | 'UNKNOWN' }[];
+  planned_participant_count: number | null;
+  onboarding_submitted_at: string | null;
+  prefill_status: PrefillStatus;
+  prefill_entity_note: string | null;
+  prefill_candidates: { id: number; target_field: string; status: PrefillProposal['status'] }[];
+  /** How far each conversation with leadership has got; never its content. */
+  leadership?: {
+    name: string;
+    key_user: boolean;
+    participation_status: ParticipationStatus;
+    close_reason: string | null;
+    needs_review: boolean;
+  }[];
+  confidentiality_acknowledged_at: string | null;
+  key_user: { id: number; name: string; email: string; phone: string | null; job_title: string | null; status: string } | null;
+  lead_consultant: { id: number; name: string } | null;
+  /** The newest Stage 1 quote, if one has been worked out. */
+  stage1_quote?: {
+    id: number;
+    version: number;
+    status: Stage1QuoteStatus;
+    total: string;
+    currency: string;
+    below_floor: boolean;
+  } | null;
   created_at: string;
 }
 
@@ -2560,8 +3381,7 @@ export interface CompanyRegistrationRow {
   company_id: number;
   company_approval_status?: string;
   admin_user_status?: string;
-  company_profile?: CompanyProfile;
-  engagement_mode?: string;
+  website_url?: string | null;
   created_at: string;
   reviewed_at?: string | null;
 }
@@ -2579,6 +3399,20 @@ export interface ConsultantApplicationRow {
   created_at: string;
 }
 
+/** Where each company fact came from (Companies::ProfileUpdater). */
+export type ProfileProvenance = Record<string, { source: string; at: string; unknown?: boolean; by_type?: string; by_id?: number }>;
+
+/** One change to a company fact after onboarding was submitted. */
+export interface ProfileChangeEntry {
+  id: number;
+  field: string;
+  from: unknown;
+  to: unknown;
+  source: string;
+  actor: { type: string; name: string | null } | null;
+  at: string;
+}
+
 export interface CompanyDetail extends Company {
   settings: Record<string, unknown>;
   intelligence_snapshot: Record<string, unknown>;
@@ -2587,11 +3421,12 @@ export interface CompanyDetail extends Company {
   completed_count?: number;
   invited_count?: number;
   company_profile?: Record<string, unknown>;
-  questionnaire_answers?: Record<string, unknown>;
-  questionnaire_step?: number;
-  questionnaire_completed_at?: string | null;
-  questionnaire_completion_percent?: number;
+  profile_provenance?: ProfileProvenance;
+  onboarding_answers?: Record<string, unknown>;
+  website_url?: string | null;
+  profile_changes?: ProfileChangeEntry[];
   company_users?: { id: number; email: string; name: string; role: string; status: string }[];
+  engagement?: Engagement | null;
 }
 
 export interface CompanyUser {
@@ -2623,6 +3458,136 @@ export interface EmployeeValuePreference {
   subscribed: boolean;
 }
 
+/** One piece of work, in one role, that costs the company something. */
+export interface Finding {
+  id: number;
+  department: string | null;
+  role_title: string | null;
+  area: string;
+  /** The consultant's wording where they gave one, the interview's otherwise. */
+  title: string;
+  what_happens_now: string | null;
+  friction: string | null;
+  original: { title: string | null; what_happens_now: string | null; friction: string | null };
+  consultant: {
+    title: string | null;
+    what_happens_now: string | null;
+    friction: string | null;
+    note: string | null;
+    cause: string | null;
+    /** null: not said; the draft's reading stands, or analysis for their own cause. */
+    cause_stated: boolean | null;
+    intervention_type: string | null;
+    direction: string | null;
+    dependency: string | null;
+    /** null while the drafted links stand; a list, even empty, once the consultant set one. */
+    depends_on_ids: number[] | null;
+  };
+  /** The model's draft of why it happens, the kind of change and what must come first. */
+  drafted: {
+    cause: string | null;
+    cause_stated: boolean;
+    intervention_type: string | null;
+    direction: string | null;
+    dependency: string | null;
+    depends_on_ids: number[];
+  };
+  /** What the report prints: the consultant's where they wrote one, the draft otherwise. */
+  cause: string | null;
+  /** False: the report labels the cause as analysis. */
+  cause_stated: boolean;
+  intervention_type: string | null;
+  direction: string | null;
+  /** What must be true before the change can work. */
+  dependency: string | null;
+  /** Findings that must be addressed first; only shown ones reach the report. */
+  depends_on_ids: number[];
+  /** The wording changed since the draft, or it was never drafted; it is redrafted shortly. */
+  draft_pending: boolean;
+  frequency: { as_said: string | null; min: number | null; max: number | null; unit: string | null };
+  duration: { as_said: string | null; min: number | null; max: number | null; unit: string | null };
+  effort_type: 'active' | 'waiting' | 'mixed' | 'unknown';
+  /** A consultant's correction of the figures; null when the interview's stand. */
+  corrected_effort: FindingEffort | null;
+  /** What the report prints: the corrected figures, or the employee's words. */
+  display_frequency: string | null;
+  display_duration: string | null;
+  effective_effort_type: 'active' | 'waiting' | 'mixed' | 'unknown';
+  /** Always from whichever figures apply. */
+  annual_hours: { min: number; max: number } | null;
+  hours_basis: Record<string, unknown>;
+  basis: 'discovery' | 'discovery_partial' | 'deep_dive' | 'consultant';
+  confidence: 'high' | 'medium' | 'low';
+  single_occupant_role: boolean;
+  needs_review: boolean;
+  /** Same figures as this finding from the same interview: probably one piece of work counted twice. */
+  possible_duplicate_of_id: number | null;
+  status: 'draft' | 'approved' | 'hidden' | 'merged';
+  merged_into_id: number | null;
+  employee: { id: number; name: string | null } | null;
+  conversation_id: number | null;
+  reviewed_at: string | null;
+  reviewed_by: string | null;
+  /** The shared work synthesis grouped this into (Doc 10), if any. */
+  synthesis_cluster: { key: string; name: string; status: string } | null;
+}
+
+/** How one company's interviews are going (Platform::InterviewHealth). Counts only. */
+export interface InterviewHealthRow {
+  company: { id: number; name: string; slug: string };
+  interviews: { invited: number; started: number; completed: number; abandoned: number; in_progress: number; quiet: number };
+  closes: Record<string, number>;
+  median_questions: number | null;
+  capture: { turns: number; fallbacks: number };
+  findings: { live: number; with_hours: number; to_review: number };
+  voice: { answers: number; failed: number };
+  flags: string[];
+}
+
+/** One rule a Stage 1 report must keep (Reports::Critic). "block" stops approval. */
+export interface ReportCheck {
+  code: string;
+  severity: 'block' | 'warn';
+  section: string | null;
+  message: string;
+}
+
+export interface FindingEffort {
+  frequency?: { min: number | null; max: number | null; unit: string | null };
+  duration?: { min: number | null; max: number | null; unit: string | null };
+  effort_type?: 'active' | 'waiting' | 'mixed';
+}
+
+export interface FindingsSummary {
+  live_count: number;
+  approved_count: number;
+  merged_count: number;
+  hidden_count: number;
+  needs_review_count: number;
+  quantified_count: number;
+  /** De-duplicated: merged and hidden findings never count. */
+  annual_hours_min: number;
+  annual_hours_max: number;
+}
+
+export interface FindingUpdate {
+  status?: 'draft' | 'approved' | 'hidden';
+  consultant_title?: string;
+  consultant_what_happens_now?: string;
+  consultant_friction?: string;
+  consultant_note?: string;
+  /** Empty puts the draft back. */
+  consultant_cause?: string;
+  consultant_cause_stated?: boolean | null;
+  consultant_intervention_type?: string;
+  consultant_direction?: string;
+  consultant_dependency?: string;
+  /** null follows the drafted links again; a list, even empty, is the consultant's own. */
+  consultant_depends_on_ids?: number[] | null;
+  /** null clears the correction and puts the interview's figures back. */
+  consultant_effort?: FindingEffort | null;
+}
+
 export interface EmployeeValueDigest {
   id: number;
   employee_id: number;
@@ -2632,7 +3597,8 @@ export interface EmployeeValueDigest {
   generated_at?: string | null;
   sent_at?: string | null;
   headline?: string | null;
-  content?: Record<string, unknown>;
+  /** The digest body goes to the employee only; the admin sees how many tips it holds. */
+  tip_count?: number;
 }
 
 export interface Employee {
@@ -2766,4 +3732,298 @@ export interface ConsultantFollowupRow {
   last_message: string;
   updated_at: string;
   sent_at: string | null;
+}
+
+// ---- Stage 1 pricing (Doc 17) ----
+
+export type Stage1QuoteStatus = 'PROPOSED' | 'ISSUED' | 'ACCEPTED' | 'DECLINED' | 'EXPIRED' | 'REJECTED' | 'SUPERSEDED';
+
+/** A line of the price, as the client sees it. Amounts are decimal strings. */
+export interface QuoteLine {
+  key: string;
+  label: string;
+  quantity: number;
+  unit_amount: string;
+  amount: string;
+  detail: string;
+}
+
+/** What Stage 1 includes and doesn't (Doc 17 §2.4). */
+export interface QuoteScope {
+  what_is_included?: string[];
+  what_is_not_included?: string[];
+  participants_and_departments?: string;
+  deliverable?: string;
+  additional_participants?: string;
+  what_happens_next?: string;
+  validity?: string;
+}
+
+export interface AdditionalParticipants {
+  count: number;
+  rate: string;
+  currency: string;
+  amount: string;
+  people: { name: string; department: string | null; added_on: string }[];
+}
+
+/** The proposal as the client sees it — never cost, hours or margin (Doc 17 §15). */
+export interface ClientQuote {
+  id: number;
+  version: number;
+  status: Stage1QuoteStatus;
+  currency: string;
+  company_name: string;
+  line_items: QuoteLine[];
+  subtotal: string;
+  tax_rate: string;
+  tax_amount: string;
+  total: string;
+  additional_participant_rate: string;
+  participants_included: number;
+  deep_dives_included: number;
+  departments: { name: string; count: number }[];
+  scope: QuoteScope;
+  payment_terms: string | null;
+  terms_reference: string | null;
+  issued_at: string | null;
+  valid_until: string | null;
+  past_validity: boolean;
+  accepted_at: string | null;
+  accepted_by: string | null;
+  declined_at: string | null;
+  can_decide: boolean;
+  additional_participants: AdditionalParticipants | null;
+}
+
+export interface ConsultantStage1Quote {
+  engagement_status: EngagementStatus | null;
+  latest: {
+    version: number;
+    status: Stage1QuoteStatus;
+    created_at: string;
+    rejection_note: string | null;
+    decline_reason: string | null;
+  } | null;
+  quote: ClientQuote | null;
+}
+
+export interface Stage1QuoteSummary {
+  id: number;
+  version: number;
+  status: Stage1QuoteStatus;
+  company_id: number;
+  company_name: string;
+  engagement_id: number;
+  total: string;
+  subtotal: string;
+  currency: string;
+  participants_included: number;
+  deep_dives_included: number;
+  margin_percent: string;
+  below_floor: boolean;
+  confidence: 'HIGH' | 'MEDIUM' | 'LOW' | null;
+  created_at: string;
+  issued_at: string | null;
+  valid_until: string | null;
+}
+
+/** P24's explanation for the administrator. */
+export interface QuoteAdminExplanation {
+  headline?: string;
+  derivation?: { component: string; amount: string; why: string }[];
+  effort_basis?: string;
+  comparables_note?: string;
+  margin_note?: string;
+  confidence?: 'HIGH' | 'MEDIUM' | 'LOW';
+  what_could_make_this_wrong?: string[];
+  recommendation_note?: string;
+}
+
+/** Everything the administrator sees of a quote, internal figures included. */
+export interface Stage1QuoteDetail {
+  quote: Stage1QuoteSummary & {
+    line_items: QuoteLine[];
+    tax_rate: string;
+    tax_amount: string;
+    additional_participant_rate: string;
+    inputs: {
+      participants: number;
+      departments: { name: string; count: number }[];
+      key_persons: number;
+      named_participants: number;
+      languages: string[];
+      locations: number;
+      country: string | null;
+      deep_dives: number | null;
+      industry: string | null;
+      size_band: string | null;
+      sources: Record<string, 'ENGAGEMENT' | 'ADMINISTRATOR'>;
+    };
+    estimate: {
+      hours: Record<string, string>;
+      total_hours: string;
+      consultant_internal_cost: string;
+      cost: Record<string, string>;
+      margin_percent: string;
+      floor_percent: string;
+      confidence: 'HIGH' | 'MEDIUM' | 'LOW';
+      risk_signals: { code: string; text: string }[];
+    };
+    admin_explanation: QuoteAdminExplanation;
+    client_scope: QuoteScope;
+    explanation_source: 'P24' | 'TEMPLATE';
+    approved_by: string | null;
+    approved_at: string | null;
+    accepted_by: string | null;
+    accepted_at: string | null;
+    declined_at: string | null;
+    decline_reason: string | null;
+    rejected_by: string | null;
+    rejected_at: string | null;
+    rejection_note: string | null;
+    first_viewed_at: string | null;
+    pdf_ready: boolean;
+  };
+  engagement: {
+    id: number;
+    status: EngagementStatus;
+    languages: string[];
+    planned_departments: { name: string; count: number | 'UNKNOWN' }[];
+    lead_consultant: string | null;
+  };
+  comparables: {
+    participants: number;
+    deep_dives: number;
+    fee: string;
+    currency: string;
+    estimated_hours: string | null;
+    actual_hours: string | null;
+    accepted_on: string | null;
+  }[];
+  additional_participants: AdditionalParticipants | null;
+  rate_card: { version: number; placeholder: boolean; current_version: number | null };
+  margin_floor: { version: number; percent: string; current_version: number | null };
+  overrides: {
+    kind: 'ADJUST' | 'FLOOR_OVERRIDE';
+    structured_reason: string;
+    free_text: string | null;
+    created_at: string;
+    original_total: string;
+    adjusted_total: string;
+    actor: string;
+  }[];
+  events: { event: string; at: string; by: string | null; detail: Record<string, unknown> }[];
+  versions: Stage1QuoteSummary[];
+  override_reasons: string[];
+  can_act: boolean;
+}
+
+/** Whether staff can be invited, and how many the Stage 1 price covers (Doc 14 §4.1). */
+export interface StaffInvitationState {
+  open: boolean;
+  message?: string | null;
+  included?: number | null;
+  invited?: number;
+  rate?: string | null;
+  currency?: string | null;
+}
+
+/** The proposal at a glance, for the dashboard. */
+export interface Stage1QuoteGlance {
+  id: number;
+  version: number;
+  status: Stage1QuoteStatus;
+  currency: string;
+  total: string;
+  valid_until: string | null;
+  past_validity: boolean;
+  participants_included: number;
+  deep_dives_included: number;
+  additional_participant_rate: string;
+  can_decide: boolean;
+}
+
+/** The server's answer when an invitation goes beyond what the Stage 1 price covers. */
+export interface ConfirmAdditional {
+  code: 'confirm_additional';
+  error: string;
+  included: number;
+  invited: number;
+  adding: number;
+  extra: number;
+  rate: string;
+  currency: string;
+}
+
+/** The Stage 1 formula's values (Doc 17 §2.3) and the quote's terms. INTERNAL_COMMERCIAL. */
+export interface Stage1Rates {
+  base_fee: number;
+  per_participant_fee: number;
+  per_deep_dive_fee: number;
+  additional_participant_rate: number;
+  complexity: {
+    per_extra_language: number;
+    per_extra_location: number;
+    departments_threshold: number;
+    per_department_over_threshold: number;
+  };
+  hours: {
+    base: number;
+    per_participant: number;
+    per_deep_dive: number;
+    per_key_person: number;
+    per_extra_language: number;
+    per_extra_location: number;
+  };
+  ai_cost: { per_participant: number; per_deep_dive: number; per_key_person: number };
+  platform_allocation: number;
+  licences: number;
+  deep_dives: { min: number; max: number };
+  tax_rates: Record<string, number>;
+  validity_days: number;
+  payment_terms_text: string;
+  terms_reference_text: string;
+}
+
+export interface RateCardVersionRow {
+  version: number;
+  effective_from: string;
+  currency: string;
+  placeholder: boolean;
+  reason: string;
+  changed_by: string | null;
+  quotes: number;
+}
+
+export interface MarginFloorRow {
+  version: number;
+  percent: string;
+  effective_from: string;
+  reason: string;
+  changed_by: string | null;
+}
+
+export interface RateCardPayload {
+  rate_card:
+    | (RateCardVersionRow & {
+        stage1: Stage1Rates;
+        consultant_internal_cost: number | null;
+        consultant_charge_rate: number | null;
+      })
+    | null;
+  rate_cards: RateCardVersionRow[];
+  margin_floor: MarginFloorRow | null;
+  margin_floors: MarginFloorRow[];
+  waiting_on_older_rates: number;
+  can_act: boolean;
+}
+
+export interface NewRateCardInput {
+  stage1: Record<string, unknown>;
+  consultant_internal_cost: string;
+  consultant_charge_rate: string;
+  currency: string;
+  placeholder: boolean;
+  reason: string;
 }

@@ -1,4 +1,5 @@
 import type { CompanyDashboardPayload } from '../../lib/api';
+import { formatMoney } from '../../lib/money';
 
 export type DashboardActionId =
   | 'get-started'
@@ -6,6 +7,10 @@ export type DashboardActionId =
   | 'answer-questions'
   | 'nudge-stalled'
   | 'add-profile'
+  | 'participant-counts'
+  | 'leadership'
+  | 'pricing'
+  | 'proposal'
   | 'running';
 
 export interface DashboardAction {
@@ -48,15 +53,103 @@ export function nextBestAction(
   const completed = payload.company.completed_count ?? 0;
   const totalDocs = payload.intel_counts?.total_documents ?? 0;
   const stalled = payload.employees_summary.stalled_count ?? 0;
-  const qPercent = Math.round(payload.questionnaire_completion_percent ?? 0);
+  const profileSubmitted = Boolean(payload.onboarding_submitted_at);
+  const status = payload.engagement_status ?? null;
+  // Counts may be left "Not sure" at onboarding; they are needed before the fee is agreed.
+  const countsNeeded = status === 'KEY_PERSON_DISCOVERY' && payload.planned_participant_count == null;
+  const leadership = payload.leadership ?? null;
+  const ownConversation = leadership?.is_key_user ? leadership.own : null;
+  // Staff are invited once the Stage 1 fee is agreed, never during the leadership
+  // stage or pricing; companies from before engagements carry on as they were.
+  const teamStage = status == null || status === 'STAGE_1_ACTIVE';
   const report = payload.latest_report;
   const reportReady = Boolean(report && (report.status === 'ready' || report.status === 'shared'));
   const consultant = consultantName || 'your consultant';
 
   const candidates: DashboardAction[] = [];
 
+  // (0) The conversation with leadership, then the proposal (Doc 08, Doc 17 §1)
+  if (status === 'KEY_PERSON_DISCOVERY' && ownConversation && !ownConversation.finished) {
+    const started = ownConversation.participation_status === 'STARTED' || ownConversation.participation_status === 'PAUSED';
+    candidates.push(
+      leadership?.available || started
+        ? {
+            id: 'leadership',
+            eyebrow: started ? 'Carry on' : 'Do this next',
+            title: started ? 'Pick up your conversation with Mjadi' : 'Your conversation with Mjadi',
+            description:
+              'About fifteen to twenty minutes on where you’re taking the business and what gets in the way. Type or send voice notes, and pause whenever you need.',
+            primaryLabel: started ? 'Carry on' : 'Start the conversation',
+            to: '/company/leadership',
+            tone: 'attention',
+            attnTitle: 'Your conversation with Mjadi',
+            attnDetail: 'About fifteen to twenty minutes',
+            attnActionLabel: started ? 'Carry on' : 'Start',
+          }
+        : {
+            id: 'leadership',
+            eyebrow: 'Next step',
+            title: 'A conversation about where you’re taking the business',
+            description: 'The Mjadi team will be in touch to arrange it.',
+            primaryLabel: 'Your consultant',
+            to: '/company/consultants',
+            tone: 'neutral',
+            attnTitle: 'Leadership conversation',
+            attnDetail: 'The Mjadi team will be in touch to arrange it',
+          }
+    );
+  }
+  // The Stage 1 proposal (Doc 17 §10): being prepared, ready to review, or
+  // answered. Only the key user accepts; others are told it's with them.
+  const quote = payload.stage1_quote ?? null;
+  if (status === 'STAGE_1_PRICING' && quote?.status === 'ISSUED' && !quote.past_validity) {
+    const total = formatMoney(quote.total, quote.currency);
+    candidates.push({
+      id: 'proposal',
+      eyebrow: quote.can_decide ? 'Do this next' : 'With your key user',
+      title: 'Your Stage 1 proposal is ready',
+      description: `${total} including VAT, for ${quote.participants_included} people and ${quote.deep_dives_included} detailed sessions.${
+        quote.can_decide ? ' Read what’s included and accept it to invite your team.' : ' Your key user reviews and accepts it.'
+      }`,
+      primaryLabel: quote.can_decide ? 'Review and accept' : 'Read the proposal',
+      to: '/company/proposal',
+      tone: quote.can_decide ? 'attention' : 'neutral',
+      attnTitle: 'Your Stage 1 proposal is ready',
+      attnDetail: total,
+      attnActionLabel: 'Review',
+    });
+  } else if (status === 'STAGE_1_PRICING' && quote && ['DECLINED', 'EXPIRED', 'ISSUED'].includes(quote.status)) {
+    const declined = quote.status === 'DECLINED';
+    candidates.push({
+      id: 'proposal',
+      eyebrow: 'Next step',
+      title: declined ? 'Thank you — we’ll be in touch about the proposal' : 'Your proposal has expired',
+      description: declined
+        ? 'Your consultant will follow up on what would work for you.'
+        : 'Your consultant will send you a fresh one.',
+      primaryLabel: 'Your consultant',
+      to: '/company/consultants',
+      tone: 'neutral',
+      attnTitle: declined ? 'Proposal declined' : 'Proposal expired',
+      attnDetail: 'Your consultant will be in touch',
+    });
+  } else if (status === 'STAGE_1_PRICING') {
+    candidates.push({
+      id: 'pricing',
+      eyebrow: 'In progress',
+      title: 'We’re preparing your Stage 1 proposal',
+      description:
+        'Thank you for the conversation. Your consultant is putting together the scope and fee for the first stage, and will be in touch.',
+      primaryLabel: 'Your consultant',
+      to: '/company/consultants',
+      tone: 'neutral',
+      attnTitle: 'Stage 1 proposal in preparation',
+      attnDetail: 'Your consultant will be in touch',
+    });
+  }
+
   // (a) Nothing started yet
-  if (invited === 0 && totalDocs === 0) {
+  if (teamStage && invited === 0 && totalDocs === 0) {
     candidates.push({
       id: 'get-started',
       eyebrow: 'Get started',
@@ -66,9 +159,9 @@ export function nextBestAction(
       primaryLabel: 'Add documents',
       to: '/company/documents',
       tone: 'attention',
-      attnTitle: 'Invite your team',
-      attnDetail: 'Kick off employee discovery interviews',
-      attnActionLabel: 'Invite',
+      attnTitle: 'Add documents or invite your team',
+      attnDetail: 'Discovery starts with evidence',
+      attnActionLabel: 'Start',
     });
   }
 
@@ -138,19 +231,31 @@ export function nextBestAction(
     });
   }
 
-  // (e) Incomplete profile (optional)
-  if (qPercent < 100) {
+  // (e) Company profile not submitted yet
+  if (!profileSubmitted) {
     candidates.push({
       id: 'add-profile',
-      eyebrow: 'Optional next step',
-      title: 'Add your company profile',
-      description: 'Industry, systems and goals sharpen every insight we produce. It takes about 2 minutes.',
-      primaryLabel: 'Add profile',
+      eyebrow: 'Next step',
+      title: 'Finish your company profile',
+      description: 'A few facts about the company and who should take part. It takes about five minutes.',
+      primaryLabel: 'Finish profile',
       to: '/company/onboarding',
-      tone: 'neutral',
-      attnTitle: 'Add your company profile',
-      attnDetail: `Sharpens every future insight · ${qPercent}% done`,
-      optionalLabel: 'Optional',
+      tone: 'attention',
+      attnTitle: 'Finish your company profile',
+      attnDetail: 'About five minutes',
+    });
+  } else if (countsNeeded) {
+    candidates.push({
+      id: 'participant-counts',
+      eyebrow: 'Before we agree the fee',
+      title: 'How many people will take part?',
+      description:
+        'Some departments are still marked “Not sure”. We need a number for each before we can agree the fee — a rough one is fine.',
+      primaryLabel: 'Add the numbers',
+      to: ownConversation ? '/company/leadership' : '/company/onboarding',
+      tone: 'attention',
+      attnTitle: 'Participant numbers needed',
+      attnDetail: 'Needed before the fee is agreed',
     });
   }
 

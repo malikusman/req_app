@@ -7,6 +7,11 @@ module Openai
   class Client
     class Error < StandardError; end
 
+    # What a chat call returned, with what it cost and how it ended, so the caller
+    # can log the run (Doc 05 §21) and tell a truncated reply from a finished one.
+    ChatResult = Struct.new(:content, :model, :finish_reason, :input_tokens, :output_tokens, :latency_ms, :escalated,
+                            keyword_init: true)
+
     DEFAULT_CHAT_BASE = "https://api.openai.com/v1"
     DEFAULT_EMBEDDING_DIMENSIONS = 768
 
@@ -18,16 +23,44 @@ module Openai
       Integer(ENV.fetch("EMBEDDING_DIMENSIONS", DEFAULT_EMBEDDING_DIMENSIONS.to_s))
     end
 
-    def transcribe_audio(file_path:, language: "en")
+    # language nil lets the model detect it. Forcing the company's language made an
+    # employee who answered in Arabic come back transcribed as English.
+    def transcribe_audio(file_path:, language: nil)
       ensure_configured_or_mock!("OpenAI")
-      return mock_transcript(language) unless configured?
+      return mock_transcript(language || "en") unless configured?
 
       uri = URI("#{chat_base_url}/audio/transcriptions")
-      multipart_request(uri, {
-        model: ENV.fetch("OPENAI_WHISPER_MODEL", "whisper-1"),
-        language: language,
-        file: File.open(file_path)
-      })["text"].to_s.strip
+      fields = { model: ENV.fetch("OPENAI_WHISPER_MODEL", "whisper-1") }
+      fields[:language] = language if language.present?
+      fields[:file] = File.open(file_path)
+      multipart_request(uri, fields)["text"].to_s.strip
+    end
+
+    # A spoken version of an interview question, for the web interview's
+    # read-aloud. MP3 bytes, or nil when there is no speech endpoint to call (no
+    # key, or a local model server) — the browser then speaks the question itself.
+    def speech(text:)
+      return nil unless speech_available?
+
+      model = ENV.fetch("OPENAI_TTS_MODEL", "gpt-4o-mini-tts")
+      body = { model: model, voice: ENV.fetch("OPENAI_TTS_VOICE", "alloy"),
+               input: text.to_s.truncate(2000), response_format: "mp3" }
+      # Only the gpt-4o speech models take a delivery note.
+      body[:instructions] = "Speak warmly and at an unhurried pace, like a friendly interviewer." if model.start_with?("gpt-4o")
+
+      uri = URI("#{chat_base_url}/audio/speech")
+      request = Net::HTTP::Post.new(uri)
+      request["Authorization"] = "Bearer #{api_key}"
+      request["Content-Type"] = "application/json"
+      request.body = body.to_json
+      response = build_http(uri).request(request)
+      raise Error, "speech failed (HTTP #{response.code})" unless response.is_a?(Net::HTTPSuccess)
+
+      response.body
+    end
+
+    def speech_available?
+      configured? && (official_openai_host?(chat_base_url) || ENV["OPENAI_TTS_ENABLED"] == "true")
     end
 
     def describe_image(file_path:, language: "en")
@@ -262,20 +295,32 @@ module Openai
             content: <<~SYS
               You are a senior management consultant (McKinsey/BCG style) writing for the
               leadership of a small or mid-sized business. Write in #{language}.
+              This is a Stage 1 DIAGNOSTIC: it says where time goes and what gets in the
+              way. It never designs a solution — no build steps, architectures, vendors,
+              prices, costs or timelines. Those belong to Stage 2.
               STRICT RULES:
               - Use ONLY the evidence in the context. Never invent facts, company names,
                 tools, numbers, currencies, or percentages that are not present.
-              - NUMBERS: the ONLY quantities you may cite are those in `key_metrics`
-                (each is real and sourced). Quote them naturally, WITH their comparison
-                when given — e.g. "11–14 days against an 8-day target", "1 in 5 invoices
-                fail the three-way match". Lead the executive summary with the single most
-                telling metric.
+              - FINDINGS come first when `findings` is present: role by role, the work
+                people described and the hours it takes. Lead the governing thought and
+                the executive summary with where the time goes — which departments and
+                roles — and the total hours.
+              - HOURS: quote hour figures exactly as they appear in `findings` (e.g.
+                "about 1,050–1,200 hours a year"). Never add, multiply, average or round
+                them, never turn them into days, FTEs, headcount, salary, money or
+                savings. Hours are capacity the team could put to other work — never a
+                cost to cut and never people to lose.
+              - NUMBERS: apart from those hours, the ONLY quantities you may cite are
+                those in `key_metrics` (each is real and sourced), WITH their comparison
+                when given — e.g. "11–14 days against an 8-day target".
               - NEVER cite strength, confidence, scores, or any 0-1/percentage model
                 value. Those are internal — "high"/"medium"/"low" bands are for your
                 judgement only and must not appear as numbers in the prose.
               - Do NOT fabricate ROI or savings figures. Express cost-of-inaction
                 qualitatively (e.g. "compounding delay", "rising rework") unless a real
                 number is in `key_metrics`.
+              - No intensifiers or claims the evidence does not make ("severely",
+                "critically", "massively", "crippling"). State what was found, plainly.
               - Every headline is an ACTION TITLE: an assertion carrying a number and its
                 "so what", not a topic label.
               - Follow the pyramid principle: lead with the answer, then support it.
@@ -291,16 +336,185 @@ module Openai
                   "now": [{"title": "...", "rationale": "why first / quick win"}],
                   "next": [{"title": "...", "rationale": "..."}],
                   "later": [{"title": "...", "rationale": "..."}]
-                }
+                },
+                "role_potential": [{"department": "...", "role": "...", "statement": "..."}]
               }
+              role_potential: one entry per item in `role_potential_notes`, with its exact
+              department and role. The statement is ONE sentence about what the ROLE could
+              do with time back, drawn from the notes — "With time back, this role could
+              put more into sourcing new suppliers and negotiating terms." Third person,
+              about the role, never a person; no names, no numbers, no quotes. Roadmap
+              items say WHAT to address first, never how it would be built.
             SYS
           },
           {
             role: "user",
-            content: "Evidence context (JSON):\n#{context.to_json.truncate(12_000)}"
+            content: "Evidence context (JSON):\n#{context.to_json.truncate(20_000)}"
           }
         ],
         max_tokens: chat_max_tokens(1800)
+      }
+      parse_model_json(chat_json_content(body))
+    end
+
+    # Groups a company's findings into a few themes of what to address first.
+    # Returns parsed JSON or raises; Findings::Priorities checks every id, computes
+    # every number, and falls back to the largest findings.
+    def finding_priorities(context:, language: "en")
+      ensure_configured_or_mock!("OpenAI")
+      return nil unless configured?
+
+      body = {
+        model: ENV.fetch("REPORT_MODEL", ENV.fetch("OPENAI_MODEL", "gpt-4o-mini")),
+        messages: [
+          {
+            role: "system",
+            content: <<~SYS
+              You are a senior operations consultant preparing a Stage 1 DIAGNOSTIC for the
+              owners of a small or mid-sized business. Write in #{language}.
+              You are given findings: pieces of work, in named roles, that people described
+              as slower, more manual or more repetitive than they need to be.
+              Group them into 3 to 5 priorities — what the business should address first.
+              RULES:
+              - A priority groups findings that share one underlying problem, across roles
+                where they genuinely do ("supplier and customer data re-keyed by hand"). A
+                finding that fits no group can stand alone, or be left out.
+              - Each finding id appears in at most one priority. Use only ids given.
+              - Say WHAT to address, never HOW. No tools, software, vendors, automation,
+                AI, integrations or build steps — that design is Stage 2.
+              - No numbers or figures of any kind in title or what; the hours are added
+                later from the findings themselves.
+              - title: a short statement of the problem to address, 4-10 words.
+              - what: one or two plain sentences on what the problem is and where it shows
+                up, in terms of the work and the roles. Never about a person.
+              - serves_goal: one of `business_goals`, copied exactly, if the priority
+                clearly serves it; otherwise null.
+              - Put the largest problems first. Waiting (a delay) can be a priority too.
+              - intervention_type: the KIND of change, one of process_change, existing_system,
+                ready_made_tool, connect_systems, automation, ai_assistant, standards_training.
+              - direction: one sentence on the direction of the change, about the work —
+                "Bring supplier prices in one consistent format instead of retyping them".
+                Never a product or vendor name, never build steps, cost or timescale.
+              NOT RECOMMENDED: 1 to 3 things an owner reading these findings might expect
+              you to suggest, but that you advise against for now — each tied to the finding
+              ids it concerns, with why. Typical cases: automating a step whose rules nobody
+              owns yet; buying a new system when the one they have is under-used; speeding
+              up work that is mostly waiting on someone else. Same rules: no numbers, no
+              products, no build detail. Leave one out only if no finding supports it.
+              Respond as JSON only:
+              {"priorities": [{"title": "...", "what": "...", "finding_ids": [1, 2], "serves_goal": null,
+                               "intervention_type": "process_change", "direction": "..."}],
+               "not_recommended": [{"title": "...", "why": "...", "finding_ids": [3]}]}
+            SYS
+          },
+          { role: "user", content: "Findings (JSON):\n#{context.to_json.truncate(16_000)}" }
+        ],
+        max_tokens: chat_max_tokens(1400)
+      }
+      parse_model_json(chat_json_content(body))
+    end
+
+    # Drafts, for each finding, why the work costs what it does and the kind of
+    # change that would address it. Returns parsed JSON or raises;
+    # Findings::DraftCauseAndDirection checks every field and keeps only what
+    # passes. A consultant reviews every draft before it reaches a client.
+    def finding_causes(context:, language: "en")
+      ensure_configured_or_mock!("OpenAI")
+      return nil unless configured?
+
+      body = {
+        model: ENV.fetch("REPORT_MODEL", ENV.fetch("OPENAI_MODEL", "gpt-4o-mini")),
+        messages: [
+          {
+            role: "system",
+            content: <<~SYS
+              You are a senior operations consultant preparing a Stage 1 DIAGNOSTIC for the
+              owners of a small or mid-sized business. Write in #{language}.
+              You are given findings: pieces of work, in one role, that people described as
+              slower, more manual or more repetitive than they need to be. For EACH finding:
+              - cause: one sentence on the CONDITION in the work that makes it slow — the
+                inconsistent input, the unclear rule, the data kept in two places, the
+                hand-off nobody owns, the dependency on someone outside. About the work and
+                its systems, never a person. Plain words.
+                NOT a cause: restating the symptom ("manual follow-up takes time"), or the
+                absence of a solution ("lack of automation", "no system for it").
+                When the text does not support a real cause, set cause to null.
+              - cause_stated: true ONLY when the employee's words (`what_snags`,
+                `what_happens_now`) name that condition themselves — "each supplier's sheet
+                has a different layout". If you reasoned your way to it, false. When in
+                doubt, false.
+              - intervention_type: the KIND of change, one of #{Finding::INTERVENTION_TYPES.keys.join(', ')}.
+                Prefer the simplest change that fits: remove_work, process_change, training or
+                configure_existing before ready_made_tool, automation or anything AI. It must
+                match the direction: a process_change changes how people work, not software.
+              - direction: one sentence on what the change would do for the work, as an
+                outcome — "Bring supplier price sheets into the ERP in one consistent form, so
+                only new items and unmatched codes need a person". WHAT it does, never HOW it
+                is built: no product or vendor names, no triggers, rules, thresholds, fields,
+                steps, cost, effort or timescale, and never the words implement, deploy,
+                install or build. Where the cause sits outside the business (a government
+                office, a supplier's own pace), aim the direction at what the business
+                controls — or set intervention_type and direction to null if it controls
+                nothing.
+              - For waiting (`waiting` true), the direction addresses the wait, not the work.
+              - dependency: one sentence on what must already be true in the business for
+                that change to work — "Supplier item codes are kept consistent in the ERP",
+                "One person owns the leave balance sheet and keeps it current". A condition,
+                never a build step or a task list. null when nothing must come first, or
+                when there is no direction.
+              RULES: no numbers or figures of any kind; no quotes; never "I", "me", "my";
+              never mention salary, headcount, jobs or savings.
+              Respond as JSON only, one entry per id given:
+              {"findings": [{"id": 1, "cause": "...", "cause_stated": false,
+                             "intervention_type": "integration_data_fix", "direction": "...",
+                             "dependency": "..."}]}
+            SYS
+          },
+          { role: "user", content: "Findings (JSON):\n#{context.to_json.truncate(12_000)}" }
+        ],
+        max_tokens: chat_max_tokens(1600)
+      }
+      parse_model_json(chat_json_content(body))
+    end
+
+    # Proposes which findings must be addressed before which, across the company.
+    # Returns ids only; Findings::DraftDependencies keeps the links that point at
+    # shown findings and never close a loop.
+    def finding_dependencies(context:, language: "en")
+      ensure_configured_or_mock!("OpenAI")
+      return nil unless configured?
+
+      body = {
+        model: ENV.fetch("REPORT_MODEL", ENV.fetch("OPENAI_MODEL", "gpt-4o-mini")),
+        messages: [
+          {
+            role: "system",
+            content: <<~SYS
+              You are a senior operations consultant preparing a Stage 1 DIAGNOSTIC for the
+              owners of a small or mid-sized business. Language: #{language}.
+              You are given findings: pieces of work, in named roles, with why each happens,
+              the direction of the change that would address it, and what must be true first.
+              Say which findings depend on which: A depends on B only when A's
+              `must_be_true_first` IS what addressing B's work achieves — A needs leave balances
+              kept current, and B is the work of keeping the leave balance sheet; A needs one
+              trusted ERP report, and B is building that report each week.
+              RULES:
+              - A and B are always two DIFFERENT findings, with different ids. A finding never
+                depends on itself.
+              - A's own words must name B's work. If you have to explain the link, there is none.
+              - Never link findings because they are similar, share a system, or sit in the
+                same team. Similar work is a duplicate, not a dependency.
+              - At most two links per finding. Most findings depend on nothing; returning no
+                links is a good answer.
+              - Never a loop: if A depends on B, B does not depend on A.
+              - Use only ids given.
+              Respond as JSON only:
+              {"links": [{"id": 1, "depends_on": 2}]}
+            SYS
+          },
+          { role: "user", content: "Findings (JSON):\n#{context.to_json.truncate(16_000)}" }
+        ],
+        max_tokens: chat_max_tokens(600)
       }
       parse_model_json(chat_json_content(body))
     end
@@ -328,6 +542,8 @@ module Openai
               - Prefer solutions that extend the systems they already run.
               - Do NOT invent cost/ROI figures. Value must be qualitative.
               - confidence in 0..1 reflects how well the evidence supports the idea.
+              - `existing_ideas` are ideas already on file. When an idea is the same as one of
+                them, use that title EXACTLY — never rename an idea that already exists.
               Respond as JSON only:
               {"ideas":[{
                 "title":"short product-style name",
@@ -442,6 +658,161 @@ module Openai
       end
     end
 
+    WEBSITE_PREFILL_PROMPT_VERSION = "P01.v1"
+
+    # P01 — proposes onboarding values from a company's own website pages (Doc 07
+    # §5). Every page is fenced as untrusted data after the instructions, so text
+    # on the site can't steer it. Returns the parsed JSON, or nil when no model is
+    # configured: a pre-fill is never mocked, since a made-up proposal shown to a
+    # client is worse than none.
+    def website_prefill(company_name:, website:, display_language:, pages:)
+      return nil unless configured?
+
+      system = self.class.website_prefill_prompt.gsub("{{display_language}}", display_language.to_s)
+      blocks = [
+        "<company trust=\"platform\">\nname: #{company_name}\nwebsite: #{website}\n" \
+        "display_language: #{display_language}\n</company>"
+      ]
+      pages.each do |page|
+        chrome = page[:chrome].present? ? "\n[header and footer] #{page[:chrome]}" : ""
+        blocks << "<website_page trust=\"untrusted\" url=\"#{page[:url]}\">\n#{page[:text]}#{chrome}\n</website_page>"
+      end
+      blocks << "Extract the onboarding candidates now."
+      context = blocks.join("\n\n")
+
+      body = {
+        model: ENV.fetch("PREFILL_MODEL", ENV.fetch("OPENAI_MODEL", "gpt-4o-mini")),
+        messages: [{ role: "system", content: system }, { role: "user", content: context }],
+        temperature: 0.1,
+        max_tokens: chat_max_tokens(1800)
+      }
+      parse_model_json(chat_json_content(body))
+    end
+
+    def self.website_prefill_prompt
+      @website_prefill_prompt ||= Rails.root.join("app/prompts/p01_website_prefill.v1.txt").read
+    end
+
+    KEY_PERSON_INTERVIEWER_PROMPT_VERSION = "P02.v1"
+    KEY_PERSON_CAPTURE_PROMPT_VERSION = "P03.v1"
+    KEY_PERSON_CONTEXT_PROMPT_VERSION = "P04.v1"
+
+    # The conversation with leadership (Doc 08). KeyPerson services assemble each
+    # prompt — base, engine rules, context blocks, then the turn instruction (Doc
+    # 24 §6) — and check every reply in code; these calls only carry it. Each
+    # returns a ChatResult so the caller can log the run. Never mocked: with no
+    # model the conversation isn't offered.
+
+    # P02 — what the assistant says next. Plain text.
+    def key_person_turn(system:, context:)
+      raise Error, "No model configured" unless configured?
+
+      chat_with_meta(
+        {
+          model: ENV.fetch("KEY_PERSON_MODEL", ENV.fetch("OPENAI_MODEL", "gpt-4o-mini")),
+          messages: [{ role: "system", content: system }, { role: "user", content: context }],
+          temperature: 0.6,
+          max_tokens: chat_max_tokens(400)
+        }
+      )
+    end
+
+    # P03 — what the participant's answer contained. JSON.
+    def key_person_capture(system:, context:)
+      raise Error, "No model configured" unless configured?
+
+      chat_with_meta(
+        {
+          model: ENV.fetch("KEY_PERSON_CAPTURE_MODEL", ENV.fetch("OPENAI_MODEL", "gpt-4o-mini")),
+          messages: [{ role: "system", content: system }, { role: "user", content: context }],
+          temperature: 0.1,
+          max_tokens: chat_max_tokens(2000)
+        },
+        json: true
+      )
+    end
+
+    # P04 — the whole conversation as management context and findings. JSON.
+    def key_person_context(system:, context:)
+      raise Error, "No model configured" unless configured?
+
+      chat_with_meta(
+        {
+          model: ENV.fetch("KEY_PERSON_CONTEXT_MODEL", ENV.fetch("OPENAI_MODEL", "gpt-4o-mini")),
+          messages: [{ role: "system", content: system }, { role: "user", content: context }],
+          temperature: 0.2,
+          max_tokens: chat_max_tokens(6000)
+        },
+        json: true
+      )
+    end
+
+    # P24: the administrator's explanation of a Stage 1 fee and the client's
+    # scope statement, written from figures the platform computed (Doc 17 §16).
+    STAGE1_PRICE_EXPLAINER_PROMPT_VERSION = "P24.v1"
+
+    def stage1_price_explanation(system:, context:)
+      raise Error, "No model configured" unless configured?
+
+      chat_with_meta(
+        {
+          model: ENV.fetch("PRICING_EXPLAINER_MODEL", ENV.fetch("OPENAI_MODEL", "gpt-4o-mini")),
+          messages: [{ role: "system", content: system }, { role: "user", content: context }],
+          temperature: 0.2,
+          max_tokens: chat_max_tokens(3000)
+        },
+        json: true
+      )
+    end
+
+    # Consolidation and synthesis (Doc 10). Synthesis services assemble each
+    # prompt and check every reply in code; these calls only carry it. Both run
+    # in the background, never inside a live conversation (Doc 10 §23), and a
+    # strong reasoning model is expected (Doc 05 §2.4).
+    PROCESS_RELATIONSHIP_PROMPT_VERSION = "P10.v1"
+    SYNTHESIS_PROMPT_VERSION = "P11.v1"
+
+    # P10 — how two pieces of work relate. JSON.
+    def process_relationship(system:, context:)
+      raise Error, "No model configured" unless configured?
+
+      chat_with_meta(
+        {
+          model: ENV.fetch("SYNTHESIS_CLASSIFIER_MODEL", ENV.fetch("OPENAI_MODEL", "gpt-4o-mini")),
+          messages: [{ role: "system", content: system }, { role: "user", content: context }],
+          temperature: 0.1,
+          max_tokens: chat_max_tokens(1500)
+        },
+        json: true
+      )
+    end
+
+    # P11 — root causes, opportunities and the operating picture. JSON.
+    def synthesis(system:, context:)
+      raise Error, "No model configured" unless configured?
+
+      chat_with_meta(
+        {
+          model: ENV.fetch("SYNTHESIS_MODEL", ENV.fetch("OPENAI_MODEL", "gpt-4o-mini")),
+          messages: [{ role: "system", content: system }, { role: "user", content: context }],
+          temperature: 0.2,
+          max_tokens: chat_max_tokens(8000)
+        },
+        json: true
+      )
+    end
+
+    # Parses a JSON reply the way every other step does: reasoning channels and
+    # code fences stripped, the first object found if there is prose around it.
+    def parse_reply(content)
+      parse_model_json(content)
+    end
+
+    def self.prompt(file)
+      @prompts ||= {}
+      @prompts[file] ||= Rails.root.join("app/prompts", file).read
+    end
+
     private
 
     def ensure_configured_or_mock!(service_name)
@@ -476,7 +847,24 @@ module Openai
     end
 
     def chat_completion(body)
-      post_json("#{chat_base_url}/chat/completions", body)
+      post_json("#{chat_base_url}/chat/completions", openai_compatible(body))
+    end
+
+    # OpenAI's newer models (gpt-6-luna, the o-series) reject `max_tokens` and
+    # take `max_completion_tokens`, which every current OpenAI chat model accepts.
+    # Local OpenAI-compatible servers still expect the old name, so only the
+    # official endpoint gets the rename.
+    def openai_compatible(body)
+      return body unless official_openai_host?(chat_base_url)
+
+      out = body.key?(:max_tokens) ? body.except(:max_tokens).merge(max_completion_tokens: body[:max_tokens]) : body
+      # Reasoning-family models accept only their default temperature.
+      out = out.except(:temperature) if self.class.fixed_temperature?(out[:model])
+      out
+    end
+
+    def self.fixed_temperature?(model)
+      model.to_s.strip.downcase.match?(/\A(o\d|gpt-5|gpt-6)/)
     end
 
     # Local reasoning models (Gemma-4 via LM Studio) spend completion tokens on
@@ -507,6 +895,47 @@ module Openai
         end
       end
       message_text(chat_completion(prepared))
+    end
+
+    # Like chat_json_content, but returns a ChatResult instead of bare text. A reply
+    # cut off by the token cap is asked for once more with twice the cap, never at
+    # the same cap again (Doc 05 §3.5): a reasoning model may spend its budget
+    # before it writes anything.
+    def chat_with_meta(body, json: false)
+      prepared = body.key?(:max_tokens) ? body : body.merge(max_tokens: chat_max_tokens(1200))
+      result = timed_chat(prepared, json: json)
+      return result unless result.finish_reason == "length"
+
+      retried = timed_chat(prepared.merge(max_tokens: prepared[:max_tokens] * 2), json: json)
+      retried.escalated = true
+      retried
+    end
+
+    def timed_chat(body, json:)
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      payload =
+        if json && json_object_mode_enabled?
+          begin
+            chat_completion(body.merge(response_format: { type: "json_object" }))
+          rescue Error => e
+            raise if official_openai_host?(chat_base_url)
+
+            Rails.logger.warn("[Openai::Client] JSON mode unsupported (#{e.message}); retrying without response_format")
+            chat_completion(body)
+          end
+        else
+          chat_completion(body)
+        end
+      usage = payload["usage"].is_a?(Hash) ? payload["usage"] : {}
+      ChatResult.new(
+        content: message_text(payload),
+        model: payload["model"].presence || body[:model],
+        finish_reason: payload.dig("choices", 0, "finish_reason"),
+        input_tokens: usage["prompt_tokens"],
+        output_tokens: usage["completion_tokens"],
+        latency_ms: ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000).round,
+        escalated: false
+      )
     end
 
     def json_object_mode_enabled?

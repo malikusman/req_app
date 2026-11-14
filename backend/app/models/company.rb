@@ -12,6 +12,7 @@ class Company < ApplicationRecord
   has_many :company_clarification_questions, dependent: :destroy
   has_many :media_attachments, dependent: :destroy
   has_many :company_signals, dependent: :destroy
+  has_many :findings, dependent: :destroy
   has_many :patterns, dependent: :destroy
   has_many :recommendations, dependent: :destroy
   has_many :company_systems, dependent: :destroy
@@ -25,6 +26,8 @@ class Company < ApplicationRecord
   has_many :consultant_chat_messages, dependent: :destroy
   has_many :company_memory_facts, dependent: :destroy
   has_one :company_registration, dependent: :destroy
+  has_many :engagements, dependent: :destroy
+  has_many :profile_changes, dependent: :delete_all
 
   def bot_phone_display
     ENV.fetch("META_WHATSAPP_DISPLAY_NUMBER", "+1 000 000 0000")
@@ -65,6 +68,21 @@ class Company < ApplicationRecord
     # WhatsApp follow-up) during report review. Company admins can turn this off
     # to require their approval for any consultant→employee contact.
     "consultant_can_contact_employees" => true,
+    # Where a report with findings puts the signals and patterns pages: "main"
+    # (after the findings), "appendix" (after the method) or "hidden". A report
+    # without findings always keeps them in the body.
+    "report_signals_placement" => "appendix",
+    # "pool": a role held by one person never appears by name in a report; its
+    # findings pool with others (Findings::ForReport). "show" keeps roles as-is.
+    "report_small_roles" => "pool",
+    # "hidden": the published agentic ideas and the vendor tool matches stay out
+    # of the report, and out of its snapshot. Stage 1 says what to address; which
+    # product or idea would do it is Stage 2's. "shown" puts them back, pending
+    # the client's decision on vendors in Stage 1 — and the critic then blocks.
+    "report_stage2_previews" => "hidden",
+    # Mjadi is sold as a fixed-fee engagement, not a subscription, so the client
+    # portal shows no billing, plans or trials unless this is turned on.
+    "client_billing_visible" => false,
     "report_thresholds" => {
       "min_employees_interviewed" => 3,
       "min_departments" => 2,
@@ -92,11 +110,33 @@ class Company < ApplicationRecord
 
   ENGAGEMENT_MODES = %w[hybrid documents interview].freeze
 
-  SIZE_BANDS = %w[1-10 11-50 51-200 201-500 500+].freeze
+  # The one company-size vocabulary: onboarding (O2), the catalogue fit and the
+  # report all read these strings.
+  SIZE_BANDS = %w[1-10 11-50 51-200 201-500 501-1000 1000+].freeze
 
   def merged_settings
     DEFAULT_SETTINGS.deep_merge(self[:settings] || {})
   end
+
+  # How many people were invited, started and finished — counted from the people
+  # themselves, once, for every screen. The stored counters drifted: completed_count
+  # went up per finished conversation, so someone who finished twice counted twice
+  # and the client home read "7 of 5"; invited_count never went down.
+  def participation
+    counts = employees.group(:participation_status).count
+    invited = counts.values.sum
+    completed = counts.fetch("completed", 0)
+    started = completed + counts.fetch("started", 0)
+    {
+      "invited" => invited,
+      "started" => started,
+      "completed" => completed,
+      "completion_rate" => invited.positive? ? (completed.to_f / invited).round(2) : 0
+    }
+  end
+
+  def invited_count = participation["invited"]
+  def completed_count = participation["completed"]
 
   def profile_value(key)
     (self[:company_profile] || {})[key.to_s].presence
@@ -119,6 +159,34 @@ class Company < ApplicationRecord
 
   def onboarding_complete?
     portal_onboarding_completed_at.present?
+  end
+
+  # May this company's users use the portal? Mjadi sells a fixed-fee engagement,
+  # not a subscription (Doc 17 §2), so an engagement in progress is what grants
+  # access. A company from before engagements existed, with none, keeps the old
+  # subscription rule until it has one.
+  def portal_access?
+    return true if current_engagement
+    return false if engagements.exists?
+
+    subscription&.active_for_access? || false
+  end
+
+  # The engagement now in progress. A company normally has one; a later
+  # department-by-department engagement would open a new one.
+  def current_engagement
+    engagements.not_closed.order(created_at: :desc).first
+  end
+
+  # Reads the website again in the background: for onboarding pre-fill proposals
+  # when the company is on an engagement (Doc 07 §5), otherwise for the older
+  # research summary. An engagement company never gets the summary, which was
+  # never confirmed by anyone.
+  def read_website_later(force: false)
+    return if website_url.blank?
+
+    engagement = current_engagement
+    engagement ? WebsitePrefillJob.start(engagement) : CompanyWebResearchJob.perform_later(id, force: force)
   end
 
   private

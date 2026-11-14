@@ -18,12 +18,6 @@ class SignupMailer < ApplicationMailer
     )
   end
 
-  def company_registration_approved(registration, token)
-    @registration = registration
-    @set_password_url = set_password_url(token, portal: "company")
-    mail(to: registration.admin_email, subject: "Your Mjadi company account is approved")
-  end
-
   def company_registration_rejected(registration)
     @registration = registration
     mail(to: registration.admin_email, subject: "Update on your Mjadi signup request")
@@ -57,12 +51,14 @@ class SignupMailer < ApplicationMailer
     mail(to: user.email, subject: "Reset your Mjadi password")
   end
 
-  def company_admin_credentials(user, password)
-    @user = user
-    @password = password
-    @login_url = portal_login_url("company")
-    company_name = user.company&.display_name.presence || user.company&.name || "your company"
-    mail(to: user.email, subject: "Your Mjadi login for #{company_name}")
+  # The key user's invitation to an engagement Mjadi has set up (Doc 07 §3).
+  def engagement_invitation(engagement, token)
+    @user = engagement.key_user
+    @company_name = engagement.company.display_name.presence || engagement.company.name
+    @consultant_name = engagement.lead_consultant&.name
+    @has_website = engagement.company.website_url.present?
+    @set_password_url = set_password_url(token, portal: "company")
+    mail(to: @user.email, subject: "Your Mjadi engagement with #{@company_name} is ready")
   end
 
   private

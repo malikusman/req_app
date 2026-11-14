@@ -25,14 +25,18 @@ module Discovery
         state_snapshot: snapshot
       )
 
+      # `completed` remains the historical transport/lifecycle terminal flag.
+      # An interrupted workflow interview must not produce success notifications,
+      # employee completion counters or validated findings.
+      outcome = @conversation.dossier.dig("workflow", "outcome")
+      return if outcome.present? && outcome != "successful"
+
       if first_completion
         @employee.update!(
           participation_status: "completed",
           completed_at: Time.current,
           last_active_at: Time.current
         )
-
-        @company.increment!(:completed_count)
         @company.increment!(:conversation_count)
         Intelligence::TimelineRecorder.interview_completed!(company: @company, employee: @employee)
         NotificationService.notify_interview_completed(company: @company, employee: @employee)
@@ -48,6 +52,8 @@ module Discovery
       # employee's final message must not wait on it. Re-runs after an addendum so
       # the package reflects the extra evidence, minting a new version.
       BuildDiscoveryPackageJob.perform_later(@conversation.id)
+      # Role-by-role findings, with hours, from this interview's dossier.
+      BuildFindingsJob.perform_later(@conversation.id)
     end
   end
 end

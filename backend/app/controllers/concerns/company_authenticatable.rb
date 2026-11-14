@@ -9,7 +9,7 @@ module CompanyAuthenticatable
       AuthorizationContext.new(actor: current_company_user, audience: :company)
     end
     before_action :authenticate_company_user!
-    before_action :require_active_subscription!
+    before_action :require_portal_access!
   end
 
   private
@@ -42,11 +42,11 @@ module CompanyAuthenticatable
     @impersonation_session
   end
 
-  def require_active_subscription!
+  def require_portal_access!
     return if impersonating?
-    return if current_company.subscription&.active_for_access?
+    return if current_company.portal_access?
 
-    render json: { error: "Subscription inactive" }, status: :forbidden
+    render json: { error: "This engagement is not active. Please contact Mjadi." }, status: :forbidden
   end
 
   def current_company_user

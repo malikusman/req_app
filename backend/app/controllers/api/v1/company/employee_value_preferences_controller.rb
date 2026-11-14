@@ -108,7 +108,9 @@ module Api
             generated_at: digest.generated_at,
             sent_at: digest.sent_at,
             headline: digest.content.is_a?(Hash) ? digest.content["headline"] : nil,
-            content: digest.content
+            # The body is built from what this employee said in their interview, so
+            # it goes to the employee, not to the admin who triggers it.
+            tip_count: digest.content.is_a?(Hash) ? Array(digest.content["tips"]).size : 0
           }
         end
       end

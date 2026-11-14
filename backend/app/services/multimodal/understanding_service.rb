@@ -22,7 +22,9 @@ module Multimodal
 
       case @attachment.attachment_type
       when "audio"
-        understand_audio(lang)
+        # Only a language we actually know about the person; otherwise the model
+        # detects it, rather than the company's default overriding what they spoke.
+        understand_audio(@employee.preferred_language.presence)
       when "image"
         understand_image(lang)
       when "document"

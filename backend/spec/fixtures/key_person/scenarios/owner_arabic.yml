@@ -1,0 +1,25 @@
+# Doc 08 §31.1: an owner who writes in Arabic. Replies should be in Modern
+# Standard Arabic, and capture as good as in English.
+title: Owner, in Arabic
+persona: CEO_OWNER_MD
+role_title: المالك
+language: ar
+expect:
+  language: ar
+answers:
+  STRATEGIC_OBJECTIVES: "نريد أن نتوسع في السعودية خلال سنتين وأن نقلل اعتمادنا على عدد قليل من العملاء."
+  GROWTH_PRIORITIES: "النمو محدود لأننا لا نستطيع خدمة الطلبات الحالية بسرعة."
+  CONCERNS: "أكثر ما ألاحقه هو عروض الأسعار، فنصفها ينتظر موافقتي."
+  BOTTLENECKS: "الطلبات تتراكم لأنها تصل عبر واتساب وتُدخل يدوياً في النظام."
+  PLANNED_INITIATIVES: "سننتقل إلى نظام ERP جديد العام القادم."
+  CONSTRAINTS: "لا نريد أي تغيير في المستودع خلال رمضان."
+  SUCCESS_DEFINITION: "أن تخرج عروض الأسعار في نفس اليوم."
+  PRIORITY_AREAS: "المبيعات وعروض الأسعار أولاً."
+  AMBITION: "نريد أن نخدم متاجر الإنترنت التي تحتاج ردوداً سريعة."
+  RELEASED_TIME: "أريد أن يزور فريق المبيعات العملاء أكثر."
+  STAKEHOLDER_EXPERIENCE: "العملاء يشتكون من التأخر في تأكيد المخزون."
+  PEOPLE_WORKLOAD: "منسقة المبيعات تحمل كل شيء في رأسها."
+  SYSTEMS: "نستخدم Zoho ونلتف عليه بجداول Excel."
+  REPORTING: "أريد أن أرى المخزون والهامش كل صباح."
+  DECISIONS_APPROVALS: "كل خصم يمر عليّ شخصياً."
+  DATA_DOCUMENTS: "تقرير المبيعات الأسبوعي يُعد يدوياً."

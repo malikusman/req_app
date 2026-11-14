@@ -156,6 +156,9 @@ module ReportSectionTemplates
       "purpose" => "Owners, sequencing, resourcing, milestones. Turns advice into a plan.",
       "anchor" => "roadmap",
       "recommended" => false,
+      # Owners, effort and milestones are how a fix is delivered — Stage 2's design,
+      # not the Stage 1 diagnosis. Not offered on a Stage 1 report.
+      "stage" => 2,
       "scaffold" => <<~TEXT
         ## Sequencing
 
@@ -218,6 +221,9 @@ module ReportSectionTemplates
   KEYS = DEFINITIONS.map { |d| d["key"] }.freeze
   BY_KEY = DEFINITIONS.index_by { |d| d["key"] }.freeze
   RECOMMENDED = DEFINITIONS.select { |d| d["recommended"] }.freeze
+  # What a consultant may add to a Stage 1 report; the rest wait for Stage 2.
+  STAGE1 = DEFINITIONS.reject { |d| d["stage"] == 2 }.freeze
+  STAGE2_KEYS = (KEYS - STAGE1.map { |d| d["key"] }).freeze
 
   def self.find(key)
     BY_KEY[key.to_s]

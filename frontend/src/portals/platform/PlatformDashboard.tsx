@@ -69,6 +69,13 @@ function StatusChip({ count }: { count: number }) {
 
 const TRIALS_ON_DASHBOARD = 5;
 
+/** "Expired 16d ago", "Ends today", "3 days left". */
+export function trialDaysLabel(days: number) {
+  if (days < 0) return `Expired ${-days}d ago`;
+  if (days === 0) return 'Ends today';
+  return `${days} day${days === 1 ? '' : 's'} left`;
+}
+
 export function PlatformDashboard() {
   const token = usePlatformToken();
   const [data, setData] = useState<PlatformDashboardPayload | null>(null);
@@ -140,13 +147,25 @@ export function PlatformDashboard() {
   // Build the triage queue. Each row leads with its count; a 0/unavailable
   // count omits the row entirely.
   const attentionItems: AttentionItemData[] = [];
-  if (reportsAwaiting.length > 0) {
+  // Ready and blocked are different jobs: only the first can be approved now.
+  const readyReports = reportsAwaiting.filter((r) => !r.blocked_needs_info);
+  const blockedReports = reportsAwaiting.length - readyReports.length;
+  if (readyReports.length > 0) {
     attentionItems.push({
       tone: 'attention',
       icon: <FileCheck2 className="h-[18px] w-[18px]" />,
-      title: `${reportsAwaiting.length} report${reportsAwaiting.length === 1 ? '' : 's'} awaiting your approval`,
-      detail: 'Reviewed and ready to ship to the company',
+      title: `${readyReports.length} report${readyReports.length === 1 ? '' : 's'} ready to approve`,
+      detail: 'Reviewed by the consultant and ready to go to the company',
       action: { label: 'Review', to: '/platform/approvals' },
+    });
+  }
+  if (blockedReports > 0) {
+    attentionItems.push({
+      tone: 'attention',
+      icon: <FileCheck2 className="h-[18px] w-[18px]" />,
+      title: `${blockedReports} report${blockedReports === 1 ? '' : 's'} waiting on clarification`,
+      detail: 'A consultant flagged sections that need more before approval',
+      action: { label: 'See', to: '/platform/approvals' },
     });
   }
   if (pendingCompanies && pendingCompanies > 0) {
@@ -176,12 +195,23 @@ export function PlatformDashboard() {
       action: { label: 'Review', to: '/platform/catalog/candidates' },
     });
   }
-  if (trials.length > 0) {
+  const expiredTrials = trials.filter((t) => t.subscription.days_remaining < 0).length;
+  const endingTrials = trials.length - expiredTrials;
+  if (endingTrials > 0) {
     attentionItems.push({
       tone: 'attention',
       icon: <Clock className="h-[18px] w-[18px]" />,
-      title: `${trials.length} trial${trials.length === 1 ? '' : 's'} expiring soon`,
+      title: `${endingTrials} trial${endingTrials === 1 ? '' : 's'} ending this week`,
       detail: 'Ending within 7 days — extend below',
+      action: { label: 'Manage', to: '/platform/operations?tab=trials' },
+    });
+  }
+  if (expiredTrials > 0) {
+    attentionItems.push({
+      tone: 'attention',
+      icon: <Clock className="h-[18px] w-[18px]" />,
+      title: `${expiredTrials} trial${expiredTrials === 1 ? ' has' : 's have'} expired`,
+      detail: 'Extend or convert them',
       action: { label: 'Manage', to: '/platform/operations?tab=trials' },
     });
   }
@@ -285,7 +315,7 @@ export function PlatformDashboard() {
               render: (r) => {
                 const d = r.subscription.days_remaining;
                 const variant = d <= 3 ? 'error' : d <= 7 ? 'warning' : 'neutral';
-                return <Badge variant={variant}>{d}d</Badge>;
+                return <Badge variant={variant}>{trialDaysLabel(d)}</Badge>;
               },
             },
             {

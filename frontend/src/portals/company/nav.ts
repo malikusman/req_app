@@ -1,10 +1,10 @@
 import {
   CreditCard,
   FileBarChart,
+  FileSignature,
   FileText,
-  Image,
   LayoutDashboard,
-  MessageSquare,
+  MessagesSquare,
   Search,
   Settings,
   ShieldCheck,
@@ -16,11 +16,15 @@ import type { LucideIcon } from 'lucide-react';
 
 export interface CompanyNavOpts {
   /** Company-profile completion percent; shows an amber badge while < 100. */
-  profilePercent?: number;
+  profileSubmitted?: boolean;
   /** Latest report version; shows a `v{n}` badge when a report exists. */
   reportVersion?: number | null;
   /** Unanswered consultant questions; shows an amber count badge when > 0. */
   consultantQuestions?: number;
+  /** The key user's conversation with leadership: shown once it exists; 'To do' until finished. */
+  leadership?: { finished: boolean } | null;
+  /** The Stage 1 proposal: shown once one has been sent; 'To do' while it waits on this user. */
+  proposal?: { waitingOnYou: boolean } | null;
 }
 
 /**
@@ -28,18 +32,21 @@ export interface CompanyNavOpts {
  * already fetches the dashboard payload) to light up the badges.
  */
 export function companyNavItems(opts: CompanyNavOpts = {}): SidebarItem[] {
-  const { profilePercent, reportVersion, consultantQuestions } = opts;
+  const { profileSubmitted, reportVersion, consultantQuestions, leadership, proposal } = opts;
 
   const items: SidebarItem[] = [
     { to: '/company/dashboard', label: 'Home', icon: LayoutDashboard },
 
     { to: '/company/onboarding', label: 'Company profile', icon: UserCircle, section: 'Set up' },
+    ...(leadership
+      ? [{ to: '/company/leadership', label: 'Leadership conversation', icon: MessagesSquare, section: 'Set up' }]
+      : []),
+    ...(proposal ? [{ to: '/company/proposal', label: 'Proposal', icon: FileSignature, section: 'Set up' }] : []),
     { to: '/company/documents', label: 'Documents', icon: FileText, section: 'Set up' },
     { to: '/company/employees', label: 'Your team', icon: Users, section: 'Set up' },
 
     { to: '/company/reports', label: 'Reports', icon: FileBarChart, section: 'Insights' },
     { to: '/company/intelligence', label: 'What we found', icon: Search, section: 'Insights' },
-    { to: '/company/conversations', label: 'Conversations', icon: MessageSquare, section: 'Insights' },
 
     { to: '/company/outreaches', label: 'Consultant questions', icon: ShieldCheck, section: 'Working with you' },
     { to: '/company/consultants', label: 'Your consultant', icon: UserCircle, section: 'Working with you' },
@@ -48,8 +55,14 @@ export function companyNavItems(opts: CompanyNavOpts = {}): SidebarItem[] {
   ];
 
   return items.map((item) => {
-    if (item.to === '/company/onboarding' && profilePercent != null && profilePercent < 100) {
-      return { ...item, badge: `${Math.round(profilePercent)}%`, badgeTone: 'attention' };
+    if (item.to === '/company/onboarding' && profileSubmitted === false) {
+      return { ...item, badge: 'To do', badgeTone: 'attention' };
+    }
+    if (item.to === '/company/leadership' && leadership && !leadership.finished) {
+      return { ...item, badge: 'To do', badgeTone: 'attention' };
+    }
+    if (item.to === '/company/proposal' && proposal?.waitingOnYou) {
+      return { ...item, badge: 'To do', badgeTone: 'attention' };
     }
     if (item.to === '/company/reports' && reportVersion != null) {
       return { ...item, badge: `v${reportVersion}` };
@@ -71,5 +84,4 @@ export const SETTINGS_SECONDARY_LINKS: {
   icon: LucideIcon;
 }[] = [
   { to: '/company/billing', label: 'Billing', description: 'Trial usage and plan', icon: CreditCard },
-  { to: '/company/media', label: 'WhatsApp media', description: 'Inbound discovery media', icon: Image },
 ];

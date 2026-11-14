@@ -3,6 +3,8 @@
 require "rails_helper"
 
 RSpec.describe "Public company registrations", type: :request do
+  before { allow(Api::V1::Public::CompanyRegistrationsController).to receive(:enabled?).and_return(true) }
+
   let(:valid_params) do
     {
       company_name: "Northwind Logistics",
@@ -33,6 +35,31 @@ RSpec.describe "Public company registrations", type: :request do
     expect(user.email).to eq("sam@northwind.test")
     expect(user.phone).to eq("+971500000000")
     expect(registration.admin_phone).to eq("+971500000000")
+  end
+
+  it "does nothing with the request before it is approved — no website research, no profile" do
+    expect {
+      post "/api/v1/public/company_registrations",
+           params: valid_params.merge(website_url: "https://northwind.test",
+                                      company_profile: { industry: "logistics" })
+    }.not_to have_enqueued_job(CompanyWebResearchJob)
+
+    expect(Company.last.company_profile).to eq({})
+  end
+
+  context "when public sign-up is switched off (the default)" do
+    before { allow(Api::V1::Public::CompanyRegistrationsController).to receive(:enabled?).and_call_original }
+
+    it "is not found, and creates nothing" do
+      expect { post "/api/v1/public/company_registrations", params: valid_params }
+        .not_to change(Company, :count)
+      expect(response).to have_http_status(:not_found)
+    end
+
+    it "tells the public site it is off" do
+      get "/api/v1/public/config"
+      expect(JSON.parse(response.body)).to eq("company_signup_enabled" => false)
+    end
   end
 
   it "requires a phone number" do

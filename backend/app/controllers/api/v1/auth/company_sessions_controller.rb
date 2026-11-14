@@ -15,8 +15,8 @@ module Api
             return render json: { error: "Company account is pending approval" }, status: :forbidden
           end
 
-          unless user.company.subscription&.active_for_access?
-            return render json: { error: "Subscription inactive" }, status: :forbidden
+          unless user.company.portal_access?
+            return render json: { error: "This engagement is not active. Please contact Mjadi." }, status: :forbidden
           end
 
           token = JsonWebToken.encode(

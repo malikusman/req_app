@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { createBrowserRouter, createRoutesFromElements, Navigate, Route, RouterProvider, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './lib/auth';
 import { ToastProvider } from './components/ui/ToastProvider';
 import { Toaster } from './components/shadcn/sonner';
@@ -20,21 +20,23 @@ import { PlatformSolutions } from './portals/platform/PlatformSolutions';
 import { PlatformOperations } from './portals/platform/PlatformOperations';
 import { PlatformConsultants } from './portals/platform/PlatformConsultants';
 import { PlatformConsultantDetail } from './portals/platform/PlatformConsultantDetail';
+import { PlatformPricingQueue } from './portals/platform/PlatformPricingQueue';
+import { PlatformQuoteReview } from './portals/platform/PlatformQuoteReview';
+import { PlatformRateCard } from './portals/platform/PlatformRateCard';
 import { PlatformRegistrations } from './portals/platform/PlatformRegistrations';
 import { PlatformApprovals } from './portals/platform/PlatformApprovals';
 import { CompanyLayout } from './portals/company/CompanyLayout';
 import { CompanyDashboard } from './portals/company/CompanyDashboard';
 import { CompanyOnboarding } from './portals/company/CompanyOnboarding';
+import { CompanyLeadership } from './portals/company/CompanyLeadership';
+import { CompanyProposal } from './portals/company/CompanyProposal';
+import { LeadershipLink } from './portals/public/LeadershipLink';
 import { CompanyEmployees } from './portals/company/CompanyEmployees';
-import { CompanyConversations } from './portals/company/CompanyConversations';
-import { CompanyConversationDetail } from './portals/company/CompanyConversationDetail';
 import { CompanyIntelligence } from './portals/company/CompanyIntelligence';
 import { CompanyDocuments } from './portals/company/CompanyDocuments';
 import { CompanyKnowledge } from './portals/company/CompanyKnowledge';
 import { ConsultantDocuments } from './portals/consultant/ConsultantDocuments';
 import { ConsultantDocumentAnalysis } from './portals/consultant/ConsultantDocumentAnalysis';
-import { CompanyMediaLibrary } from './portals/company/CompanyMediaLibrary';
-import { CompanyDiscoveryQuestions } from './portals/company/CompanyDiscoveryQuestions';
 import { CompanyReports } from './portals/company/CompanyReports';
 import { CompanyReportReader } from './portals/company/CompanyReportReader';
 import { CompanyConsultantsPage } from './portals/company/CompanyConsultantsPage';
@@ -49,12 +51,17 @@ import { ConsultantConversations } from './portals/consultant/ConsultantConversa
 import { ConsultantConversationDetail } from './portals/consultant/ConsultantConversationDetail';
 import { ConsultantEmployeeFollowup } from './portals/consultant/ConsultantEmployeeFollowup';
 import { ConsultantProfile } from './portals/consultant/ConsultantProfile';
+import { ConsultantLeadership } from './portals/consultant/ConsultantLeadership';
+import { ConsultantSynthesis } from './portals/consultant/ConsultantSynthesis';
 import { DevUiShowcase } from './dev/DevUiShowcase';
 import { CompanyOutreaches } from './portals/company/CompanyOutreaches';
 import { PlatformCatalogCandidates } from './portals/platform/PlatformCatalogCandidates';
 import { PlatformCatalogSources } from './portals/platform/PlatformCatalogSources';
 import { OutreachReplyPage } from './portals/public/OutreachReplyPage';
 import { ConsultantCatalog } from './portals/consultant/ConsultantCatalog';
+import { ConsultantFindings } from './portals/consultant/ConsultantFindings';
+import { ConsultantTaskSelection } from './portals/consultant/ConsultantTaskSelection';
+import { ConsultantDeepDivePlans } from './portals/consultant/ConsultantDeepDivePlans';
 import { DiscoverLanding } from './employee/DiscoverLanding';
 import { DiscoverChat } from './employee/DiscoverChat';
 
@@ -104,13 +111,9 @@ function LegacyReviewerRedirect() {
   return <Navigate to={`${target}${location.search}${location.hash}`} replace />;
 }
 
-export default function App() {
-  return (
-    <AuthProvider>
-      <ToastProvider>
-        <Toaster richColors closeButton position="top-right" />
-        <BrowserRouter>
-          <Routes>
+// A data router lets Deep Dive Plans guard both link navigation and browser history.
+const router = createBrowserRouter(createRoutesFromElements(
+          <>
             <Route path="/" element={<HomeRoute />} />
             <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="/dev/ui" element={<DevUiShowcase />} />
@@ -135,6 +138,9 @@ export default function App() {
               <Route index element={<Navigate to="dashboard" replace />} />
               <Route path="dashboard" element={<PlatformDashboard />} />
               <Route path="approvals" element={<PlatformApprovals />} />
+              <Route path="pricing" element={<PlatformPricingQueue />} />
+              <Route path="pricing/rates" element={<PlatformRateCard />} />
+              <Route path="pricing/:id" element={<PlatformQuoteReview />} />
               <Route path="registrations" element={<PlatformRegistrations />} />
               <Route path="companies" element={<PlatformCompanies />} />
               <Route path="companies/:id" element={<PlatformCompanyDetail />} />
@@ -172,6 +178,11 @@ export default function App() {
               <Route path="companies/:companyId/documents" element={<ConsultantDocuments />} />
               <Route path="companies/:companyId/analysis" element={<ConsultantDocumentAnalysis />} />
               <Route path="companies/:companyId/catalog" element={<ConsultantCatalog />} />
+              <Route path="companies/:companyId/findings" element={<ConsultantFindings />} />
+              <Route path="companies/:companyId/leadership" element={<ConsultantLeadership />} />
+              <Route path="companies/:companyId/synthesis" element={<ConsultantSynthesis />} />
+              <Route path="companies/:companyId/task-selection" element={<ConsultantTaskSelection />} />
+              <Route path="companies/:companyId/deep-dive-plans/:runId" element={<ConsultantDeepDivePlans />} />
             </Route>
             <Route
               path="/company"
@@ -184,9 +195,12 @@ export default function App() {
               <Route index element={<Navigate to="dashboard" replace />} />
               <Route path="dashboard" element={<CompanyDashboard />} />
               <Route path="onboarding" element={<CompanyOnboarding />} />
+              <Route path="leadership" element={<CompanyLeadership />} />
+              <Route path="proposal" element={<CompanyProposal />} />
               <Route path="employees" element={<CompanyEmployees />} />
-              <Route path="conversations" element={<CompanyConversations />} />
-              <Route path="conversations/:id" element={<CompanyConversationDetail />} />
+              {/* The client sees who has taken part, never what they said — see
+                  Your team. Old links land there rather than on a 404. */}
+              <Route path="conversations/*" element={<Navigate to="/company/employees" replace />} />
               <Route path="intelligence" element={<CompanyIntelligence />} />
               <Route path="intelligence/signals" element={<Navigate to="/company/intelligence#signals" replace />} />
               <Route path="intelligence/patterns" element={<Navigate to="/company/intelligence#patterns" replace />} />
@@ -194,8 +208,8 @@ export default function App() {
               <Route path="documents" element={<CompanyDocuments />} />
               <Route path="knowledge" element={<CompanyKnowledge />} />
               <Route path="outreaches" element={<CompanyOutreaches />} />
-              <Route path="media" element={<CompanyMediaLibrary />} />
-              <Route path="discovery-questions" element={<CompanyDiscoveryQuestions />} />
+              <Route path="media" element={<Navigate to="/company/employees" replace />} />
+              <Route path="discovery-questions" element={<Navigate to="/company/documents" replace />} />
               <Route path="recommendations" element={<Navigate to="/company/intelligence#recommendations" replace />} />
               <Route path="reports" element={<CompanyReports />} />
               <Route path="reports/:id/read" element={<CompanyReportReader />} />
@@ -203,12 +217,20 @@ export default function App() {
               <Route path="settings" element={<CompanySettings />} />
               <Route path="billing" element={<CompanyBilling />} />
             </Route>
+            <Route path="/leadership/:token" element={<LeadershipLink />} />
             <Route path="/discover/:token" element={<DiscoverLanding />} />
             <Route path="/discover/:token/chat" element={<DiscoverChat />} />
             <Route path="/outreach/reply/:token" element={<OutreachReplyPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </BrowserRouter>
+          </>,
+));
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <ToastProvider>
+        <Toaster richColors closeButton position="top-right" />
+        <RouterProvider router={router} />
       </ToastProvider>
     </AuthProvider>
   );

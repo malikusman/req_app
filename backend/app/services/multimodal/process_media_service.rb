@@ -108,9 +108,21 @@ module Multimodal
       parts.join("\n\n")
     end
 
+    # The transcription model reads the format from the extension, so it must match
+    # the bytes: a browser recording is WebM or MP4, not the Ogg a WhatsApp voice
+    # note is.
+    AUDIO_EXTENSIONS = {
+      "audio/webm" => ".webm", "audio/ogg" => ".ogg", "audio/mp4" => ".m4a", "audio/x-m4a" => ".m4a",
+      "audio/m4a" => ".m4a", "audio/aac" => ".m4a", "audio/mpeg" => ".mp3", "audio/wav" => ".wav",
+      "audio/x-wav" => ".wav"
+    }.freeze
+
     def extension_for_type
+      if @attachment.attachment_type == "audio"
+        return AUDIO_EXTENSIONS.fetch(@attachment.mime_type.to_s.split(";").first.to_s.strip.downcase, ".ogg")
+      end
+
       {
-        "audio" => ".ogg",
         "image" => ".jpg",
         "document" => ".pdf"
       }.fetch(@attachment.attachment_type, ".bin")

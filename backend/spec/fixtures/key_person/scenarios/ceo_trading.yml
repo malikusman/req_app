@@ -1,0 +1,31 @@
+# Doc 08 §31.1: an owner with a full answer to most things, a planned ERP, a
+# question about price, and a team they blame. Answers are given to whichever
+# area the assistant asked about; `inject` lines are said at those answer numbers
+# instead, to test how the conversation handles them.
+title: Owner of a trading company
+persona: CEO_OWNER_MD
+role_title: Owner and Managing Director
+expect:
+  initiative: ERP
+  aside: PRICE
+  sensitive: CRITICISM_OF_PERSON
+inject:
+  4: "What would all this cost us, roughly?"
+  7: "Honestly Ahmed in accounts is the problem, he never gets the monthly figures out on time."
+answers:
+  STRATEGIC_OBJECTIVES: "In two years I want us selling properly into Saudi and East Africa, not just the UAE."
+  GROWTH_PRIORITIES: "Growth is limited by handling what we have; we can't keep up with orders."
+  CONCERNS: "The thing I chase most is quotations. Half of them wait for my approval and customers go elsewhere."
+  BOTTLENECKS: "Orders pile up because everything arrives on WhatsApp and gets typed into Zoho by hand."
+  STAKEHOLDER_EXPERIENCE: "Our best customers complain that we're slow to confirm stock and delivery dates."
+  PEOPLE_WORKLOAD: "Our sales coordinator holds everything in her head; if she's off, quotes stop."
+  SYSTEMS: "We work around Zoho constantly and half the team keeps its own spreadsheets."
+  REPORTING: "I'd love to see stock and margin by customer every morning; today it's monthly."
+  DECISIONS_APPROVALS: "Every discount and most quotes come to me personally."
+  DATA_DOCUMENTS: "The weekly sales pack is put together by hand from three spreadsheets."
+  PLANNED_INITIATIVES: "We're moving to a new ERP next year, probably in March."
+  CONSTRAINTS: "Don't disturb the warehouse during Ramadan or the year-end stock count."
+  SUCCESS_DEFINITION: "Quotes going out the same day and me not being the bottleneck any more."
+  PRIORITY_AREAS: "Look at sales and the quotation process first."
+  AMBITION: "We'd like to serve online retailers who need fast quotes, which we can't today."
+  RELEASED_TIME: "I'd want the sales team out visiting customers and opening new accounts."

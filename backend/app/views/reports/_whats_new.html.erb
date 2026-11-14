@@ -1,0 +1,40 @@
+<% company_name = snapshot.dig("company", "name") %>
+<% delta = snapshot["delta_from_previous"] || {} %>
+<% changes = delta["findings"] || {} %>
+<%# One page, whatever moved: each column stops at LIMIT and says how many more,
+    and a long title or note is shortened, so the page cannot spill onto a second. %>
+<% limit = 5 %>
+<% hours = ->(row) { (range = report_hours(row["hours_min"], row["hours_max"])) ? "#{range} hours a year" : nil } %>
+<% column = lambda do |rows, empty, &detail|
+     shown = rows.first(limit)
+     items = shown.map do |row|
+       note = detail.call(row)
+       "<li><strong>#{h row['title'].to_s.truncate(70, separator: ' ')}</strong>#{note.present? ? " <span class=\"muted\">— #{h note.truncate(60, separator: ' ')}</span>" : ''}</li>"
+     end
+     items << "<li class=\"muted\">and #{rows.size - limit} more</li>" if rows.size > limit
+     items << "<li class=\"muted\">#{h empty}</li>" if rows.empty?
+     items.join.html_safe
+   end %>
+<section class="page">
+  <div class="eyebrow">What's new in this version</div>
+  <h1 class="page-title">What moved since the last version</h1>
+  <p class="lead" style="max-width:200mm;"><%= h delta["summary"] %>.</p>
+  <% if Array(changes["new_departments"]).any? %>
+    <p class="muted" style="margin-top:2mm;">Newly covered: <%= h Array(changes["new_departments"]).map { |d| report_department_label(d) }.to_sentence %>.</p>
+  <% end %>
+  <div class="delta" style="margin-top:6mm;">
+    <div class="col add">
+      <h4>New findings</h4>
+      <ul><%= column.call(Array(changes["added"]), "None") { |row| hours.call(row) } %></ul>
+    </div>
+    <div class="col chg">
+      <h4>Updated</h4>
+      <ul><%= column.call(Array(changes["updated"]), "None") { |row| row["change"] } %></ul>
+    </div>
+    <div class="col rem">
+      <h4>Superseded</h4>
+      <ul><%= column.call(Array(changes["superseded"]), "None") { |row| row["reason"] } %></ul>
+    </div>
+  </div>
+  <%= render "reports/page_footer", company_name: company_name %>
+</section>

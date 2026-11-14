@@ -15,9 +15,11 @@ export function CompanyLayout() {
   usePageMeta('Company');
   const [integrations, setIntegrations] = useState<CompanyDashboardPayload['integrations']>();
   const [navCounts, setNavCounts] = useState<{
-    profilePercent?: number;
+    profileSubmitted?: boolean;
     reportVersion?: number | null;
     consultantQuestions?: number;
+    leadership?: { finished: boolean } | null;
+    proposal?: { waitingOnYou: boolean } | null;
   }>({});
 
   const impersonating = Boolean(session?.portal === 'company' && session.impersonating);
@@ -30,8 +32,12 @@ export function CompanyLayout() {
         setIntegrations(d.integrations);
         setNavCounts((prev) => ({
           ...prev,
-          profilePercent: d.questionnaire_completion_percent,
+          profileSubmitted: Boolean(d.onboarding_submitted_at),
           reportVersion: d.latest_report?.version ?? null,
+          leadership: d.leadership?.is_key_user && d.leadership.own ? { finished: d.leadership.own.finished } : null,
+          proposal: d.stage1_quote
+            ? { waitingOnYou: d.stage1_quote.can_decide && d.stage1_quote.status === 'ISSUED' }
+            : null,
         }));
       })
       .catch(() => undefined);
@@ -68,7 +74,8 @@ export function CompanyLayout() {
           : 'PDF service (Gotenberg) is down — report generation will fail.'
       );
     }
-    if (!integrations.stripe_configured) {
+    // Billing is hidden from clients unless switched on, so its warning is too.
+    if (!integrations.stripe_configured && integrations.billing_visible) {
       warnings.push(
         integrations.mocks_allowed
           ? 'Stripe is not configured — billing uses mock checkout (dev only).'

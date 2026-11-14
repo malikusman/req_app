@@ -16,10 +16,7 @@ module Registrations
       notes: nil,
       display_name: nil,
       admin_phone: nil,
-      website_url: nil,
-      company_profile: nil,
-      known_systems: nil,
-      engagement_mode: nil # ignored — always hybrid via Company::DEFAULT_SETTINGS
+      website_url: nil
     )
       @company_name = company_name.to_s.strip
       @display_name = display_name.to_s.strip.presence || @company_name
@@ -29,8 +26,6 @@ module Registrations
       @website_url = normalize_website(website_url)
       @role_title = role_title.to_s.strip.presence
       @notes = notes.to_s.strip.presence
-      @company_profile = company_profile
-      @known_systems = known_systems
     end
 
     def call
@@ -66,22 +61,10 @@ module Registrations
           notes: @notes,
           status: "pending"
         )
-
-        # Legacy firmographic signup payloads still accepted for older clients
-        if @company_profile.present? || !@known_systems.nil?
-          Companies::ProfileUpdater.call(
-            company: company,
-            profile_params: (@company_profile || {}).to_h,
-            known_systems: @known_systems
-          )
-        end
       end
 
       SignupMailer.company_registration_received(registration).deliver_later
       SignupMailer.company_registration_admin_notice(registration).deliver_later
-      if @website_url.present? && registration.company_id
-        CompanyWebResearchJob.perform_later(registration.company_id)
-      end
       registration
     end
 

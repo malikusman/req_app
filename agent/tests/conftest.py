@@ -27,6 +27,8 @@ MODULES_USING_LLM_SWITCH = (
     # for minutes making real Gemma calls. Any new module that imports
     # llm_configured belongs on this list on the same commit that adds it.
     "app.deep_dive",
+    # The recording half of a discovery turn, added when the turn was split.
+    "app.interview_capture",
 )
 
 

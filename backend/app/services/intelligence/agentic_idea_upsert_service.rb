@@ -12,14 +12,24 @@ module Intelligence
       @actor = actor
     end
 
+    # Each run regenerates the company's ideas from its current evidence. An idea
+    # that matches one already held (Intelligence::IdeaMatching) is that idea:
+    # an unreviewed generated draft is refreshed in place, and anything a person
+    # has published or written stands untouched. Generated drafts this run did not
+    # produce again are archived — the evidence moved on — never deleted.
     def call
-      Array(@ideas).filter_map do |attrs|
+      existing = @company.agentic_ideas.active_backlog.to_a
+      touched = []
+      saved = Array(@ideas).filter_map do |attrs|
         title = attrs[:title].presence || attrs["title"].presence
         next if title.blank?
+        next if touched.any? { |t| IdeaMatching.same?(t.title, title) } # a repeat within this run
 
+        record = existing.find { |i| i.title == title } || existing.find { |i| IdeaMatching.same?(i.title, title) }
+        record ||= @company.agentic_ideas.new(title: title, source: "generated")
+        touched << record
         # Only auto-upsert generated drafts; never clobber human-edited rows.
-        record = @company.agentic_ideas.find_or_initialize_by(title: title, source: "generated")
-        next record if record.persisted? && record.status != "draft"
+        next record if record.persisted? && (record.status != "draft" || record.source != "generated")
 
         record.assign_attributes(
           summary: attrs[:summary] || attrs["summary"],
@@ -44,6 +54,18 @@ module Intelligence
         record.save!
         record
       end
+      archive_superseded!(touched)
+      saved
+    end
+
+    private
+
+    def archive_superseded!(touched)
+      return if touched.empty?
+
+      @company.agentic_ideas.where(status: "draft", source: "generated")
+              .where.not(id: touched.map(&:id).compact)
+              .update_all(status: "archived", updated_at: Time.current)
     end
   end
 end

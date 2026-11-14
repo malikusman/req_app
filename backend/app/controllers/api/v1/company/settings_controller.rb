@@ -32,7 +32,8 @@ module Api
               company: current_company,
               profile_params: profile_params,
               known_systems: params.key?(:known_systems) ? Array(params[:known_systems]) : nil,
-              website_url: params.key?(:website_url) ? params[:website_url] : :omit
+              website_url: params.key?(:website_url) ? params[:website_url] : :omit,
+              actor: current_company_user
             )
           end
 
@@ -57,8 +58,8 @@ module Api
             return render json: { error: "Set a website URL before refreshing research." }, status: :unprocessable_entity
           end
 
-          CompanyWebResearchJob.perform_later(current_company.id, force: true)
-          render json: { ok: true, queued: true }
+          current_company.read_website_later(force: true)
+          render json: { ok: true, queued: true, reading: current_company.current_engagement ? "prefill" : "research" }
         end
 
         private
@@ -84,17 +85,7 @@ module Api
         end
 
         def profile_params
-          raw = params.fetch(:company_profile, {})
-          permitted = raw.permit(
-            :industry, :sub_industry, :size_band, :region, :country,
-            :annual_revenue_band,
-            business_goals: [],
-            org_departments: []
-          )
-          if raw[:business_goals].is_a?(String)
-            permitted[:business_goals] = raw[:business_goals]
-          end
-          permitted.to_h
+          Companies::ProfileUpdater.permit(params.fetch(:company_profile, {}))
         end
       end
     end

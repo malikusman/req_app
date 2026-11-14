@@ -11,6 +11,7 @@ import {
   MessagesSquare,
   FileText,
   Package,
+  Network,
 } from 'lucide-react';
 import {
   api,
@@ -22,6 +23,7 @@ import {
   type ConsultantCompanyDetail,
 } from '../../lib/api';
 import { useConsultantToken } from '../../lib/auth';
+import { buttonVariants } from '../../components/shadcn/button';
 import {
   PageHeader,
   Card,
@@ -37,6 +39,9 @@ import {
 import { label } from '../../lib/labels';
 import { ConsultantChatDrawer } from './workspace/ConsultantChatDrawer';
 import { AgenticIdeasPanel } from '../shared/AgenticIdeasPanel';
+import { CompanyProfileSummary, ProfileChanges } from '../shared/CompanyProfileFacts';
+import { CompanyFactsEditor } from './CompanyFactsEditor';
+import { ConsultantProposalCard } from './ConsultantProposalCard';
 
 type ConversationRow = {
   id: number;
@@ -51,6 +56,7 @@ export function ConsultantCompanyOverview() {
   const { companyId } = useParams();
   const token = useConsultantToken();
   const [company, setCompany] = useState<ConsultantCompanyDetail | null>(null);
+  const [editingFacts, setEditingFacts] = useState(false);
   const [conversations, setConversations] = useState<ConversationRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -146,6 +152,10 @@ export function ConsultantCompanyOverview() {
   const generatingInFlight = company.report_generating === true;
   const hasCoConsultants = company.co_consultant_count >= 1;
   const completedInterviews = conversations.filter((c) => c.status === 'completed').length;
+  const rawLegacyGoals = company.legacy_profile?.business_goals;
+  const legacyGoals = (Array.isArray(rawLegacyGoals) ? rawLegacyGoals : rawLegacyGoals ? [rawLegacyGoals] : [])
+    .map(String)
+    .filter(Boolean);
   const roster =
     employees.length > 0
       ? employees
@@ -188,62 +198,76 @@ export function ConsultantCompanyOverview() {
 
       {tab === 'profile' && (
         <div className="space-y-6">
-          <Card title="Firmographics">
-            {company.company_profile || company.website_url ? (
-              <dl className="m-0 grid gap-3 sm:grid-cols-2 text-sm">
-                {[
-                  ['Industry', company.company_profile?.industry],
-                  ['Sub-industry', company.company_profile?.sub_industry],
-                  ['Size', company.company_profile?.size_band],
-                  ['Region', company.company_profile?.region || company.company_profile?.country],
-                  ['Revenue band', company.company_profile?.annual_revenue_band],
-                  ['Website', company.website_url],
-                ].map(([label, value]) =>
-                  value ? (
-                    <div key={String(label)}>
-                      <dt className="text-muted-foreground">{label}</dt>
-                      <dd className="m-0 font-medium">
-                        {label === 'Website' && typeof value === 'string' ? (
-                          <a href={value} target="_blank" rel="noreferrer" className="text-accent hover:underline">
-                            {value}
-                          </a>
-                        ) : (
-                          String(value)
-                        )}
-                      </dd>
-                    </div>
-                  ) : null
-                )}
-              </dl>
-            ) : (
-              <EmptyState
-                title="No profile yet"
-                description="Firmographics appear after the company completes onboarding."
-              />
-            )}
-          </Card>
-
-          {(Array.isArray(company.company_profile?.business_goals)
-            ? company.company_profile.business_goals.length > 0
-            : Boolean(company.company_profile?.business_goals)) && (
-            <Card title="Business goals">
-              <ul className="m-0 list-disc space-y-1 pl-5 text-sm">
-                {(Array.isArray(company.company_profile?.business_goals)
-                  ? company.company_profile!.business_goals!
-                  : [String(company.company_profile?.business_goals)]
-                ).map((g) => (
-                  <li key={g}>{g}</li>
-                ))}
-              </ul>
-            </Card>
+          {editingFacts && token ? (
+            <CompanyFactsEditor
+              token={token}
+              companyId={company.id}
+              answers={company.onboarding_answers || {}}
+              onCancel={() => setEditingFacts(false)}
+              onSaved={(saved) => {
+                setCompany((prev) => (prev ? { ...prev, ...saved } : prev));
+                setEditingFacts(false);
+                // Systems named in the facts show under "Applications in use".
+                api
+                  .consultantCompany(token, company.id)
+                  .then((d) => setCompany(d.company))
+                  .catch(() => undefined);
+              }}
+            />
+          ) : (
+            <CompanyProfileSummary
+              profile={company.company_profile as Record<string, unknown> | undefined}
+              provenance={company.profile_provenance}
+              action={
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={!company.onboarding_submitted_at}
+                  title={company.onboarding_submitted_at ? undefined : 'Editable once the client submits their profile'}
+                  onClick={() => setEditingFacts(true)}
+                >
+                  Edit facts
+                </Button>
+              }
+            />
           )}
+          {!company.onboarding_submitted_at && (
+            <p className="m-0 text-sm text-muted-foreground">
+              The facts are editable once the client submits their company profile.
+            </p>
+          )}
+          {company.website_url && (
+            <p className="m-0 text-sm">
+              <span className="text-muted-foreground">Website:</span>{' '}
+              <a href={company.website_url} target="_blank" rel="noreferrer" className="text-accent hover:underline">
+                {company.website_url}
+              </a>
+            </p>
+          )}
+          <ProfileChanges changes={company.profile_changes} />
 
-          {Array.isArray(company.company_profile?.org_departments) &&
-            company.company_profile!.org_departments!.length > 0 && (
-              <Card title="Departments">
-                <p className="m-0 text-sm">{company.company_profile!.org_departments!.join(', ')}</p>
-              </Card>
-            )}
+          {legacyGoals.length > 0 || company.legacy_profile?.annual_revenue_band ? (
+            <Card title="From the old questionnaire">
+              <p className="m-0 mb-3 text-sm text-muted-foreground">
+                Answers the earlier onboarding collected. Kept for you only — the AI does not use them.
+              </p>
+              {legacyGoals.length > 0 && (
+                <>
+                  <p className="m-0 text-sm font-medium">Stated goals</p>
+                  <ul className="m-0 mb-3 list-disc space-y-1 pl-5 text-sm">
+                    {legacyGoals.map((g) => (
+                      <li key={g}>{g}</li>
+                    ))}
+                  </ul>
+                </>
+              )}
+              {company.legacy_profile?.annual_revenue_band && (
+                <p className="m-0 text-sm">
+                  <span className="text-muted-foreground">Revenue band:</span> {company.legacy_profile.annual_revenue_band}
+                </p>
+              )}
+            </Card>
+          ) : null}
 
           <Card title="Applications in use">
             {(company.company_systems || []).length === 0 ? (
@@ -382,6 +406,54 @@ export function ConsultantCompanyOverview() {
                     )}
                   </div>
                 )}
+              </Card>
+
+              <Card title="Leadership conversations">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <p className="m-0 text-sm text-muted-foreground">
+                    What the owner and managers said matters, what is planned, and where to look first — with coverage,
+                    findings and the notes for consultants only.
+                  </p>
+                  <Link to={`/consultant/companies/${companyId}/leadership`}>
+                    <Button variant="secondary" icon={<Users className="h-4 w-4" />}>Open</Button>
+                  </Link>
+                </div>
+              </Card>
+
+              {token && companyId ? <ConsultantProposalCard token={token} companyId={Number(companyId)} /> : null}
+
+              <Card title="Synthesis">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <p className="m-0 text-sm text-muted-foreground">
+                    Work several people describe, counted once; leadership's concerns set against what staff describe; and
+                    opportunities above any one task. Confirm what should reach the report; what to investigate is chosen
+                    under Task selection.
+                  </p>
+                  <Link to={`/consultant/companies/${companyId}/synthesis`}>
+                    <Button variant="secondary" icon={<Network className="h-4 w-4" />}>Open</Button>
+                  </Link>
+                </div>
+              </Card>
+
+              <Card title="Findings">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <p className="m-0 text-sm text-muted-foreground">
+                    Role by role, what the interviews found and the hours it costs. Approve what should reach the
+                    report, and merge findings that describe the same work.
+                  </p>
+                  <Link to={`/consultant/companies/${companyId}/findings`}>
+                    <Button icon={<ClipboardCheck className="h-4 w-4" />}>Review findings</Button>
+                  </Link>
+                </div>
+              </Card>
+
+              <Card title="Task selection">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <p className="m-0 text-sm text-muted-foreground">Review Task Intelligence recommendations, evidence gaps, and the tasks to take into Deep Dive planning.</p>
+                  <Link className={buttonVariants({ variant: 'secondary' })} to={`/consultant/companies/${companyId}/task-selection`}>
+                    Review task selection
+                  </Link>
+                </div>
               </Card>
 
               <Card title="Evidence explorer">

@@ -1,0 +1,91 @@
+# P10 benchmark pairs (P10 §10, Doc 20 §16). Each pair is two findings; the
+# expectation is about how they relate and whether they end up grouped.
+
+- name: same_quote_process
+  departments: [Sales]
+  items:
+    - { role: Sales Coordinator, department: Sales, title: Preparing quotes, hours: [180, 240],
+        what: "I prepare the quote — check stock, check the price list, put it in the template and email it.",
+        friction: "The price list is a separate sheet that is often out of date." }
+    - { role: Sales Coordinator, department: Sales, title: Customer price requests, hours: [150, 200],
+        what: "Customer asks for a price, I look up availability and our rates, then send them the quotation.",
+        friction: "Stock has to be checked by phone with the warehouse." }
+  expect: { clusters: true, relationship_in: [SAME_PROCESS, VARIANT], same_execution_in: ["NO", UNKNOWN] }
+
+- name: two_weekly_reports
+  name_only: true
+  departments: [Finance, Operations]
+  items:
+    - { role: Finance Analyst, department: Finance, title: Weekly report, hours: [90, 120],
+        what: "Reconcile the bank statements against ledger entries for the treasury committee.",
+        friction: "Statements arrive as PDFs and are retyped." }
+    - { role: Warehouse Lead, department: Operations, title: Weekly report, hours: [60, 90],
+        what: "Count pallets in the yard and log forklift maintenance hours for the operations meeting.",
+        friction: "Counts are written on paper first." }
+  expect: { clusters: false }
+
+- name: sales_to_warehouse_handoff
+  departments: [Sales, Operations]
+  items:
+    - { role: Sales Coordinator, department: Sales, title: Sending confirmed orders, hours: [100, 140],
+        what: "When a customer confirms, I send the confirmed sales order to the warehouse by email with the delivery date.",
+        friction: "The warehouse often asks again for details that were on the order." }
+    - { role: Warehouse Supervisor, department: Operations, title: Picking customer orders, hours: [200, 260],
+        what: "I receive the confirmed sales orders from the sales team by email and pick them for delivery.",
+        friction: "Orders arrive without the delivery date, so I chase sales." }
+  expect: { clusters: true, relationship_in: [PROCESS_STAGE, DEPENDENCY], same_execution_in: ["NO", UNKNOWN] }
+
+- name: duplicate_supplier_entry
+  departments: [Procurement, Sales]
+  items:
+    - { role: Buyer, department: Procurement, title: Entering supplier prices, hours: [130, 170],
+        what: "Every week I key the supplier price sheets into the ERP item by item.",
+        friction: "Each supplier sends a different spreadsheet format." }
+    - { role: Sales Administrator, department: Sales, title: Updating our price sheet, hours: [80, 110],
+        what: "Every week I copy the same supplier price sheets into our own sales price spreadsheet so quotes are right.",
+        friction: "I don't trust the ERP prices, so I keep my own." }
+  expect: { relationship_in: [DUPLICATE_WORK, SAME_PROCESS, ROOT_CAUSE_LINKED], same_execution_in: ["NO", UNKNOWN] }
+
+- name: same_title_export_vs_local
+  departments: [Sales]
+  items:
+    - { role: Sales Coordinator, department: Sales, title: Handling orders, hours: [300, 400],
+        what: "I handle export orders — customs paperwork, certificates of origin, shipping documents, the lot.",
+        friction: "Every country wants different documents." }
+    - { role: Sales Coordinator, department: Sales, title: Handling orders, hours: [150, 220],
+        what: "Local retail customers, mostly repeat orders that come in on WhatsApp.",
+        friction: "Orders come in at all hours." }
+  expect: { clusters: false }
+
+- name: stock_lookup_subprocess
+  departments: [Sales, Customer Service]
+  items:
+    - { role: Sales Coordinator, department: Sales, title: Checking stock for quotes, hours: [60, 90],
+        what: "Before each quote I check stock levels in the ERP and call the warehouse when it looks wrong.",
+        friction: "ERP stock is often a day behind." }
+    - { role: Customer Service Agent, department: Customer Service, title: Checking stock for order status, hours: [50, 80],
+        what: "When customers ask where their order is I check stock levels in the ERP and call the warehouse.",
+        friction: "ERP stock is often a day behind." }
+  expect: { relationship_in: [SHARED_SUBPROCESS, SAME_PROCESS, ROOT_CAUSE_LINKED, DUPLICATE_WORK] }
+
+- name: same_person_twice
+  departments: [Procurement]
+  items:
+    - { person: buyer, role: Buyer, department: Procurement, title: Purchase orders, hours: [150, 200],
+        what: "Raise purchase orders and chase suppliers until they confirm.",
+        friction: "Suppliers reply slowly, about fifteen a week need chasing." }
+    - { person: buyer, role: Buyer, department: Procurement, title: Supplier follow-up, hours: [150, 200],
+        same_figures_as: 0,
+        what: "Chase suppliers by email and phone about purchase orders they haven't confirmed.",
+        friction: "The same suppliers every week." }
+  expect: { clusters: true, same_execution_in: ["YES", UNKNOWN], counted_once: true }
+
+- name: thin_evidence
+  name_only: true
+  departments: [Admin]
+  items:
+    - { role: Office Assistant, department: Admin, title: Admin tasks, hours: [20, 40],
+        what: "Admin stuff.", friction: "It takes time." }
+    - { role: Office Assistant, department: Admin, title: Admin tasks, hours: [20, 40],
+        what: "Various tasks.", friction: "Busy." }
+  expect: { clusters: false }

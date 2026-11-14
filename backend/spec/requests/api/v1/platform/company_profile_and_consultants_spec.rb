@@ -11,23 +11,18 @@ RSpec.describe "Platform company profile + consultant cards", type: :request do
       create(
         :company,
         company_profile: { "industry" => "retail", "size_band" => "51-200" },
-        questionnaire_answers: {
-          "q01_primary_industry" => "Retail & E-commerce",
-          "q03_employee_count" => "51–100",
-          "q40_desired_outcomes" => ["Cut manual work"]
-        }
+        profile_provenance: { "industry" => { "source" => "PREFILL_CONFIRMED" } },
+        questionnaire_answers: { "o01_industry" => "Retail & e-commerce" }
       )
     end
 
-    it "includes company profile and questionnaire progress" do
+    it "includes the company profile, where each fact came from, and the onboarding answers" do
       get "/api/v1/platform/companies/#{company.id}", headers: headers
       expect(response).to have_http_status(:ok)
-      body = JSON.parse(response.body)
-      c = body["company"]
+      c = JSON.parse(response.body)["company"]
       expect(c["company_profile"]["industry"]).to eq("retail")
-      expect(c["questionnaire_answers"]["q01_primary_industry"]).to eq("Retail & E-commerce")
-      expect(c).to have_key("questionnaire_completion_percent")
-      expect(c["questionnaire_completion_percent"]).to be > 0
+      expect(c["profile_provenance"]["industry"]["source"]).to eq("PREFILL_CONFIRMED")
+      expect(c["onboarding_answers"]["o01_industry"]).to eq("Retail & e-commerce")
     end
   end
 

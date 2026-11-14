@@ -4,23 +4,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { api, type Company } from '../../lib/api';
 import { useAuth, usePlatformToken, startImpersonation } from '../../lib/auth';
 import { ProgressBar } from '../../components/ui/ProgressBar';
-import {
-  PageHeader,
-  Button,
-  DataTable,
-  StatusBadge,
-  Input,
-  PasswordInput,
-  EmptyState,
-  Modal,
-} from '../../components/ui';
+import { PageHeader, Button, DataTable, StatusBadge, EmptyState, Modal } from '../../components/ui';
 import { useToast } from '../../components/ui/ToastProvider';
-
-function generatePassword() {
-  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
-  const bytes = crypto.getRandomValues(new Uint8Array(14));
-  return Array.from(bytes, (b) => alphabet[b % alphabet.length]).join('');
-}
+import { EngagementSetupForm } from './EngagementSetupForm';
+import { engagementStatusLabel } from './engagementStatus';
 
 export function PlatformCompanies() {
   const { session, setSession } = useAuth();
@@ -30,17 +17,6 @@ export function PlatformCompanies() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({
-    name: '',
-    admin_email: '',
-    admin_name: '',
-    admin_password: generatePassword(),
-  });
-  const [createdCreds, setCreatedCreds] = useState<{
-    company: string;
-    email: string;
-    password: string;
-  } | null>(null);
   const [error, setError] = useState('');
   const [impersonatingId, setImpersonatingId] = useState<number | null>(null);
 
@@ -58,32 +34,6 @@ export function PlatformCompanies() {
   useEffect(() => {
     load();
   }, [token]);
-
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!token) return;
-    setError('');
-    try {
-      await api.createPlatformCompany(token, {
-        name: form.name,
-        company_admin: {
-          email: form.admin_email,
-          name: form.admin_name,
-          password: form.admin_password,
-        },
-      });
-      setCreatedCreds({
-        company: form.name,
-        email: form.admin_email,
-        password: form.admin_password,
-      });
-      setShowForm(false);
-      setForm({ name: '', admin_email: '', admin_name: '', admin_password: generatePassword() });
-      load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create company');
-    }
-  };
 
   const handleImpersonate = async (companyId: number) => {
     if (!token || session?.portal !== 'platform') return;
@@ -110,22 +60,13 @@ export function PlatformCompanies() {
     }
   };
 
-  const copyPassword = async (value: string) => {
-    try {
-      await navigator.clipboard.writeText(value);
-      toast({ title: 'Password copied', variant: 'success' });
-    } catch {
-      toast({ title: 'Could not copy password', variant: 'error' });
-    }
-  };
-
   return (
     <div className="space-y-6">
       <PageHeader
         title="Companies"
-        description="Create and manage client organizations."
+        description="Set up client engagements and manage client organizations."
         actions={
-          <Button onClick={() => setShowForm(true)}>New company</Button>
+          <Button onClick={() => setShowForm(true)}>New engagement</Button>
         }
       />
 
@@ -170,10 +111,9 @@ export function PlatformCompanies() {
             ),
           },
           {
-            key: 'subscription',
-            header: 'Subscription',
-            render: (c) =>
-              c.subscription ? `${c.subscription.status} · ${c.subscription.plan}` : '—',
+            key: 'engagement',
+            header: 'Engagement',
+            render: (c) => engagementStatusLabel(c.engagement_status),
           },
           {
             key: 'onboarding',
@@ -202,77 +142,23 @@ export function PlatformCompanies() {
         ]}
         rows={companies as Company[]}
         onRowClick={(c) => navigate(`/platform/companies/${c.id}`)}
-        emptyState={<EmptyState title="No companies" description="Create your first client organization." />}
+        emptyState={<EmptyState title="No companies" description="Set up your first client engagement." />}
       />
 
-      <Modal open={showForm} onClose={() => setShowForm(false)} title="Create company">
-        <form onSubmit={handleCreate} className="space-y-4">
-          <Input label="Company name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-          <Input
-            label="Admin email"
-            type="email"
-            value={form.admin_email}
-            onChange={(e) => setForm({ ...form, admin_email: e.target.value })}
-            required
+      <Modal open={showForm} onClose={() => setShowForm(false)} title="New engagement" className="max-w-2xl">
+        {showForm && token && (
+          <EngagementSetupForm
+            token={token}
+            submitLabel="Create and invite"
+            onCancel={() => setShowForm(false)}
+            onSubmit={async (input) => {
+              const { engagement } = await api.createEngagement(token, input);
+              setShowForm(false);
+              toast({ title: `Invitation sent to ${engagement.key_user?.email ?? 'the key user'}`, variant: 'success' });
+              navigate(`/platform/companies/${engagement.company_id}`);
+            }}
           />
-          <Input
-            label="Admin name"
-            value={form.admin_name}
-            onChange={(e) => setForm({ ...form, admin_name: e.target.value })}
-            required
-          />
-          <div>
-            <PasswordInput
-              label="Admin password"
-              value={form.admin_password}
-              onChange={(e) => setForm({ ...form, admin_password: e.target.value })}
-              autoComplete="new-password"
-              required
-            />
-            <p className="mt-1 text-xs text-muted-foreground">
-              We email these credentials to the company admin when you create the company. You can set a new
-              password and send it again from the company page.
-            </p>
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="secondary" onClick={() => setShowForm(false)}>
-              Cancel
-            </Button>
-            <Button type="submit">Create</Button>
-          </div>
-        </form>
-      </Modal>
-
-      <Modal
-        open={!!createdCreds}
-        onClose={() => setCreatedCreds(null)}
-        title="Company created"
-      >
-        {createdCreds ? (
-          <div className="space-y-4">
-            <p className="m-0 text-sm text-muted-foreground">
-              These credentials were emailed to {createdCreds.email}. Copy the password if you also want to share it
-              yourself — it cannot be retrieved later.
-            </p>
-            <p className="m-0 text-sm">
-              <span className="text-muted-foreground">Admin: </span>
-              {createdCreds.email}
-            </p>
-            <PasswordInput
-              label="Admin password"
-              value={createdCreds.password}
-              readOnly
-            />
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="secondary" onClick={() => copyPassword(createdCreds.password)}>
-                Copy password
-              </Button>
-              <Button type="button" onClick={() => setCreatedCreds(null)}>
-                Done
-              </Button>
-            </div>
-          </div>
-        ) : null}
+        )}
       </Modal>
     </div>
   );

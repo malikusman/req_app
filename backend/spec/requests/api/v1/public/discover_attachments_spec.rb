@@ -47,6 +47,23 @@ RSpec.describe "Api::V1::Public::DiscoverAttachments", type: :request do
       expect(ProcessMediaAttachmentJob).to have_received(:perform_later)
     end
 
+    it "accepts a spoken answer recorded in the browser, without a processing notice" do
+      recording = Tempfile.new(["answer", ".webm"])
+      recording.write("webm-bytes")
+      recording.rewind
+      upload = Rack::Test::UploadedFile.new(recording.path, "audio/webm;codecs=opus", original_filename: "answer.webm")
+
+      post "/api/v1/public/discover/attachments", params: { file: upload }, headers: headers
+
+      expect(response).to have_http_status(:ok)
+      attachment = MediaAttachment.last
+      expect(attachment).to have_attributes(attachment_type: "audio", mime_type: "audio/webm")
+      expect(attachment.message).to have_attributes(message_type: "audio", channel: "web", processing_status: "pending")
+      # The chat shows the answer as transcribing; no "got your voice note" reply.
+      expect(conversation.messages.where(direction: "outbound")).to be_empty
+      expect(ProcessMediaAttachmentJob).to have_received(:perform_later).with(attachment.id)
+    end
+
     it "rejects uploads during profiling" do
       conversation.update!(status: "profiling")
 

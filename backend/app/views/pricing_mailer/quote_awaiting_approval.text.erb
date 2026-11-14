@@ -1,0 +1,10 @@
+A Stage 1 quote for <%= @company_name %> is waiting for your approval.
+
+Version <%= @quote.version %>: <%= @total %> including tax, for <%= @quote.participants_included %> participants and <%= @quote.deep_dives_included %> deep dives.
+<% if @quote.below_floor %>
+Its margin is below the floor. It can't be issued without an override and a recorded reason.
+<% end %>
+Review it here:
+<%= @url %>
+
+— Mjadi pricing

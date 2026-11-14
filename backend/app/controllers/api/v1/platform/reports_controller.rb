@@ -72,6 +72,12 @@ module Api
           render json: { error: e.message, forceable: true }, status: :unprocessable_entity
         end
 
+        def checks
+          report = Report.joins(:company).find_by!(id: params[:id], company_id: params[:company_id])
+          authorize report, :approve?
+          render json: { checks: Reports::Critic.call(report: report) }
+        end
+
         def approve
           report = Report.joins(:company).find_by!(id: params[:id], company_id: params[:company_id])
           authorize report, :approve?
@@ -93,6 +99,26 @@ module Api
             return render json: {
               error: "A consultant flagged sections needing clarification. Regenerate with the requested changes, or have the consultant resolve them, before approving."
             }, status: :unprocessable_entity
+          end
+
+          # The rule checks a Stage 1 report must pass (Reports::Critic). A blocking
+          # issue stops approval; an approver who judges one a false positive can
+          # override it only by saying why, and the override is audited.
+          checks = Reports::Critic.call(report: report)
+          override_reason = params[:override_reason].to_s.strip
+          if Reports::Critic.blocking?(checks)
+            if override_reason.blank?
+              return render json: {
+                error: "The report fails #{checks.count { |c| c[:severity] == 'block' }} required check(s). Fix them, or approve with a reason for overriding.",
+                checks: checks
+              }, status: :unprocessable_entity
+            end
+
+            PlatformAuditService.log!(
+              platform_user: current_platform_user, action: "report_checks_overridden", target: report,
+              metadata: { reason: override_reason, checks: checks.select { |c| c[:severity] == "block" } },
+              request: request
+            )
           end
 
           begin

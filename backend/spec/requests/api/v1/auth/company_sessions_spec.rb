@@ -24,13 +24,30 @@ RSpec.describe "Api::V1::Auth::CompanySessions", type: :request do
       expect(JSON.parse(response.body)["error"]).to eq("Invalid email or password")
     end
 
-    it "returns forbidden when subscription is inactive" do
+    it "lets a company with an engagement in progress in, whatever its old trial says" do
+      company.subscription.update!(status: "trial", trial_ends_at: 2.days.ago)
+      create(:engagement, company: company, status: "ONBOARDING")
+
+      post "/api/v1/auth/company/login", params: { email: "admin@test.com", password: "password123" }
+
+      expect(response).to have_http_status(:ok)
+    end
+
+    it "refuses a company whose engagement is closed" do
+      create(:engagement, company: company, status: "CLOSED")
+
+      post "/api/v1/auth/company/login", params: { email: "admin@test.com", password: "password123" }
+
+      expect(response).to have_http_status(:forbidden)
+      expect(JSON.parse(response.body)["error"]).to eq("This engagement is not active. Please contact Mjadi.")
+    end
+
+    it "keeps the subscription rule for a company from before engagements" do
       company.subscription.update!(status: "churned")
 
       post "/api/v1/auth/company/login", params: { email: "admin@test.com", password: "password123" }
 
       expect(response).to have_http_status(:forbidden)
-      expect(JSON.parse(response.body)["error"]).to eq("Subscription inactive")
     end
   end
 end

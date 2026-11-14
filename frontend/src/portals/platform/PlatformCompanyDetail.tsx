@@ -1,5 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ChatMessageList, type ChatMessageItem } from '../../components/motion';
 import {
   api,
@@ -8,6 +8,7 @@ import {
   type CompanyConversation,
   type CompanyConversationMessage,
   type DiscoveryProvenanceEntry,
+  type Engagement,
   type MediaAttachment,
   type CompanyPattern,
   type CompanySignal,
@@ -15,6 +16,7 @@ import {
   type PlatformAuditLogEntry,
   type PlatformReport,
   type Recommendation,
+  type ReportCheck,
   type ReportVariant,
   type TimelineEvent,
 } from '../../lib/api';
@@ -28,7 +30,6 @@ import {
   DataTable,
   EmptyState,
   Button,
-  PasswordInput,
   Modal,
   Skeleton,
   StrengthBar,
@@ -36,104 +37,90 @@ import {
   ReadinessGauge,
   ParticipationSummary,
   DiscoveryProvenancePanel,
+  Select,
+  Textarea,
 } from '../../components/ui';
+import { ReportChecksList } from '../shared/ReportChecksList';
 import { label } from '../../lib/labels';
-import { allFields } from '../../lib/questionnaireOptions';
 import { PlatformCompanyConsultants } from './PlatformCompanyConsultants';
 import { ConversationMediaCard, ConversationMediaList } from '../../components/ConversationMediaCard';
 import { CompanyStackPanel } from './CompanyStackPanel';
+import { PREFILL_STATUS_LABELS, QUOTE_STATUS_LABELS, engagementStatusLabel } from './engagementStatus';
+import { formatMoney } from '../../lib/money';
 import { AgenticIdeasPanel } from '../shared/AgenticIdeasPanel';
+import { CompanyProfileSummary, ProfileChanges } from '../shared/CompanyProfileFacts';
 
 /**
- * Labels come from the questionnaire itself rather than a list kept here. The
- * previous hardcoded map drifted the moment a question was reworded, and silently
- * dropped any question added after it was written.
+ * Where the engagement's Stage 1 price stands (Doc 17), with a way in: the
+ * newest quote, or — for an engagement that reached pricing without one — a
+ * button that works it out now.
  */
-const QUESTION_FIELDS = allFields().filter((f) => f.type !== 'static');
-const PROFILE_FIELD_LABELS: Record<string, string> = Object.fromEntries(
-  QUESTION_FIELDS.map((f) => [f.id, f.label])
-);
-const PROFILE_FIELD_ORDER = QUESTION_FIELDS.map((f) => f.id);
+function Stage1QuoteLine({ engagement, token }: { engagement: Engagement; token: string }) {
+  const navigate = useNavigate();
+  const [working, setWorking] = useState(false);
+  const [error, setError] = useState('');
+  const quote = engagement.stage1_quote;
 
-function generatePassword() {
-  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
-  const bytes = crypto.getRandomValues(new Uint8Array(14));
-  return Array.from(bytes, (b) => alphabet[b % alphabet.length]).join('');
-}
+  if (quote) {
+    return (
+      <p className="m-0 text-text-secondary">
+        Stage 1 quote:{' '}
+        <Link to={`/platform/pricing/${quote.id}`}>
+          v{quote.version} · {formatMoney(quote.total, quote.currency)} · {QUOTE_STATUS_LABELS[quote.status]}
+        </Link>
+        {quote.below_floor ? ' · below the margin floor' : ''}
+      </p>
+    );
+  }
+  if (engagement.status !== 'STAGE_1_PRICING') return null;
 
-function formatProfileValue(value: unknown): string | null {
-  if (value == null) return null;
-  if (typeof value === 'string') return value.trim() || null;
-  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-  if (Array.isArray(value)) {
-    const parts = value.map((v) => String(v).trim()).filter(Boolean);
-    return parts.length ? parts.join(', ') : null;
-  }
-  if (typeof value === 'object') {
-    // The matrix questions (systems by category, parties and their channels,
-    // headcount per department) store a keyed map.
-    const parts = Object.entries(value as Record<string, unknown>)
-      .map(([k, v]) => {
-        const inner = Array.isArray(v)
-          ? v.map((x) => String(x).trim()).filter(Boolean).join(', ')
-          : String(v ?? '').trim();
-        return inner ? `${k}: ${inner}` : null;
-      })
-      .filter(Boolean);
-    return parts.length ? parts.join(' · ') : null;
-  }
-  return null;
-}
-
-function CompanyProfileSummary({ company }: { company: CompanyDetail }) {
-  const answers = company.questionnaire_answers || {};
-  const profile = company.company_profile || {};
-  const rows: { label: string; value: string }[] = [];
-
-  for (const id of PROFILE_FIELD_ORDER) {
-    const fromAnswers = formatProfileValue(answers[id]);
-    if (fromAnswers) {
-      rows.push({ label: PROFILE_FIELD_LABELS[id], value: fromAnswers });
-    }
-  }
-
-  const profileFallbacks: { key: string; label: string }[] = [
-    { key: 'industry', label: 'Industry (synced)' },
-    { key: 'size_band', label: 'Size band' },
-    { key: 'region', label: 'Region' },
-    { key: 'country', label: 'Country' },
-    { key: 'annual_revenue_band', label: 'Revenue band' },
-  ];
-  for (const { key, label } of profileFallbacks) {
-    if (rows.some((r) => r.label.startsWith(label.split(' ')[0]))) continue;
-    const value = formatProfileValue(profile[key]);
-    if (value) rows.push({ label, value });
-  }
-
-  const goals = formatProfileValue(profile.business_goals);
-  if (goals && !rows.some((r) => r.label === 'Primary goals')) {
-    rows.push({ label: 'Primary goals', value: goals });
-  }
-  const depts = formatProfileValue(profile.org_departments);
-  if (depts && !rows.some((r) => r.label === 'Departments')) {
-    rows.push({ label: 'Departments', value: depts });
-  }
+  const calculate = () => {
+    setWorking(true);
+    setError('');
+    api
+      .platformCalculateQuote(token, engagement.id)
+      .then((d) => navigate(`/platform/pricing/${d.quote.id}`))
+      .catch((err) => setError(err instanceof Error ? err.message : 'The proposal could not be worked out'))
+      .finally(() => setWorking(false));
+  };
 
   return (
-    <Card title="Company profile">
-      {rows.length === 0 ? (
-        <p className="m-0 text-sm text-text-secondary">No questionnaire answers yet.</p>
-      ) : (
-        <dl className="m-0 grid gap-3 sm:grid-cols-2">
-          {rows.map((row) => (
-            <div key={row.label}>
-              <dt className="text-xs font-medium uppercase tracking-wide text-text-secondary">{row.label}</dt>
-              <dd className="mt-0.5 text-sm text-text-primary">{row.value}</dd>
-            </div>
-          ))}
-        </dl>
-      )}
-    </Card>
+    <div className="space-y-1">
+      <Button size="sm" loading={working} onClick={calculate}>
+        Calculate Stage 1 proposal
+      </Button>
+      {error ? <p className="m-0 text-status-error">{error}</p> : null}
+    </div>
+  );
+}
+
+/** How far each conversation with leadership has got, and how each one ended. */
+function LeadershipLine({ engagement }: { engagement: Engagement }) {
+  const people = engagement.leadership ?? [];
+  if (people.length === 0) return null;
+  return (
+    <p className="m-0 text-text-secondary">
+      Leadership:{' '}
+      {people
+        .map((p) => {
+          const status = p.participation_status.toLowerCase().replace(/_/g, ' ');
+          const ended = p.close_reason ? ` (${p.close_reason.toLowerCase().replace(/_/g, ' ')})` : '';
+          return `${p.name}${p.key_user ? ' (key user)' : ''} — ${status}${ended}${p.needs_review ? ', needs review' : ''}`;
+        })
+        .join(' · ')}
+    </p>
+  );
+}
+
+/** How reading the website for onboarding proposals went, and what the client did with them. */
+function WebsiteReadLine({ engagement }: { engagement: Engagement }) {
+  const proposals = engagement.prefill_candidates || [];
+  const confirmed = proposals.filter((c) => c.status === 'CONFIRMED').length;
+  return (
+    <p className="m-0 text-text-secondary">
+      Website: {PREFILL_STATUS_LABELS[engagement.prefill_status] ?? engagement.prefill_status}
+      {proposals.length > 0 && ` · ${proposals.length} proposals, ${confirmed} confirmed`}
+    </p>
   );
 }
 
@@ -172,6 +159,10 @@ export function PlatformCompanyDetail() {
   const [tab, setTab] = useState(initialTab && TABS.includes(initialTab) ? initialTab : 'overview');
   const [loading, setLoading] = useState(true);
   const [approvingId, setApprovingId] = useState<number | null>(null);
+  // A report that fails its checks opens this, with the checks and room for an
+  // override reason (audited) if the approver judges a block a false positive.
+  const [checksFor, setChecksFor] = useState<{ reportId: number; checks: ReportCheck[] } | null>(null);
+  const [overrideReason, setOverrideReason] = useState('');
   const [selectedReportId, setSelectedReportId] = useState<number | null>(null);
   const [consultantCount, setConsultantCount] = useState<number | null>(null);
   const [generating, setGenerating] = useState(false);
@@ -182,9 +173,8 @@ export function PlatformCompanyDetail() {
   const [reportPreviewVariant, setReportPreviewVariant] = useState<ReportVariant>('full');
   const [reportPreviewMode, setReportPreviewMode] = useState<'draft' | 'stored'>('draft');
   const [actionError, setActionError] = useState('');
-  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
-  const [adminPassword, setAdminPassword] = useState('');
-  const [savingPassword, setSavingPassword] = useState(false);
+  const [resendingInvite, setResendingInvite] = useState(false);
+  const [rereadingWebsite, setRereadingWebsite] = useState(false);
 
   // Only for the Reports tab's helper line, which claims the button exists
   // BECAUSE no consultant is assigned — so it has to know whether that is true.
@@ -334,42 +324,55 @@ export function PlatformCompanyDetail() {
     }
   };
 
-  const approveReport = async (reportId: number) => {
+  const approveReport = async (reportId: number, reason?: string) => {
     if (!token) return;
     setActionError('');
     setApprovingId(reportId);
     try {
-      await api.approvePlatformReport(token, companyId, reportId);
+      await api.approvePlatformReport(token, companyId, reportId, reason);
+      setChecksFor(null);
+      setOverrideReason('');
       await loadReports();
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Approval failed');
+      const message = err instanceof Error ? err.message : 'Approval failed';
+      // A 422 can be a failed check: fetch the list and show it rather than one line.
+      const checks =
+        err instanceof ApiRequestError && err.status === 422
+          ? await api.platformReportChecks(token, companyId, reportId).then((d) => d.checks).catch(() => [])
+          : [];
+      if (checks.some((c) => c.severity === 'block')) setChecksFor({ reportId, checks });
+      else setActionError(message);
     } finally {
       setApprovingId(null);
     }
   };
 
-  const openPasswordModal = () => {
-    setAdminPassword(generatePassword());
-    setPasswordModalOpen(true);
-  };
-
-  const handleSetAdminPassword = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!token || !companyId) return;
-    setSavingPassword(true);
+  const resendInvitation = async () => {
+    if (!token || !company?.engagement) return;
+    setResendingInvite(true);
     setActionError('');
     try {
-      const res = await api.resetPlatformCompanyAdminPassword(token, companyId, adminPassword);
-      setPasswordModalOpen(false);
-      toast({
-        title: 'Password emailed',
-        description: `The new password was emailed to ${res.email}.`,
-        variant: 'success',
-      });
+      const res = await api.resendEngagementInvitation(token, company.engagement.id);
+      toast({ title: 'Invitation sent again', description: `A new link was emailed to ${res.email}.`, variant: 'success' });
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Failed to set and email password');
+      setActionError(err instanceof Error ? err.message : 'Could not resend the invitation');
     } finally {
-      setSavingPassword(false);
+      setResendingInvite(false);
+    }
+  };
+
+  const rereadWebsite = async () => {
+    if (!token || !company?.engagement) return;
+    setRereadingWebsite(true);
+    setActionError('');
+    try {
+      const res = await api.rereadEngagementWebsite(token, company.engagement.id);
+      setCompany((prev) => (prev ? { ...prev, engagement: res.engagement } : prev));
+      toast({ title: 'Reading the website again', description: 'New proposals appear on the client’s profile screen.', variant: 'success' });
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Could not read the website again');
+    } finally {
+      setRereadingWebsite(false);
     }
   };
 
@@ -481,26 +484,59 @@ export function PlatformCompanyDetail() {
             <Card title="Readiness">
               <p className="m-0 text-3xl font-semibold text-text-primary">{Math.round(company.report_readiness_score)}%</p>
             </Card>
-            <Card title="Subscription">
-              <p className="m-0 text-sm text-text-primary">
-                {company.subscription ? `${company.subscription.plan} · ${company.subscription.status}` : 'None'}
-              </p>
+            <Card title="Engagement">
+              {company.engagement ? (
+                <div className="space-y-1 text-sm">
+                  <p className="m-0 font-medium text-text-primary">
+                    {engagementStatusLabel(company.engagement.status)}
+                  </p>
+                  <p className="m-0 text-text-secondary">
+                    {company.engagement.scope_type === 'DEPARTMENT'
+                      ? company.engagement.departments_in_scope.join(', ')
+                      : 'Whole company'}
+                    {' · '}
+                    {company.engagement.languages.join(', ').toUpperCase()}
+                  </p>
+                  {company.engagement.lead_consultant ? (
+                    <p className="m-0 text-text-secondary">Lead: {company.engagement.lead_consultant.name}</p>
+                  ) : null}
+                  {company.engagement.proposal_reference ? (
+                    <p className="m-0 text-text-secondary">Proposal {company.engagement.proposal_reference}</p>
+                  ) : null}
+                  <WebsiteReadLine engagement={company.engagement} />
+                  <LeadershipLine engagement={company.engagement} />
+                  {token ? <Stage1QuoteLine engagement={company.engagement} token={token} /> : null}
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    loading={rereadingWebsite}
+                    disabled={!company.website_url || ['pending', 'running'].includes(company.engagement.prefill_status)}
+                    onClick={rereadWebsite}
+                  >
+                    Read website again
+                  </Button>
+                </div>
+              ) : (
+                <p className="m-0 text-sm text-text-secondary">No engagement</p>
+              )}
             </Card>
             <Card title="Onboarding">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant={company.portal_onboarding_completed_at ? 'success' : 'warning'}>
-                  {company.portal_onboarding_completed_at ? 'Complete' : 'Pending'}
+                <Badge variant={company.engagement?.onboarding_submitted_at ? 'success' : 'warning'}>
+                  {company.engagement?.onboarding_submitted_at ? 'Submitted' : 'Not submitted'}
                 </Badge>
-                {typeof company.questionnaire_completion_percent === 'number' ? (
+                {company.engagement?.planned_departments.length ? (
                   <span className="text-sm text-text-secondary">
-                    Questionnaire {company.questionnaire_completion_percent}%
+                    {company.engagement.planned_participant_count ?? 'Some'} participants planned across{' '}
+                    {company.engagement.planned_departments.map((d) => d.name).join(', ')}
                   </span>
                 ) : null}
               </div>
             </Card>
           </div>
 
-          <CompanyProfileSummary company={company} />
+          <CompanyProfileSummary profile={company.company_profile} provenance={company.profile_provenance} />
+          <ProfileChanges changes={company.profile_changes} />
 
           <Card title="Company admins">
             {actionError && tab === 'overview' ? (
@@ -518,9 +554,9 @@ export function PlatformCompanyDetail() {
                         {user.email} · {user.role} · {user.status}
                       </p>
                     </div>
-                    {user.role === 'company_admin' ? (
-                      <Button variant="secondary" size="sm" onClick={openPasswordModal}>
-                        Set password & email
+                    {user.status === 'pending' && company.engagement?.key_user?.id === user.id ? (
+                      <Button variant="secondary" size="sm" loading={resendingInvite} onClick={resendInvitation}>
+                        Resend invitation
                       </Button>
                     ) : null}
                   </li>
@@ -529,36 +565,6 @@ export function PlatformCompanyDetail() {
             )}
           </Card>
 
-          <Modal
-            open={passwordModalOpen}
-            onClose={() => setPasswordModalOpen(false)}
-            title="Set company admin password"
-          >
-            <form onSubmit={handleSetAdminPassword} className="space-y-4">
-              <p className="m-0 text-sm text-text-secondary">
-                This replaces the current password and emails the new one to the company admin.
-              </p>
-              <PasswordInput
-                label="New password"
-                value={adminPassword}
-                onChange={(e) => setAdminPassword(e.target.value)}
-                autoComplete="new-password"
-                minLength={8}
-                required
-              />
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="secondary" onClick={() => setAdminPassword(generatePassword())}>
-                  Generate
-                </Button>
-                <Button type="button" variant="secondary" onClick={() => setPasswordModalOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" loading={savingPassword}>
-                  Save & email
-                </Button>
-              </div>
-            </form>
-          </Modal>
         </div>
       )}
 
@@ -769,6 +775,43 @@ export function PlatformCompanyDetail() {
         </Card>
       )}
 
+      {/* Outside the tabs: it opens from the reports tab. */}
+      <Modal
+        open={!!checksFor}
+        onClose={() => setChecksFor(null)}
+        title="This report fails its checks"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setChecksFor(null)}>
+              Close
+            </Button>
+            <Button
+              variant="danger"
+              disabled={overrideReason.trim().length < 10}
+              loading={approvingId === checksFor?.reportId}
+              onClick={() => checksFor && approveReport(checksFor.reportId, overrideReason.trim())}
+            >
+              Approve anyway
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <p className="m-0 text-sm text-text-secondary">
+            A Stage 1 report must pass these before it goes to the client. Fix them — reword or review findings,
+            then regenerate — or, if a check is wrong about this report, say why and approve anyway. The reason
+            is recorded.
+          </p>
+          {checksFor && <ReportChecksList checks={checksFor.checks} />}
+          <Textarea
+            label="Why approve anyway"
+            value={overrideReason}
+            onChange={(e) => setOverrideReason(e.target.value)}
+            placeholder="e.g. “headcount” is the client's own goal, quoted"
+          />
+        </div>
+      </Modal>
+
       {tab === 'reports' && (
         <>
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -782,6 +825,46 @@ export function PlatformCompanyDetail() {
                 ? 'No consultant is assigned yet, so nobody else can generate for this company.'
                 : 'Generation normally belongs to the assigned consultant. Use this to re-cut a version yourself.'}
             </p>
+            <div className="flex flex-wrap items-end gap-3">
+              {/* Where the keyword-era signals and patterns pages go in a report
+                  built around findings. Takes effect on the next generation. */}
+              <div className="w-64">
+                <Select
+                  label="Signals & patterns pages"
+                  value={String(company?.settings?.report_signals_placement ?? 'appendix')}
+                  onChange={(e) => {
+                    if (!token || !companyId) return;
+                    api
+                      .updatePlatformCompanySettings(token, companyId, { report_signals_placement: e.target.value })
+                      .then((d) => setCompany(d.company))
+                      .catch((err) => setActionError(err instanceof Error ? err.message : 'Could not save'));
+                  }}
+                  options={[
+                    { value: 'appendix', label: 'In an appendix' },
+                    { value: 'main', label: 'In the main report' },
+                    { value: 'hidden', label: 'Left out' },
+                  ]}
+                />
+              </div>
+              {/* Published ideas and vendor matches name what would do the work —
+                  Stage 2's. Shown, they fail the report checks at approval. */}
+              <div className="w-64">
+                <Select
+                  label="Ideas & products"
+                  value={String(company?.settings?.report_stage2_previews ?? 'hidden')}
+                  onChange={(e) => {
+                    if (!token || !companyId) return;
+                    api
+                      .updatePlatformCompanySettings(token, companyId, { report_stage2_previews: e.target.value })
+                      .then((d) => setCompany(d.company))
+                      .catch((err) => setActionError(err instanceof Error ? err.message : 'Could not save'));
+                  }}
+                  options={[
+                    { value: 'hidden', label: 'Left out (Stage 2)' },
+                    { value: 'shown', label: 'In the report' },
+                  ]}
+                />
+              </div>
             <Button
               variant="secondary"
               loading={generating}
@@ -790,6 +873,7 @@ export function PlatformCompanyDetail() {
             >
               Generate report
             </Button>
+            </div>
           </div>
 
           {generateNotice && (

@@ -28,9 +28,27 @@ Rails.application.routes.draw do
       get "consultant_users/:id/avatar", to: "consultant_avatars#show"
 
       namespace :platform do
-        resources :companies, only: %i[index show create update] do
+        resources :companies, only: %i[index show update]
+        resources :engagements, only: %i[create update] do
           member do
-            post :reset_admin_password
+            post :resend_invitation
+            post :reread_website
+          end
+          # Stage 1 pricing (Doc 17 §9): work the quote out now, or close an
+          # engagement whose price wasn't agreed.
+          post "stage1_quote", to: "stage1_quotes#calculate"
+          post "close", to: "stage1_quotes#close"
+        end
+        # The Stage 1 rate card and the margin floor, versioned (Doc 17 §7–8).
+        get "rate_card", to: "rate_cards#show"
+        post "rate_card", to: "rate_cards#create"
+        post "margin_floor", to: "rate_cards#create_floor"
+        resources :stage1_quotes, only: %i[index show] do
+          member do
+            post :approve
+            post :adjust
+            post :change_inputs
+            post :reject
           end
         end
         resources :playbooks, only: %i[index show create update] do
@@ -78,10 +96,12 @@ Rails.application.routes.draw do
         get "reports/pending", to: "reports#pending"
         post "companies/:company_id/reports", to: "reports#create"
         post "companies/:company_id/reports/:id/approve", to: "reports#approve"
+        get "companies/:company_id/reports/:id/checks", to: "reports#checks"
         get "companies/:company_id/reports/:id/download", to: "reports#download"
         get "companies/:company_id/reports/:id/preview", to: "reports#preview"
         post "companies/:company_id/impersonate", to: "impersonations#create"
         get "monitoring", to: "monitoring#show"
+        get "interview_health", to: "interview_health#index"
         get "dashboard", to: "dashboard#show"
         get "audit_logs", to: "audit_logs#index"
         get "registrations", to: "registrations#index"
@@ -130,8 +150,37 @@ Rails.application.routes.draw do
           end
         end
         resources :companies, only: %i[index show] do
+          # Correcting the client's facts after they submitted onboarding (Doc 07 §12).
+          resource :facts, only: :update, controller: "company_facts"
+          # The conversations with leadership (Doc 08).
+          get "leadership", to: "key_person_sessions#show"
+          patch "leadership/participants/:participant_id", to: "key_person_sessions#update_participant"
+          post "leadership/participants/:participant_id/invite", to: "key_person_sessions#invite"
+          post "leadership/participants/:participant_id/close", to: "key_person_sessions#close"
+          post "leadership/participants/:participant_id/further_session", to: "key_person_sessions#further_session"
+          patch "leadership/findings/:id", to: "key_person_sessions#update_finding"
+          patch "leadership/plan", to: "key_person_sessions#update_plan"
+          # Consolidation and synthesis (Doc 10): what was grouped and concluded,
+          # and the consultant's decisions on it.
+          get "synthesis", to: "synthesis#show"
+          post "synthesis/run", to: "synthesis#run"
+          post "synthesis/decisions", to: "synthesis#decide"
+          # The Stage 1 proposal as the client sees it, and where it stands.
+          get "stage1_quote", to: "stage1_quotes#show"
           resources :employees, only: %i[index show], controller: "employees"
           resources :conversations, only: %i[index show], controller: "conversations"
+          resources :task_sources, only: :index
+          resources :process_clusters, only: %i[index show]
+          resources :task_intelligence_runs, only: %i[index show] do
+            resources :deep_dive_plans, only: %i[index show update] do
+              post :generate, on: :member
+              post :approve, on: :member
+            end
+            resource :selection_review, only: :show, controller: "task_selection_reviews" do
+              post :commands, action: :command
+            end
+            get "candidates/:candidate_id", action: :candidate, on: :member
+          end
           get "signals", to: "intelligence#signals"
           get "patterns", to: "intelligence#patterns"
           get "recommendations", to: "intelligence#recommendations"
@@ -148,6 +197,7 @@ Rails.application.routes.draw do
             member do
               get :download
               get :preview
+              get :checks
               # Mint the next version when new evidence has landed. See
               # Reports::ConsultantRefreshService for why it is a new version.
               post :refresh
@@ -183,6 +233,11 @@ Rails.application.routes.draw do
           get "catalog/available", to: "catalog#available"
           post "catalog/add", to: "catalog#add_product"
           post "catalog/:id/endorse", to: "catalog#endorse"
+          resources :findings, only: %i[index update], controller: "findings" do
+            member do
+              post :merge
+            end
+          end
           resources :agentic_ideas, only: %i[index create update], controller: "agentic_ideas" do
             member do
               post :publish
@@ -196,12 +251,38 @@ Rails.application.routes.draw do
         patch "me", to: "me#update"
         get "dashboard", to: "dashboard#show"
         get "expert_consultants", to: "expert_consultants#index"
+        # The Stage 1 proposal (Doc 17 §10).
+        get "stage1_quote", to: "stage1_quotes#show"
+        get "stage1_quotes/:id/pdf", to: "stage1_quotes#pdf"
+        post "stage1_quotes/:id/accept", to: "stage1_quotes#accept"
+        post "stage1_quotes/:id/decline", to: "stage1_quotes#decline"
         get "onboarding", to: "onboarding#show"
         patch "onboarding/profile", to: "onboarding#update_profile"
         patch "onboarding/questionnaire", to: "onboarding#update_questionnaire"
         # Autosave: answers only, none of the side effects the full save performs.
         patch "onboarding/questionnaire/answers", to: "onboarding#update_questionnaire_answers"
-        post "onboarding/complete", to: "onboarding#complete"
+        post "onboarding/submit", to: "onboarding#submit"
+        # The key user's conversation with leadership (Doc 08).
+        scope "leadership", controller: "key_person_sessions", as: "leadership" do
+          get "", action: :show
+          post "consent"
+          post "messages", action: :message
+          post "voice_note"
+          post "pause"
+          post "resume"
+          patch "scope", action: :update_scope
+          post "people", action: :confirm_person
+          post "people/dismiss", action: :dismiss_person
+          post "documents", action: :upload
+        end
+        resources :onboarding_participants, path: "onboarding/participants", only: %i[index create update destroy]
+        resources :onboarding_prefill_candidates, path: "onboarding/prefill_candidates", only: [] do
+          member do
+            post :confirm
+            post :correct
+            post :reject
+          end
+        end
         resources :documents, only: %i[index show create update destroy] do
           member do
             get :download
@@ -226,8 +307,11 @@ Rails.application.routes.draw do
         get "intelligence/signals", to: "intelligence#signals"
         get "intelligence/patterns", to: "intelligence#patterns"
         get "intelligence/timeline", to: "intelligence#timeline"
-        get "discovery_questions", to: "discovery_questions#index"
-        post "discovery_questions/:id/feedback", to: "discovery_questions#feedback"
+        # No discovery_questions, conversations or media_attachments here. Each
+        # would hand the client what an employee said — the questions paraphrase
+        # the answers — and the consent text every employee accepts promises
+        # "only summarized insights … not raw chat logs or original files".
+        # Participation status lives on employees; consultants keep full access.
         resources :recommendations, only: %i[index] do
           member do
             patch :feedback, action: :update_feedback
@@ -268,18 +352,27 @@ Rails.application.routes.draw do
             post :send_digest
           end
         end
-        resources :conversations, only: %i[index show]
-        get "media_attachments", to: "media_attachments#index"
-        get "media_attachments/:id/download", to: "media_attachments#download"
       end
 
       namespace :public do
+        get "config", to: "config#show"
         get "reports/:token", to: "reports#show"
+        # Another manager's conversation with leadership, by their signed link.
+        scope "leadership/:token", controller: "key_person_sessions", as: "leadership" do
+          get "", action: :show
+          post "consent"
+          post "messages", action: :message
+          post "voice_note"
+          post "pause"
+          post "resume"
+          post "documents", action: :upload
+        end
         get "discover/sessions/:token", to: "discover_sessions#show"
         post "discover/sessions/:token/verify", to: "discover_verifications#create"
         get "discover/messages", to: "discover_messages#index"
         post "discover/messages", to: "discover_messages#create"
         post "discover/attachments", to: "discover_attachments#create"
+        get "discover/messages/:id/speech", to: "discover_speech#show"
         get "outreach/:token", to: "outreach_replies#show"
         post "outreach/:token/reply", to: "outreach_replies#create"
         post "demo_requests", to: "demo_requests#create"

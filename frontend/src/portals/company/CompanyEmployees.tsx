@@ -1,7 +1,15 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
-import { Link } from 'react-router-dom';
 import { Users } from 'lucide-react';
-import { api, type Employee } from '../../lib/api';
+import { Link } from 'react-router-dom';
+import {
+  api,
+  ApiRequestError,
+  type ConfirmAdditional,
+  type Employee,
+  type PlannedParticipant,
+  type StaffInvitationState,
+} from '../../lib/api';
+import { formatMoney } from '../../lib/money';
 import { useCompanyToken } from '../../lib/auth';
 import {
   PageHeader,
@@ -62,6 +70,14 @@ export function CompanyEmployees() {
   const [savingPhone, setSavingPhone] = useState(false);
   const [digestEmployee, setDigestEmployee] = useState<Employee | null>(null);
   const inviteCardRef = useRef<HTMLDivElement>(null);
+  // People named during onboarding (P3) who haven't been invited yet.
+  const [planned, setPlanned] = useState<PlannedParticipant[]>([]);
+  const [planningFor, setPlanningFor] = useState<PlannedParticipant | null>(null);
+  // Staff are invited once the Stage 1 proposal is accepted; someone beyond what
+  // it covers needs the client's confirmation of the extra charge (Doc 17 §12).
+  const [invitations, setInvitations] = useState<StaffInvitationState | null>(null);
+  const [confirmExtra, setConfirmExtra] = useState<ConfirmAdditional | null>(null);
+  const locked = invitations != null && !invitations.open;
 
   const focusInviteForm = () => {
     inviteCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -79,9 +95,25 @@ export function CompanyEmployees() {
     setLoadError('');
     api
       .companyEmployees(token)
-      .then((d) => setEmployees(d.employees))
+      .then((d) => {
+        setEmployees(d.employees);
+        setInvitations(d.invitations ?? null);
+      })
       .catch(() => setLoadError('Could not load employees.'))
       .finally(() => setLoading(false));
+    api
+      .plannedParticipants(token)
+      .then((d) => setPlanned(d.participants.filter((p) => p.participant_type === 'EMPLOYEE' && !p.employee_id)))
+      .catch(() => undefined);
+  };
+
+  const prefillFromPlan = (person: PlannedParticipant) => {
+    setPlanningFor(person);
+    setPhone(person.phone_e164 || '');
+    setEmail(person.email || '');
+    setDisplayName(person.name);
+    setDepartment(person.department || '');
+    focusInviteForm();
   };
 
   useEffect(() => {
@@ -104,10 +136,11 @@ export function CompanyEmployees() {
     ];
   }, [employees]);
 
-  const invite = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const invite = async (e?: React.FormEvent, confirmAdditional = false) => {
+    e?.preventDefault();
     if (!token) return;
     setError('');
+    setConfirmExtra(null);
     setInviteSuccess(false);
     setInviting(true);
     try {
@@ -117,8 +150,11 @@ export function CompanyEmployees() {
         displayName || undefined,
         department || undefined,
         email || undefined,
-        email ? preferredChannel : undefined
+        email ? preferredChannel : undefined,
+        planningFor?.id,
+        confirmAdditional || undefined
       );
+      setPlanningFor(null);
       setInviteSuccess(true);
       toast({ variant: 'success', title: 'Invitation sent', description: 'The employee can message WhatsApp or open their discover link.' });
       setPhone('');
@@ -128,7 +164,12 @@ export function CompanyEmployees() {
       setPreferredChannel('whatsapp');
       load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Invite failed');
+      const body = err instanceof ApiRequestError ? (err.body as Partial<ConfirmAdditional> | undefined) : undefined;
+      if (body?.code === 'confirm_additional') {
+        setConfirmExtra(body as ConfirmAdditional);
+      } else {
+        setError(err instanceof Error ? err.message : 'Invite failed');
+      }
     } finally {
       setInviting(false);
     }
@@ -181,25 +222,58 @@ export function CompanyEmployees() {
     <div className="space-y-8">
       <PageHeader
         title="Your team"
-        description="Invite people and follow their discovery — insight updates when interviews finish."
+        description="Invite people and see who has taken part. What each person says stays confidential — you receive the findings, not the conversations."
         actions={
-          <>
-            <Link to="/company/conversations">
-              <Button variant="secondary" size="sm">
-                View conversations
-              </Button>
-            </Link>
+          locked ? undefined : (
             <Button size="sm" onClick={focusInviteForm}>
               Invite people
             </Button>
-          </>
+          )
         }
       />
+
+      {locked ? (
+        <Card title="Inviting your team">
+          <p className="m-0 text-sm text-text-secondary">
+            {invitations?.message ?? 'Your team can be invited once the Stage 1 proposal is accepted.'}{' '}
+            <Link to="/company/proposal">See your proposal</Link>
+          </p>
+        </Card>
+      ) : invitations?.included != null && invitations.rate ? (
+        <p className="m-0 text-sm text-text-secondary">
+          Your Stage 1 proposal covers {invitations.included} people; {invitations.invited ?? 0} invited so far. Each
+          additional person is {formatMoney(invitations.rate, invitations.currency ?? 'AED')}.
+        </p>
+      ) : null}
 
       {loadError && (
         <ErrorNotice message={loadError} onRetry={load} />
       )}
 
+      {planned.length > 0 && (
+        <Card title="Planned, not yet invited">
+          <p className="m-0 mb-3 text-sm text-text-secondary">People you named when setting up. Invite each when you&apos;re ready.</p>
+          <ul className="m-0 list-none space-y-2 p-0">
+            {planned.map((person) => (
+              <li key={person.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                <span>
+                  <span className="font-medium text-text-primary">{person.name}</span>
+                  <span className="text-text-secondary">
+                    {[person.role_title, person.department].filter(Boolean).map((v) => ` · ${v}`)}
+                  </span>
+                </span>
+                {locked ? null : (
+                  <Button size="sm" variant="secondary" onClick={() => prefillFromPlan(person)}>
+                    Invite
+                  </Button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
+      {locked ? null : (
       <div ref={inviteCardRef}>
       <Card title="Invite someone">
         {usage && usage.conversation_limit != null && (
@@ -259,6 +333,30 @@ export function CompanyEmployees() {
         </form>
       </Card>
       </div>
+      )}
+
+      <Modal
+        open={confirmExtra != null}
+        onClose={() => setConfirmExtra(null)}
+        title="Invite someone beyond your proposal?"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setConfirmExtra(null)}>
+              Not now
+            </Button>
+            <Button loading={inviting} onClick={() => invite(undefined, true)}>
+              Invite at {confirmExtra ? formatMoney(confirmExtra.rate, confirmExtra.currency) : ''}
+            </Button>
+          </>
+        }
+      >
+        <p className="m-0 text-sm text-text-secondary">
+          {confirmExtra
+            ? `Your Stage 1 proposal covers ${confirmExtra.included} people and ${confirmExtra.invited} are invited. ` +
+              `Inviting this person adds ${formatMoney(confirmExtra.rate, confirmExtra.currency)}, the additional-participant rate in your proposal.`
+            : ''}
+        </p>
+      </Modal>
 
       <Card title="Participation funnel">
         <p className="mb-4 m-0 text-sm text-text-secondary">
@@ -370,11 +468,6 @@ export function CompanyEmployees() {
                 ) : e.participation_status === 'started' && e.last_nudged_at ? (
                   <span className="text-xs text-text-secondary">Cooldown (24h)</span>
                 ) : null}
-                <Link to={`/company/conversations?employee_id=${e.id}`}>
-                  <Button size="sm" variant="secondary">
-                    Conversations
-                  </Button>
-                </Link>
               </div>
             ),
           },
@@ -385,7 +478,7 @@ export function CompanyEmployees() {
             icon={Users}
             title="No one on your team yet"
             description="Invite the people closest to the work. As each person finishes their discovery conversation, their insight strengthens your report."
-            action={{ label: 'Invite people', onClick: focusInviteForm }}
+            action={locked ? undefined : { label: 'Invite people', onClick: focusInviteForm }}
           />
         }
       />

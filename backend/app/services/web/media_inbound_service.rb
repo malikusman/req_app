@@ -10,7 +10,18 @@ module Web
       "image/jpeg" => "image",
       "image/png" => "image",
       "image/webp" => "image",
-      "application/pdf" => "document"
+      "application/pdf" => "document",
+      # Answers recorded in the browser: WebM from Chrome and Firefox, MP4 from
+      # Safari, and the common formats a voice memo arrives in.
+      "audio/webm" => "audio",
+      "audio/ogg" => "audio",
+      "audio/mp4" => "audio",
+      "audio/x-m4a" => "audio",
+      "audio/m4a" => "audio",
+      "audio/aac" => "audio",
+      "audio/mpeg" => "audio",
+      "audio/wav" => "audio",
+      "audio/x-wav" => "audio"
     }.freeze
 
     MAX_BYTES = 10.megabytes
@@ -73,7 +84,10 @@ module Web
       attachment.update!(storage_key: storage_key)
 
       @conversation.touch_activity!
-      send_ack(attachment_type)
+      # A spoken answer on the web shows as "transcribing" in the chat itself; a
+      # "got your voice note" message after every answer would interrupt a voice
+      # interview (and, with questions read aloud, be read out).
+      send_ack(attachment_type) unless attachment_type == "audio"
 
       if dev_simulate_processing?
         simulate_processing!(attachment, message)
@@ -101,7 +115,8 @@ module Web
     def validate_file!
       raise InvalidFile, "No file provided" unless @file.present?
 
-      content_type = @file.content_type.to_s.downcase
+      # "audio/webm;codecs=opus" is audio/webm.
+      content_type = @file.content_type.to_s.split(";").first.to_s.strip.downcase
       attachment_type = ALLOWED_TYPES[content_type]
       raise InvalidFile, "Unsupported file type" unless attachment_type
 

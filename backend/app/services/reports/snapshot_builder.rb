@@ -15,6 +15,8 @@ module Reports
       docs_first = docs_oriented?
       intel = Intelligence::SnapshotBuilder.call(company: @company)
 
+      @findings_view = Findings::ForReport.new(company: @company)
+      @synthesis = synthesis_json
       snapshot = base_snapshot(docs_first, intel)
       apply_narrative!(snapshot)
       # Roadmap is LLM-written when available, else derived from recommendation
@@ -46,9 +48,23 @@ module Reports
         },
         "participation" => intel["participation"],
         "department_coverage" => Array(intel["department_coverage"]),
+        # Role by role, task by task: the unit the report is built from. Hours are
+        # computed in Ruby and every total reconciles with its rows.
+        "findings" => findings_json,
+        # Where to act first, grouped from the findings; hours summed from them.
+        "priorities" => priorities_json,
+        # What a reader might expect us to suggest, and why we don't, for this company
+        # — including opportunities a consultant marked not recommended in synthesis.
+        "not_recommended" => (@not_recommended || []) + Array(@synthesis["not_recommended"]),
+        # What synthesis concluded, as far as a consultant approved it (Doc 10, Doc 15
+        # §4.4, §8.4). Empty until then.
+        "synthesis" => @synthesis.except("not_recommended"),
+        "coverage" => coverage_json(intel),
+        "layout" => { "signals" => signals_placement, "stage2_previews" => stage2_previews },
         "situation" => situation_json(docs_first),
         "signals" => signals_json,
-        "patterns" => patterns_json,
+        # Synthesis's approved conclusions replace the older keyword patterns.
+        "patterns" => synthesis_concluded? ? [] : patterns_json,
         "implications" => implications_json,
         "key_metrics" => key_metrics_json,
         "recommendations" => recommendations_json,
@@ -65,8 +81,10 @@ module Reports
         # the one context block a client can independently verify.
         "web_research" => web_research_json,
         "client_stack" => client_stack_json,
-        "tools_catalog" => tools_catalog_json,
-        "agentic_ideas" => agentic_ideas_json,
+        # Left out, not just unrendered, when hidden: the snapshot is served to the
+        # company over the API too. The ideas and matches themselves are untouched.
+        "tools_catalog" => stage2_previews == "shown" ? tools_catalog_json : EMPTY_TOOLS_CATALOG.deep_dup,
+        "agentic_ideas" => stage2_previews == "shown" ? agentic_ideas_json : [],
         "agent_activity" => agent_activity_json,
         "narrative" => nil,
         "roadmap" => nil
@@ -103,8 +121,11 @@ module Reports
     # available. The deterministic prose stays as the honest fallback and as the
     # source the writer is grounded on.
     def apply_narrative!(snapshot)
-      narrative = NarrativeWriter.call(company: @company, snapshot: snapshot)
+      narrative = NarrativeWriter.call(company: @company, snapshot: snapshot,
+                                       role_notes: @findings_view.role_potential_notes)
       return unless narrative
+
+      apply_role_potential!(snapshot, narrative["role_potential"])
 
       snapshot["narrative"] = narrative
 
@@ -113,7 +134,10 @@ module Reports
         snapshot["executive_summary"] = narrative["executive_summary"]
       end
 
-      snapshot["roadmap"] = narrative["roadmap"] if narrative["roadmap"].present?
+      # With priorities, the roadmap is built from them (deterministic_roadmap), so
+      # it can only repeat hours the priorities hold. The writer's roadmap invented
+      # its own ("over 1,100 hours" beside a priority of 685–770).
+      snapshot["roadmap"] = narrative["roadmap"] if narrative["roadmap"].present? && Array(snapshot["priorities"]).empty?
 
       # Override each implication's "so what" with the LLM statement when it
       # clearly maps to the same pattern; otherwise keep the deterministic one.
@@ -124,9 +148,97 @@ module Reports
       end
     end
 
+    # One line per role on what it could do with time back, written from what its
+    # people said they would do with more time. Only the writer produces it: without
+    # a model the line is left out rather than quoting anyone.
+    def apply_role_potential!(snapshot, statements)
+      by_role = Array(statements).to_h { |s| [[s["department"].to_s.downcase, s["role"].to_s.downcase], s["statement"]] }
+      Array(snapshot.dig("findings", "departments")).each do |department|
+        department["roles"].each do |role|
+          role["potential"] = by_role[[department["name"].to_s.downcase, role["title"].to_s.downcase]]
+        end
+      end
+    end
+
+    SIGNALS_PLACEMENTS = %w[main appendix hidden].freeze
+
+    def signals_placement
+      return "main" if findings_json&.dig("totals", "findings").to_i.zero?
+
+      placement = @company.merged_settings["report_signals_placement"].to_s
+      SIGNALS_PLACEMENTS.include?(placement) ? placement : "appendix"
+    end
+
+    EMPTY_TOOLS_CATALOG = { "curated_matches" => [], "endorsements" => [] }.freeze
+
+    # Agentic ideas and vendor matches name what would do the work, which is
+    # Stage 2's. Hidden unless the company setting says otherwise.
+    def stage2_previews
+      @company.merged_settings["report_stage2_previews"].to_s == "shown" ? "shown" : "hidden"
+    end
+
+    def priorities_json
+      service = Findings::Priorities.new(company: @company, view: findings_json)
+      priorities = service.call
+      @not_recommended = service.not_recommended
+      priorities
+    rescue StandardError => e
+      Rails.logger.warn("[Reports::SnapshotBuilder] priorities skipped: #{e.class}: #{e.message}")
+      @not_recommended = []
+      []
+    end
+
+    def findings_json
+      return @findings_json if defined?(@findings_json)
+
+      @findings_json = begin
+        @findings_view.call
+      rescue StandardError => e
+        Rails.logger.warn("[Reports::SnapshotBuilder] findings skipped: #{e.class}: #{e.message}")
+        nil
+      end
+    end
+
+    # Scope & coverage: who was asked, who took part, and what this report does
+    # not cover — the page a client checks before trusting the rest. Counts only.
+    def coverage_json(intel)
+      participation = intel["participation"] || {}
+      employees = @company.employees
+      by_department = employees.group(Arel.sql("COALESCE(NULLIF(TRIM(department), ''), 'Not recorded')"))
+                               .group(:participation_status).count
+      departments = by_department.each_with_object({}) do |((department, status), count), acc|
+        row = acc[department] ||= { "department" => department, "invited" => 0, "completed" => 0 }
+        row["invited"] += count
+        row["completed"] += count if status == "completed"
+      end.values.sort_by { |r| [-r["completed"], r["department"]] }
+
+      interviewed = departments.select { |r| r["completed"].positive? }.map { |r| r["department"].downcase }
+      in_scope = Array(@company.company_profile["org_departments"]).map(&:to_s).reject(&:blank?)
+      {
+        "invited" => [participation["invited"].to_i, employees.count].max,
+        "completed" => participation["completed"].to_i,
+        "departments" => departments,
+        "roles_interviewed" => employees.where(participation_status: "completed")
+                                        .where.not(role_title: [nil, ""]).distinct.count(:role_title),
+        "not_interviewed" => in_scope.reject { |d| interviewed.include?(d.downcase) },
+        "documents" => @company.documents.where(status: "ready").count
+      }
+    rescue StandardError => e
+      Rails.logger.warn("[Reports::SnapshotBuilder] coverage skipped: #{e.class}: #{e.message}")
+      nil
+    end
+
     # Deterministic Now/Next/Later derived from recommendation priority — the
     # honest fallback when the LLM narrative writer is unavailable.
     def deterministic_roadmap(snapshot)
+      priorities = Array(snapshot["priorities"])
+      if priorities.any?
+        # Already ranked by the hours behind them: the first two now, then next.
+        to_items = ->(list) { list.map { |p| { "title" => p["title"], "rationale" => p["what"].to_s.truncate(140).presence } } }
+        return { "now" => to_items.call(priorities.first(2)), "next" => to_items.call(priorities[2, 2] || []),
+                 "later" => to_items.call(priorities[4..] || []) }
+      end
+
       recs = Array(snapshot["recommendations"])
       return nil if recs.empty?
 
@@ -199,6 +311,15 @@ module Reports
       end
     end
 
+    def synthesis_json
+      Synthesis::ForReport.call(@company)
+    rescue StandardError => e
+      Rails.logger.warn("[Reports::SnapshotBuilder] synthesis skipped: #{e.class}: #{e.message}")
+      {}
+    end
+
+    def synthesis_concluded? = Array(@synthesis["opportunities"]).any? || Array(@synthesis["root_causes"]).any?
+
     def patterns_json
       signals_by_id = @company.company_signals.index_by(&:id)
       @company.patterns.order(confidence: :desc).map do |p|
@@ -234,7 +355,7 @@ module Reports
       max_impact = raw_impacts.max.to_f
 
       recs.each_with_index.map do |r, i|
-        matches = Array(r.catalog_matches)
+        matches = Array(r.catalog_matches).select { |m| client_worthy_fit?(m) }
         impact_score = max_impact.positive? ? (raw_impacts[i] / max_impact).round(3) : nil
         {
           "id" => r.id,
@@ -304,7 +425,7 @@ module Reports
                     "to surface where work slows, breaks, or depends on manual workarounds."
                 end
 
-      metric_lead = metric_lead_sentence
+      metric_lead = findings_headline || metric_lead_sentence
       {
         "headline" => metric_lead || (docs_first ? "Document baseline: where friction shows up today" : "Discovery findings: where work is hardest"),
         "context" => [metric_lead ? (docs_first ? "Document baseline: where friction shows up today." : "Discovery findings: where work is hardest.") : nil, context].compact.join(" "),
@@ -354,8 +475,11 @@ module Reports
         "#{depts.any? ? " across #{depts.join(', ')}" : ""}."
       ].compact
 
-      top_patterns = @company.patterns.order(confidence: :desc).limit(2).pluck(:title)
-      top_signals = @company.company_signals.order(strength: :desc).limit(3).pluck(:label)
+      # A partial interview can leave findings before the baseline turns over;
+      # once there are any, they say what we found, not the themes.
+      top_patterns = findings? ? [] : @company.patterns.order(confidence: :desc).limit(2).pluck(:title)
+      top_signals = findings? ? [] : @company.company_signals.order(strength: :desc).limit(3).pluck(:label)
+      parts << findings_sentence if findings?
       if top_patterns.any?
         parts << "The strongest cross-cutting themes are #{top_patterns.join(' and ')}."
       elsif top_signals.any?
@@ -366,7 +490,7 @@ module Reports
         parts << "Underlying friction shows up as #{top_signals.first(2).join(' and ')}."
       end
 
-      pattern_count = @company.patterns.count
+      pattern_count = findings? ? 0 : @company.patterns.count
       if pattern_count.positive?
         parts << "#{pattern_count} cross-cutting #{'pattern'.pluralize(pattern_count)} inform the recommendations below."
       end
@@ -381,7 +505,7 @@ module Reports
       participation = Intelligence::SnapshotBuilder.call(company: @company)["participation"] || {}
       invited = participation["invited"].to_i
       completed = participation["completed"].to_i
-      parts = [profile_framing_sentence].compact
+      parts = [profile_framing_sentence, findings_sentence].compact
       parts << if completed.zero? && invited.zero?
                  "Discovery interviews have not started yet."
                elsif completed.zero? && invited.positive?
@@ -393,15 +517,52 @@ module Reports
       doc_count = @company.documents.where(status: "ready").count
       parts << "Findings are reinforced by #{doc_count} internal #{'document'.pluralize(doc_count)}." if doc_count.positive?
 
-      top_signals = @company.company_signals.order(strength: :desc).limit(3).pluck(:label)
-      parts << "Top friction areas include #{top_signals.join(', ')}." if top_signals.any?
+      # With findings, the signals and patterns are a second, vaguer account of
+      # the same interviews; the findings sentence above already says what we found.
+      unless findings?
+        top_signals = @company.company_signals.order(strength: :desc).limit(3).pluck(:label)
+        parts << "Top friction areas include #{top_signals.join(', ')}." if top_signals.any?
 
-      pattern_count = @company.patterns.count
-      parts << "#{pattern_count} cross-team #{'pattern'.pluralize(pattern_count)} inform the recommendations below." if pattern_count.positive?
+        pattern_count = @company.patterns.count
+        parts << "#{pattern_count} cross-team #{'pattern'.pluralize(pattern_count)} inform the recommendations below." if pattern_count.positive?
+      end
 
       parts << goals_framing_sentence
       parts << departments_framing_sentence
       parts.compact.join(" ")
+    end
+
+    # "About 1,050–1,200 hours a year go into the work people described." Computed,
+    # never written by a model — the deterministic lead when the writer is off.
+    def findings_headline
+      totals = findings_json&.dig("totals") || {}
+      return nil unless totals["hours_min"]
+
+      "About #{report_hours(totals['hours_min'], totals['hours_max'])} hours a year go into the work " \
+        "#{totals['people'].to_i == 1 ? 'one person' : "#{totals['people']} people"} described"
+    end
+
+    def findings?
+      findings_json&.dig("totals", "findings").to_i.positive?
+    end
+
+    def findings_sentence
+      totals = findings_json&.dig("totals") || {}
+      return nil if totals["findings"].to_i.zero?
+
+      sentence = "#{totals['findings']} #{'finding'.pluralize(totals['findings'])} across " \
+                 "#{totals['roles']} #{'role'.pluralize(totals['roles'])} in " \
+                 "#{totals['departments']} #{'department'.pluralize(totals['departments'])}"
+      if totals["hours_min"]
+        sentence += ", #{totals['quantified']} of them costed at about " \
+                    "#{report_hours(totals['hours_min'], totals['hours_max'])} hours a year"
+      end
+      "#{sentence}."
+    end
+
+    def report_hours(min, max)
+      fmt = ->(n) { ActiveSupport::NumberHelper.number_to_delimited(n) }
+      min == max ? fmt.call(min) : "#{fmt.call(min)}–#{fmt.call(max)}"
     end
 
     def profile_framing_sentence
@@ -510,6 +671,22 @@ module Reports
         current = acc[key]
         acc[key] = sys if current.nil? || sys.confidence.to_f > current.confidence.to_f
       end.values.sort_by { |s| s.name.to_s }
+    end
+
+    # "Bill.com · 9% fit" printed as a recommendation told a client we had matched
+    # nothing and said so anyway. Below half a fit, a machine match stays in the
+    # working papers. A match with no score is kept: it was put there by hand.
+    MIN_CLIENT_FIT = 0.5
+
+    def client_worthy_fit?(match)
+      return false unless match.is_a?(Hash)
+
+      score = match["score"] || match[:score]
+      return true if score.nil?
+
+      value = score.to_f
+      value /= 100.0 if value > 1.0
+      value >= MIN_CLIENT_FIT
     end
 
     def agentic_ideas_json
@@ -646,6 +823,11 @@ module Reports
       # list arrives ordered by score, so keeping the first occurrence of each
       # name keeps each product at its best-evidenced match.
       curated = curated.uniq { |tool| tool["name"].to_s.strip.downcase }
+      # A consultant's own pick or endorsement always stands; a machine match has to
+      # clear the bar.
+      curated = curated.select do |tool|
+        tool["consultant_added"] || Array(tool["endorsements"]).any? || client_worthy_fit?(tool)
+      end
 
       {
         "curated_matches" => curated.first(8),

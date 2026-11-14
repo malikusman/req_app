@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { Keyboard, Mic } from 'lucide-react';
 import { Button, Card } from '../components/ui';
+import { setReadAloudPreferred } from './useReadAloud';
 import {
   discoverApi,
   getStoredDiscoverToken,
@@ -14,7 +16,7 @@ export function DiscoverLanding() {
   const [session, setSession] = useState<DiscoverSession | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+  const [submitting, setSubmitting] = useState<'voice' | 'text' | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -33,19 +35,21 @@ export function DiscoverLanding() {
       .finally(() => setLoading(false));
   }, [token, navigate]);
 
-  const start = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // A voice interview is the same interview with the questions read aloud and a
+  // microphone to answer with; typing stays available either way.
+  const start = async (mode: 'voice' | 'text') => {
     if (!token) return;
     setError('');
-    setSubmitting(true);
+    setSubmitting(mode);
     try {
       const res = await discoverApi.start(token);
       storeDiscoverToken(token, res.token);
-      navigate(`/discover/${token}/chat`, { replace: true });
+      setReadAloudPreferred(mode === 'voice');
+      navigate(`/discover/${token}/chat${mode === 'voice' ? '?voice=1' : ''}`, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not start interview');
     } finally {
-      setSubmitting(false);
+      setSubmitting(null);
     }
   };
 
@@ -72,11 +76,31 @@ export function DiscoverLanding() {
 
         {error && <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
 
-        <form onSubmit={start} className="space-y-4">
-          <Button type="submit" className="w-full" disabled={submitting || !!error && !session}>
-            {submitting ? 'Starting…' : 'Continue to interview'}
+        <div className="space-y-3">
+          <Button
+            type="button"
+            className="w-full"
+            icon={<Mic className="h-4 w-4" />}
+            disabled={!!submitting || (!!error && !session)}
+            onClick={() => void start('voice')}
+          >
+            {submitting === 'voice' ? 'Starting…' : 'Start voice interview'}
           </Button>
-        </form>
+          <Button
+            type="button"
+            variant="secondary"
+            className="w-full"
+            icon={<Keyboard className="h-4 w-4" />}
+            disabled={!!submitting || (!!error && !session)}
+            onClick={() => void start('text')}
+          >
+            {submitting === 'text' ? 'Starting…' : 'Type my answers instead'}
+          </Button>
+          <p className="m-0 text-center text-xs text-muted-foreground">
+            In a voice interview the questions are read to you and you answer out loud. You can switch to typing at
+            any point.
+          </p>
+        </div>
 
         {session?.expires_at && (
           <p className="text-center text-xs text-muted-foreground">

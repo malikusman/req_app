@@ -12,10 +12,13 @@ class Conversation < ApplicationRecord
   # discovery_packages.conversation_id had nothing telling Rails to clean these up,
   # so deleting a conversation with a package raised a bare ForeignKeyViolation.
   has_many :discovery_packages, dependent: :destroy
+  has_many :task_sources
 
   STATUSES = %w[onboarding profiling discovery completed abandoned].freeze
 
   validates :status, inclusion: { in: STATUSES }
+
+  after_save :request_task_evidence_projection, if: :saved_change_to_state_snapshot?
 
   def touch_activity!
     update!(last_activity_at: Time.current)
@@ -65,5 +68,12 @@ class Conversation < ApplicationRecord
 
   def update_blackboard!(updates)
     update!(state_snapshot: state_snapshot.merge("blackboard" => blackboard.merge(updates)))
+  end
+
+  private
+
+  def request_task_evidence_projection
+    before, after = saved_change_to_state_snapshot.map { |snapshot| TaskSources::SyncFromConversation.evidence_input(snapshot) }
+    TaskEvidenceRefresh.request_projection(id) if before != after
   end
 end

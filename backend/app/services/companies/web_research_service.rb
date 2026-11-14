@@ -1,30 +1,13 @@
 # frozen_string_literal: true
 
 require "nokogiri"
-require "resolv"
-require "ipaddr"
-require "uri"
 require "digest"
 
 module Companies
   # Fetches the company website (when present), extracts readable text, summarizes,
   # and stores results as CompanyKnowledgeEntry rows with metadata.source=web_research.
   class WebResearchService
-    MAX_BYTES = 500_000
-    FETCH_TIMEOUT = 12
     TEXT_LIMIT = 12_000
-
-    PRODUCT_HEADERS = {
-      "User-Agent" => "MjadiCompanyResearch/1.0 (+https://req.pebbleintelligentsolutions.com)",
-      "Accept" => "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      "Accept-Language" => "en-US,en;q=0.9"
-    }.freeze
-
-    BROWSER_HEADERS = {
-      "User-Agent" => "Mozilla/5.0 (compatible; MjadiCompanyResearch/1.0; +https://req.pebbleintelligentsolutions.com) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-      "Accept" => "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      "Accept-Language" => "en-US,en;q=0.9"
-    }.freeze
 
     def self.call(company:, force: false)
       new(company: company, force: force).call
@@ -39,9 +22,7 @@ module Companies
       url = @company.website_url.to_s.strip.presence
       return { ok: false, error: "no_website_url" } if url.blank?
 
-      unless safe_public_http_url?(url)
-        return { ok: false, error: "unsafe_url" }
-      end
+      return { ok: false, error: "unsafe_url" } unless WebsiteFetcher.safe_public_http_url?(url)
 
       unless @force
         fresh = @company.company_knowledge_entries
@@ -52,7 +33,7 @@ module Companies
         return { ok: true, skipped: true, reason: "fresh" } if fresh
       end
 
-      fetch = fetch_html(url)
+      fetch = WebsiteFetcher.new.fetch_html(url)
       return { ok: false, error: fetch[:error], status_code: fetch[:status_code], final_url: fetch[:final_url] } if fetch[:html].blank?
 
       text = extract_text(fetch[:html])
@@ -67,66 +48,6 @@ module Companies
     end
 
     private
-
-    def safe_public_http_url?(url)
-      uri = URI.parse(url)
-      return false unless uri.is_a?(URI::HTTP) || uri.is_a?(URI::HTTPS)
-      return false if uri.host.blank?
-
-      ips = Resolv.getaddresses(uri.host)
-      return false if ips.empty?
-
-      ips.none? { |ip| private_or_loopback?(ip) }
-    rescue URI::InvalidURIError, Resolv::ResolvError
-      false
-    end
-
-    def private_or_loopback?(ip_str)
-      ip = IPAddr.new(ip_str)
-      return true if ip.loopback? || ip.private?
-      return true if ip.respond_to?(:link_local?) && ip.link_local?
-
-      # IPv4 link-local / CGNAT / metadata
-      return true if ip.ipv4? && (ip.to_s.start_with?("169.254.") || ip.to_s.start_with?("100.64."))
-
-      false
-    rescue IPAddr::InvalidAddressError
-      true
-    end
-
-    def fetch_html(url)
-      result = get_with_headers(url, PRODUCT_HEADERS)
-      if !result.success? && blocked_status?(result.status_code)
-        result = get_with_headers(url, BROWSER_HEADERS)
-      end
-
-      unless result.success?
-        error = if blocked_status?(result.status_code)
-                  "blocked_by_site"
-                else
-                  result.error.presence || "fetch_failed"
-                end
-        return { html: nil, error: error, status_code: result.status_code, final_url: result.final_url }
-      end
-
-      body = result.body
-      body = body.bytesize > MAX_BYTES ? body.byteslice(0, MAX_BYTES) : body
-      { html: body, error: nil, status_code: result.status_code, final_url: result.final_url }
-    end
-
-    def get_with_headers(url, headers)
-      Http::GetWithRedirects.call(
-        url,
-        headers: headers,
-        open_timeout: FETCH_TIMEOUT,
-        read_timeout: FETCH_TIMEOUT,
-        validate: method(:safe_public_http_url?)
-      )
-    end
-
-    def blocked_status?(code)
-      [401, 403, 429].include?(code.to_i)
-    end
 
     def extract_text(html)
       doc = Nokogiri::HTML(html)

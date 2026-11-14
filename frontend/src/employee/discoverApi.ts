@@ -31,6 +31,12 @@ export type DiscoverState = {
   conversation_status: string;
   question_count: number;
   completed: boolean;
+  discovery_outcome?: 'successful' | 'needs_follow_up' | 'employee_stopped' | null;
+  discovery_pending?: boolean;
+  /** For the browser's own voice when a question cannot be spoken server-side. */
+  language?: string;
+  /** Absent on responses from an older server. */
+  voice?: { recording: boolean; speech: boolean };
 };
 
 export type DiscoverVerifyResponse = {
@@ -144,6 +150,15 @@ export const discoverApi = {
       { method: 'POST', body: JSON.stringify({ body }) },
       jwt
     ),
+
+  /** An interviewer's message, spoken. Throws when speech is unavailable. */
+  speech: async (jwt: string, messageId: number) => {
+    const res = await fetch(`${API_URL}/api/v1/public/discover/messages/${messageId}/speech`, {
+      headers: { Authorization: `Bearer ${jwt}` },
+    });
+    if (!res.ok) throw new Error('Speech unavailable');
+    return res.blob();
+  },
 
   sendAttachment: (jwt: string, file: File, caption?: string) => {
     const form = new FormData();

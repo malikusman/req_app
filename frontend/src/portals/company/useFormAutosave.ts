@@ -1,0 +1,216 @@
+import { useMemo, useRef, useState, useEffect } from 'react';
+import { api, ApiRequestError } from '../../lib/api';
+import {
+  answersForSending,
+  diffAnswers,
+  type FieldType,
+  type QuestionnaireAnswers,
+  type QuestionnaireField,
+} from '../../lib/formFields';
+
+export type AutosaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+
+const DEBOUNCE_MS = 1200;
+const MAX_WAIT_MS = 5000;
+const SAVING_DELAY_MS = 300;
+const SAVED_FADE_MS = 2500;
+
+// Types that save the moment they change: one click is a finished thought, and
+// waiting 1.2s to persist it only risks losing it. Anything the user types into —
+// and the matrix questions, where a click is usually followed by more clicks — is
+// debounced instead. `static` stores nothing and never reaches here.
+const IMMEDIATE_TYPES = new Set<FieldType>([
+  'single_select',
+  'multi_select',
+  'searchable_select',
+  'parallel_text',
+]);
+
+/**
+ * Autosave for the onboarding form. There is no Save button: answers
+ * persist as they are given, and the browser warns before a close that would lose
+ * anything still in flight.
+ *
+ * `enabled` turns it on once the stored answers have loaded: what is saved is
+ * measured from those, so clearing a stored answer is seen as a change.
+ */
+export function useFormAutosave(
+  token: string | null,
+  answers: QuestionnaireAnswers,
+  fields: QuestionnaireField[],
+  enabled = true
+) {
+  const [status, setStatus] = useState<AutosaveStatus>('idle');
+
+  const answersRef = useRef(answers);
+  const enabledRef = useRef(enabled);
+  const tokenRef = useRef(token);
+  const lastSavedRef = useRef<QuestionnaireAnswers>(answers);
+  const seededRef = useRef(false);
+
+  // Refs must not be written during render (React Compiler rule) — keep them in
+  // sync via an effect instead. Runs after every render, well before any
+  // setTimeout/promise callback that reads them could possibly fire.
+  useEffect(() => {
+    answersRef.current = answers;
+    enabledRef.current = enabled;
+    tokenRef.current = token;
+    if (!seededRef.current && enabled) {
+      lastSavedRef.current = answers;
+      seededRef.current = true;
+    }
+  });
+
+  const fieldsById = useMemo(() => {
+    const map = new Map<string, QuestionnaireField>();
+    fields.forEach((field) => map.set(field.id, field));
+    return map;
+  }, [fields]);
+
+  const inFlightRef = useRef(false);
+  const queuedRef = useRef(false);
+  const authFailedRef = useRef(false);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const maxWaitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const savingDelayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const savedFadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const waitersRef = useRef<Array<() => void>>([]);
+  const flushAfterRenderRef = useRef(false);
+
+  const isDirty = () => Object.keys(diffAnswers(answersRef.current, lastSavedRef.current)).length > 0;
+
+  const clearScheduledTimers = () => {
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    if (maxWaitTimerRef.current) clearTimeout(maxWaitTimerRef.current);
+    debounceTimerRef.current = null;
+    maxWaitTimerRef.current = null;
+  };
+
+  const settleWaiters = () => {
+    if (inFlightRef.current) return;
+    const waiters = waitersRef.current;
+    waitersRef.current = [];
+    waiters.forEach((resolve) => resolve());
+  };
+
+  const triggerFlush = () => {
+    if (!enabledRef.current || !tokenRef.current || authFailedRef.current) return;
+    clearScheduledTimers();
+
+    if (inFlightRef.current) {
+      queuedRef.current = true;
+      return;
+    }
+
+    const diff = diffAnswers(answersRef.current, lastSavedRef.current);
+    if (Object.keys(diff).length === 0) {
+      settleWaiters();
+      return;
+    }
+
+    inFlightRef.current = true;
+
+    if (savingDelayTimerRef.current) clearTimeout(savingDelayTimerRef.current);
+    savingDelayTimerRef.current = setTimeout(() => setStatus('saving'), SAVING_DELAY_MS);
+
+    let failed = false;
+
+    api
+      .updateQuestionnaireAnswers(tokenRef.current, answersForSending(diff))
+      .then(() => {
+        // Merge the snapshot that was actually sent, not the live answers — if the
+        // user edited further while this request was in flight, those keys must
+        // stay dirty so the next diff picks them up. See Stage 3A plan, Q1.
+        lastSavedRef.current = { ...lastSavedRef.current, ...diff };
+      })
+      .catch((err: Error) => {
+        failed = true;
+        if (err instanceof ApiRequestError && (err.status === 401 || err.status === 403)) {
+          // Don't keep hammering a dead session — stop auto-retrying entirely.
+          authFailedRef.current = true;
+        }
+        setStatus('error');
+      })
+      .finally(() => {
+        if (savingDelayTimerRef.current) {
+          clearTimeout(savingDelayTimerRef.current);
+          savingDelayTimerRef.current = null;
+        }
+        inFlightRef.current = false;
+
+        if (!failed && (queuedRef.current || isDirty())) {
+          queuedRef.current = false;
+          triggerFlush();
+          return;
+        }
+        queuedRef.current = false;
+
+        if (!failed) {
+          setStatus('saved');
+          if (savedFadeTimerRef.current) clearTimeout(savedFadeTimerRef.current);
+          savedFadeTimerRef.current = setTimeout(() => setStatus('idle'), SAVED_FADE_MS);
+        }
+        settleWaiters();
+      });
+  };
+
+  const notifyChange = (id: string) => {
+    if (!enabledRef.current) return;
+    // `field` is undefined for the companion keys deliberately kept out of
+    // fieldsById — `<id>_other` and `<id>_detail`. Both are typed into, so falling
+    // through to the debounced path below is exactly right.
+    const field = fieldsById.get(id);
+    if (field?.type === 'static') return;
+
+    if (field && IMMEDIATE_TYPES.has(field.type)) {
+      // Saved once React has rendered the change: called from the click itself,
+      // answersRef still holds the answers from before it, and the change would
+      // be missed.
+      flushAfterRenderRef.current = true;
+      return;
+    }
+
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = setTimeout(triggerFlush, DEBOUNCE_MS);
+    if (!maxWaitTimerRef.current) {
+      maxWaitTimerRef.current = setTimeout(triggerFlush, MAX_WAIT_MS);
+    }
+  };
+
+  // Runs after the effect above has caught answersRef up with this render.
+  useEffect(() => {
+    if (!flushAfterRenderRef.current) return;
+    flushAfterRenderRef.current = false;
+    triggerFlush();
+  });
+
+  const flush = (): Promise<void> => {
+    if (!enabledRef.current) return Promise.resolve();
+    return new Promise((resolve) => {
+      waitersRef.current.push(resolve);
+      triggerFlush();
+    });
+  };
+
+  useEffect(() => {
+    if (!enabled) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      if (isDirty()) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [enabled]);
+
+  useEffect(() => {
+    return () => {
+      if (enabledRef.current) triggerFlush();
+    };
+    // Mount/unmount only — triggerFlush reads everything it needs via refs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return { status, notifyChange, flush };
+}

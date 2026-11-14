@@ -5,11 +5,13 @@ module Auth
   class PasswordResetToken
     PURPOSE = :password_reset
     TTL = 48.hours
+    # A first invitation may sit in an inbox for days before the key user opens it.
+    INVITATION_TTL = 7.days
 
-    def self.generate(record)
+    def self.generate(record, ttl: TTL)
       verifier.generate(
         { "type" => record.class.name, "id" => record.id },
-        expires_in: TTL,
+        expires_in: ttl,
         purpose: PURPOSE
       )
     end

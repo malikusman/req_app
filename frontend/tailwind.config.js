@@ -35,7 +35,9 @@ export default {
           DEFAULT: 'hsl(var(--primary))',
           hover: 'hsl(160 83% 21%)',
           muted: 'hsl(153 46% 91%)',
-          foreground: 'hsl(var(--accent-foreground))',
+          // Text ON the solid accent. It was the accent green itself, so every
+          // selected chip and count badge read green-on-green.
+          foreground: 'hsl(var(--primary-foreground))',
         },
         popover: {
           DEFAULT: 'hsl(var(--popover))',

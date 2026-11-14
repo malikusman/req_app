@@ -13,23 +13,24 @@ const titles: Record<string, string> = {
   '/platform/audit': 'Audit log',
   '/company/dashboard': 'Dashboard',
   '/company/employees': 'Employees',
-  '/company/conversations': 'Conversations',
   '/company/intelligence': 'Intelligence',
   '/company/intelligence/signals': 'Intelligence',
   '/company/intelligence/patterns': 'Intelligence',
   '/company/intelligence/timeline': 'Intelligence',
   '/company/documents': 'Documents',
   '/company/outreaches': 'Consultant questions',
-  '/company/media': 'WhatsApp media',
   '/company/recommendations': 'Intelligence',
   '/company/reports': 'Reports',
   '/company/billing': 'Billing',
-  '/company/discovery-questions': 'Discovery questions',
   '/company/settings': 'Settings',
   '/company/onboarding': 'Profile',
   '/company/consultants': 'Consultants',
   '/company/knowledge': 'Knowledge',
   '/platform/registrations': 'Registrations',
+  '/platform/pricing': 'Pricing',
+  '/platform/pricing/rates': 'Rates and margin floor',
+  '/company/proposal': 'Your proposal',
+  '/company/leadership': 'Conversation with leadership',
   '/consultant/dashboard': 'Dashboard',
   '/consultant/profile': 'Profile',
   '/consultant/inbox': 'Inbox',
@@ -57,6 +58,12 @@ function resolveTitle(pathname: string, fallback: string): string {
   }
   if (pathname.match(/\/consultant\/companies\/\d+$/)) {
     return 'Company overview';
+  }
+  if (pathname.match(/\/consultant\/companies\/\d+\/task-selection$/)) {
+    return 'Deep Dive Task Selection';
+  }
+  if (pathname.match(/\/consultant\/companies\/\d+\/deep-dive-plans\/\d+$/)) {
+    return 'Deep Dive plans';
   }
   if (pathname.match(/\/platform\/companies\/\d+/)) {
     return 'Company detail';

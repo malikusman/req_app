@@ -7,8 +7,15 @@ module Api
         before_action :load_review
 
         def update
-          state = @review.report_review_section_states.find_by!(section_key: params[:section_key])
           authorize @review, :update?
+          # A review opened before a section existed has no row for it; a current
+          # section gets one on first judgement, a retired one is still a 404.
+          states = @review.report_review_section_states
+          state = if ReportSections::KEYS.include?(params[:section_key])
+                    states.find_or_create_by!(section_key: params[:section_key])
+                  else
+                    states.find_by!(section_key: params[:section_key])
+                  end
           state.update!(status: params.require(:status))
           @review.update!(status: "in_review") if @review.status == "pending"
           report = @review.report

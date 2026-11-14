@@ -3,6 +3,11 @@ mark_abandoned_conversations:
   class: MarkAbandonedConversationsJob
   queue: default
   active_job: true
+refresh_task_evidence:
+  cron: "* * * * *"
+  class: RefreshTaskEvidenceJob
+  queue: default
+  active_job: true
 # Interval note: cron expression is overwritten at Sidekiq startup from
 # AI_CATALOG_SYNC_INTERVAL_HOURS (default 12). Keep a sensible default here.
 catalog_sync_all_sources:
@@ -18,5 +23,17 @@ market_intel_match_and_notify:
 generate_employee_value_digests:
   cron: "0 9 1 * *"
   class: GenerateEmployeeValueDigestsJob
+  queue: default
+  active_job: true
+key_person_sweep:
+  cron: "15 * * * *"
+  class: KeyPersonSweepJob
+  queue: default
+  active_job: true
+
+# Stage 1 quotes past their validity date expire (Doc 17 §10.1).
+expire_stage1_quotes:
+  cron: "30 1 * * *"
+  class: ExpireQuotesJob
   queue: default
   active_job: true

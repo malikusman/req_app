@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { motion } from 'motion/react';
 import { Modal } from './Modal';
 import { Button } from './Button';
@@ -12,6 +13,7 @@ export function ConfirmDialog({
   cancelLabel = 'Cancel',
   variant = 'danger',
   loading,
+  children,
 }: {
   open: boolean;
   onClose: () => void;
@@ -22,6 +24,8 @@ export function ConfirmDialog({
   cancelLabel?: string;
   variant?: 'danger' | 'primary';
   loading?: boolean;
+  /** Shown under the description — e.g. why the last attempt was refused. */
+  children?: ReactNode;
 }) {
   return (
     <Modal
@@ -46,6 +50,7 @@ export function ConfirmDialog({
       {description && (
         <motion.p className="m-0 text-sm text-text-secondary">{description}</motion.p>
       )}
+      {children}
     </Modal>
   );
 }

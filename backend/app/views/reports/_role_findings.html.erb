@@ -1,0 +1,164 @@
+<% company_name = snapshot.dig("company", "name") %>
+<% view = snapshot["findings"] || {} %>
+<% totals = view["totals"] || {} %>
+<% departments = Array(view["departments"]) %>
+<% total_hours = report_hours(totals["hours_min"], totals["hours_max"]) %>
+<% scale = departments.map { |d| d["hours_max"].to_i }.max.to_i %>
+<% roles = departments.flat_map { |d| d["roles"].map { |r| r.merge("department" => d["name"]) } } %>
+<%# Where the time goes: the page the report is built around. Every figure is
+    computed from the findings (Findings::ForReport) — the department bars add up
+    to the total, and the rows on the pages that follow add up to each role. %>
+<section class="page" id="role-findings">
+  <div class="eyebrow">Findings by role</div>
+  <h1 class="page-title">
+    <% if total_hours %>
+      About <span class="serif-accent"><%= total_hours %></span> hours a year go into the work people described
+    <% else %>
+      What gets in the way, role by role
+    <% end %>
+  </h1>
+  <div class="split">
+    <div>
+      <p class="lead">
+        <%= totals["people"].to_i == 1 ? "One person" : "#{totals['people']} people" %> across
+        <%= pluralize(totals["roles"].to_i, "role") %> in <%= pluralize(totals["departments"].to_i, "department") %>
+        described <%= pluralize(totals["findings"].to_i, "piece") %> of work that is slower, more manual or more
+        repetitive than it needs to be.
+        <% if totals["quantified"].to_i.positive? %>
+          <%= totals["quantified"] == totals["findings"] ? "All" : "#{totals['quantified']}" %> of them came with
+          how often it happens and how long it takes, which is where the hours come from.
+        <% end %>
+      </p>
+      <p>
+        These hours are capacity: time the team spends today that could go to other work. They are not a cost to
+        cut, and they are not converted to salary.
+        <% if totals["value_min"] %>
+          At benchmark rates for these roles, that capacity is worth about
+          <strong><%= totals["currency"] %> <%= report_hours(totals["value_min"], totals["value_max"]) %></strong> a year.
+        <% end %>
+      </p>
+      <% if roles.any? { |r| r["hours_max"] } %>
+        <h3 style="margin-top:5mm;">Most time, by role</h3>
+        <table class="findings-mini">
+          <% roles.select { |r| r["hours_max"] }.sort_by { |r| -r["hours_max"] }.first(6).each do |role| %>
+            <tr>
+              <td><%= h role["title"] %> <span class="muted">· <%= h report_department_label(role["department"]) %></span></td>
+              <td class="num"><%= report_hours(role["hours_min"], role["hours_max"]) %> h</td>
+            </tr>
+          <% end %>
+        </table>
+      <% end %>
+    </div>
+    <div class="exhibit">
+      <div class="exlabel">Exhibit 1 · Hours a year, by department</div>
+      <h3>Where the time goes.</h3>
+      <div class="bars">
+        <% departments.each do |department| %>
+          <% pct = scale.positive? && department["hours_max"] ? (department["hours_max"].to_f / scale * 100).round : 0 %>
+          <div class="bar-row">
+            <span><%= h report_department_label(department["name"]) %></span>
+            <span class="bar-track"><span class="bar-fill" style="width:<%= pct %>%"></span></span>
+            <span class="bar-val"><%= report_hours(department["hours_min"], department["hours_max"]) || "—" %></span>
+          </div>
+        <% end %>
+      </div>
+      <div class="caption">
+        From how often and how long people said the work takes: 48 working weeks, 240 working days and 8-hour days a
+        year. Waiting time is never counted. — means no figure was given.
+        <%= h report_source_caption(company_name, version: report_version) %>
+      </div>
+      <div class="mark">Mjadi</div>
+    </div>
+  </div>
+  <%= render "reports/page_footer", company_name: company_name %>
+</section>
+
+<% report_findings_pages(view).each do |blocks| %>
+<section class="page">
+  <div class="eyebrow">Findings by role · <%= h blocks.map { |b| report_department_label(b["department"]["name"]) }.uniq.join(" · ") %></div>
+  <% blocks.each do |block| %>
+    <% role = block["role"] %>
+    <div class="role-block">
+      <div class="role-head">
+        <h3><%= h role["title"] %><%= " (continued)" if block["continued"] %></h3>
+        <span class="role-meta">
+          <%= h report_department_label(block["department"]["name"]) %>
+          <% if role["people"].to_i > 1 %> · described by <%= role["people"] %> people<% end %>
+          <% if role["hours_min"] %> · <strong><%= report_hours(role["hours_min"], role["hours_max"]) %> hours a year</strong><% end %>
+        </span>
+      </div>
+      <% if role["potential"].present? && !block["continued"] %>
+        <p class="role-potential"><%= h role["potential"] %></p>
+      <% end %>
+      <table class="findings-table">
+        <thead>
+          <tr><th style="width:17%;">Work</th><th>What gets in the way</th><th style="width:14%;">How often</th><th style="width:14%;">How long</th><th class="num" style="width:11%;">Hours a year</th><% if totals["value_min"] %><th class="num" style="width:12%;">Worth a year</th><% end %></tr>
+        </thead>
+        <tbody>
+          <% block["findings"].each do |finding| %>
+            <tr>
+              <td class="task">
+                <%= h finding["title"] %>
+                <% if (basis = report_finding_basis(finding)) %>
+                  <div class="basis"><%= h basis %></div>
+                <% end %>
+              </td>
+              <td>
+                <%= h finding["friction"] %>
+                <% if finding["what_happens_now"].present? %>
+                  <div class="how-now"><%= h finding["what_happens_now"].to_s.truncate(160) %></div>
+                <% end %>
+              </td>
+              <td><%= h finding["frequency"].presence || "—" %></td>
+              <td><%= h finding["duration"].presence || "—" %></td>
+              <td class="num">
+                <% if finding["effort_type"] == "waiting" %>
+                  <span class="muted">Waiting — not counted</span>
+                <% elsif finding["counted_in"] %>
+                  <%= report_hours(finding["hours_min"], finding["hours_max"]) || "—" %>
+                  <div class="muted">Counted once, with “<%= h finding["counted_in"]["title"] %>”</div>
+                <% else %>
+                  <%= report_hours(finding["hours_min"], finding["hours_max"]) || "—" %>
+                <% end %>
+              </td>
+              <% if totals["value_min"] %>
+                <td class="num"><%= finding["value_min"] ? "#{finding['currency']} #{report_hours(finding['value_min'], finding['value_max'])}" : "—" %></td>
+              <% end %>
+            </tr>
+            <%# Why it happens, the kind of change — what, never how — and what must come
+                first (Doc 15 §4.5.2). A cause the employee did not give is labelled as
+                analysis (§8.2). %>
+            <% if %w[cause direction dependency].any? { |k| finding[k].present? } || Array(finding["depends_on"]).any? || Array(finding["also_in"]).any? %>
+              <tr class="finding-detail">
+                <td></td>
+                <td colspan="<%= totals["value_min"] ? 5 : 4 %>">
+                  <% if finding["cause"].present? %>
+                    <div><span class="label">Why it happens<%= " (our analysis)" unless finding["cause_stated"] %>:</span> <%= h finding["cause"] %></div>
+                  <% end %>
+                  <% if finding["direction"].present? %>
+                    <div><span class="label">Direction<%= " · #{finding['intervention']}" if finding["intervention"] %>:</span> <%= h finding["direction"] %></div>
+                  <% end %>
+                  <% if finding["dependency"].present? %>
+                    <div><span class="label">Must be true first:</span> <%= h finding["dependency"] %></div>
+                  <% end %>
+                  <% if Array(finding["also_in"]).any? %>
+                    <div><span class="label">Shared work, also described in:</span>
+                      <%= safe_join(Array(finding["also_in"]).map { |d| "“#{d['title']}” (#{report_department_label(d['department'])})" }, "; ") %></div>
+                  <% end %>
+                  <% if Array(finding["depends_on"]).any? %>
+                    <div><span class="label">Comes after:</span>
+                      <%= safe_join(Array(finding["depends_on"]).map { |d| "“#{d['title']}”#{" (#{report_department_label(d['department'])})" if d['department'].present?}" }, "; ") %></div>
+                  <% end %>
+                </td>
+              </tr>
+            <% end %>
+          <% end %>
+        </tbody>
+      </table>
+      <%# Stage 1 withholds the build and says so, never leaving a blank (Doc 15 §5). %>
+      <p class="stage2-note">A deep dive and full design are available at Stage 2.</p>
+    </div>
+  <% end %>
+  <%= render "reports/page_footer", company_name: company_name %>
+</section>
+<% end %>

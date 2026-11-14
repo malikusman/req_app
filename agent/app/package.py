@@ -72,6 +72,31 @@ def _evidence(payload: dict[str, Any]) -> dict[str, Any]:
             }
         )
 
+    workflow = dossier.get("workflow")
+    if isinstance(workflow, dict):
+        tasks = [t for t in workflow.get("tasks", []) if t.get("importance") != "supporting"]
+        # The historical summaries/insights remain stored for audit, but may
+        # contain estimates the employee corrected. Current task facts are the
+        # authoritative source for a new handover.
+        return {
+            "areas": [t["name"] for t in tasks],
+            "learned": [{"about": field.replace("_", " "), "area": t["name"],
+                         "detail": fact["value"] + ("; extra effort: " + "; ".join(
+                             str((fact.get("effort", {}).get(side) or {}).get("as_said") or "unknown")
+                             for side in ("frequency", "duration")) if field == "bottlenecks" and fact.get("effort") else ""), "status": fact["status"],
+                         "how_clearly": .8 if fact["status"] == "known" else .4}
+                        for t in tasks for field, fact in t.get("facts", {}).items()]
+                       + [{"about": field.replace("_", " "), "area": None, "detail": fact["value"],
+                           "status": fact["status"], "how_clearly": .8}
+                          for field, fact in workflow.get("global_facts", {}).items()],
+            "parked": [p.get("note") for p in dossier.get("parked", [])],
+            "findings": [], "summary": "", "insights": [],
+            "close_reason": bb.get("close_reason"),
+            "validation": {"outcome": workflow.get("outcome"),
+                           "employee_confirmation": workflow.get("confirmation"),
+                           "follow_up": workflow.get("follow_up", [])},
+        }
+
     return {
         "areas": areas,
         "learned": learned,
@@ -102,6 +127,9 @@ Everything the interview captured:
 Write in {payload.get('language', 'en')} (ISO 639-1).
 
 Rules that matter:
+- active effort is the full task's working time; it is NOT automatically avoidable
+  effort. Only bottleneck extra effort can support a claim about time lost to that
+  issue. Never label the full task duration as time saved or waste.
 - Ground every claim in the evidence above. Do NOT introduce numbers, durations,
   volumes or percentages that do not appear there. If you don't have a figure, describe
   the problem without one.

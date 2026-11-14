@@ -41,7 +41,11 @@ module Subscriptions
       !can_start_discovery?
     end
 
+    # A company on an engagement has no subscription, and so no conversation cap:
+    # the Stage 1 fee covers its planned participants.
     def effective_limit
+      return nil unless @subscription
+
       @subscription.conversation_limit.presence || PlanLimits.conversation_limit_for(@subscription.plan)
     end
 

@@ -64,4 +64,38 @@ RSpec.describe Intelligence::SignalExtractor do
     expect(manual[:source_excerpts].size).to eq(1)
     expect(manual[:source_excerpts].first[:excerpt]).to include("Excel")
   end
+
+  describe "unfinished interviews" do
+    def unfinished(question_count)
+      create(:conversation, employee: create(:employee, company: company, department: "finance"),
+                            company: company, status: "abandoned", question_count: question_count)
+    end
+
+    it "count what someone said before leaving, once they got past the opening, at half weight" do
+      create(:message, conversation: unfinished(4), direction: "inbound",
+                       body: "I spend hours in Excel copying data manually every week")
+      create(:message, conversation: unfinished(1), direction: "inbound",
+                       body: "Everything is manual spreadsheet work here")
+
+      manual = described_class.call(company: company).find { |s| s[:signal_type] == "manual_process" }
+
+      expect(manual[:source_excerpts].size).to eq(1)
+      expect(manual[:source_excerpts].first).to include(partial: true)
+      expect(manual[:strength]).to be < 0.2 + 0.001 # one half-weight message stays at the floor
+    end
+
+    it "weigh a finished interview's answers above an unfinished one's" do
+      said = ["I spend hours in Excel copying data manually", "Then I re-enter it all by hand",
+              "The spreadsheet has to be rebuilt every Monday"]
+      said.each { |body| create(:message, conversation: conversation, direction: "inbound", body: body) }
+      finished = described_class.call(company: company).find { |s| s[:signal_type] == "manual_process" }[:strength]
+
+      Message.delete_all
+      left = unfinished(4)
+      said.each { |body| create(:message, conversation: left, direction: "inbound", body: body) }
+      partial = described_class.call(company: company).find { |s| s[:signal_type] == "manual_process" }[:strength]
+
+      expect(partial).to be < finished
+    end
+  end
 end
