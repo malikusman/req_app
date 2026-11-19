@@ -28,7 +28,7 @@ RSpec.describe "Api::V1::Public::DiscoverMessages", type: :request do
 
     before do
       conversation.update!(status: "profiling", question_count: 0,
-                           state_snapshot: { "profiling" => { "step" => "responsibilities" } })
+                           state_snapshot: { 'discovery_engine_version' => 1, "profiling" => { "step" => "responsibilities" } })
       employee.update!(participation_status: "started", role_title: "HR assistant", department: "hr",
                        seniority: "individual_contributor")
       create(:discovery_playbook, department: "hr")
@@ -117,6 +117,23 @@ RSpec.describe "Api::V1::Public::DiscoverMessages", type: :request do
   end
 
   describe "GET /api/v1/public/discover/messages" do
+    it "distinguishes first admission from retry waiting and returns the source submission identity" do
+      conversation.update!(status: 'discovery')
+      submission = EmployeeSubmission.create!(conversation: conversation, submission_id: 'ui-stable-id', body: 'Recruitment takes 4–6 hours weekly')
+      source = create(:message, conversation: conversation, direction: 'inbound', body: submission.body, employee_submission: submission)
+      turn = Discovery::DurableTurn.register(conversation, source, source.body)
+      get '/api/v1/public/discover/messages', headers: headers
+      expect(response.parsed_body['state']).to include('discovery_phase' => 'queued', 'discovery_pending' => true)
+      expect(response.parsed_body['messages'].find { |m| m['id'] == source.id }['submission_id']).to eq('ui-stable-id')
+      turn.update!(status: 'processing', attempts: 1, lease_until: 100.seconds.from_now, deadline_at: 85.seconds.from_now)
+      get '/api/v1/public/discover/messages', headers: headers
+      expect(response.parsed_body['state']['discovery_phase']).to eq('processing')
+      turn.update!(status: 'retry_waiting', lease_until: nil, retry_at: 30.seconds.from_now, error_code: 'deadline_exceeded')
+      get '/api/v1/public/discover/messages', headers: headers
+      expect(response.parsed_body['state']).to include('discovery_phase' => 'retry_waiting', 'discovery_pending' => true)
+      expect(conversation.messages.where(direction: 'inbound').count).to eq(1)
+    end
+
     it "shows the consultant's question in the employee thread" do
       consultant_question!(body: "Which system holds the approval record?")
 

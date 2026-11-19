@@ -101,6 +101,9 @@ multi_agent_graph = build_multi_agent_graph()
 
 def execute_multi_agent_turn(state: dict[str, Any]) -> dict[str, Any]:
     try:
+        if state.get('engine_version') == 2 or (state.get('blackboard') or {}).get('employee_discovery_v2'):
+            from app.employee_discovery_v2 import discovery_graph
+            return discovery_graph.invoke(state)
         return multi_agent_graph.invoke(state)
     except OpenAIUnavailable as exc:
         # Rails only ever saw a bare 503 "openai_unavailable", so every failure mode

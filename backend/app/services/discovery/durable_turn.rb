@@ -40,7 +40,7 @@ module Discovery
         if turn.status == 'succeeded'
           next :saved
         end
-        next :blocked if turn.status == 'failed'
+        next :blocked if %w[failed superseded].include?(turn.status)
         if OpenaiCircuitBreaker.open? && turn.status != 'processing'
           turn.update!(status: 'retry_waiting', retry_at: (OpenaiCircuitBreaker.retry_after + 1).seconds.from_now)
           conversation.increment!(:discovery_state_version)

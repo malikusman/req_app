@@ -65,12 +65,14 @@ module EmployeeWebAuthenticatable
   def visible_messages
     current_conversation.messages
                         .employee_visible
+                        .includes(:employee_submission)
                         .order(:created_at)
   end
 
   def message_json(message)
     {
       id: message.id,
+      submission_id: message.employee_submission&.submission_id,
       direction: message.direction,
       message_type: message.message_type,
       body: message.body,
@@ -103,19 +105,27 @@ module EmployeeWebAuthenticatable
     error = turn&.error_code || recovery['discovery_error']
     active ||= media_pending && source.processing_status == 'processing'
     pending ||= media_pending
-    phase = active ? 'processing' : pending ? 'retry_waiting' : error ? 'failed' : 'idle'
+    queued = turn ? turn.status == 'queued' : media_pending && source.processing_status == 'pending'
+    phase = active ? 'processing' : queued ? 'queued' : pending ? 'retry_waiting' : error ? 'failed' : 'idle'
     {
       onboarding_step: employee.onboarding_step,
       participation_status: employee.participation_status,
       conversation_status: conversation.status,
       question_count: conversation.question_count,
       completed: conversation.status == "completed",
-      discovery_outcome: conversation.dossier.dig("workflow", "outcome"),
+      discovery_outcome: conversation.blackboard.dig('employee_discovery_v2', 'outcome') || conversation.dossier.dig("workflow", "outcome"),
+      interview_phase: conversation.blackboard.dig('employee_discovery_v2', 'phase'),
+      interview_coverage: conversation.blackboard.dig('employee_discovery_v2', 'coverage'),
+      interview_paused: conversation.blackboard.dig('employee_discovery_v2', 'paused') == true,
       discovery_pending: !!(active || pending),
       discovery_state_version: conversation.discovery_state_version,
       submission_received: params[:submission_id].present? ? EmployeeSubmission.exists?(conversation: conversation, submission_id: params[:submission_id]) : nil,
       discovery_phase: phase,
       discovery_error: error,
+      # The employee may type a new answer instead of retrying one the engine
+      # cannot process (see Discovery::AdmitSubmission.supersede_failed_answer!).
+      can_rephrase: phase == 'failed' && turn&.status == 'failed' && Discovery::AdmitSubmission.rephrasable?(error) &&
+        Discovery::EmployeeContext.v2?(conversation),
       # For the browser's own voice when the questions cannot be spoken server-side.
       language: employee.preferred_language.presence || employee.company.locale,
       voice: {

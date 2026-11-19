@@ -9,6 +9,7 @@ RSpec.describe "Workflow interview reliability" do
   let(:result) { { "assistant_message" => "What happens to unmatched payments?", "question_count" => 1, "completed" => false } }
 
   before do
+    conversation.update!(state_snapshot: conversation.state_snapshot.merge('discovery_engine_version' => 1))
     create(:discovery_playbook, department: "finance")
     allow(Langgraph::Client).to receive(:new).and_return(client)
     allow(OpenaiCircuitBreaker).to receive(:open?).and_return(false)

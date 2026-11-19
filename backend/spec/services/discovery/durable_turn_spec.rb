@@ -10,6 +10,7 @@ RSpec.describe 'Durable discovery processing' do
   let(:reply) { { 'assistant_message' => 'Next question?', 'question_count' => 1, 'completed' => false } }
 
   before do
+    conversation.update!(state_snapshot: conversation.state_snapshot.merge('discovery_engine_version' => 1))
     create(:discovery_playbook, department: 'hr')
     allow(Langgraph::Client).to receive(:new).and_return(client)
     allow(OpenaiCircuitBreaker).to receive(:open?).and_return(false)

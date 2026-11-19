@@ -7,6 +7,7 @@ RSpec.describe 'Atomic employee submission admission' do
     @company = create(:company)
     @employee = create(:employee, company: @company, department: 'hr')
     @conversation = create(:conversation, employee: @employee, company: @company, status: 'discovery', langgraph_thread_id: SecureRandom.uuid)
+    @conversation.update!(state_snapshot: { 'discovery_engine_version' => 1 })
     ActiveRecord::Base.shared_connection = nil
   end
 

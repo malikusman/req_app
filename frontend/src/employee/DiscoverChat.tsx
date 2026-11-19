@@ -84,6 +84,7 @@ export function DiscoverChat() {
   const [processingMedia] = useState(false);
   const [voiceUpload, setVoiceUpload] = useState(false);
   const [uncertain, setUncertain] = useState(false);
+  const [optimistic, setOptimistic] = useState<(PendingSubmission & { createdAt: string }) | null>(null);
   const [refreshNeeded, setRefreshNeeded] = useState(false);
   const pendingRef = useRef<PendingSubmission | null>(null);
   const latestVersion = useRef(-1);
@@ -96,17 +97,18 @@ export function DiscoverChat() {
     setState(data.state);
   }, []);
 
-  const reconcileSubmission = useCallback(async () => {
+  const reconcileSubmission = useCallback(async (checkReceipt = true) => {
     const item = pendingRef.current;
     if (!jwt || !item || reconcileBusy.current) return;
     reconcileBusy.current = true;
     try {
-      let data = await discoverApi.messages(jwt, item.id);
-      if (data.state.submission_received !== true) {
+      let data = checkReceipt ? await discoverApi.messages(jwt, item.id) : null;
+      if (!data || data.state.submission_received !== true) {
         data = item.file ? await discoverApi.sendAttachment(jwt, item.file, item.body || undefined, item.id)
           : await discoverApi.sendMessage(jwt, item.body, item.id);
       }
       applySnapshot(data);
+      setOptimistic(null);
       await pendingSubmission(token, null);
       pendingRef.current = null;
       setUncertain(false);
@@ -115,6 +117,7 @@ export function DiscoverChat() {
       if ((err as { status?: number }).status === 409 || (err as { status?: number }).status === 422) {
         await pendingSubmission(token, { ...item, rejected: true });
         pendingRef.current = null;
+        setOptimistic(null);
         setUncertain(false);
         setDraft(item.body);
         if (item.file) setSelectedFile(item.file);
@@ -136,6 +139,7 @@ export function DiscoverChat() {
         return;
       }
       pendingRef.current = item;
+      setOptimistic({ ...item, createdAt: new Date().toISOString() });
       setUncertain(true);
       void reconcileSubmission();
     }).catch(() => { /* Sending will report unavailable durable device storage. */ });
@@ -168,17 +172,20 @@ export function DiscoverChat() {
     if (!jwt || pendingRef.current) return;
     const item = { id: crypto.randomUUID(), body, file };
     pendingRef.current = item;
+    setOptimistic({ ...item, createdAt: new Date().toISOString() });
     try {
       await pendingSubmission(token, item);
     } catch {
       pendingRef.current = null;
+      setOptimistic(null);
       setDraft(body);
       if (file) setSelectedFile(file);
       setError('Could not save your answer on this device. Please keep this page open and try again.');
       return;
     }
-    setUncertain(true);
-    await reconcileSubmission();
+    // The first POST is ordinary delivery. Reconciliation is only needed after
+    // an uncertain outcome or when restoring a saved submission after refresh.
+    await reconcileSubmission(false);
   };
 
   const recorder = useVoiceRecorder();
@@ -189,11 +196,14 @@ export function DiscoverChat() {
 
   const messages = useMemo(
     () =>
-      mapMessages(raw, {
+      mapMessages(optimistic && !raw.some(m => m.submission_id === optimistic.id)
+        ? [...raw, { id: -1, direction: 'inbound', message_type: optimistic.file?.type.startsWith('audio/') ? 'audio' : 'text',
+          body: optimistic.body || optimistic.file?.name || '', is_discovery_question: false, created_at: optimistic.createdAt }]
+        : raw, {
         onPlay: (m) => void readAloud.speak(m.id, m.body),
         speakingId: readAloud.speakingId,
       }),
-    [raw, readAloud]
+    [raw, optimistic, readAloud]
   );
 
   useEffect(() => {
@@ -249,7 +259,9 @@ export function DiscoverChat() {
 
   const send = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!jwt || sending || uncertain || pendingRef.current || state?.discovery_pending || state?.discovery_error) return;
+    // A failed answer the engine cannot process may be replaced by a rephrased text answer.
+    const blockedByError = Boolean(state?.discovery_error && !(state?.can_rephrase && !selectedFile));
+    if (!jwt || sending || uncertain || pendingRef.current || state?.discovery_pending || blockedByError) return;
 
     if (!selectedFile && !draft.trim()) return;
     const body = draft.trim();
@@ -296,7 +308,9 @@ export function DiscoverChat() {
   const canAttach =
     state?.conversation_status === 'discovery' || Boolean(state?.completed);
   const canSend = Boolean(selectedFile || draft.trim());
-  const awaitingRecovery = Boolean(uncertain || state?.discovery_pending || state?.discovery_error);
+  // An answer the engine could not process may be rephrased instead of only retried.
+  const canRephrase = Boolean(state?.discovery_error && state?.can_rephrase && !state?.discovery_pending);
+  const awaitingRecovery = Boolean(uncertain || state?.discovery_pending || (state?.discovery_error && !canRephrase));
   const retrySavedAnswer = async () => {
     if (!jwt || sending) return;
     setSending(true);
@@ -316,10 +330,15 @@ export function DiscoverChat() {
   const statusLabel = useMemo(() => {
     if (!state) return null;
     if (uncertain) return 'Your answer is saved on this device. Confirming delivery…';
+    if (sending) return 'Sending your answer…';
     if (processingMedia) return voiceUpload ? 'Listening to your answer…' : 'Processing your file…';
     if (state.discovery_phase === 'processing') return 'Working on your saved answer…';
+    if (state.discovery_phase === 'queued') return 'Your answer is saved. Getting ready…';
     if (state.discovery_pending) return 'Your answer is saved. Retrying shortly…';
+    if (state.discovery_error && state.can_rephrase) return 'Your last answer could not be processed — retry it or rephrase it';
     if (state.discovery_error) return 'Your answer is saved — the interview is paused';
+      if (state.interview_paused) return 'Interview paused — your answers are saved. Say “continue” when you are ready.';
+      if (state.interview_phase && !state.completed) return ({ anchor: 'Your working day', inventory: 'Your regular and periodic work', invisible_work: 'Work behind the scenes', size_close: 'Effort estimates and your summary' })[state.interview_phase];
     if (state.completed && state.discovery_outcome === 'employee_stopped') return 'Interview stopped — your answers are saved';
     if (state.completed && state.discovery_outcome && state.discovery_outcome !== 'successful') return 'Answers saved — workflow details need follow-up';
     if (state.completed) return 'Interview complete — you can always add more anytime';
@@ -327,7 +346,7 @@ export function DiscoverChat() {
     if (state.conversation_status === 'profiling') return 'Getting to know your role';
     if (state.onboarding_step === 'awaiting_consent') return 'Please review consent and reply YES to continue';
     return 'Getting started';
-  }, [state, processingMedia, voiceUpload, uncertain]);
+  }, [state, sending, processingMedia, voiceUpload, uncertain]);
 
   if (loading) {
     return (
@@ -384,7 +403,7 @@ export function DiscoverChat() {
           <ChatMessageList
             messages={messages}
             className="min-h-0 flex-1 px-3 py-4 sm:px-4"
-            showTyping={sending || processingMedia || state?.discovery_phase === 'processing'}
+            showTyping={processingMedia || state?.discovery_phase === 'processing'}
           />
 
           <form
@@ -393,7 +412,9 @@ export function DiscoverChat() {
           >
             {state?.discovery_error && !state.discovery_pending && (
               <div className="mb-3 text-sm" role="status">
-                <p>Your answer is saved. Please contact your company administrator if the service remains unavailable.</p>
+                <p>{canRephrase
+                  ? 'Your answer is saved, but I could not process it. Retry it, or type your answer again in different words below.'
+                  : 'Your answer is saved. Please contact your company administrator if the service remains unavailable.'}</p>
                 <Button type="button" disabled={sending} onClick={() => void retrySavedAnswer()}>
                   Retry saved answer
                 </Button>

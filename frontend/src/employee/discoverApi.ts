@@ -16,6 +16,7 @@ export type DiscoverTrack =
 
 export type DiscoverMessage = {
   id: number;
+  submission_id?: string | null;
   direction: 'inbound' | 'outbound';
   message_type: string;
   body: string;
@@ -33,10 +34,14 @@ export type DiscoverState = {
   completed: boolean;
   discovery_outcome?: 'successful' | 'needs_follow_up' | 'employee_stopped' | null;
   discovery_pending?: boolean;
+  interview_phase?: 'anchor' | 'inventory' | 'invisible_work' | 'size_close';
+  interview_coverage?: Record<string, boolean>;
+  interview_paused?: boolean;
   discovery_state_version?: number;
   submission_received?: boolean | null;
-  discovery_phase?: 'idle' | 'processing' | 'retry_waiting' | 'failed';
+  discovery_phase?: 'idle' | 'queued' | 'processing' | 'retry_waiting' | 'failed';
   discovery_error?: string | null;
+  can_rephrase?: boolean;
   /** For the browser's own voice when a question cannot be spoken server-side. */
   language?: string;
   /** Absent on responses from an older server. */

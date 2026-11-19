@@ -13,6 +13,8 @@ module TaskSources
     # Ignore summary, confirmation, timing and other interview state that does
     # not change the recorded activities.
     def self.evidence_input(snapshot)
+      v2 = snapshot&.dig('blackboard', 'employee_discovery_v2')
+      return ['employee_discovery_v2', v2['work_items']] if v2.is_a?(Hash)
       dossier = snapshot&.dig("blackboard", "dossier") || {}
       ledger = dossier["workflow"]
       return ["workflow_ledger", ledger["tasks"]] if ledger.is_a?(Hash) && ledger["tasks"].present?
@@ -37,7 +39,22 @@ module TaskSources
       @conversation.with_lock do
         dossier = @conversation.dossier
         ledger = dossier["workflow"]
-        sources = ledger.is_a?(Hash) ? sync_ledger(ledger) : sync_legacy(dossier["slots"] || {})
+        v2 = @conversation.blackboard['employee_discovery_v2']
+        sources = if v2.is_a?(Hash)
+          sync_ledger({ 'revision' => v2['revision'], 'tasks' => Array(v2['work_items']).map do |item|
+            facts = item.slice('description', 'frequency', 'effort').transform_values { |fact| fact.merge('status' => fact['fact_status'] == 'REPORTED' ? 'known' : 'unknown') }
+            inclusion = item['effort_inclusion']
+            if inclusion
+              facts['effort'] = inclusion.merge('status' => 'unknown', 'minimum' => nil, 'maximum' => nil, 'unit' => nil,
+                'included_in_work_item_id' => inclusion['fact_status'] == 'REPORTED' ? "#{@conversation.id}:#{inclusion['value']}" : nil)
+            end
+            { **item, 'name' => item.dig('description', 'value'), 'evidence' => item.dig('description', 'evidence'),
+              'facts' => facts,
+              'work_item' => Array(v2['canonical_work_items']).find { |w| w['id'].end_with?(":#{item['id']}") } }
+          end })
+        else
+          ledger.is_a?(Hash) ? sync_ledger(ledger) : sync_legacy(dossier['slots'] || {})
+        end
         retired = retire_missing(sources)
         if retired || sources.any?(&:previously_new_record?)
           TaskEvidenceRefresh.record_source_change(@conversation.id)
@@ -73,6 +90,7 @@ module TaskSources
                          (evidence_references(steps["evidence"]) & references).any?
                         steps["value"]
                       end
+        description ||= task.dig('work_item', 'description') if task['work_item'].is_a?(Hash)
         persist("workflow_ledger", task["id"], task["name"], description, revision, task, references)
       end
     end

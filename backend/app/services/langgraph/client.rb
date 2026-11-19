@@ -46,7 +46,8 @@ module Langgraph
         body[:company_profile] = multi_agent[:company_profile] if multi_agent[:company_profile].present?
       end
 
-      post("/v1/threads/#{thread_id}/turn", body)
+      post("/v1/threads/#{thread_id}/turn", body,
+        headers: context[:engine_version] == 2 ? { 'X-Internal-Token' => ENV.fetch('INTERNAL_API_TOKEN', 'dev-internal-token') } : {})
     rescue Langgraph::UnavailableError
       raise
     rescue StandardError => e

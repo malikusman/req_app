@@ -1,5 +1,58 @@
 import { test, expect } from '@playwright/test';
 
+test('normal submission echoes immediately and separates first queueing from actual retry waiting', async ({ page }) => {
+  let phase = 'idle';
+  let submissionId: string | undefined;
+  let posts = 0;
+  let receiptChecks = 0;
+  let releasePost!: () => void;
+  const postGate = new Promise<void>(resolve => { releasePost = resolve; });
+  const answer = 'Recruitment coordination takes 4–6 hours weekly.';
+  await page.addInitScript(() => localStorage.setItem('req_discover_session', JSON.stringify({ link: 'smooth-send', token: 'test-token' })));
+  await page.route('**/api/v1/public/discover/messages*', async route => {
+    const request = route.request();
+    if (new URL(request.url()).searchParams.has('submission_id')) receiptChecks++;
+    if (request.method() === 'POST') {
+      posts++;
+      submissionId = request.postDataJSON().submission_id;
+      await postGate;
+      phase = 'queued';
+    }
+    await route.fulfill({ json: {
+      messages: submissionId ? [{ id: 10, submission_id: submissionId, direction: 'inbound', body: answer,
+        message_type: 'text', created_at: new Date().toISOString() },
+        ...(phase === 'idle' ? [{ id: 11, direction: 'outbound', body: 'What other weekly work do you do?', message_type: 'text', created_at: new Date().toISOString() }] : [])] : [],
+      state: { conversation_status: 'discovery', completed: false, discovery_phase: phase, discovery_pending: phase !== 'idle' },
+    } });
+  });
+  await page.goto('/discover/smooth-send/chat');
+  try {
+    await page.getByRole('textbox').fill(answer);
+    await page.getByRole('button', { name: 'Send', exact: true }).click();
+    await expect(page.getByText(answer, { exact: true })).toBeVisible();
+    await expect(page.getByText('Sending your answer…')).toBeVisible();
+    await expect(page.getByText(/Confirming delivery|Retrying shortly/)).toHaveCount(0);
+    await expect(page.getByRole('textbox')).toBeDisabled();
+  } finally { releasePost(); }
+  await expect(page.getByText('Your answer is saved. Getting ready…')).toBeVisible();
+  await expect(page.getByText(answer, { exact: true })).toHaveCount(1);
+  await expect(page.getByRole('status', { name: 'Assistant is typing' })).toHaveCount(0);
+  phase = 'processing';
+  await expect(page.getByRole('status', { name: 'Assistant is typing' })).toBeVisible();
+  await expect(page.getByText(/Confirming delivery|Retrying shortly/)).toHaveCount(0);
+  phase = 'retry_waiting';
+  await expect(page.getByText('Your answer is saved. Retrying shortly…')).toBeVisible();
+  await expect(page.getByRole('status', { name: 'Assistant is typing' })).toHaveCount(0);
+  phase = 'processing';
+  await expect(page.getByRole('status', { name: 'Assistant is typing' })).toBeVisible();
+  phase = 'idle';
+  await expect(page.getByText('What other weekly work do you do?')).toBeVisible();
+  await expect(page.getByRole('textbox')).toBeEnabled();
+  await expect(page.getByText(answer, { exact: true })).toHaveCount(1);
+  expect(posts).toBe(1);
+  expect(receiptChecks).toBe(0);
+});
+
 test('a blocked saved answer can be retried without resubmitting employee text', async ({ page }) => {
   let posts = 0;
   let recovered = false;
@@ -112,6 +165,7 @@ test('uncertain POST retries keep one submission identity after browser refresh'
   await page.getByRole('textbox').fill('Recruitment answer');
   await page.getByRole('button', { name: 'Send', exact: true }).click();
   await expect(page.getByText('Your answer is saved on this device. Reconnecting to confirm delivery…')).toBeVisible();
+  await expect(page.getByText('Recruitment answer', { exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByText('Recovered next question?')).toBeVisible();
   expect(ids.length).toBe(2);
@@ -157,4 +211,74 @@ test('accepted POST with lost response is reconciled without resubmission or sta
   await expect(page.getByText('Newest question remains')).toBeVisible();
   await expect(page.getByRole('textbox')).toBeEnabled();
   expect(posts).toBe(1);
+});
+
+test('V2 phase progress survives refresh and completion waits for employee confirmation', async ({ page }) => {
+  const phases = ['anchor', 'inventory', 'invisible_work', 'size_close', 'size_close'];
+  let turn = 0;
+  const accepted = new Set<string>();
+  const answers: string[] = [];
+  await page.addInitScript(() => localStorage.setItem('req_discover_session', JSON.stringify({ link: 'v2-flow', token: 'test-token' })));
+  await page.route('**/api/v1/public/discover/messages*', async route => {
+    const request = route.request();
+    if (request.method() === 'POST') {
+      const body = request.postDataJSON();
+      if (!accepted.has(body.submission_id)) {
+        accepted.add(body.submission_id);
+        answers.push(body.body);
+        turn++;
+      }
+    }
+    const completed = turn === 5;
+    const body = completed ? 'Your answers and confirmation are saved.' : turn === 4
+      ? 'Here is what I captured: Review invoices daily, 20–30 minutes. What is missing or needs correcting?'
+      : ['Walk me through your last working day?', 'What other weekly work is missing?', 'What happens outside your systems?', 'How long does that activity take?'][turn];
+    const id = new URL(request.url()).searchParams.get('submission_id');
+    await route.fulfill({ json: { messages: [{ id: turn + 1, direction: 'outbound', body, message_type: 'text', created_at: new Date().toISOString() }],
+      state: { conversation_status: completed ? 'completed' : 'discovery', onboarding_step: 'verified', completed,
+        discovery_outcome: completed ? 'successful' : null, discovery_pending: false, discovery_phase: 'idle',
+        discovery_state_version: turn + 1, interview_phase: phases[Math.min(turn, 4)], submission_received: id ? accepted.has(id) : null } } });
+  });
+  await page.goto('/discover/v2-flow/chat');
+  await expect(page.getByText('Your working day', { exact: true })).toBeVisible();
+  for (const [index, answer] of ['I review invoices.', 'I prepare weekly reports.', 'I retype prices.', 'About 20 to 30 minutes.', 'Yes, that is correct'].entries()) {
+    await page.getByRole('textbox').fill(answer);
+    await page.getByRole('button', { name: 'Send', exact: true }).click();
+    await expect(page.getByRole('textbox')).toBeEnabled();
+    if (index === 1) {
+      await page.reload();
+      await expect(page.getByText('Work behind the scenes', { exact: true })).toBeVisible();
+    }
+    if (index === 3) {
+      await expect(page.getByText(/Here is what I captured:/)).toBeVisible();
+      await expect(page.getByText('Interview complete — but you can always add more anytime.')).toHaveCount(0);
+    }
+  }
+  await expect(page.getByText('Your answers and confirmation are saved.')).toBeVisible();
+  expect(accepted.size).toBe(5);
+  expect(answers[4]).toBe('Yes, that is correct');
+});
+
+test('V2 paused state survives refresh and resumes without showing processing dots', async ({ page }) => {
+  let paused = true;
+  let accepted = false;
+  await page.addInitScript(() => localStorage.setItem('req_discover_session', JSON.stringify({ link: 'v2-pause', token: 'test-token' })));
+  await page.route('**/api/v1/public/discover/messages*', async route => {
+    if (route.request().method() === 'POST') {
+      expect(route.request().postDataJSON().body).toBe('continue');
+      paused = false;
+      accepted = true;
+    }
+    await route.fulfill({ json: { messages: [], state: { conversation_status: 'discovery', onboarding_step: 'verified',
+      completed: false, discovery_pending: false, discovery_phase: 'idle', interview_phase: 'anchor', interview_paused: paused,
+      discovery_state_version: paused ? 1 : 2, submission_received: accepted } } });
+  });
+  await page.goto('/discover/v2-pause/chat');
+  await expect(page.getByText(/Interview paused — your answers are saved/)).toBeVisible();
+  await page.reload();
+  await expect(page.getByText(/Interview paused — your answers are saved/)).toBeVisible();
+  await expect(page.getByRole('status', { name: 'Assistant is typing' })).toHaveCount(0);
+  await page.getByRole('textbox').fill('continue');
+  await page.getByRole('button', { name: 'Send', exact: true }).click();
+  await expect(page.getByText('Your working day', { exact: true })).toBeVisible();
 });

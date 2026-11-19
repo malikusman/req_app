@@ -16,6 +16,7 @@ import pytest
 # Modules that import llm_configured into their own namespace, so each needs its own
 # patch target.
 MODULES_USING_LLM_SWITCH = (
+    "app.employee_discovery_v2",
     "app.package",
     "app.requirements",
     "app.multi_agent_llm",

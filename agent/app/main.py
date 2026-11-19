@@ -47,6 +47,8 @@ class PlaybookPayload(BaseModel):
 
 
 class TurnContext(BaseModel):
+    engine_version: int = 1
+    context_policy: dict[str, Any] | None = None
     preferred_language: str = "en"
     company_name: str = ""
     employee_name: str = ""
@@ -109,11 +111,13 @@ class TurnResponse(BaseModel):
 @app.get("/health")
 def health():
     return {"status": "ok", "openai_configured": bool(settings.openai_api_key or settings.openai_base_url),
-            "discovery_workflow_version": 1}
+            "discovery_workflow_version": 2}
 
 
 @app.post("/v1/threads/{thread_id}/turn", response_model=TurnResponse)
-async def run_turn(thread_id: str, body: TurnRequest, request: Request):
+async def run_turn(thread_id: str, body: TurnRequest, request: Request, x_internal_token: str | None = Header(default=None)):
+    if body.context.engine_version == 2 and not compare_digest((x_internal_token or '').encode(), settings.internal_api_token.encode()):
+        raise HTTPException(status_code=403, detail='Employee stage identity required')
     if is_open():
         raise HTTPException(
             status_code=503,
@@ -121,6 +125,8 @@ async def run_turn(thread_id: str, body: TurnRequest, request: Request):
         )
 
     state = {
+        "engine_version": body.context.engine_version,
+        "context_policy": body.context.context_policy,
         "playbook_block": body.playbook.prompt_block,
         "playbook_version": body.playbook.version,
         "preferred_language": body.context.preferred_language,

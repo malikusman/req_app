@@ -55,6 +55,35 @@ def _evidence(payload: dict[str, Any]) -> dict[str, Any]:
     """Only what the interview actually captured. The model gets nothing else, so it
     has nothing else to draw on."""
     bb = payload.get("blackboard") or {}
+    v2 = bb.get('employee_discovery_v2')
+    if isinstance(v2, dict):
+        items = v2.get('canonical_work_items', [])
+        raw = {w['id']: w for w in v2.get('work_items', [])}
+        def effort_detail(item):
+            if item.get('effort_counting') == 'UNRESOLVED_INCLUSION':
+                return 'Effort overlap requires clarification'
+            parent_id = item.get('effort_included_in_work_item_id')
+            if parent_id:
+                parent = next((w for w in items if w['id'] == parent_id), None)
+                return 'Effort included in ' + (parent['description'] if parent else parent_id) + '; not additional effort'
+            return (raw.get(item['id'].split(':')[-1], {}).get('effort') or {}).get('value')
+        learned = [{'about': 'reported activity', 'area': w['description'],
+                    'detail': '; '.join(filter(None, [w['description'], w.get('frequency'),
+                        effort_detail(w)])), 'how_clearly': .7}
+                   for w in items]
+        for signal in v2.get('invisible_work_signals', []):
+            item = raw.get(signal['work_item_id']) or {}
+            if not item:
+                continue
+            learned.append({'about': 'friction', 'area': (item.get('description') or {}).get('value'),
+                            'detail': signal['detail'].get('value'), 'how_clearly': .7})
+        return {'areas': [w['description'] for w in v2.get('canonical_work_items', [])],
+                'learned': learned,
+                'summary': '', 'findings': [], 'parked': [], 'insights': [],
+                'validation': {'outcome': v2.get('outcome'), 'employee_confirmation': v2.get('confirmation'),
+                               'coverage': v2.get('coverage')},
+                'close_reason': v2.get('outcome'), 'work_items': v2.get('canonical_work_items', []),
+                'evidence_references': v2.get('evidence_references', [])}
     dossier = bb.get("dossier") or {}
     slots = dossier.get("slots") or {}
 
@@ -115,6 +144,9 @@ def _evidence(payload: dict[str, Any]) -> dict[str, Any]:
 
 def _call_model(payload: dict[str, Any], evidence: dict[str, Any]) -> dict[str, Any]:
     profile = payload.get("profile") or {}
+    evidence_json = json.dumps(evidence, ensure_ascii=False, indent=2)
+    if not (payload.get('blackboard') or {}).get('employee_discovery_v2'):
+        evidence_json = evidence_json[:6000]
     system = f"""You are preparing a handover for a consultant who will review it and decide
 what happens next. They have not read the interview. Be concrete and short.
 
@@ -122,7 +154,7 @@ Employee: {profile.get('name') or 'unknown'} — {profile.get('role_title') or '
 {profile.get('department') or 'unknown'} at {payload.get('company_name', 'the company')}.
 
 Everything the interview captured:
-{json.dumps(evidence, ensure_ascii=False, indent=2)[:6000]}
+{evidence_json}
 
 Write in {payload.get('language', 'en')} (ISO 639-1).
 

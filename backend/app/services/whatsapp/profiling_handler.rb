@@ -30,6 +30,9 @@ module Whatsapp
     # Sends the profiling intro + first question. Called once after consent.
     def start!
       @conversation.update!(status: "profiling") unless @conversation.profiling?
+      if profiling_state.empty? && Discovery::EmployeeContext.v2?(@conversation)
+        @conversation.update!(state_snapshot: @conversation.state_snapshot.merge('profiling' => { 'engine_version' => 2 }))
+      end
       pending = next_pending_step
       return complete_profiling! unless pending
 
@@ -75,7 +78,10 @@ module Whatsapp
     end
 
     def next_pending_step
-      STEPS.find { |step| step_pending?(step) }
+      # New V2 interviews need only a role seed. Work and systems are discovered
+      # through concrete recall, rather than two abstract pre-interview questions.
+      steps = profiling_state['engine_version'] == 2 ? %w[role_title department] : STEPS
+      steps.find { |step| step_pending?(step) }
     end
 
     def step_pending?(step)
