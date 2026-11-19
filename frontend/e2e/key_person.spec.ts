@@ -68,6 +68,8 @@ test.describe('the conversation with leadership', () => {
   });
 
   test('settles the unknown count on the scope card, finishes, and hands over to pricing', async ({ page }) => {
+    // Up to 45 answers, each a round trip through the scripted replies: more than the default minute.
+    test.setTimeout(240_000);
     await login(page);
     await page.goto('/company/leadership');
     for (let i = 0; i < 45; i += 1) {

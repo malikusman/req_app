@@ -146,6 +146,7 @@ namespace :e2e do
     # Access comes from the engagement, not a subscription (Doc 07 §1). Every run
     # starts from a first-time key user with nothing answered.
     company.subscription&.destroy!
+    AiRun.where(engagement_id: company.engagements.select(:id)).delete_all
     company.engagements.destroy_all
     company.company_systems.destroy_all
     company.profile_changes.delete_all
@@ -190,6 +191,7 @@ namespace :e2e do
       c.locale = "en"
     end
     company.subscription&.destroy!
+    AiRun.where(engagement_id: company.engagements.select(:id)).delete_all
     company.engagements.destroy_all
     company.documents.leadership.destroy_all
     # No model in the browser test: the conversation runs on scripted replies
