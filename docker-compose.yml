@@ -118,6 +118,9 @@ services:
       MINIO_SECRET_KEY: minioadmin
       MINIO_BUCKET: req-app
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      # Real-time avatar interview (server-side only; the browser gets short-lived tokens).
+      SIMLI_API_KEY: ${SIMLI_API_KEY:-}
+      SIMLI_FACE_ID: ${SIMLI_FACE_ID:-}
       OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
       OPENAI_VISION_MODEL: ${OPENAI_VISION_MODEL:-gpt-4.1-mini}
@@ -217,6 +220,8 @@ services:
     environment:
       VITE_API_URL: ""
       VITE_PROXY_TARGET: http://rails:3000
+      # File events do not cross Windows bind mounts; poll so edits are served.
+      VITE_USE_POLLING: "true"
     depends_on:
       - rails
 

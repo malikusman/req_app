@@ -1,3 +1,6 @@
 :concurrency: 5
 :queues:
+  # Listed first = strict priority: an employee waiting on a live answer is never
+  # queued behind reports, document analysis or catalog syncs.
+  - discovery_turns
   - default

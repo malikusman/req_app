@@ -48,6 +48,17 @@ export type DiscoverState = {
   voice?: { recording: boolean; speech: boolean };
 };
 
+export type VoiceSession = {
+  language: string;
+  acknowledgements: number;
+  phrases: string[];
+  speech: { format: 'pcm16'; sample_rate: number; available: boolean };
+  simli?: { session_token: string; face_id: string };
+  simli_error?: string;
+  transcription?: { client_secret: string; expires_at: number; webrtc_url: string };
+  transcription_error?: string;
+};
+
 export type DiscoverVerifyResponse = {
   token: string;
   expires_at: string;
@@ -174,6 +185,18 @@ export const discoverApi = {
     });
     if (!res.ok) throw new Error('Speech unavailable');
     return res.blob();
+  },
+
+  /** Short-lived media credentials for the live avatar interview (keys stay on the server). */
+  voiceSession: (jwt: string) =>
+    discoverRequest<VoiceSession>('/api/v1/public/discover/voice/session', { method: 'POST', body: JSON.stringify({}) }, jwt),
+
+  /** Streamed PCM16 24 kHz speech for an interviewer message or a fixed phrase. */
+  voiceSpeechUrl: (target: { messageId: number } | { acknowledgement: number } | { phrase: string }) => {
+    const query = 'messageId' in target ? `message_id=${target.messageId}`
+      : 'acknowledgement' in target ? `acknowledgement=${target.acknowledgement}`
+      : `phrase=${encodeURIComponent(target.phrase)}`;
+    return `${API_URL}/api/v1/public/discover/voice/speech?${query}`;
   },
 
   sendAttachment: (jwt: string, file: File, caption?: string, submissionId?: string) => {

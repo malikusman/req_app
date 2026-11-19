@@ -17,6 +17,17 @@ from app.multi_agent_graph import execute_multi_agent_turn
 
 app = FastAPI(title="Req Discovery Agent", version="1.0.0")
 
+
+@app.on_event("startup")
+def _prewarm_discovery_worker():
+    # Keep one single-use, parent-guarded turn worker with the engine already
+    # imported, so a live (voice) answer does not wait for a 4-11 s import.
+    from app import isolated_turn
+    try:
+        isolated_turn._start_warm()
+    except Exception:
+        pass
+
 @app.middleware("http")
 async def capture_arrival(request: Request, call_next):
     request.state.discovery_deadline = time.time() + 85

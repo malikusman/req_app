@@ -1,5 +1,5 @@
 class ProcessDiscoveryTurnJob < ApplicationJob
-  queue_as :default
+  queue_as :discovery_turns
 
   def perform(turn_id)
     turn = DiscoveryTurn.find_by(id: turn_id)

@@ -55,6 +55,20 @@ def fixed_temperature(model: str) -> bool:
     return bool(re.match(r"^(o\d|gpt-5|gpt-6)", (model or "").strip().lower()))
 
 
+_http_client = None
+
+
+def _shared_http_client():
+    """One connection pool per process. LangChain 0.2 otherwise opens a new HTTPS
+    connection (TCP + TLS, ~0.1-0.3 s measured) for every model call, and a
+    discovery turn makes two or three calls back to back."""
+    global _http_client
+    if _http_client is None:
+        from openai import DefaultHttpxClient  # the SDK's own defaults (limits, redirects)
+        _http_client = DefaultHttpxClient()
+    return _http_client
+
+
 def build_chat_openai(
     *,
     model: str | None = None,
@@ -100,4 +114,5 @@ def build_chat_openai(
         # but warns. Only sent when configured: a non-reasoning model rejects it.
         kwargs["reasoning_effort"] = effort
 
+    kwargs["http_client"] = _shared_http_client()
     return ChatOpenAI(**kwargs)

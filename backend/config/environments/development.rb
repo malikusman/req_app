@@ -8,6 +8,13 @@ Rails.application.configure do
   # since you don't have to restart the web server when you make code changes.
   config.enable_reloading = true
 
+  # Check for code changes in the background instead of on every request and
+  # Sidekiq job: on the Docker bind mount the per-request scan took 2-6 s.
+  unless ENV["RAILS_SYNC_FILE_WATCHER"] == "1"
+    require Rails.root.join("lib/background_file_update_checker").to_s
+    config.file_watcher = BackgroundFileUpdateChecker
+  end
+
   # Do not eager load code on boot.
   config.eager_load = false
 

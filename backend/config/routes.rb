@@ -373,6 +373,8 @@ Rails.application.routes.draw do
         post "discover/messages", to: "discover_messages#create"
         post "discover/attachments", to: "discover_attachments#create"
         get "discover/messages/:id/speech", to: "discover_speech#show"
+        post "discover/voice/session", to: "discover_voice#session_create"
+        get "discover/voice/speech", to: "discover_voice#speech"
         get "outreach/:token", to: "outreach_replies#show"
         post "outreach/:token/reply", to: "outreach_replies#create"
         post "demo_requests", to: "demo_requests#create"

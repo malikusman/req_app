@@ -52,6 +52,7 @@ module Discovery
         return handle_unavailable!(playbook: playbook, trip_breaker: false)
       end
 
+      agent_started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       result = @client.run_turn!(
         thread_id: @conversation.langgraph_thread_id,
         user_message: EmployeeContext.redact(@user_message),
@@ -61,6 +62,7 @@ module Discovery
         multi_agent: multi_agent_payload
       )
 
+      @agent_seconds = Process.clock_gettime(Process::CLOCK_MONOTONIC) - agent_started
       validate_workflow_contract!(result)
       @turn_playbook = playbook
       persist_turn!(result, playbook) unless @durable_turn
@@ -76,6 +78,9 @@ module Discovery
         error_code: e.code
       )
     end
+
+    # Time spent inside the agent call, for the per-turn timing log.
+    attr_reader :agent_seconds
 
     private
 

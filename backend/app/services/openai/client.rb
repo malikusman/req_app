@@ -59,6 +59,27 @@ module Openai
       response.body
     end
 
+    # Streams the spoken text as raw PCM (24 kHz, 16-bit, mono) as OpenAI produces
+    # it, so the avatar can start speaking before the whole sentence is synthesised.
+    def speech_stream(text:, &block)
+      raise Error, "speech is not available" unless speech_available?
+
+      model = ENV.fetch("OPENAI_TTS_MODEL", "gpt-4o-mini-tts")
+      body = { model: model, voice: ENV.fetch("OPENAI_TTS_VOICE", "alloy"),
+               input: text.to_s.truncate(2000), response_format: "pcm" }
+      body[:instructions] = "Speak warmly, naturally and at a relaxed conversational pace, like a friendly interviewer." if model.start_with?("gpt-4o")
+      uri = URI("#{chat_base_url}/audio/speech")
+      request = Net::HTTP::Post.new(uri)
+      request["Authorization"] = "Bearer #{api_key}"
+      request["Content-Type"] = "application/json"
+      request.body = body.to_json
+      build_http(uri).request(request) do |response|
+        raise Error, "speech failed (HTTP #{response.code})" unless response.is_a?(Net::HTTPSuccess)
+
+        response.read_body(&block)
+      end
+    end
+
     def speech_available?
       configured? && (official_openai_host?(chat_base_url) || ENV["OPENAI_TTS_ENABLED"] == "true")
     end

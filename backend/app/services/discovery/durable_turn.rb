@@ -63,6 +63,8 @@ module Discovery
       return waiting(turn, retryable: claim != :blocked) unless claim == true
 
       monotonic_deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + [turn.deadline_at - Time.current, 0].max
+      claimed_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      queued_for = Time.current - turn.created_at
       begin
         result = DiscoveryRequest.set(deadline_at: turn.deadline_at, turn_identity: turn.identity,
                                       base_revision: turn.base_revision) do
@@ -78,6 +80,7 @@ module Discovery
         result = { 'delayed' => true, 'retryable' => true, 'error_code' => 'processing_failed', 'assistant_message' => '' }
       end
 
+      processed_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       applied = conversation.with_lock do
         turn.reload
         next false unless turn.lease_token == token && turn.status == 'processing'
@@ -106,6 +109,10 @@ module Discovery
         conversation.increment!(:discovery_state_version)
         true
       end
+      now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      Rails.logger.info(format('[DiscoveryTurn] timing turn=%d attempt=%d since_answer=%.2fs process=%.2fs agent=%.2fs persist=%.2fs outcome=%s',
+        turn.id, turn.attempts, queued_for, processed_at - claimed_at, processor.agent_seconds.to_f, now - processed_at,
+        result['delayed'] ? result['error_code'] : 'reply'))
       applied ? result : waiting(turn.reload)
     end
 
