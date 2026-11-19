@@ -107,5 +107,9 @@ def execute_multi_agent_turn(state: dict[str, Any]) -> dict[str, Any]:
         # — truncated JSON, a refused request, a real outage — looked identical from
         # the outside. Log the reason; it is the difference between a five-minute
         # diagnosis and an afternoon of guessing.
-        logging.getLogger("uvicorn.error").warning("discovery turn failed: %s", exc)
-        return {**state, "error": "openai_unavailable", "assistant_message": "", "error_detail": str(exc)}
+        logging.getLogger("uvicorn.error").warning(
+            "discovery turn failed source_message_id=%s code=%s retryable=%s reason=%s",
+            state.get("source_message_id"), exc.code, exc.retryable, exc,
+        )
+        return {**state, "error": exc.code, "retryable": exc.retryable,
+                "assistant_message": "", "error_detail": str(exc)}

@@ -27,22 +27,12 @@ module Discovery
     def call
       return execute_turn unless @inbound_message
 
-      # Serialize recovery and normal delivery for this saved answer. The result
-      # is stored with the source message, so a retry cannot advance the dossier twice.
-      @conversation.with_lock do
-        @inbound_message.reload
-        saved = @inbound_message.raw_payload&.dig("discovery_result")
-        next saved if saved.is_a?(Hash)
+      turn = Discovery::DurableTurn.register(@conversation, @inbound_message, @user_message)
+      return Discovery::DurableTurn.waiting(turn) if DiscoveryRequest.admitting
 
-        result = execute_turn
-        unless result["delayed"]
-          result["source_message_id"] = @inbound_message.id
-          @inbound_message.update!(raw_payload: (@inbound_message.raw_payload || {}).merge("discovery_result" => result, "discovery_pending" => false))
-        else
-          @inbound_message.update!(raw_payload: (@inbound_message.raw_payload || {}).merge("discovery_pending" => result["retryable"] != false))
-        end
-        result
-      end
+      @durable_turn = true
+      @defer_on_failure = false
+      Discovery::DurableTurn.call(self, turn)
     end
 
     def execute_turn
@@ -69,16 +59,18 @@ module Discovery
       )
 
       validate_workflow_contract!(result)
-      persist_turn!(result, playbook)
+      @turn_playbook = playbook
+      persist_turn!(result, playbook) unless @durable_turn
       OpenaiCircuitBreaker.reset!
       result
     rescue Langgraph::UnavailableError => e
-      Rails.logger.warn("[Discovery::ProcessTurn] #{e.message} retryable=#{e.retryable}")
+      Rails.logger.warn("[Discovery::ProcessTurn] conversation_id=#{@conversation.id} source_message_id=#{@inbound_message&.id} code=#{e.code} retryable=#{e.retryable} reason=#{e.message}")
       handle_unavailable!(
         playbook: playbook,
         trip_breaker: e.retryable,
         defer: e.retryable,
-        retryable: e.retryable
+        retryable: e.retryable,
+        error_code: e.code
       )
     end
 
@@ -132,7 +124,11 @@ module Discovery
       # meant the model couldn't see the interview's opening questions by mid-flow
       # and re-asked them — keep enough recent turns for an explicit anti-repeat guard.
       window = multi_agent_enabled? ? 80 : 24
-      @conversation.messages.order(:created_at, :id).last(window).filter_map do |msg|
+      history = @conversation.messages
+      # WhatsApp can queue several answers before the first model call finishes.
+      # A turn must never consume a later answer as part of its own history.
+      history = history.where("direction = 'outbound' OR id <= ?", @inbound_message.id) if @inbound_message
+      history.order(:created_at, :id).last(window).filter_map do |msg|
         next if msg.body.blank?
         next if msg.message_type == "system"
         # A "brief delay" apology is not something the interviewer said — it is a
@@ -219,7 +215,7 @@ module Discovery
       result
     end
 
-    def handle_unavailable!(playbook: nil, trip_breaker: true, defer: nil, retryable: true)
+    def handle_unavailable!(playbook: nil, trip_breaker: true, defer: nil, retryable: true, error_code: "openai_unavailable")
       # Only trip a CLOSED breaker. trip! is a setex, so calling it while open
       # refreshes the cool-off window and the breaker never reopens under load.
       OpenaiCircuitBreaker.trip! if trip_breaker && !OpenaiCircuitBreaker.open?
@@ -236,10 +232,12 @@ module Discovery
       end
 
       {
-        "assistant_message" => DELAY_MESSAGES.fetch(lang, DELAY_MESSAGES["en"]),
+        "assistant_message" => retryable ? DELAY_MESSAGES.fetch(lang, DELAY_MESSAGES["en"]) :
+          "Your answers are saved. The interview service needs administrator attention before it can continue. Please contact your company administrator, then retry your saved answer.",
         "completed" => false,
         "delayed" => true,
         "retryable" => retryable,
+        "error_code" => error_code,
         "playbook_version" => playbook&.version
       }
     end

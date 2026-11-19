@@ -3,15 +3,33 @@ from hmac import compare_digest
 from typing import Any
 
 import httpx
-from fastapi import FastAPI, Header, HTTPException
+import time
+import asyncio
+from fastapi import FastAPI, Header, HTTPException, Request
 from pydantic import BaseModel, Field
+from fastapi.responses import JSONResponse
 
 from app.circuit_breaker import is_open
 from app.config import configure_langsmith, settings
+from app.isolated_turn import run_isolated
 from app.graph import execute_turn
 from app.multi_agent_graph import execute_multi_agent_turn
 
 app = FastAPI(title="Req Discovery Agent", version="1.0.0")
+
+@app.middleware("http")
+async def capture_arrival(request: Request, call_next):
+    request.state.discovery_deadline = time.time() + 85
+    if request.url.path.startswith('/v1/threads/') and request.url.path.endswith('/turn'):
+        try:
+            response = await asyncio.wait_for(call_next(request), timeout=85)
+            if time.time() >= request.state.discovery_deadline:
+                return JSONResponse(status_code=503, content={'detail': {'error': 'deadline_exceeded', 'retryable': True}})
+            return response
+        except asyncio.TimeoutError:
+            return JSONResponse(status_code=503, content={'detail': {'error': 'deadline_exceeded', 'retryable': True}})
+    return await call_next(request)
+
 
 if configure_langsmith():
     import logging
@@ -56,6 +74,9 @@ class TurnRequest(BaseModel):
     thread_id: str | None = None
     user_message: str
     source_message_id: int | None = None
+    turn_identity: str | None = None
+    base_revision: int = 0
+    deadline_at: float | None = None
     playbook: PlaybookPayload
     context: TurnContext = Field(default_factory=TurnContext)
     history: list[HistoryMessage] = Field(default_factory=list)
@@ -92,7 +113,7 @@ def health():
 
 
 @app.post("/v1/threads/{thread_id}/turn", response_model=TurnResponse)
-def run_turn(thread_id: str, body: TurnRequest):
+async def run_turn(thread_id: str, body: TurnRequest, request: Request):
     if is_open():
         raise HTTPException(
             status_code=503,
@@ -132,16 +153,16 @@ def run_turn(thread_id: str, body: TurnRequest):
                 "company_profile": body.company_profile or body.context.company_profile or {},
             }
         )
-        result = execute_multi_agent_turn(state)
+        result = await run_isolated(thread_id, body.source_message_id, state, True, min(body.deadline_at or request.state.discovery_deadline, request.state.discovery_deadline), body.turn_identity, body.base_revision)
     else:
-        result = execute_turn(state)
+        result = await run_isolated(thread_id, body.source_message_id, state, False, min(body.deadline_at or request.state.discovery_deadline, request.state.discovery_deadline), body.turn_identity, body.base_revision)
 
-    if result.get("error") == "openai_unavailable":
+    if result.get("error"):
         raise HTTPException(
             status_code=503,
             detail={
-                "error": "openai_unavailable",
-                "retryable": True,
+                "error": result["error"],
+                "retryable": result.get("retryable", True),
                 # Why, not just that. Rails logs this verbatim.
                 "reason": result.get("error_detail"),
             },

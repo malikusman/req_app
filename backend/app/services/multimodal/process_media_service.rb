@@ -43,14 +43,17 @@ module Multimodal
       body = combine_with_caption(extracted)
       raise "empty extraction" if body.blank?
 
-      @attachment.update!(status: "ready", extracted_text: body, duration_ms: duration_ms)
-      @message.update!(
-        body: body,
-        processing_status: "ready",
-        raw_payload: @message.raw_payload.merge("extracted_text" => body)
-      )
-
-      mark_multimodal_on_conversation!
+      # A ready attachment must never commit without its saved answer. Otherwise
+      # a replacement job returns early and cannot resume the interview.
+      @conversation.with_lock do
+        @attachment.update!(status: "ready", extracted_text: body, duration_ms: duration_ms)
+        @message.update!(
+          body: body,
+          processing_status: "ready",
+          raw_payload: @message.raw_payload.merge("extracted_text" => body)
+        )
+        mark_multimodal_on_conversation!
+      end
       IndexMediaService.call(media_attachment: @attachment.reload)
       Multimodal::MediaObservability.record!(
         event: "processed",

@@ -61,6 +61,8 @@ def build_chat_openai(
     temperature: float = 0.4,
     json_mode: bool = False,
     max_tokens: int | None = None,
+    timeout: float | None = None,
+    max_retries: int | None = None,
 ) -> ChatOpenAI:
     """max_tokens defaults to settings.openai_max_tokens (OPENAI_MAX_TOKENS).
 
@@ -75,6 +77,10 @@ def build_chat_openai(
         "api_key": settings.openai_api_key.strip() or "lm-studio",
         "max_tokens": max_tokens or settings.openai_max_tokens,
     }
+    if timeout is not None:
+        kwargs["timeout"] = timeout
+    if max_retries is not None:
+        kwargs["max_retries"] = max_retries
     # Reasoning-family models (gpt-5, gpt-6 such as gpt-6-luna, the o-series)
     # accept only their default temperature and reject any other value.
     if not fixed_temperature(name):

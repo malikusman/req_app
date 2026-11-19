@@ -26,13 +26,14 @@ module Whatsapp
 
     def process_message(msg, value)
       wamid = msg["id"]
-      return if wamid.blank? || WebhookEvent.exists?(external_id: wamid)
-
-      WebhookEvent.create!(
-        external_id: wamid,
-        payload: msg,
-        status: "processing"
-      )
+      return if wamid.blank?
+      # Rely on the unique database index: model uniqueness validation can raise
+      # before create_or_find_by reaches its conflict handling on a replay.
+      WebhookEvent.insert_all([{ external_id: wamid, payload: msg, status: 'processing',
+        created_at: Time.current, updated_at: Time.current }], unique_by: :index_webhook_events_on_external_id)
+      event = WebhookEvent.find_by!(external_id: wamid)
+      event.with_lock do
+        return if event.status == 'processed'
 
       phone = "+#{msg['from']}"
       employee = Employee.find_by(phone_e164: phone)
@@ -48,10 +49,18 @@ module Whatsapp
         handle_media_message(employee: employee, conversation: conversation, msg: msg)
       else
         text = extract_text(msg)
-        route_inbound_text(employee: employee, conversation: conversation, text: text, external_id: wamid) if text.present?
+        if text.present?
+          conversation.with_lock do
+            DiscoveryRequest.set(admitting: true) do
+              route_inbound_text(employee: employee, conversation: conversation, text: text, external_id: wamid)
+            end
+            conversation.increment!(:discovery_state_version)
+          end
+        end
       end
 
-      WebhookEvent.where(external_id: wamid).update_all(status: "processed", processed_at: Time.current)
+      event.update!(status: "processed", processed_at: Time.current)
+      end
     rescue StandardError => e
       Rails.logger.error("[WhatsApp] process_message failed: #{e.message}\n#{e.backtrace.first(5).join("\n")}")
       WebhookEvent.where(external_id: wamid).update_all(status: "failed") if wamid

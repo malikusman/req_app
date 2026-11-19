@@ -21,7 +21,9 @@ module Discovery
         if source
           existing = @conversation.messages.where(direction: "outbound")
             .where("raw_payload ->> 'source_message_id' = ?", source.to_s).first
-          next existing if existing
+          if existing
+            next existing
+          end
         end
         deliver
       end
@@ -52,7 +54,9 @@ module Discovery
         routing_decision: @result["routing_decision"]
       )
 
-      if @channel == :whatsapp && @client.configured?
+      if @result['source_message_id'] && @channel == :whatsapp
+        message.update!(delivery_status: 'pending')
+      elsif @channel == :whatsapp && @client.configured?
         @client.send_text(to: @employee.phone_e164, body: assistant_body)
       elsif @channel == :whatsapp
         Rails.logger.info("[WhatsApp dev] to=#{@employee.phone_e164} body=#{assistant_body}")
@@ -66,6 +70,7 @@ module Discovery
     def persist_outbound(body, is_discovery_question:, agent_id: nil, routing_decision: nil, delay_notice: false)
       Message.create!(
         conversation: @conversation,
+        reply_to_message_id: delay_notice ? nil : @result["source_message_id"],
         direction: "outbound",
         channel: @channel == :web ? "web" : "whatsapp",
         message_type: "text",

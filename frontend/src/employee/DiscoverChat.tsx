@@ -12,6 +12,7 @@ import {
 } from './discoverApi';
 import { useVoiceRecorder, voiceRecordingSupported } from './useVoiceRecorder';
 import { useReadAloud } from './useReadAloud';
+import { pendingSubmission, type PendingSubmission } from './pendingSubmission';
 
 const ACCEPTED_TYPES = 'image/jpeg,image/png,image/webp,application/pdf';
 
@@ -80,8 +81,106 @@ export function DiscoverChat() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [processingMedia, setProcessingMedia] = useState(false);
+  const [processingMedia] = useState(false);
   const [voiceUpload, setVoiceUpload] = useState(false);
+  const [uncertain, setUncertain] = useState(false);
+  const [refreshNeeded, setRefreshNeeded] = useState(false);
+  const pendingRef = useRef<PendingSubmission | null>(null);
+  const latestVersion = useRef(-1);
+  const reconcileBusy = useRef(false);
+  const applySnapshot = useCallback((data: { messages: DiscoverMessage[]; state: DiscoverState }) => {
+    const version = data.state.discovery_state_version;
+    if (version !== undefined && version < latestVersion.current) return;
+    if (version !== undefined) latestVersion.current = version;
+    setRaw(data.messages);
+    setState(data.state);
+  }, []);
+
+  const reconcileSubmission = useCallback(async () => {
+    const item = pendingRef.current;
+    if (!jwt || !item || reconcileBusy.current) return;
+    reconcileBusy.current = true;
+    try {
+      let data = await discoverApi.messages(jwt, item.id);
+      if (data.state.submission_received !== true) {
+        data = item.file ? await discoverApi.sendAttachment(jwt, item.file, item.body || undefined, item.id)
+          : await discoverApi.sendMessage(jwt, item.body, item.id);
+      }
+      applySnapshot(data);
+      await pendingSubmission(token, null);
+      pendingRef.current = null;
+      setUncertain(false);
+      setError('');
+    } catch (err) {
+      if ((err as { status?: number }).status === 409 || (err as { status?: number }).status === 422) {
+        await pendingSubmission(token, { ...item, rejected: true });
+        pendingRef.current = null;
+        setUncertain(false);
+        setDraft(item.body);
+        if (item.file) setSelectedFile(item.file);
+        setError(err instanceof Error ? err.message : 'This answer was not accepted. Please review it before sending.');
+        return;
+      }
+      setUncertain(true);
+      setError('Your answer is saved on this device. Reconnecting to confirm delivery…');
+    } finally { reconcileBusy.current = false; }
+  }, [jwt, token, applySnapshot]);
+
+  useEffect(() => {
+    let active = true;
+    void pendingSubmission(token).then(item => {
+      if (!active || !item) return;
+      if (item.rejected) {
+        setDraft(item.body);
+        if (item.file) setSelectedFile(item.file);
+        return;
+      }
+      pendingRef.current = item;
+      setUncertain(true);
+      void reconcileSubmission();
+    }).catch(() => { /* Sending will report unavailable durable device storage. */ });
+    return () => { active = false; };
+  }, [token, reconcileSubmission]);
+
+  useEffect(() => {
+    if (!uncertain) return;
+    const timer = window.setInterval(() => void reconcileSubmission(), 3000);
+    return () => window.clearInterval(timer);
+  }, [uncertain, reconcileSubmission]);
+
+  useEffect(() => {
+    if (!refreshNeeded || !jwt) return;
+    let active = true;
+    let timer: number;
+    const refresh = async () => {
+      try {
+        const data = await discoverApi.messages(jwt);
+        if (!active) return;
+        applySnapshot(data);
+        setRefreshNeeded(false);
+      } catch { if (active) timer = window.setTimeout(() => void refresh(), 3000); }
+    };
+    void refresh();
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [refreshNeeded, jwt, applySnapshot]);
+
+  const submitAnswer = async (body: string, file?: File) => {
+    if (!jwt || pendingRef.current) return;
+    const item = { id: crypto.randomUUID(), body, file };
+    pendingRef.current = item;
+    try {
+      await pendingSubmission(token, item);
+    } catch {
+      pendingRef.current = null;
+      setDraft(body);
+      if (file) setSelectedFile(file);
+      setError('Could not save your answer on this device. Please keep this page open and try again.');
+      return;
+    }
+    setUncertain(true);
+    await reconcileSubmission();
+  };
+
   const recorder = useVoiceRecorder();
   const readAloud = useReadAloud(jwt, state);
   // The newest interviewer message already heard (or already on screen when the
@@ -114,8 +213,7 @@ export function DiscoverChat() {
   const load = useCallback(async () => {
     if (!jwt) return;
     const data = await discoverApi.messages(jwt);
-    setRaw(data.messages);
-    setState(data.state);
+    applySnapshot(data);
     return data;
   }, [jwt]);
 
@@ -130,96 +228,38 @@ export function DiscoverChat() {
       .finally(() => setLoading(false));
   }, [jwt, load, navigate, token]);
 
-  const pollForFollowUp = useCallback(
-    async (baselineCount: number) => {
-      if (!jwt) return;
-      for (let attempt = 0; attempt < 30; attempt += 1) {
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-        const data = await discoverApi.messages(jwt);
-        setRaw(data.messages);
-        setState(data.state);
-        if (data.messages.length > baselineCount) {
-          setProcessingMedia(false);
-          setVoiceUpload(false);
-          return;
-        }
-      }
-      setProcessingMedia(false);
-      setVoiceUpload(false);
-    },
-    [jwt]
-  );
-
   // Saved text answers recover through Sidekiq, just like media. Poll only the
   // read endpoint; never re-submit the employee's answer from the browser.
   useEffect(() => {
     if (!jwt || !state?.discovery_pending) return;
     let active = true;
-    const timer = window.setInterval(() => {
-      void discoverApi.messages(jwt).then((data) => {
+    let timer: number;
+    const poll = async () => {
+      try {
+        const data = await discoverApi.messages(jwt);
         if (!active) return;
-        setRaw(data.messages);
-        setState(data.state);
-      }).catch(() => { /* Keep the saved answer; the next read may recover. */ });
-    }, 3000);
-    return () => { active = false; window.clearInterval(timer); };
+        applySnapshot(data);
+        if (!data.state.discovery_pending) return;
+      } catch { /* Keep the saved answer; the next read may recover. */ }
+      if (active) timer = window.setTimeout(() => void poll(), 3000);
+    };
+    timer = window.setTimeout(() => void poll(), 3000);
+    return () => { active = false; window.clearTimeout(timer); };
   }, [jwt, state?.discovery_pending]);
 
   const send = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!jwt || sending) return;
+    if (!jwt || sending || uncertain || pendingRef.current || state?.discovery_pending || state?.discovery_error) return;
 
-    if (selectedFile) {
-      setError('');
-      setSending(true);
-      const caption = draft.trim();
-      const file = selectedFile;
-      setDraft('');
-      setSelectedFile(null);
-      try {
-        const data = await discoverApi.sendAttachment(jwt, file, caption || undefined);
-        setRaw(data.messages);
-        setState(data.state);
-        setProcessingMedia(true);
-        void pollForFollowUp(data.messages.length);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to upload file');
-        setDraft(caption);
-        setSelectedFile(file);
-      } finally {
-        setSending(false);
-      }
-      return;
-    }
-
-    if (!draft.trim()) return;
+    if (!selectedFile && !draft.trim()) return;
+    const body = draft.trim();
+    const file = selectedFile || undefined;
     setError('');
     setSending(true);
-    const text = draft.trim();
     setDraft('');
-    // Shown the moment it is sent; the server's copy replaces it with the reply.
-    setRaw((prev) => [
-      ...prev,
-      {
-        id: -Date.now(),
-        direction: 'inbound',
-        message_type: 'text',
-        body: text,
-        is_discovery_question: false,
-        created_at: new Date().toISOString(),
-      },
-    ]);
-    try {
-      const data = await discoverApi.sendMessage(jwt, text);
-      setRaw(data.messages);
-      setState(data.state);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to send message');
-      setRaw((prev) => prev.filter((m) => m.id >= 0));
-      setDraft(text);
-    } finally {
-      setSending(false);
-    }
+    setSelectedFile(null);
+    try { await submitAnswer(body, file); }
+    finally { setSending(false); }
   };
 
   // Answering out loud: the recording goes up like any attachment, is transcribed,
@@ -237,11 +277,7 @@ export function DiscoverChat() {
     setSending(true);
     setVoiceUpload(true);
     try {
-      const data = await discoverApi.sendAttachment(jwt, file);
-      setRaw(data.messages);
-      setState(data.state);
-      setProcessingMedia(true);
-      void pollForFollowUp(data.messages.length);
+      await submitAnswer('', file);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not send your answer');
       setVoiceUpload(false);
@@ -260,14 +296,30 @@ export function DiscoverChat() {
   const canAttach =
     state?.conversation_status === 'discovery' || Boolean(state?.completed);
   const canSend = Boolean(selectedFile || draft.trim());
+  const awaitingRecovery = Boolean(uncertain || state?.discovery_pending || state?.discovery_error);
+  const retrySavedAnswer = async () => {
+    if (!jwt || sending) return;
+    setSending(true);
+    setError('');
+    try {
+      const data = await discoverApi.retryMessage(jwt);
+      applySnapshot(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not retry your saved answer');
+      setRefreshNeeded(true);
+    } finally { setSending(false); }
+  };
   const canRecord = Boolean(state?.voice?.recording) && voiceRecordingSupported();
   const canReadAloud =
     Boolean(state?.voice?.speech) || (typeof window !== 'undefined' && 'speechSynthesis' in window);
 
   const statusLabel = useMemo(() => {
     if (!state) return null;
+    if (uncertain) return 'Your answer is saved on this device. Confirming delivery…';
     if (processingMedia) return voiceUpload ? 'Listening to your answer…' : 'Processing your file…';
-    if (state.discovery_pending) return 'Your answer is saved — continuing automatically…';
+    if (state.discovery_phase === 'processing') return 'Working on your saved answer…';
+    if (state.discovery_pending) return 'Your answer is saved. Retrying shortly…';
+    if (state.discovery_error) return 'Your answer is saved — the interview is paused';
     if (state.completed && state.discovery_outcome === 'employee_stopped') return 'Interview stopped — your answers are saved';
     if (state.completed && state.discovery_outcome && state.discovery_outcome !== 'successful') return 'Answers saved — workflow details need follow-up';
     if (state.completed) return 'Interview complete — you can always add more anytime';
@@ -275,7 +327,7 @@ export function DiscoverChat() {
     if (state.conversation_status === 'profiling') return 'Getting to know your role';
     if (state.onboarding_step === 'awaiting_consent') return 'Please review consent and reply YES to continue';
     return 'Getting started';
-  }, [state, processingMedia, voiceUpload]);
+  }, [state, processingMedia, voiceUpload, uncertain]);
 
   if (loading) {
     return (
@@ -332,13 +384,21 @@ export function DiscoverChat() {
           <ChatMessageList
             messages={messages}
             className="min-h-0 flex-1 px-3 py-4 sm:px-4"
-            showTyping={sending || processingMedia}
+            showTyping={sending || processingMedia || state?.discovery_phase === 'processing'}
           />
 
           <form
             onSubmit={send}
             className="shrink-0 border-t border-border bg-background/95 px-3 py-3 backdrop-blur-sm sm:px-4 sm:py-4"
           >
+            {state?.discovery_error && !state.discovery_pending && (
+              <div className="mb-3 text-sm" role="status">
+                <p>Your answer is saved. Please contact your company administrator if the service remains unavailable.</p>
+                <Button type="button" disabled={sending} onClick={() => void retrySavedAnswer()}>
+                  Retry saved answer
+                </Button>
+              </div>
+            )}
             {state?.completed && (
               <p className="mb-3 text-sm text-muted-foreground">
                   {state.discovery_outcome === 'employee_stopped' ? 'Your answers are saved. We stopped as you requested.'
@@ -387,7 +447,7 @@ export function DiscoverChat() {
                 type="file"
                 accept={ACCEPTED_TYPES}
                 className="sr-only"
-                disabled={!canAttach || sending || processingMedia}
+                disabled={!canAttach || sending || processingMedia || awaitingRecovery}
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file) setSelectedFile(file);
@@ -397,7 +457,7 @@ export function DiscoverChat() {
               <Button
                 type="button"
                 variant="secondary"
-                disabled={!canAttach || sending || processingMedia}
+                disabled={!canAttach || sending || processingMedia || awaitingRecovery}
                 onClick={() => fileInputRef.current?.click()}
                 aria-label="Attach image or PDF"
                 className="h-11 w-11 shrink-0 p-0"
@@ -416,7 +476,7 @@ export function DiscoverChat() {
                         ? 'Share anything else that comes to mind…'
                         : 'Type your reply…'
                   }
-                  disabled={sending || processingMedia}
+                  disabled={sending || processingMedia || awaitingRecovery}
                   className="min-h-[72px] max-h-40 w-full resize-none text-base sm:min-h-[88px]"
                 />
               </div>
@@ -425,7 +485,7 @@ export function DiscoverChat() {
                 <Button
                   type="button"
                   variant="secondary"
-                  disabled={!canAttach || sending || processingMedia}
+                  disabled={!canAttach || sending || processingMedia || awaitingRecovery}
                   onClick={() => void startRecording()}
                   aria-label="Answer out loud"
                   title={canAttach ? 'Answer out loud' : 'You can answer out loud once the interview starts'}
@@ -436,7 +496,7 @@ export function DiscoverChat() {
 
               <Button
                 type="submit"
-                disabled={sending || processingMedia || !canSend}
+                disabled={sending || processingMedia || awaitingRecovery || !canSend}
                 className="h-11 shrink-0 px-4 sm:px-5"
               >
                 Send

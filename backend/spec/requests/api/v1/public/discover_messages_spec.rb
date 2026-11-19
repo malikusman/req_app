@@ -23,6 +23,78 @@ RSpec.describe "Api::V1::Public::DiscoverMessages", type: :request do
   end
   let(:consultant) { create(:consultant_user) }
 
+  describe "saved discovery recovery" do
+    let(:agent) { instance_double(Langgraph::Client) }
+
+    before do
+      conversation.update!(status: "profiling", question_count: 0,
+                           state_snapshot: { "profiling" => { "step" => "responsibilities" } })
+      employee.update!(participation_status: "started", role_title: "HR assistant", department: "hr",
+                       seniority: "individual_contributor")
+      create(:discovery_playbook, department: "hr")
+      allow(Langgraph::Client).to receive(:new).and_return(agent)
+      allow(agent).to receive(:create_thread!).and_return("regression-thread")
+      allow(OpenaiCircuitBreaker).to receive(:open?).and_return(false)
+    end
+
+    it "preserves the exact short profiling answers and retries the kickoff without duplicating a turn" do
+      post "/api/v1/public/discover/messages", params: { body: "helping the HR?" }, headers: headers
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["messages"].last["body"]).to include("Which tools or systems")
+
+      allow(agent).to receive(:run_turn!).and_raise(Langgraph::UnavailableError.new(
+        "OpenAI organization spend limit exhausted", retryable: false, code: "openai_quota_exceeded"))
+      expect {
+        post "/api/v1/public/discover/messages", params: { body: "outlook, Excel and our system" }, headers: headers
+      }.not_to have_enqueued_job(RetryDiscoveryTurnJob)
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["state"]["discovery_pending"]).to be(true)
+      turn = DiscoveryTurn.find_by!(conversation: conversation)
+      ProcessDiscoveryTurnJob.perform_now(turn.id)
+      get "/api/v1/public/discover/messages", headers: headers
+      expect(response.parsed_body["state"]).to include("discovery_pending" => false, "discovery_error" => "openai_quota_exceeded")
+      expect(employee.reload.profile_card).to include("responsibilities" => "helping the HR?", "primary_tools" => ["outlook", "Excel", "our system"])
+      count = conversation.messages.count
+
+      expect(agent).to receive(:run_turn!).once.with(hash_including(
+        user_message: a_string_including("helping the HR?", "outlook, Excel, our system")
+      )).and_return("assistant_message" => "Which HR task do you usually start with?", "question_count" => 1, "completed" => false)
+      post "/api/v1/public/discover/messages", params: { retry: true }, headers: headers
+      expect(response).to have_http_status(:ok)
+      ProcessDiscoveryTurnJob.perform_now(turn.id)
+      get "/api/v1/public/discover/messages", headers: headers
+      expect(response.parsed_body["state"]).to include("question_count" => 1, "discovery_pending" => false, "discovery_error" => nil)
+      expect(conversation.messages.count).to eq(count + 1)
+      post "/api/v1/public/discover/messages", params: { retry: true }, headers: headers
+      expect(response).to have_http_status(:conflict)
+      expect(conversation.reload.question_count).to eq(1)
+    end
+
+
+    it "reports active retry work separately from waiting and failed recovery" do
+      conversation.update!(status: "discovery")
+      source = create(:message, conversation: conversation, direction: "inbound", raw_payload: { "discovery_pending" => true })
+      Discovery::TurnStatus.track(source) do
+        get "/api/v1/public/discover/messages", headers: headers
+        expect(response.parsed_body["state"]).to include("discovery_phase" => "processing", "discovery_pending" => true)
+      end
+      get "/api/v1/public/discover/messages", headers: headers
+      expect(response.parsed_body["state"]["discovery_phase"]).to eq("retry_waiting")
+      source.update!(raw_payload: { "discovery_pending" => false, "discovery_error" => "structured_output_truncated" })
+      get "/api/v1/public/discover/messages", headers: headers
+      expect(response.parsed_body["state"]).to include("discovery_phase" => "failed", "discovery_pending" => false)
+    end
+
+    it "rejects another answer while a saved turn is waiting" do
+      conversation.update!(status: "discovery")
+      create(:message, conversation: conversation, direction: "inbound", raw_payload: { "discovery_pending" => true })
+      expect {
+        post "/api/v1/public/discover/messages", params: { body: "outlook, Excel and our system" }, headers: headers
+      }.not_to change(Message, :count)
+      expect(response).to have_http_status(:conflict)
+    end
+  end
+
   def consultant_question!(body: "Which system holds the approval record?")
     request = ConsultantInfoRequest.create!(
       company: company,

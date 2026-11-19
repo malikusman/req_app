@@ -33,6 +33,10 @@ export type DiscoverState = {
   completed: boolean;
   discovery_outcome?: 'successful' | 'needs_follow_up' | 'employee_stopped' | null;
   discovery_pending?: boolean;
+  discovery_state_version?: number;
+  submission_received?: boolean | null;
+  discovery_phase?: 'idle' | 'processing' | 'retry_waiting' | 'failed';
+  discovery_error?: string | null;
   /** For the browser's own voice when a question cannot be spoken server-side. */
   language?: string;
   /** Absent on responses from an older server. */
@@ -116,7 +120,7 @@ async function discoverRequest<T>(path: string, options: RequestInit = {}, token
 
   if (!res.ok) {
     const err = (data as { error?: string }).error || res.statusText;
-    throw new Error(err);
+    throw Object.assign(new Error(err), { status: res.status });
   }
   return data as T;
 }
@@ -137,17 +141,24 @@ export const discoverApi = {
       { method: 'POST', body: JSON.stringify({}) }
     ),
 
-  messages: (jwt: string) =>
+  messages: (jwt: string, submissionId?: string) =>
     discoverRequest<{ messages: DiscoverMessage[]; state: DiscoverState }>(
-      '/api/v1/public/discover/messages',
+      `/api/v1/public/discover/messages${submissionId ? `?submission_id=${encodeURIComponent(submissionId)}` : ''}`,
       {},
       jwt
     ),
 
-  sendMessage: (jwt: string, body: string) =>
+  sendMessage: (jwt: string, body: string, submissionId?: string) =>
     discoverRequest<{ messages: DiscoverMessage[]; state: DiscoverState }>(
       '/api/v1/public/discover/messages',
-      { method: 'POST', body: JSON.stringify({ body }) },
+      { method: 'POST', body: JSON.stringify({ body, submission_id: submissionId }) },
+      jwt
+    ),
+
+  retryMessage: (jwt: string) =>
+    discoverRequest<{ messages: DiscoverMessage[]; state: DiscoverState }>(
+      '/api/v1/public/discover/messages',
+      { method: 'POST', body: JSON.stringify({ retry: true }) },
       jwt
     ),
 
@@ -160,9 +171,10 @@ export const discoverApi = {
     return res.blob();
   },
 
-  sendAttachment: (jwt: string, file: File, caption?: string) => {
+  sendAttachment: (jwt: string, file: File, caption?: string, submissionId?: string) => {
     const form = new FormData();
     form.append('file', file);
+    if (submissionId) form.append('submission_id', submissionId);
     if (caption?.trim()) form.append('caption', caption.trim());
     return discoverRequest<{ messages: DiscoverMessage[]; state: DiscoverState }>(
       '/api/v1/public/discover/attachments',

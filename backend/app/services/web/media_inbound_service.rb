@@ -65,6 +65,7 @@ module Web
         channel: CHANNEL,
         message_type: attachment_type,
         body: nil,
+        raw_payload: { 'discovery_media_pending' => true },
         processing_status: "pending"
       )
 
@@ -92,7 +93,7 @@ module Web
       if dev_simulate_processing?
         simulate_processing!(attachment, message)
       else
-        ProcessMediaAttachmentJob.perform_later(attachment.id)
+        # MediaAttachment enqueues after its storage key commits.
       end
 
       result_payload

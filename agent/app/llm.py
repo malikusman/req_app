@@ -1,3 +1,4 @@
+from app.turn_runtime import invoke
 import time
 from typing import Any
 
@@ -10,7 +11,27 @@ from app.openai_factory import build_chat_openai, llm_configured
 
 
 class OpenAIUnavailable(Exception):
-    pass
+    def __init__(self, message, *, retryable=True, code="openai_unavailable"):
+        super().__init__(message)
+        self.retryable = retryable
+        self.code = code
+
+    @classmethod
+    def from_exception(cls, exc):
+        if isinstance(exc, cls):
+            return exc
+        body = getattr(exc, "body", None) or {}
+        error = body.get("error", body) if isinstance(body, dict) else {}
+        error = error if isinstance(error, dict) else {}
+        code = getattr(exc, "code", None) or error.get("code") or error.get("type")
+        status = getattr(exc, "status_code", None)
+        if code in {"insufficient_quota", "organization_spend_limit_exceeded"}:
+            return cls("OpenAI organization quota or spend limit exhausted", retryable=False,
+                       code="openai_quota_exceeded")
+        if status in {401, 403}:
+            return cls("OpenAI credentials or permissions rejected", retryable=False,
+                       code="openai_access_denied")
+        return cls(str(exc))
 
 
 MOCK_QUESTIONS = {
@@ -159,14 +180,16 @@ Set completed to true only when the interview should end (reached target or natu
             messages.append(SystemMessage(content=f"[Assistant]: {content}"))
         else:
             messages.append(HumanMessage(content=content))
-    messages.append(HumanMessage(content=user_message))
+    latest = (history or [{}])[-1]
+    if not (latest.get("role") == "user" and latest.get("content") == user_message):
+        messages.append(HumanMessage(content=user_message))
 
-    llm = build_chat_openai(temperature=0.4, json_mode=True)
+    llm = build_chat_openai(timeout=70.0, max_retries=0, temperature=0.4, json_mode=True)
 
     last_error = None
     for attempt in range(settings.max_openai_retries + 1):
         try:
-            response = llm.invoke(messages)
+            response = invoke(llm, messages)
             try:
                 payload = extract_json_object(response.content)
             except LlmJsonParseError as parse_exc:
@@ -178,7 +201,7 @@ Set completed to true only when the interview should end (reached target or natu
                         )
                     )
                 ]
-                response = llm.invoke(reformat)
+                response = invoke(llm, reformat)
                 try:
                     payload = extract_json_object(response.content)
                 except LlmJsonParseError:
@@ -200,6 +223,9 @@ Set completed to true only when the interview should end (reached target or natu
         except OpenAIUnavailable:
             raise
         except Exception as exc:
+            failure = OpenAIUnavailable.from_exception(exc)
+            if not failure.retryable:
+                raise failure from exc
             last_error = exc
             record_failure()
             if attempt < settings.max_openai_retries:

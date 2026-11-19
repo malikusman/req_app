@@ -6,6 +6,7 @@ class ContinueDiscoveryAfterMediaJob < ApplicationJob
   def perform(media_attachment_id)
     attachment = MediaAttachment.find_by(id: media_attachment_id)
     return unless attachment&.status == "ready"
+    return unless attachment.message.processing_status == 'ready'
 
     employee = attachment.employee
     conversation = attachment.conversation
@@ -17,11 +18,19 @@ class ContinueDiscoveryAfterMediaJob < ApplicationJob
     channel = attachment.message.channel == "web" ? "web" : "whatsapp"
     client = channel == "web" ? Web::CapturingMetaClient.new : Whatsapp::MetaClient.new
 
-    Whatsapp::DiscoveryHandler.new(
-      employee: employee,
-      conversation: conversation,
-      client: client,
-      channel: channel
-    ).process_extracted_text(text, inbound_message: attachment.message)
+    conversation.with_lock do
+      source = attachment.message.reload
+      unless DiscoveryTurn.exists?(source_message: source)
+        DiscoveryRequest.set(admitting: true) do
+          Whatsapp::DiscoveryHandler.new(
+            employee: employee,
+            conversation: conversation,
+            client: client,
+            channel: channel
+          ).process_extracted_text(text, inbound_message: source)
+        end
+      end
+      source.reload.update!(raw_payload: (source.raw_payload || {}).except('discovery_media_pending'))
+    end
   end
 end

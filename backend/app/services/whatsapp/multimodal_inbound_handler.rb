@@ -42,7 +42,7 @@ module Whatsapp
         body: nil,
         external_id: @msg["id"],
         processing_status: "pending",
-        raw_payload: @msg
+        raw_payload: @msg.merge('discovery_media_pending' => true)
       )
 
       attachment = MediaAttachment.create!(
@@ -64,7 +64,7 @@ module Whatsapp
       if dev_simulate_processing?
         simulate_processing!(attachment, message)
       else
-        ProcessMediaAttachmentJob.perform_later(attachment.id)
+        # MediaAttachment dispatches only after the webhook transaction commits.
       end
     end
 

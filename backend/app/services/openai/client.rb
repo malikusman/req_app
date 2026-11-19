@@ -1015,7 +1015,7 @@ module Openai
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = uri.scheme == "https"
       http.open_timeout = 5
-      http.read_timeout = Integer(ENV.fetch("OPENAI_READ_TIMEOUT", "120"))
+      http.read_timeout = [Integer(ENV.fetch("OPENAI_READ_TIMEOUT", "120")), DiscoveryRequest.remaining!].min
       http
     end
 
