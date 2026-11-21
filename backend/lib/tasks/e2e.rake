@@ -1,6 +1,19 @@
 # frozen_string_literal: true
 
 namespace :e2e do
+  # Synthesis keeps everything it produces; a seed that resets a company clears
+  # its synthesis first, or the engagement cannot be deleted.
+  clear_synthesis = lambda do |engagement_ids|
+    SynthesisDecision.where(engagement_id: engagement_ids).delete_all
+    EffortNormalization.where(engagement_id: engagement_ids).delete_all
+    SynthesisClusterMember.where(synthesis_cluster_id: SynthesisCluster.where(engagement_id: engagement_ids).select(:id)).delete_all
+    [SynthesisCluster, ProcessRelationship, ConsultancyOpportunity, RootCause, ManagementValidation].each do |model|
+      model.where(engagement_id: engagement_ids).delete_all
+    end
+    AiRun.where(engagement_id: engagement_ids).delete_all
+    SynthesisRun.where(engagement_id: engagement_ids).delete_all
+  end
+
   desc "Provision a company user with an approved, fully-rendered report for the browser tests"
   task seed_report_reader: :environment do
     abort "Refusing to run in production" if Rails.env.production?
@@ -191,7 +204,8 @@ namespace :e2e do
       c.locale = "en"
     end
     company.subscription&.destroy!
-    AiRun.where(engagement_id: company.engagements.select(:id)).delete_all
+    # Finishing the conversation starts a synthesis run, so a re-run has one to clear.
+    clear_synthesis.call(company.engagements.pluck(:id))
     company.engagements.destroy_all
     company.documents.leadership.destroy_all
     # No model in the browser test: the conversation runs on scripted replies
@@ -289,16 +303,7 @@ namespace :e2e do
       c.display_name = "Synthesis E2E Co"
       c.locale = "en"
     end
-    engagement_ids = company.engagements.pluck(:id)
-    # Synthesis keeps everything; clear this company's so the seed starts clean.
-    SynthesisDecision.where(engagement_id: engagement_ids).delete_all
-    EffortNormalization.where(engagement_id: engagement_ids).delete_all
-    SynthesisClusterMember.where(synthesis_cluster_id: SynthesisCluster.where(engagement_id: engagement_ids).select(:id)).delete_all
-    [SynthesisCluster, ProcessRelationship, ConsultancyOpportunity, RootCause, ManagementValidation].each do |model|
-      model.where(engagement_id: engagement_ids).delete_all
-    end
-    AiRun.where(engagement_id: engagement_ids).delete_all
-    SynthesisRun.where(engagement_id: engagement_ids).delete_all
+    clear_synthesis.call(company.engagements.pluck(:id))
     company.subscription&.destroy!
     company.engagements.destroy_all
     company.findings.delete_all
