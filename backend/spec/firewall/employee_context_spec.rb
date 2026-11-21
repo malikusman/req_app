@@ -62,9 +62,11 @@ RSpec.describe "Employee interview context firewall" do
 
     payload = sent.to_json
     sentinels.each_value { |sentinel| expect(payload).not_to include(sentinel) }
-    # The firewall removes what it must and no more: confirmed facts and current
-    # knowledge still reach the interview.
-    expect(payload).to include("logistics", "Invoices are matched to purchase orders.")
+    # The firewall removes what it must and no more: confirmed facts still reach
+    # the interview. Company knowledge does not, current or not (Doc 02: the
+    # employee interview is deny by default).
+    expect(payload).to include("logistics")
+    expect(payload).not_to include("Invoices are matched to purchase orders.")
   end
 
   it "keeps the same content out of the agent pack and the document-analysis snapshot" do
