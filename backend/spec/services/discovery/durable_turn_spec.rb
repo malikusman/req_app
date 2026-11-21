@@ -20,6 +20,17 @@ RSpec.describe 'Durable discovery processing' do
     Discovery::ProcessTurnService.call(conversation: conversation, employee: employee, user_message: source.body, inbound_message: source)
   end
 
+  it 'tells the engine an answer was spoken in the avatar and cut its question short (wording context only)' do
+    contexts = []
+    allow(client).to receive(:run_turn!) { |**kwargs| contexts << kwargs[:context]; reply }
+    process
+    expect(contexts.last).not_to include(:interview_channel, :answer_interrupted_question)
+    source.update!(raw_payload: { 'input_mode' => 'voice', 'interrupted_question' => true })
+    Discovery::ProcessTurnService.new(conversation: conversation.reload, employee: employee, user_message: source.body,
+                                      inbound_message: source).send(:build_context, nil).then { |c| contexts << c }
+    expect(contexts.last).to include(interview_channel: 'voice', answer_interrupted_question: true)
+  end
+
   it 'rejects a late result without applying any state' do
     allow(client).to receive(:run_turn!) do
       travel_to(100.seconds.from_now)

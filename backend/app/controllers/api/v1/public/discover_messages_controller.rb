@@ -32,7 +32,8 @@ module Api
 
           else
             submission = Discovery::AdmitSubmission.call(conversation: current_conversation, employee: current_employee,
-              submission_id: params[:submission_id], body: params[:body])
+              submission_id: params[:submission_id], body: params[:body],
+              input_meta: Discovery::AdmitSubmission.input_meta(params))
             @accepted_submission_id = submission.submission_id
 
           end

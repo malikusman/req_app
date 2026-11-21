@@ -146,13 +146,21 @@ module Discovery
       end
     end
 
+    # Document 03: spoken answers are transcripts, whether recorded as a voice note
+    # (audio) or transcribed live in the avatar interview (input_mode voice).
+    def source_type(message)
+      return 'TRANSCRIPT' if (message.raw_payload || {})['input_mode'] == 'voice'
+
+      { 'audio' => 'TRANSCRIPT', 'image' => 'SCREENSHOT', 'document' => 'FILE' }.fetch(message.message_type, 'CHAT_MESSAGE')
+    end
+
     def evidence!(anchor)
       message = @conversation.messages.where(direction: 'inbound', track: %w[discovery profiling]).where.not(message_type: 'system').find_by(id: anchor['message_id'])
       quote = anchor['quote']
       invalid!('Cross-context or fabricated evidence') unless message && quote.is_a?(String) && quote.present? && message.body.to_s.include?(quote) && EmployeeContext.redact(quote) == quote
       id = "evidence-#{@conversation.id}-#{message.id}-#{Digest::SHA256.hexdigest(quote)[0, 16]}"
       @refs[id] ||= { **meta(id), 'id' => id, 'evidence_id' => id,
-        'source_type' => { 'audio' => 'TRANSCRIPT', 'image' => 'SCREENSHOT', 'document' => 'FILE' }.fetch(message.message_type, 'CHAT_MESSAGE'), 'source_id' => message.id,
+        'source_type' => source_type(message), 'source_id' => message.id,
         'actor_id' => @conversation.employee_id, 'captured_at' => message.created_at.iso8601,
         'locator' => { 'conversation_id' => @conversation.id, 'message_id' => message.id }, 'excerpt_or_summary' => quote,
         'fact_status' => 'REPORTED', 'sensitivity' => 'CONFIDENTIAL',

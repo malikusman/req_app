@@ -129,6 +129,16 @@ module Discovery
         known_systems: agent_profile["known_systems"],
         company_profile: agent_profile
       }.compact.merge(employee_discovery_v2? ? { engine_version: 2, context_policy: EmployeeContext.policy(@conversation) } : {})
+       .merge(input_context)
+    end
+
+    # Spoken (avatar) answers: the engine words its next question for speech and
+    # reacts to an interruption. Wording only; coverage and completion unchanged.
+    def input_context
+      payload = @inbound_message&.raw_payload || {}
+      return {} unless payload['input_mode'] == 'voice'
+
+      { interview_channel: 'voice', answer_interrupted_question: payload['interrupted_question'] == true }
     end
 
     def build_history
