@@ -84,19 +84,18 @@ jobs:
 
   agent:
     runs-on: ubuntu-latest
+    # The turn-isolation tests use a real Redis at redis:6379, the same address as
+    # in Docker; running the job in a container gives the service that hostname.
+    container: python:3.11
+    services:
+      redis:
+        image: redis:7-alpine
     defaults:
       run:
         working-directory: agent
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: pip
-          cache-dependency-path: agent/requirements-dev.txt
 
       - name: Install dependencies
         run: pip install -r requirements-dev.txt
