@@ -73,6 +73,10 @@ class TurnContext(BaseModel):
     region: str | None = None
     business_goals: Any = None
     company_profile: dict[str, Any] | None = None
+    # Avatar / voice interview: the answer was spoken, and whether it cut the
+    # previous question short. Wording only; never coverage or completion.
+    interview_channel: str = "text"
+    answer_interrupted_question: bool = False
 
 
 class HistoryMessage(BaseModel):
@@ -151,6 +155,8 @@ async def run_turn(thread_id: str, body: TurnRequest, request: Request, x_intern
         "region": body.context.region,
         "business_goals": body.context.business_goals,
         "company_profile": body.context.company_profile or {},
+        "interview_channel": "voice" if body.context.interview_channel == "voice" else "text",
+        "answer_interrupted_question": bool(body.context.answer_interrupted_question),
         "user_message": body.user_message,
         "source_message_id": body.source_message_id,
         "history": [m.model_dump() for m in body.history],
