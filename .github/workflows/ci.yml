@@ -8,7 +8,9 @@ on:
 
 jobs:
   backend:
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest moved to 26.04, which has no Ruby 3.1.2 build, and the
+    # Gemfile and the production image use 3.1.2. Move with them, not ahead.
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: pgvector/pgvector:pg16
