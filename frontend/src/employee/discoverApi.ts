@@ -50,13 +50,14 @@ export type DiscoverState = {
 
 export type VoiceSession = {
   language: string;
-  acknowledgements: number;
-  phrases: string[];
-  speech: { format: 'pcm16'; sample_rate: number; available: boolean };
-  simli?: { session_token: string; face_id: string };
-  simli_error?: string;
-  transcription?: { client_secret: string; expires_at: number; webrtc_url: string };
-  transcription_error?: string;
+  provider: 'liveavatar';
+  /** The interviewer's name (from the interviewer instructions). */
+  display_name?: string;
+  instructions_version?: string;
+  /** Fixed lines June speaks herself (greeting, backchannels, "say that again"). */
+  texts?: { acknowledgements: string[]; phrases: Record<string, string> };
+  /** LiveAvatar FULL session (restricted mode: no LiveAvatar LLM). */
+  liveavatar: { session_token: string; session_id: string; mode: 'FULL'; sandbox: boolean; max_session_duration: number | null };
 };
 
 export type DiscoverVerifyResponse = {
@@ -164,10 +165,12 @@ export const discoverApi = {
       jwt
     ),
 
-  sendMessage: (jwt: string, body: string, submissionId?: string) =>
+  /** `spoken` marks an avatar answer (recorded as a transcript; the next question is worded for speech). */
+  sendMessage: (jwt: string, body: string, submissionId?: string, spoken?: { interruptedQuestion: boolean }) =>
     discoverRequest<{ messages: DiscoverMessage[]; state: DiscoverState }>(
       '/api/v1/public/discover/messages',
-      { method: 'POST', body: JSON.stringify({ body, submission_id: submissionId }) },
+      { method: 'POST', body: JSON.stringify({ body, submission_id: submissionId,
+        ...(spoken ? { input_mode: 'voice', interrupted_question: spoken.interruptedQuestion } : {}) }) },
       jwt
     ),
 
@@ -187,17 +190,21 @@ export const discoverApi = {
     return res.blob();
   },
 
-  /** Short-lived media credentials for the live avatar interview (keys stay on the server). */
+  /** A LiveAvatar session token for the live interview (the API key stays on the server). Throws with the reason on failure. */
   voiceSession: (jwt: string) =>
     discoverRequest<VoiceSession>('/api/v1/public/discover/voice/session', { method: 'POST', body: JSON.stringify({}) }, jwt),
 
-  /** Streamed PCM16 24 kHz speech for an interviewer message or a fixed phrase. */
-  voiceSpeechUrl: (target: { messageId: number } | { acknowledgement: number } | { phrase: string }) => {
-    const query = 'messageId' in target ? `message_id=${target.messageId}`
-      : 'acknowledgement' in target ? `acknowledgement=${target.acknowledgement}`
-      : `phrase=${encodeURIComponent(target.phrase)}`;
-    return `${API_URL}/api/v1/public/discover/voice/speech?${query}`;
-  },
+  /** Web consent for the avatar interview (replaces the WhatsApp "reply YES"). */
+  consent: (jwt: string) =>
+    discoverRequest<{ required: boolean; text: string; version: string }>('/api/v1/public/discover/consent', {}, jwt),
+  acceptConsent: (jwt: string, version: string) =>
+    discoverRequest<{ accepted: boolean }>('/api/v1/public/discover/consent', { method: 'POST', body: JSON.stringify({ version }) }, jwt),
+
+  /** Backstop: stops this employee's LiveAvatar session server-side (survives a closing tab). */
+  voiceSessionStop: (jwt: string) =>
+    fetch(`${API_URL}/api/v1/public/discover/voice/session/stop`, {
+      method: 'POST', keepalive: true, headers: { Authorization: `Bearer ${jwt}`, 'Content-Type': 'application/json' }, body: '{}',
+    }).then(() => undefined, () => undefined),
 
   sendAttachment: (jwt: string, file: File, caption?: string, submissionId?: string) => {
     const form = new FormData();
