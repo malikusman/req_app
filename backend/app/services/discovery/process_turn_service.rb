@@ -27,26 +27,19 @@ module Discovery
     def call
       return execute_turn unless @inbound_message
 
-      # Serialize recovery and normal delivery for this saved answer. The result
-      # is stored with the source message, so a retry cannot advance the dossier twice.
-      @conversation.with_lock do
-        @inbound_message.reload
-        saved = @inbound_message.raw_payload&.dig("discovery_result")
-        next saved if saved.is_a?(Hash)
+      turn = Discovery::DurableTurn.register(@conversation, @inbound_message, @user_message)
+      return Discovery::DurableTurn.waiting(turn) if DiscoveryRequest.admitting
 
-        result = execute_turn
-        unless result["delayed"]
-          result["source_message_id"] = @inbound_message.id
-          @inbound_message.update!(raw_payload: (@inbound_message.raw_payload || {}).merge("discovery_result" => result, "discovery_pending" => false))
-        else
-          @inbound_message.update!(raw_payload: (@inbound_message.raw_payload || {}).merge("discovery_pending" => result["retryable"] != false))
-        end
-        result
-      end
+      @durable_turn = true
+      @defer_on_failure = false
+      Discovery::DurableTurn.call(self, turn)
     end
 
     def execute_turn
       playbook = nil
+      if @conversation.state_snapshot['discovery_engine_version'] == 2 && !@conversation.blackboard['employee_discovery_v2'].is_a?(Hash)
+        raise Langgraph::UnavailableError.new('Versioned interview state is missing', retryable: false, code: 'invalid_discovery_v2_state')
+      end
       ensure_thread!
       playbook = DiscoveryPlaybook.active_playbook_for(@employee.department.presence || "default")
       raise Langgraph::UnavailableError.new("no_playbook", retryable: false) unless playbook
@@ -59,32 +52,43 @@ module Discovery
         return handle_unavailable!(playbook: playbook, trip_breaker: false)
       end
 
+      agent_started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       result = @client.run_turn!(
         thread_id: @conversation.langgraph_thread_id,
-        user_message: @user_message,
+        user_message: EmployeeContext.redact(@user_message),
         playbook: playbook,
         context: build_context(playbook),
         history: build_history,
         multi_agent: multi_agent_payload
       )
 
+      @agent_seconds = Process.clock_gettime(Process::CLOCK_MONOTONIC) - agent_started
       validate_workflow_contract!(result)
-      persist_turn!(result, playbook)
+      @turn_playbook = playbook
+      persist_turn!(result, playbook) unless @durable_turn
       OpenaiCircuitBreaker.reset!
       result
     rescue Langgraph::UnavailableError => e
-      Rails.logger.warn("[Discovery::ProcessTurn] #{e.message} retryable=#{e.retryable}")
+      Rails.logger.warn("[Discovery::ProcessTurn] conversation_id=#{@conversation.id} source_message_id=#{@inbound_message&.id} code=#{e.code} retryable=#{e.retryable} reason=#{e.message}")
       handle_unavailable!(
         playbook: playbook,
         trip_breaker: e.retryable,
         defer: e.retryable,
-        retryable: e.retryable
+        retryable: e.retryable,
+        error_code: e.code
       )
     end
+
+    # Time spent inside the agent call, for the per-turn timing log.
+    attr_reader :agent_seconds
 
     private
 
     def validate_workflow_contract!(result)
+      if employee_discovery_v2?
+        V2Contract.prepare!(result, conversation: @conversation, source: @inbound_message)
+        return
+      end
       workflow = result.dig("blackboard", "dossier", "workflow")
       if @conversation.dossier["workflow"].is_a?(Hash) && !workflow.is_a?(Hash)
         raise Langgraph::UnavailableError.new("missing_workflow_contract", retryable: false)
@@ -109,7 +113,7 @@ module Discovery
 
     def build_context(playbook)
       target = @conversation.effective_question_target
-      agent_profile = Companies::AgentContext.for_agents(@company)
+      agent_profile = EmployeeContext.basics(@company)
       {
         preferred_language: @employee.preferred_language.presence || @company.locale,
         company_name: @company.display_name || @company.name,
@@ -124,7 +128,17 @@ module Discovery
         website_url: agent_profile["website_url"],
         known_systems: agent_profile["known_systems"],
         company_profile: agent_profile
-      }.compact
+      }.compact.merge(employee_discovery_v2? ? { engine_version: 2, context_policy: EmployeeContext.policy(@conversation) } : {})
+       .merge(input_context)
+    end
+
+    # Spoken (avatar) answers: the engine words its next question for speech and
+    # reacts to an interruption. Wording only; coverage and completion unchanged.
+    def input_context
+      payload = @inbound_message&.raw_payload || {}
+      return {} unless payload['input_mode'] == 'voice'
+
+      { interview_channel: 'voice', answer_interrupted_question: payload['interrupted_question'] == true }
     end
 
     def build_history
@@ -132,7 +146,12 @@ module Discovery
       # meant the model couldn't see the interview's opening questions by mid-flow
       # and re-asked them — keep enough recent turns for an explicit anti-repeat guard.
       window = multi_agent_enabled? ? 80 : 24
-      @conversation.messages.order(:created_at, :id).last(window).filter_map do |msg|
+      history = @conversation.messages
+      history = history.where(track: %w[discovery profiling])
+      # WhatsApp can queue several answers before the first model call finishes.
+      # A turn must never consume a later answer as part of its own history.
+      history = history.where("direction = 'outbound' OR id <= ?", @inbound_message.id) if @inbound_message
+      history.order(:created_at, :id).last(window).filter_map do |msg|
         next if msg.body.blank?
         next if msg.message_type == "system"
         # A "brief delay" apology is not something the interviewer said — it is a
@@ -143,13 +162,17 @@ module Discovery
         next if msg.raw_payload.is_a?(Hash) && msg.raw_payload["kind"] == "delay_notice"
 
         role = msg.direction == "outbound" ? "assistant" : "user"
-        { role: role, content: msg.body, message_id: msg.id,
+        { role: role, content: EmployeeContext.redact(msg.body), message_id: msg.id,
           area: msg.routing_decision&.dig("area"), task_id: msg.routing_decision&.dig("task_id") }.compact
       end
     end
 
     def multi_agent_enabled?
       @company.merged_settings["discovery_multi_agent_enabled"] == true
+    end
+
+    def employee_discovery_v2?
+      EmployeeContext.v2?(@conversation)
     end
 
     def multi_agent_payload
@@ -205,6 +228,7 @@ module Discovery
         snapshot = snapshot.merge("blackboard" => result["blackboard"])
         snapshot = snapshot.merge("last_routing_decision" => result["routing_decision"]) if result["routing_decision"].present?
       end
+      snapshot['discovery_engine_version'] = 2 if result.dig('blackboard', 'employee_discovery_v2')
 
       @conversation.update!(
         question_count: result["question_count"],
@@ -219,7 +243,7 @@ module Discovery
       result
     end
 
-    def handle_unavailable!(playbook: nil, trip_breaker: true, defer: nil, retryable: true)
+    def handle_unavailable!(playbook: nil, trip_breaker: true, defer: nil, retryable: true, error_code: "openai_unavailable")
       # Only trip a CLOSED breaker. trip! is a setex, so calling it while open
       # refreshes the cool-off window and the breaker never reopens under load.
       OpenaiCircuitBreaker.trip! if trip_breaker && !OpenaiCircuitBreaker.open?
@@ -236,10 +260,12 @@ module Discovery
       end
 
       {
-        "assistant_message" => DELAY_MESSAGES.fetch(lang, DELAY_MESSAGES["en"]),
+        "assistant_message" => retryable ? DELAY_MESSAGES.fetch(lang, DELAY_MESSAGES["en"]) :
+          "Your answers are saved. The interview service needs administrator attention before it can continue. Please contact your company administrator, then retry your saved answer.",
         "completed" => false,
         "delayed" => true,
         "retryable" => retryable,
+        "error_code" => error_code,
         "playbook_version" => playbook&.version
       }
     end

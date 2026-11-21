@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Keyboard, Mic } from 'lucide-react';
+import { Bot, Keyboard } from 'lucide-react';
 import { Button, Card } from '../components/ui';
 import { setReadAloudPreferred } from './useReadAloud';
 import {
@@ -16,36 +16,33 @@ export function DiscoverLanding() {
   const [session, setSession] = useState<DiscoverSession | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState<'voice' | 'text' | null>(null);
+  const [submitting, setSubmitting] = useState<'avatar' | 'text' | null>(null);
+  // Scoped to this link: a colleague's session on the same browser must not drop
+  // this person into that conversation. A returning employee chooses again.
+  const resumable = Boolean(token && getStoredDiscoverToken(token));
 
   useEffect(() => {
     if (!token) return;
-    // Scoped to this link: a colleague's session on the same browser must not
-    // drop this person into that conversation.
-    const existing = getStoredDiscoverToken(token);
-    if (existing) {
-      navigate(`/discover/${token}/chat`, { replace: true });
-      return;
-    }
-
     discoverApi
       .session(token)
       .then(setSession)
-      .catch(() => setError('This discovery link is invalid or has expired.'))
+      .catch(() => { if (!resumable) setError('This discovery link is invalid or has expired.'); })
       .finally(() => setLoading(false));
-  }, [token, navigate]);
+  }, [token, resumable]);
 
-  // A voice interview is the same interview with the questions read aloud and a
-  // microphone to answer with; typing stays available either way.
-  const start = async (mode: 'voice' | 'text') => {
+  // Both options run the same interview (Employee Discovery V2): the avatar adds a
+  // face, a voice and automatic turn-taking; typing stays available either way.
+  const start = async (mode: 'avatar' | 'text') => {
     if (!token) return;
     setError('');
     setSubmitting(mode);
     try {
-      const res = await discoverApi.start(token);
-      storeDiscoverToken(token, res.token);
-      setReadAloudPreferred(mode === 'voice');
-      navigate(`/discover/${token}/chat${mode === 'voice' ? '?voice=1' : ''}`, { replace: true });
+      if (!getStoredDiscoverToken(token)) {
+        const res = await discoverApi.start(token);
+        storeDiscoverToken(token, res.token);
+      }
+      setReadAloudPreferred(false);
+      navigate(`/discover/${token}/${mode === 'avatar' ? 'avatar' : 'chat'}`, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not start interview');
     } finally {
@@ -80,11 +77,12 @@ export function DiscoverLanding() {
           <Button
             type="button"
             className="w-full"
-            icon={<Mic className="h-4 w-4" />}
+            icon={<Bot className="h-4 w-4" />}
             disabled={!!submitting || (!!error && !session)}
-            onClick={() => void start('voice')}
+            onClick={() => void start('avatar')}
+            data-testid="start-avatar"
           >
-            {submitting === 'voice' ? 'Starting…' : 'Start voice interview'}
+            {submitting === 'avatar' ? 'Starting…' : 'Start with AI Avatar'}
           </Button>
           <Button
             type="button"
@@ -94,11 +92,11 @@ export function DiscoverLanding() {
             disabled={!!submitting || (!!error && !session)}
             onClick={() => void start('text')}
           >
-            {submitting === 'text' ? 'Starting…' : 'Type my answers instead'}
+            {submitting === 'text' ? 'Starting…' : 'Start Text Interview'}
           </Button>
           <p className="m-0 text-center text-xs text-muted-foreground">
-            In a voice interview the questions are read to you and you answer out loud. You can switch to typing at
-            any point.
+            With the AI avatar you talk naturally: it asks the questions out loud and listens to your answers. You can
+            pause, or switch to typing, at any point. Your answers are saved as you go.
           </p>
         </div>
 

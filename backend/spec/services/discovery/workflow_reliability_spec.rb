@@ -9,6 +9,7 @@ RSpec.describe "Workflow interview reliability" do
   let(:result) { { "assistant_message" => "What happens to unmatched payments?", "question_count" => 1, "completed" => false } }
 
   before do
+    conversation.update!(state_snapshot: conversation.state_snapshot.merge('discovery_engine_version' => 1))
     create(:discovery_playbook, department: "finance")
     allow(Langgraph::Client).to receive(:new).and_return(client)
     allow(OpenaiCircuitBreaker).to receive(:open?).and_return(false)
@@ -17,6 +18,38 @@ RSpec.describe "Workflow interview reliability" do
   def process
     Discovery::ProcessTurnService.call(conversation: conversation, employee: employee,
       user_message: inbound.body, inbound_message: inbound)
+  end
+
+  it "holds a quota-blocked answer without scheduling retries or tripping the shared breaker" do
+    previous_count = conversation.question_count
+    allow(client).to receive(:run_turn!).and_raise(Langgraph::UnavailableError.new(
+      "OpenAI organization spend limit exhausted", retryable: false, code: "openai_quota_exceeded"))
+    expect(OpenaiCircuitBreaker).not_to receive(:trip!)
+    expect { process }.not_to have_enqueued_job(RetryDiscoveryTurnJob)
+    expect(inbound.reload.raw_payload).to include("discovery_pending" => false, "discovery_error" => "openai_quota_exceeded")
+    expect(conversation.reload.question_count).to eq(previous_count)
+    expect(inbound.body).to eq("I match payments in SAP")
+  end
+
+  it "recovers a saved answer after timeout and advances and delivers exactly once" do
+    allow(client).to receive(:run_turn!).and_raise(Langgraph::UnavailableError.new("Net::ReadTimeout"))
+    expect { process }.to have_enqueued_job(ProcessDiscoveryTurnJob)
+    turn = DiscoveryTurn.find_by!(source_message: inbound)
+    expect(turn.status).to eq("retry_waiting")
+    turn.update!(retry_at: 1.second.ago)
+    expect(inbound.reload.raw_payload["discovery_pending"]).to be(true)
+    expect(client).to receive(:run_turn!).once.and_return(result)
+    2.times { RetryDiscoveryTurnJob.perform_now(conversation.id, inbound.body, inbound.id, 1) }
+    expect(inbound.reload.raw_payload).not_to have_key("discovery_error")
+    expect(inbound.raw_payload["discovery_pending"]).to be(false)
+    expect(conversation.reload.question_count).to eq(1)
+    expect(conversation.messages.where(direction: "outbound").count).to eq(1)
+  end
+
+  it "does not retry a held quota failure from a stale scheduled job" do
+    inbound.update!(raw_payload: { "discovery_pending" => false, "discovery_error" => "openai_quota_exceeded" })
+    expect(Discovery::ProcessTurnService).not_to receive(:call)
+    RetryDiscoveryTurnJob.perform_now(conversation.id, inbound.body, inbound.id, 1)
   end
 
   it "processes a saved answer once and preserves its identity for evidence" do

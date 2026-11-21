@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
 module Discovery
-  # Assembles the interview turn context: limits, profile, blackboard, and
-  # (flag-gated) memory retrieval — top-k similar company facts and document
-  # chunks for cross-employee recall.
+  # Employee context is private to its participant. Shared memory and unclassified
+  # company knowledge are excluded, including on the legacy compatibility path.
+  # V2 records evidence incrementally from the employee's own saved messages.
   class ContextBuilder
     FACT_LIMIT = 3
     CHUNK_LIMIT = 2
@@ -64,16 +64,22 @@ module Discovery
     end
 
     def call
+      if EmployeeContext.v2?(@conversation)
+        return { profile: EmployeeContext.redact(@employee.profile_card.slice(*EmployeeContext::SEED)),
+          blackboard: blackboard, limits: self.class.limits_for(@company), memory_facts: [],
+          document_snippets: [], knowledge_snippets: [], media_snippets: [], media_context: nil,
+          company_profile: EmployeeContext.basics(@company) }
+      end
       {
-        profile: profile,
+        profile: EmployeeContext.redact(profile),
         blackboard: blackboard,
         limits: self.class.limits_for(@company),
-        memory_facts: memory_facts,
-        document_snippets: document_snippets,
-        knowledge_snippets: knowledge_snippets,
-        media_context: media_context,
-        media_snippets: media_snippets,
-        company_profile: Companies::AgentContext.for_agents(@company)
+        memory_facts: [],
+        document_snippets: EmployeeContext.redact(document_snippets),
+        knowledge_snippets: [],
+        media_context: EmployeeContext.redact(media_context),
+        media_snippets: EmployeeContext.redact(media_snippets),
+        company_profile: EmployeeContext.basics(@company)
       }
     end
 
@@ -121,10 +127,7 @@ module Discovery
       return [] unless retrieval_enabled?
       return [] if query_embedding.blank?
 
-      snippets = conversation_document_snippets
-      remaining = CHUNK_LIMIT - snippets.size
-      snippets += company_document_snippets(limit: remaining) if remaining.positive?
-      snippets.uniq
+      conversation_document_snippets.uniq
     rescue StandardError => e
       Rails.logger.warn("[ContextBuilder] chunk retrieval failed: #{e.message}")
       []
@@ -151,7 +154,7 @@ module Discovery
     end
 
     def document_chunk_scope
-      DocumentChunk.joins(:document).where(documents: { company_id: @company.id, status: "ready" })
+      DocumentChunk.joins(:document).where(documents: { company_id: @company.id, employee_id: @employee.id, conversation_id: @conversation.id, status: "ready" })
     end
 
     def nearest_chunks(scope, limit)

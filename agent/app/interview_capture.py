@@ -19,13 +19,14 @@ Failure is split by cause:
   - a transport / API outage raises OpenAIUnavailable, so Rails retries the whole
     turn (nothing has been persisted yet, so the retry is safe);
   - a reply that will not parse, or is still truncated after the cap is escalated,
-    degrades to an empty record with a fallback_reason. The conversation carries on,
-    the target stays unfilled (so it is asked again rather than wrongly closed), and
-    the reason is stamped on the message's routing decision where a consultant can
-    see it.
+    malformed JSON retains the existing degraded capture behavior. Truncation
+    gets one larger-budget attempt; persistent truncation holds the saved answer
+    for manual recovery instead of replaying the same request indefinitely.
 """
 
 from __future__ import annotations
+
+from app.turn_runtime import invoke
 
 import json
 import copy
@@ -35,6 +36,7 @@ import time
 from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
+from openai import LengthFinishReasonError
 
 from app import dossier, workflow
 from app.circuit_breaker import record_failure, record_success
@@ -47,12 +49,52 @@ MAX_TRUNCATION_RETRIES = 1
 
 
 def _recording_model(state: dict[str, Any], cap: int, schema: dict | None = None):
-    llm = build_chat_openai(temperature=0.1, json_mode=True, max_tokens=cap)
+    llm = build_chat_openai(timeout=70.0, max_retries=0, temperature=0.1, json_mode=True, max_tokens=cap)
     # Use the provider's schema enforcement on the real OpenAI path. Local model
     # servers retain the existing JSON-object compatibility path.
     if not settings.openai_base_url.strip() or "api.openai.com" in settings.openai_base_url:
-        llm = llm.bind(response_format=schema or workflow.capture_schema(state.get("blackboard") or {}))
+        original = schema or workflow.capture_schema(state.get("blackboard") or {})
+        compact = _compact_schema(original)
+        logging.getLogger("uvicorn.error").info(
+            "discovery capture source_message_id=%s output_budget=%s schema_chars_before=%s schema_chars_after=%s",
+            state.get("source_message_id"), cap, len(json.dumps(original)), len(json.dumps(compact)),
+        )
+        llm = llm.bind(response_format=compact)
     return llm
+
+def _compact_schema(payload: dict) -> dict:
+    """Share identical object definitions without changing required fields or evidence."""
+    result = copy.deepcopy(payload)
+    root = result["json_schema"]["schema"]
+    counts, objects = {}, {}
+    def collect(node):
+        if isinstance(node, dict):
+            key = json.dumps(node, sort_keys=True)
+            if node.get("type") == "object" and len(key) > 200:
+                counts[key] = counts.get(key, 0) + 1
+                objects[key] = node
+            for value in node.values():
+                collect(value)
+        elif isinstance(node, list):
+            for value in node:
+                collect(value)
+    collect(root)
+    names = {key: f"shared_{i}" for i, key in enumerate(k for k, n in counts.items() if n > 1)}
+    def replace(node, skip=None):
+        if isinstance(node, dict):
+            key = json.dumps(node, sort_keys=True)
+            if key in names and key != skip:
+                return {"$ref": f"#/$defs/{names[key]}"}
+            return {k: replace(v) for k, v in node.items()}
+        if isinstance(node, list):
+            return [replace(v) for v in node]
+        return node
+    compact = replace(root)
+    if names:
+        compact["$defs"] = {name: replace(objects[key], skip=key) for key, name in names.items()}
+    result["json_schema"]["schema"] = compact
+    return result
+
 
 EMPTY_CAPTURE: dict[str, Any] = {
     "insight": {"summary": "", "topics": []},
@@ -79,15 +121,26 @@ def capture_reply(state: dict[str, Any], *, refresh_summary: bool) -> dict[str, 
         SystemMessage(content=_workflow_system_prompt(state, refresh_summary)),
         HumanMessage(content=_turn_block(state)),
     ]
-    cap = settings.openai_max_tokens
+    cap = min(max(settings.openai_max_tokens, 6000), 12000)
     llm = _recording_model(state, cap)
 
     last_error: Exception | None = None
     truncation_retries = 0
-    for attempt in range(settings.max_openai_retries + 1):
+    for attempt in range(settings.max_openai_retries + MAX_TRUNCATION_RETRIES + 1):
         try:
-            response = llm.invoke(messages)
+            response = invoke(llm, messages, stage="capture")
+        except LengthFinishReasonError:
+            if truncation_retries < MAX_TRUNCATION_RETRIES and cap < 12000:
+                truncation_retries += 1
+                cap = min(cap * 2, 12000)
+                llm = _recording_model(state, cap)
+                continue
+            raise OpenAIUnavailable("Recording output still truncated after a larger token budget",
+                                    retryable=False, code="structured_output_truncated")
         except Exception as exc:  # noqa: BLE001 — transport / API failures
+            failure = OpenAIUnavailable.from_exception(exc)
+            if not failure.retryable:
+                raise failure from exc
             last_error = exc
             record_failure()
             if attempt < settings.max_openai_retries:
@@ -96,27 +149,36 @@ def capture_reply(state: dict[str, Any], *, refresh_summary: bool) -> dict[str, 
             raise OpenAIUnavailable(str(exc)) from exc
 
         if truncated(response):
-            if truncation_retries < MAX_TRUNCATION_RETRIES:
+            if truncation_retries < MAX_TRUNCATION_RETRIES and cap < 12000:
                 truncation_retries += 1
-                cap *= 2
+                cap = min(cap * 2, 12000)
                 llm = _recording_model(state, cap)
                 continue
-            return _degraded(f"truncated at max_tokens={cap}")
+            raise OpenAIUnavailable(f"Recording output truncated at max_tokens={cap}", retryable=False, code="structured_output_truncated")
 
         try:
             parsed = extract_json_object(response.content)
         except LlmJsonParseError:
             try:
-                retry = llm.invoke(messages + [HumanMessage(content=(
+                retry = invoke(llm, messages + [HumanMessage(content=(
                     "Your previous reply was not valid JSON. Reply again with a single JSON "
                     "object only, matching the schema."
                 ))])
+                if truncated(retry):
+                    raise OpenAIUnavailable("Structured JSON repair was truncated", retryable=False,
+                                            code="structured_output_truncated")
                 parsed = extract_json_object(retry.content)
+            except LengthFinishReasonError:
+                raise OpenAIUnavailable("Structured JSON repair was truncated", retryable=False,
+                                        code="structured_output_truncated")
             except LlmJsonParseError as exc:
                 # A model that answers in prose is a quality problem, not an outage —
                 # it must not count toward the breaker that takes discovery offline.
                 return _degraded(f"unparseable: {exc}")
             except Exception as exc:  # noqa: BLE001
+                failure = OpenAIUnavailable.from_exception(exc)
+                if not failure.retryable:
+                    raise failure from exc
                 last_error = exc
                 record_failure()
                 raise OpenAIUnavailable(str(exc)) from exc
@@ -191,14 +253,14 @@ def _recover_supplied_gaps(state: dict, capture: dict) -> dict:
                       "employee_messages": workflow.sources(state)}, ensure_ascii=False)
     )
     try:
-        response = _recording_model(state, settings.openai_max_tokens, schema).invoke([SystemMessage(content=prompt)])
+        response = invoke(_recording_model(state, min(max(settings.openai_max_tokens, 6000), 12000), schema), [SystemMessage(content=prompt)], stage="recover_gaps")
         if truncated(response):
             return capture
         repaired = extract_json_object(response.content)
-    except LlmJsonParseError:
+    except (LlmJsonParseError, LengthFinishReasonError):
         return capture  # A malformed repair is not evidence.
     except Exception as exc:
-        raise OpenAIUnavailable(type(exc).__name__) from exc
+        raise OpenAIUnavailable.from_exception(exc) from exc
     updates = []
     for task, fields in candidates:
         facts = repaired.get(task["id"])
@@ -445,7 +507,7 @@ def _turn_block(state: dict[str, Any]) -> str:
             f"{json.dumps(media, ensure_ascii=False)[:1500]}\n"
             "--- END UNTRUSTED MEDIA CONTEXT ---"
         )
-    parts.append(f"Their reply:\n{state.get('user_message') or ''}")
+    parts.append(f"Current reply source ID: {state.get('source_message_id')}")
     parts.append("Record this reply now.")
     return "\n\n".join(parts)
 
@@ -456,7 +518,7 @@ def _workflow_system_prompt(state: dict[str, Any], refresh_summary: bool) -> str
     bb = state.get("blackboard") or {}
     pending = [{"id": t["id"], "name": t["name"], "fields_to_recover_if_supplied": workflow.gaps(t)}
                for t in (bb.get("dossier") or {}).get("workflow", {}).get("tasks", [])]
-    return f"""Record employee workflows faithfully. Return JSON only; never ask a question.
+    return f"""Record employee workflows faithfully. Return JSON only; never ask a question. Keep values concise; cite source IDs rather than copying long evidence.
 The response schema is authoritative: workflow_updates is an OBJECT keyed by each
 existing task ID, with an entry for EVERY task. new_tasks is an ARRAY containing
 only newly discovered tasks. Within facts, provide each named field as a fact or

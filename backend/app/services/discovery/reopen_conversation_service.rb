@@ -67,6 +67,12 @@ module Discovery
       # stalled would end it on the first turn.
       bb["stall_turns"] = 0
       bb.delete("close_reason")
+      if bb['employee_discovery_v2'].is_a?(Hash)
+        data = bb['employee_discovery_v2']
+        data['confirmation'] = nil
+        data['presented_summary'] = nil
+        data.delete('outcome')
+      end
       if bb.dig("dossier", "workflow").is_a?(Hash)
         workflow = bb["dossier"]["workflow"]
         workflow["confirmation"] = nil

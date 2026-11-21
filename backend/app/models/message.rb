@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
 class Message < ApplicationRecord
+  belongs_to :employee_submission, optional: true
+  belongs_to :reply_to_message, class_name: "Message", optional: true
+  has_many :discovery_replies, class_name: "Message", foreign_key: :reply_to_message_id, dependent: :destroy
   belongs_to :conversation
   belongs_to :track_ref, polymorphic: true, optional: true
   has_one :media_attachment, dependent: :destroy
@@ -24,6 +27,20 @@ class Message < ApplicationRecord
   validates :processing_status, inclusion: { in: PROCESSING_STATUSES }
   validates :track, inclusion: { in: TRACKS }
 
+  after_commit :advance_discovery_snapshot, on: [:create, :update], if: -> { saved_change_to_body? || saved_change_to_processing_status? || saved_change_to_raw_payload? }
+  def advance_discovery_snapshot
+    Conversation.where(id: conversation_id).update_all('discovery_state_version = discovery_state_version + 1')
+  end
+  after_commit :enqueue_discovery_delivery, if: -> { delivery_status == 'pending' }
+  def enqueue_discovery_delivery
+    DeliverDiscoveryReplyJob.perform_later(id)
+  rescue StandardError => e
+    Rails.logger.error("[DiscoveryDelivery] enqueue failed message=#{id} error=#{e.class}; sweep will recover")
+  end
+  before_validation :attach_submission, on: :create
+  def attach_submission
+    self.employee_submission = DiscoveryRequest.submission if direction == 'inbound' && message_type != 'system' && DiscoveryRequest.submission
+  end
   before_validation :derive_track, on: :create
   before_validation :sync_consultant_followup_flag
 

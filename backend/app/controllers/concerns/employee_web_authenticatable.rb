@@ -65,12 +65,14 @@ module EmployeeWebAuthenticatable
   def visible_messages
     current_conversation.messages
                         .employee_visible
+                        .includes(:employee_submission)
                         .order(:created_at)
   end
 
   def message_json(message)
     {
       id: message.id,
+      submission_id: message.employee_submission&.submission_id,
       direction: message.direction,
       message_type: message.message_type,
       body: message.body,
@@ -82,17 +84,48 @@ module EmployeeWebAuthenticatable
     }
   end
 
+  # A response must not pair old messages with a newer processing version.
+  def discovery_response(accepted_submission_id: nil)
+    current_conversation.with_lock do
+      { messages: visible_messages.map { |message| message_json(message) }, state: state_json,
+        accepted_submission_id: accepted_submission_id }
+    end
+  end
+
   def state_json
     conversation = current_conversation
     employee = current_employee
+    conversation.reload
+    turn = DiscoveryTurn.where(conversation: conversation).unresolved.order(:source_message_id).first
+    source = turn&.source_message || conversation.messages.where(direction: "inbound").order(:id).last
+    recovery = source&.raw_payload || {}
+    media_pending = source && source.message_type != 'text' && source.message_type != 'system' && %w[pending processing].include?(source.processing_status)
+    active = turn ? turn.status == 'processing' && turn.lease_until && turn.lease_until > Time.current && (!turn.deadline_at || turn.deadline_at > Time.current) : Discovery::TurnStatus.processing?(source)
+    pending = turn ? %w[queued processing retry_waiting].include?(turn.status) : recovery["discovery_pending"] == true
+    error = turn&.error_code || recovery['discovery_error']
+    active ||= media_pending && source.processing_status == 'processing'
+    pending ||= media_pending
+    queued = turn ? turn.status == 'queued' : media_pending && source.processing_status == 'pending'
+    phase = active ? 'processing' : queued ? 'queued' : pending ? 'retry_waiting' : error ? 'failed' : 'idle'
     {
       onboarding_step: employee.onboarding_step,
       participation_status: employee.participation_status,
       conversation_status: conversation.status,
       question_count: conversation.question_count,
       completed: conversation.status == "completed",
-      discovery_outcome: conversation.dossier.dig("workflow", "outcome"),
-      discovery_pending: conversation.messages.where(direction: "inbound").order(:id).last&.raw_payload&.dig("discovery_pending") == true,
+      discovery_outcome: conversation.blackboard.dig('employee_discovery_v2', 'outcome') || conversation.dossier.dig("workflow", "outcome"),
+      interview_phase: conversation.blackboard.dig('employee_discovery_v2', 'phase'),
+      interview_coverage: conversation.blackboard.dig('employee_discovery_v2', 'coverage'),
+      interview_paused: conversation.blackboard.dig('employee_discovery_v2', 'paused') == true,
+      discovery_pending: !!(active || pending),
+      discovery_state_version: conversation.discovery_state_version,
+      submission_received: params[:submission_id].present? ? EmployeeSubmission.exists?(conversation: conversation, submission_id: params[:submission_id]) : nil,
+      discovery_phase: phase,
+      discovery_error: error,
+      # The employee may type a new answer instead of retrying one the engine
+      # cannot process (see Discovery::AdmitSubmission.supersede_failed_answer!).
+      can_rephrase: phase == 'failed' && turn&.status == 'failed' && Discovery::AdmitSubmission.rephrasable?(error) &&
+        Discovery::EmployeeContext.v2?(conversation),
       # For the browser's own voice when the questions cannot be spoken server-side.
       language: employee.preferred_language.presence || employee.company.locale,
       voice: {
@@ -101,5 +134,9 @@ module EmployeeWebAuthenticatable
         speech: Openai::Client.new.speech_available?
       }
     }
+  end
+
+  def latest_discovery_payload
+    current_conversation.messages.where(direction: "inbound").order(:id).last&.raw_payload || {}
   end
 end

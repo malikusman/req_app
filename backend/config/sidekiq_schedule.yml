@@ -37,3 +37,9 @@ expire_stage1_quotes:
   class: ExpireQuotesJob
   queue: default
   active_job: true
+
+recover_discovery_turns:
+  cron: "* * * * *"
+  class: RecoverDiscoveryTurnsJob
+  queue: default
+  active_job: true

@@ -125,6 +125,20 @@ services:
       WEB_CONCURRENCY: ${WEB_CONCURRENCY:-1}
       RAILS_LOG_LEVEL: ${RAILS_LOG_LEVEL:-info}
       FORCE_SSL: ${FORCE_SSL:-true}
+      # Real-time avatar interview: LiveAvatar FULL (June HR). Keys stay on the
+      # server; the browser gets a short-lived session token (docs/LIVEAVATAR.md).
+      LIVEAVATAR_API_KEY: ${LIVEAVATAR_API_KEY:-}
+      LIVEAVATAR_AVATAR_ID: ${LIVEAVATAR_AVATAR_ID:-}
+      LIVEAVATAR_SANDBOX: ${LIVEAVATAR_SANDBOX:-false}
+      LIVEAVATAR_VOICE_ID: ${LIVEAVATAR_VOICE_ID:-}
+      LIVEAVATAR_LANGUAGE: ${LIVEAVATAR_LANGUAGE:-}
+      LIVEAVATAR_MAX_SESSION_DURATION_SECONDS: ${LIVEAVATAR_MAX_SESSION_DURATION_SECONDS:-}
+      LIVEAVATAR_VIDEO_QUALITY: ${LIVEAVATAR_VIDEO_QUALITY:-}
+      # The avatar's fixed lines and the web consent text come from the agent's
+      # interviewer instructions, mounted below, so both read the same file.
+      INTERVIEWER_INSTRUCTIONS_PATH: /interviewer/instructions.yaml
+    volumes:
+      - ./agent/app/interviewer:/interviewer:ro
     depends_on:
       postgres:
         condition: service_healthy

@@ -93,6 +93,9 @@ services:
       # notices when the two drift. CI checks out the whole repo, so it resolves
       # this path relatively; in Docker it needs the mount.
       - ./frontend:/frontend:ro
+      # Shared AI-interviewer instructions (the avatar's fixed lines). The agent
+      # reads the same file from its own mount.
+      - ./agent/app/interviewer:/interviewer:ro
     ports:
       # Overridable so the stack can run alongside another project holding 3000
       # (see .env). Default unchanged. Keep in step with API_PUBLIC_HOST below.
@@ -111,13 +114,23 @@ services:
       META_VERIFY_TOKEN: req_app_verify_token
       LANGGRAPH_URL: http://langgraph:8000
       LANGGRAPH_DOCS_READ_TIMEOUT: ${LANGGRAPH_DOCS_READ_TIMEOUT:-180}
-      LANGGRAPH_READ_TIMEOUT: ${LANGGRAPH_READ_TIMEOUT:-45}
+      LANGGRAPH_READ_TIMEOUT: ${LANGGRAPH_READ_TIMEOUT:-90}
       INTERNAL_API_TOKEN: dev-internal-token
       MINIO_ENDPOINT: http://minio:9000
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin
       MINIO_BUCKET: req-app
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      # Real-time avatar interview: LiveAvatar FULL (June HR) only. Server-side
+      # only; the browser gets a short-lived session token.
+      INTERVIEWER_INSTRUCTIONS_PATH: /interviewer/instructions.yaml
+      LIVEAVATAR_API_KEY: ${LIVEAVATAR_API_KEY:-}
+      LIVEAVATAR_AVATAR_ID: ${LIVEAVATAR_AVATAR_ID:-}
+      LIVEAVATAR_SANDBOX: ${LIVEAVATAR_SANDBOX:-false}
+      LIVEAVATAR_VOICE_ID: ${LIVEAVATAR_VOICE_ID:-}
+      LIVEAVATAR_LANGUAGE: ${LIVEAVATAR_LANGUAGE:-}
+      LIVEAVATAR_MAX_SESSION_DURATION_SECONDS: ${LIVEAVATAR_MAX_SESSION_DURATION_SECONDS:-}
+      LIVEAVATAR_VIDEO_QUALITY: ${LIVEAVATAR_VIDEO_QUALITY:-}
       OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
       OPENAI_VISION_MODEL: ${OPENAI_VISION_MODEL:-gpt-4.1-mini}
@@ -167,7 +180,7 @@ services:
       JWT_SECRET: dev-jwt-secret-change-in-production
       LANGGRAPH_URL: http://langgraph:8000
       LANGGRAPH_DOCS_READ_TIMEOUT: ${LANGGRAPH_DOCS_READ_TIMEOUT:-180}
-      LANGGRAPH_READ_TIMEOUT: ${LANGGRAPH_READ_TIMEOUT:-45}
+      LANGGRAPH_READ_TIMEOUT: ${LANGGRAPH_READ_TIMEOUT:-90}
       INTERNAL_API_TOKEN: dev-internal-token
       MINIO_ENDPOINT: http://minio:9000
       MINIO_ACCESS_KEY: minioadmin
@@ -217,6 +230,8 @@ services:
     environment:
       VITE_API_URL: ""
       VITE_PROXY_TARGET: http://rails:3000
+      # File events do not cross Windows bind mounts; poll so edits are served.
+      VITE_USE_POLLING: "true"
     depends_on:
       - rails
 

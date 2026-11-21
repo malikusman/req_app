@@ -5,7 +5,7 @@ require "json"
 
 module Langgraph
   class Client
-    READ_TIMEOUT = Integer(ENV.fetch("LANGGRAPH_READ_TIMEOUT", "45"))
+    READ_TIMEOUT = Integer(ENV.fetch("LANGGRAPH_READ_TIMEOUT", "90"))
 
     def initialize(base_url: ENV.fetch("LANGGRAPH_URL", "http://langgraph:8000"))
       @base_url = base_url.chomp("/")
@@ -19,6 +19,10 @@ module Langgraph
     def run_turn!(thread_id:, user_message:, playbook:, context:, history:, multi_agent: nil)
       body = {
         user_message: user_message,
+        source_message_id: multi_agent&.dig(:source_message_id),
+        turn_identity: DiscoveryRequest.turn_identity,
+        base_revision: DiscoveryRequest.base_revision,
+        deadline_at: DiscoveryRequest.deadline_at&.to_f,
         playbook: {
           prompt_block: playbook.prompt_block,
           version: playbook.version,
@@ -42,7 +46,8 @@ module Langgraph
         body[:company_profile] = multi_agent[:company_profile] if multi_agent[:company_profile].present?
       end
 
-      post("/v1/threads/#{thread_id}/turn", body)
+      post("/v1/threads/#{thread_id}/turn", body,
+        headers: context[:engine_version] == 2 ? { 'X-Internal-Token' => ENV.fetch('INTERNAL_API_TOKEN', 'dev-internal-token') } : {})
     rescue Langgraph::UnavailableError
       raise
     rescue StandardError => e
@@ -170,8 +175,9 @@ module Langgraph
       uri = URI.parse("#{@base_url}#{path}")
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = uri.scheme == "https"
-      http.open_timeout = 5
-      http.read_timeout = read_timeout
+      remaining = DiscoveryRequest.remaining!
+      http.open_timeout = [5, remaining].min
+      http.read_timeout = [read_timeout, remaining].min
 
       request = Net::HTTP::Post.new(uri)
       request["Content-Type"] = "application/json"
@@ -187,9 +193,11 @@ module Langgraph
 
       code = response.code.to_i
       if code == 503 || code >= 500
+        detail = parsed["detail"].is_a?(Hash) ? parsed["detail"] : {}
         raise Langgraph::UnavailableError.new(
-          parsed.dig("detail", "error") || parsed["detail"] || parsed["error"] || "openai_unavailable",
-          retryable: true
+          [detail["error"], detail["reason"]].compact.join(": ").presence || parsed["detail"] || parsed["error"] || "openai_unavailable",
+          retryable: detail["retryable"] != false,
+          code: detail["error"] || "openai_unavailable"
         )
       end
 

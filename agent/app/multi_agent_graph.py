@@ -101,11 +101,18 @@ multi_agent_graph = build_multi_agent_graph()
 
 def execute_multi_agent_turn(state: dict[str, Any]) -> dict[str, Any]:
     try:
+        if state.get('engine_version') == 2 or (state.get('blackboard') or {}).get('employee_discovery_v2'):
+            from app.employee_discovery_v2 import discovery_graph
+            return discovery_graph.invoke(state)
         return multi_agent_graph.invoke(state)
     except OpenAIUnavailable as exc:
         # Rails only ever saw a bare 503 "openai_unavailable", so every failure mode
         # — truncated JSON, a refused request, a real outage — looked identical from
         # the outside. Log the reason; it is the difference between a five-minute
         # diagnosis and an afternoon of guessing.
-        logging.getLogger("uvicorn.error").warning("discovery turn failed: %s", exc)
-        return {**state, "error": "openai_unavailable", "assistant_message": "", "error_detail": str(exc)}
+        logging.getLogger("uvicorn.error").warning(
+            "discovery turn failed source_message_id=%s code=%s retryable=%s reason=%s",
+            state.get("source_message_id"), exc.code, exc.retryable, exc,
+        )
+        return {**state, "error": exc.code, "retryable": exc.retryable,
+                "assistant_message": "", "error_detail": str(exc)}

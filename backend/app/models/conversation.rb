@@ -3,7 +3,9 @@
 class Conversation < ApplicationRecord
   belongs_to :employee
   belongs_to :company
+  has_many :discovery_turns, dependent: :destroy
   has_many :messages, dependent: :destroy
+  has_many :employee_submissions, dependent: :destroy
   has_many :conversation_insights, dependent: :destroy
   has_many :media_attachments, dependent: :destroy
   has_many :documents, dependent: :nullify

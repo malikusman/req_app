@@ -16,6 +16,7 @@ export type DiscoverTrack =
 
 export type DiscoverMessage = {
   id: number;
+  submission_id?: string | null;
   direction: 'inbound' | 'outbound';
   message_type: string;
   body: string;
@@ -33,10 +34,30 @@ export type DiscoverState = {
   completed: boolean;
   discovery_outcome?: 'successful' | 'needs_follow_up' | 'employee_stopped' | null;
   discovery_pending?: boolean;
+  interview_phase?: 'anchor' | 'inventory' | 'invisible_work' | 'size_close';
+  interview_coverage?: Record<string, boolean>;
+  interview_paused?: boolean;
+  discovery_state_version?: number;
+  submission_received?: boolean | null;
+  discovery_phase?: 'idle' | 'queued' | 'processing' | 'retry_waiting' | 'failed';
+  discovery_error?: string | null;
+  can_rephrase?: boolean;
   /** For the browser's own voice when a question cannot be spoken server-side. */
   language?: string;
   /** Absent on responses from an older server. */
   voice?: { recording: boolean; speech: boolean };
+};
+
+export type VoiceSession = {
+  language: string;
+  provider: 'liveavatar';
+  /** The interviewer's name (from the interviewer instructions). */
+  display_name?: string;
+  instructions_version?: string;
+  /** Fixed lines June speaks herself (greeting, backchannels, "say that again"). */
+  texts?: { acknowledgements: string[]; phrases: Record<string, string> };
+  /** LiveAvatar FULL session (restricted mode: no LiveAvatar LLM). */
+  liveavatar: { session_token: string; session_id: string; mode: 'FULL'; sandbox: boolean; max_session_duration: number | null };
 };
 
 export type DiscoverVerifyResponse = {
@@ -116,7 +137,7 @@ async function discoverRequest<T>(path: string, options: RequestInit = {}, token
 
   if (!res.ok) {
     const err = (data as { error?: string }).error || res.statusText;
-    throw new Error(err);
+    throw Object.assign(new Error(err), { status: res.status });
   }
   return data as T;
 }
@@ -137,17 +158,26 @@ export const discoverApi = {
       { method: 'POST', body: JSON.stringify({}) }
     ),
 
-  messages: (jwt: string) =>
+  messages: (jwt: string, submissionId?: string) =>
     discoverRequest<{ messages: DiscoverMessage[]; state: DiscoverState }>(
-      '/api/v1/public/discover/messages',
+      `/api/v1/public/discover/messages${submissionId ? `?submission_id=${encodeURIComponent(submissionId)}` : ''}`,
       {},
       jwt
     ),
 
-  sendMessage: (jwt: string, body: string) =>
+  /** `spoken` marks an avatar answer (recorded as a transcript; the next question is worded for speech). */
+  sendMessage: (jwt: string, body: string, submissionId?: string, spoken?: { interruptedQuestion: boolean }) =>
     discoverRequest<{ messages: DiscoverMessage[]; state: DiscoverState }>(
       '/api/v1/public/discover/messages',
-      { method: 'POST', body: JSON.stringify({ body }) },
+      { method: 'POST', body: JSON.stringify({ body, submission_id: submissionId,
+        ...(spoken ? { input_mode: 'voice', interrupted_question: spoken.interruptedQuestion } : {}) }) },
+      jwt
+    ),
+
+  retryMessage: (jwt: string) =>
+    discoverRequest<{ messages: DiscoverMessage[]; state: DiscoverState }>(
+      '/api/v1/public/discover/messages',
+      { method: 'POST', body: JSON.stringify({ retry: true }) },
       jwt
     ),
 
@@ -160,9 +190,26 @@ export const discoverApi = {
     return res.blob();
   },
 
-  sendAttachment: (jwt: string, file: File, caption?: string) => {
+  /** A LiveAvatar session token for the live interview (the API key stays on the server). Throws with the reason on failure. */
+  voiceSession: (jwt: string) =>
+    discoverRequest<VoiceSession>('/api/v1/public/discover/voice/session', { method: 'POST', body: JSON.stringify({}) }, jwt),
+
+  /** Web consent for the avatar interview (replaces the WhatsApp "reply YES"). */
+  consent: (jwt: string) =>
+    discoverRequest<{ required: boolean; text: string; version: string }>('/api/v1/public/discover/consent', {}, jwt),
+  acceptConsent: (jwt: string, version: string) =>
+    discoverRequest<{ accepted: boolean }>('/api/v1/public/discover/consent', { method: 'POST', body: JSON.stringify({ version }) }, jwt),
+
+  /** Backstop: stops this employee's LiveAvatar session server-side (survives a closing tab). */
+  voiceSessionStop: (jwt: string) =>
+    fetch(`${API_URL}/api/v1/public/discover/voice/session/stop`, {
+      method: 'POST', keepalive: true, headers: { Authorization: `Bearer ${jwt}`, 'Content-Type': 'application/json' }, body: '{}',
+    }).then(() => undefined, () => undefined),
+
+  sendAttachment: (jwt: string, file: File, caption?: string, submissionId?: string) => {
     const form = new FormData();
     form.append('file', file);
+    if (submissionId) form.append('submission_id', submissionId);
     if (caption?.trim()) form.append('caption', caption.trim());
     return discoverRequest<{ messages: DiscoverMessage[]; state: DiscoverState }>(
       '/api/v1/public/discover/attachments',

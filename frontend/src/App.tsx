@@ -64,6 +64,7 @@ import { ConsultantTaskSelection } from './portals/consultant/ConsultantTaskSele
 import { ConsultantDeepDivePlans } from './portals/consultant/ConsultantDeepDivePlans';
 import { DiscoverLanding } from './employee/DiscoverLanding';
 import { DiscoverChat } from './employee/DiscoverChat';
+import { DiscoverAvatar } from './employee/DiscoverAvatar';
 
 function PlatformGuard({ children }: { children: React.ReactNode }) {
   const { session } = useAuth();
@@ -220,6 +221,7 @@ const router = createBrowserRouter(createRoutesFromElements(
             <Route path="/leadership/:token" element={<LeadershipLink />} />
             <Route path="/discover/:token" element={<DiscoverLanding />} />
             <Route path="/discover/:token/chat" element={<DiscoverChat />} />
+            <Route path="/discover/:token/avatar" element={<DiscoverAvatar />} />
             <Route path="/outreach/reply/:token" element={<OutreachReplyPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </>,

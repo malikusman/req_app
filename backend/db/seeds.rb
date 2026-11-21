@@ -39,7 +39,7 @@ ConsentTextVersion.where(active: true).update_all(active: false)
   {
     version: "2026-06-20",
     locale: "en",
-    active: true,
+    active: false,
     confirmation_keywords: %w[YES I\ AGREE],
     body: <<~TEXT.squish
       Before we begin: we'll ask about 10 questions about your daily workflows via WhatsApp.
@@ -52,7 +52,7 @@ ConsentTextVersion.where(active: true).update_all(active: false)
   {
     version: "2026-06-20",
     locale: "es",
-    active: true,
+    active: false,
     confirmation_keywords: %w[SI YES],
     body: <<~TEXT.squish
       Antes de comenzar: te haremos unas 10 preguntas sobre tus flujos de trabajo por WhatsApp.
@@ -87,6 +87,14 @@ ConsentTextVersion.where(active: true).update_all(active: false)
   record = ConsentTextVersion.find_or_initialize_by(version: attrs[:version], locale: attrs[:locale])
   record.assign_attributes(attrs.except(:version, :locale))
   record.save!
+end
+
+# The active text is the channel-neutral one; its wording lives in the migration
+# that introduced it, so production and a fresh database read the same words.
+require Rails.root.join("db/migrate/20261121100000_add_channel_neutral_consent_text_version")
+AddChannelNeutralConsentTextVersion::TEXTS.each do |locale, attrs|
+  record = ConsentTextVersion.find_or_initialize_by(version: AddChannelNeutralConsentTextVersion::VERSION, locale: locale)
+  record.update!(body: attrs[:body], confirmation_keywords: attrs[:keywords], active: true)
 end
 
 %w[finance sales hr operations support executive default].each do |dept|

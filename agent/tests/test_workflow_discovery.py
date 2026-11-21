@@ -257,7 +257,7 @@ def test_evidence_backfill_recovers_a_supplied_handoff_without_changing_other_fa
     response = {"task-1": {"dependencies": {"value": "The buyer approves mismatches", "status": "known",
                 "evidence": VALUES["dependencies"], "source_message_id": 123, "correction": False, "contradiction": False}}}
     class Model:
-        def invoke(self, messages):
+        def invoke(self, messages, **kwargs):
             return SimpleNamespace(content=json.dumps(response), response_metadata={})
     monkeypatch.setattr(interview_capture, "_recording_model", lambda *args: Model())
     captured = interview_capture._recover_supplied_gaps(state(blackboard=bb), {"workflow_updates": []})
@@ -277,7 +277,7 @@ def test_backfill_includes_an_empty_legacy_task_with_evidence_in_earlier_answers
                                    "status": "known", "correction": False, "contradiction": False}
                             for field, value in VALUES.items()}}
     class Model:
-        def invoke(self, messages):
+        def invoke(self, messages, **kwargs):
             return SimpleNamespace(content=json.dumps(response), response_metadata={})
     monkeypatch.setattr(interview_capture, "_recording_model", lambda *args: Model())
     captured = interview_capture._recover_supplied_gaps(state(blackboard=bb), {"workflow_updates": []})
@@ -569,7 +569,7 @@ def test_null_backfill_does_not_erase_captured_uncertain_ai_answer(monkeypatch):
     fact = {"value": "Not sure whether the built-in suggestions use AI", "status": "uncertain",
             "evidence": "Not sure whether the built-in suggestions use AI"}
     class Model:
-        def invoke(self, messages):
+        def invoke(self, messages, **kwargs):
             return SimpleNamespace(content='{"global_facts":{"ai_current_usage":null}}', response_metadata={})
     monkeypatch.setattr(interview_capture, "_recording_model", lambda *args: Model())
     captured = interview_capture._recover_supplied_gaps(state(blackboard=bb, user_message=fact["evidence"]),

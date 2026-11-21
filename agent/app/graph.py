@@ -64,4 +64,5 @@ def execute_turn(state: TurnState) -> TurnState:
     try:
         return discovery_graph.invoke(state)
     except OpenAIUnavailable as exc:
-        return {**state, "error": "openai_unavailable", "assistant_message": ""}
+        return {**state, "error": exc.code, "retryable": exc.retryable,
+                "error_detail": str(exc), "assistant_message": ""}

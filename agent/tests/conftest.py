@@ -16,6 +16,7 @@ import pytest
 # Modules that import llm_configured into their own namespace, so each needs its own
 # patch target.
 MODULES_USING_LLM_SWITCH = (
+    "app.employee_discovery_v2",
     "app.package",
     "app.requirements",
     "app.multi_agent_llm",
@@ -50,3 +51,11 @@ def with_model(monkeypatch):
             monkeypatch.setattr(f"{module}.llm_configured", lambda: True)
         except AttributeError:
             pass
+
+
+@pytest.fixture(autouse=True)
+def builtin_interviewer_instructions(monkeypatch, tmp_path):
+    """Engine tests assert the built-in wording; the operator's instructions file
+    (app/interviewer/instructions.yaml) must not change what they check. Tests of
+    the configurable instructions point INTERVIEWER_INSTRUCTIONS_PATH at their own file."""
+    monkeypatch.setenv("INTERVIEWER_INSTRUCTIONS_PATH", str(tmp_path / "no-interviewer-instructions.yaml"))

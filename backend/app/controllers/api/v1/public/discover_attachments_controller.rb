@@ -7,17 +7,12 @@ module Api
         include EmployeeWebAuthenticatable
 
         def create
-          Web::TurnRouter.handle_media(
-            employee: current_employee,
-            conversation: current_conversation,
-            file: params[:file],
-            caption: params[:caption]
-          )
+          submission = Discovery::AdmitSubmission.call(conversation: current_conversation, employee: current_employee,
+            submission_id: params[:submission_id], body: params[:caption], file: params[:file])
 
-          render json: {
-            messages: visible_messages.map { |m| message_json(m) },
-            state: state_json
-          }
+          render json: discovery_response(accepted_submission_id: submission.submission_id)
+        rescue Discovery::AdmitSubmission::Conflict => e
+          render json: { error: e.message }, status: :conflict
         rescue Web::MediaInboundService::InvalidFile, Web::MediaInboundService::FileTooLarge => e
           render json: { error: e.message }, status: :unprocessable_entity
         end

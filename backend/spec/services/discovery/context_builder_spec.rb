@@ -76,7 +76,7 @@ RSpec.describe Discovery::ContextBuilder do
       expect(context[:knowledge_snippets]).to eq([])
     end
 
-    it "includes active knowledge snippets without requiring retrieval flag" do
+    it "excludes unclassified company knowledge from employee discovery" do
       company.company_knowledge_entries.create!(
         entry_type: "process",
         title: "AP dual approval",
@@ -84,10 +84,10 @@ RSpec.describe Discovery::ContextBuilder do
         status: "active"
       )
       context = described_class.call(conversation: conversation, employee: employee, user_message: "hello")
-      expect(context[:knowledge_snippets].first).to include("AP dual approval")
+      expect(context[:knowledge_snippets]).to eq([])
     end
 
-    it "filters memory facts below the cosine similarity threshold" do
+    it "excludes peer memory even when it has a close similarity score" do
       company.update!(settings: company.settings.merge("discovery_memory_retrieval_enabled" => true))
       allow(ENV).to receive(:[]).and_call_original
       allow(ENV).to receive(:[]).with("OPENAI_API_KEY").and_return("test-key")
@@ -125,9 +125,7 @@ RSpec.describe Discovery::ContextBuilder do
         user_message: "How do invoices get approved?"
       )
 
-      expect(context[:memory_facts]).to eq([
-        { content: "Invoice approval takes three days", fact_type: "finding", department: "finance" }
-      ])
+      expect(context[:memory_facts]).to eq([])
     end
 
     it "retrieves whatsapp-upload document chunks when retrieval is enabled" do

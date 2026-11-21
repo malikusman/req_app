@@ -1,3 +1,4 @@
+from app.turn_runtime import invoke
 """The talking half of a discovery turn: write what the interviewer says next.
 
 The turn used to be one call that talked AND recorded, which let the structured
@@ -183,18 +184,24 @@ def _talk(system_prompt: str, state: dict[str, Any]) -> str:
             messages.append(SystemMessage(content=f"[Interviewer]: {content}"))
         else:
             messages.append(HumanMessage(content=content))
-    if state.get("user_message"):
+    latest = (state.get("history") or [{}])[-1]
+    if state.get("user_message") and not (
+        latest.get("role") == "user" and latest.get("content") == state["user_message"]
+    ):
         messages.append(HumanMessage(content=state["user_message"]))
 
     cap = settings.openai_max_tokens
-    llm = build_chat_openai(temperature=0.4, json_mode=False, max_tokens=cap)
+    llm = build_chat_openai(timeout=70.0, max_retries=0, temperature=0.4, json_mode=False, max_tokens=cap)
     last_error: Exception | None = None
     truncation_retries = 0
     empties = 0
     for attempt in range(settings.max_openai_retries + 1):
         try:
-            response = llm.invoke(messages)
+            response = invoke(llm, messages, stage="question")
         except Exception as exc:  # noqa: BLE001 — transport / API failures
+            failure = OpenAIUnavailable.from_exception(exc)
+            if not failure.retryable:
+                raise failure from exc
             last_error = exc
             record_failure()
             if attempt < settings.max_openai_retries:
@@ -207,7 +214,7 @@ def _talk(system_prompt: str, state: dict[str, Any]) -> str:
             # at the same cap truncates identically, so escalate instead.
             truncation_retries += 1
             cap *= 2
-            llm = build_chat_openai(temperature=0.4, json_mode=False, max_tokens=cap)
+            llm = build_chat_openai(timeout=70.0, max_retries=0, temperature=0.4, json_mode=False, max_tokens=cap)
             continue
 
         record_success()

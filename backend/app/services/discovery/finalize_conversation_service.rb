@@ -28,7 +28,7 @@ module Discovery
       # `completed` remains the historical transport/lifecycle terminal flag.
       # An interrupted workflow interview must not produce success notifications,
       # employee completion counters or validated findings.
-      outcome = @conversation.dossier.dig("workflow", "outcome")
+      outcome = @conversation.blackboard.dig('employee_discovery_v2', 'outcome') || @conversation.dossier.dig("workflow", "outcome")
       return if outcome.present? && outcome != "successful"
 
       if first_completion

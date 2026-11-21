@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_11_12_190000) do
+ActiveRecord::Schema[7.1].define(version: 2026_11_21_100000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -742,6 +742,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_12_190000) do
     t.jsonb "state_snapshot", default: {}, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "discovery_revision", default: 0, null: false
+    t.bigint "discovery_state_version", default: 0, null: false
     t.index ["company_id"], name: "index_conversations_on_company_id"
     t.index ["employee_id"], name: "index_conversations_on_employee_id"
   end
@@ -881,6 +883,32 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_12_190000) do
     t.index ["message_id"], name: "index_discovery_question_feedbacks_on_message_id"
   end
 
+  create_table "discovery_turns", force: :cascade do |t|
+    t.bigint "conversation_id", null: false
+    t.bigint "source_message_id", null: false
+    t.string "identity", null: false
+    t.text "user_message", null: false
+    t.string "status", default: "queued", null: false
+    t.bigint "base_revision"
+    t.string "state_digest"
+    t.string "lease_token"
+    t.datetime "lease_until"
+    t.datetime "deadline_at"
+    t.datetime "retry_at"
+    t.integer "attempts", default: 0, null: false
+    t.string "error_code"
+    t.jsonb "result", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "reply_message_id"
+    t.index ["conversation_id"], name: "idx_one_processing_discovery_turn", unique: true, where: "((status)::text = 'processing'::text)"
+    t.index ["conversation_id"], name: "index_discovery_turns_on_conversation_id"
+    t.index ["identity"], name: "index_discovery_turns_on_identity", unique: true
+    t.index ["reply_message_id"], name: "index_discovery_turns_on_reply_message_id"
+    t.index ["source_message_id"], name: "index_discovery_turns_on_source_message_id", unique: true
+    t.index ["status", "retry_at"], name: "index_discovery_turns_on_status_and_retry_at"
+  end
+
   create_table "document_analysis_events", force: :cascade do |t|
     t.bigint "document_analysis_run_id", null: false
     t.string "agent_name", null: false
@@ -913,7 +941,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_12_190000) do
     t.index ["company_id", "created_at"], name: "index_document_analysis_runs_on_company_id_and_created_at"
     t.index ["company_id", "status"], name: "index_document_analysis_runs_on_company_id_and_status"
     t.index ["company_id"], name: "index_document_analysis_runs_on_company_id"
-    t.index ["company_id"], name: "index_document_analysis_runs_one_active_per_company", unique: true, where: "((status)::text = ANY (ARRAY[('queued'::character varying)::text, ('running'::character varying)::text]))"
+    t.index ["company_id"], name: "index_document_analysis_runs_one_active_per_company", unique: true, where: "((status)::text = ANY ((ARRAY['queued'::character varying, 'running'::character varying])::text[]))"
     t.index ["triggered_by_company_user_id"], name: "index_document_analysis_runs_on_triggered_by_company_user_id"
   end
 
@@ -1060,6 +1088,16 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_12_190000) do
     t.index ["company_user_id"], name: "index_employee_nudges_on_company_user_id"
     t.index ["conversation_id"], name: "index_employee_nudges_on_conversation_id"
     t.index ["employee_id"], name: "index_employee_nudges_on_employee_id"
+  end
+
+  create_table "employee_submissions", force: :cascade do |t|
+    t.bigint "conversation_id", null: false
+    t.string "submission_id", null: false
+    t.text "body", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["conversation_id", "submission_id"], name: "idx_employee_submission_identity", unique: true
+    t.index ["conversation_id"], name: "index_employee_submissions_on_conversation_id"
   end
 
   create_table "employee_value_digests", force: :cascade do |t|
@@ -1427,11 +1465,18 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_12_190000) do
     t.string "track", null: false
     t.string "track_ref_type"
     t.bigint "track_ref_id"
+    t.bigint "employee_submission_id"
+    t.bigint "reply_to_message_id"
+    t.string "delivery_status"
+    t.datetime "delivery_lease_until"
+    t.string "delivery_token"
     t.index ["agent_id"], name: "index_messages_on_agent_id", where: "(agent_id IS NOT NULL)"
     t.index ["conversation_id", "consultant_followup", "created_at"], name: "index_messages_on_conversation_followup"
     t.index ["conversation_id", "track", "created_at"], name: "index_messages_on_conversation_track"
     t.index ["conversation_id"], name: "index_messages_on_conversation_id"
+    t.index ["employee_submission_id"], name: "index_messages_on_employee_submission_id", unique: true
     t.index ["external_id"], name: "index_messages_on_external_id", unique: true, where: "(external_id IS NOT NULL)"
+    t.index ["reply_to_message_id"], name: "index_messages_on_reply_to_message_id", unique: true
     t.index ["track_ref_type", "track_ref_id"], name: "index_messages_on_track_ref", where: "(track_ref_type IS NOT NULL)"
   end
 
@@ -2333,6 +2378,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_12_190000) do
   add_foreign_key "discovery_question_feedbacks", "companies"
   add_foreign_key "discovery_question_feedbacks", "company_users"
   add_foreign_key "discovery_question_feedbacks", "messages"
+  add_foreign_key "discovery_turns", "conversations"
+  add_foreign_key "discovery_turns", "messages", column: "reply_message_id"
+  add_foreign_key "discovery_turns", "messages", column: "source_message_id"
   add_foreign_key "document_analysis_events", "document_analysis_runs"
   add_foreign_key "document_analysis_runs", "companies"
   add_foreign_key "document_analysis_runs", "company_users", column: "triggered_by_company_user_id"
@@ -2357,6 +2405,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_12_190000) do
   add_foreign_key "employee_nudges", "company_users"
   add_foreign_key "employee_nudges", "conversations"
   add_foreign_key "employee_nudges", "employees"
+  add_foreign_key "employee_submissions", "conversations"
   add_foreign_key "employee_value_digests", "companies"
   add_foreign_key "employee_value_digests", "employees"
   add_foreign_key "employee_value_preferences", "employees"
@@ -2397,6 +2446,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_12_190000) do
   add_foreign_key "media_attachments", "employees"
   add_foreign_key "media_attachments", "messages"
   add_foreign_key "messages", "conversations"
+  add_foreign_key "messages", "employee_submissions"
+  add_foreign_key "messages", "messages", column: "reply_to_message_id"
   add_foreign_key "notifications", "companies"
   add_foreign_key "patterns", "companies"
   add_foreign_key "planned_initiatives", "companies"
@@ -2481,4 +2532,21 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_12_190000) do
   add_foreign_key "task_sources", "conversations", on_delete: :cascade
   add_foreign_key "task_sources", "employees"
   add_foreign_key "task_sources", "findings", on_delete: :nullify
+  # Discovery state fencing must survive db:schema:load.
+  execute <<~SQL
+    CREATE OR REPLACE FUNCTION fence_discovery_state_changes() RETURNS trigger AS $$
+    BEGIN
+      IF NEW.state_snapshot IS DISTINCT FROM OLD.state_snapshot
+        OR NEW.status IS DISTINCT FROM OLD.status
+        OR NEW.question_count IS DISTINCT FROM OLD.question_count THEN
+        NEW.discovery_revision := GREATEST(NEW.discovery_revision, OLD.discovery_revision + 1);
+        NEW.discovery_state_version := GREATEST(NEW.discovery_state_version, OLD.discovery_state_version + 1);
+      END IF;
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+    DROP TRIGGER IF EXISTS fence_discovery_state_changes ON conversations;
+    CREATE TRIGGER fence_discovery_state_changes BEFORE UPDATE ON conversations
+      FOR EACH ROW EXECUTE FUNCTION fence_discovery_state_changes();
+  SQL
 end

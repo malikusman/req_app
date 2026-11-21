@@ -80,5 +80,26 @@ RSpec.describe Langgraph::Client do
         expect(error.message).to eq("openai_unavailable")
       }
     end
+
+    it "preserves non-retryable provider failures and their reason across a 503" do
+      stub_turn(status: 503, body: { detail: { error: "openai_quota_exceeded", retryable: false,
+                                            reason: "OpenAI organization quota or spend limit exhausted" } })
+      expect {
+        client.run_turn!(thread_id: "thread-1", user_message: "outlook, Excel and our system",
+                         playbook: playbook, context: {}, history: [])
+      }.to raise_error(Langgraph::UnavailableError) { |error|
+        expect(error.retryable).to be(false)
+        expect(error.code).to eq("openai_quota_exceeded")
+        expect(error.message).to include("spend limit exhausted")
+      }
+    end
+
+    it "keeps transport timeouts retryable" do
+      stub_request(:post, "http://langgraph.test/v1/threads/thread-1/turn").to_timeout
+      expect {
+        client.run_turn!(thread_id: "thread-1", user_message: "helping the HR?",
+                         playbook: playbook, context: {}, history: [])
+      }.to raise_error(Langgraph::UnavailableError) { |error| expect(error.retryable).to be(true) }
+    end
   end
 end
