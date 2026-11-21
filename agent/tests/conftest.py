@@ -51,3 +51,11 @@ def with_model(monkeypatch):
             monkeypatch.setattr(f"{module}.llm_configured", lambda: True)
         except AttributeError:
             pass
+
+
+@pytest.fixture(autouse=True)
+def builtin_interviewer_instructions(monkeypatch, tmp_path):
+    """Engine tests assert the built-in wording; the operator's instructions file
+    (app/interviewer/instructions.yaml) must not change what they check. Tests of
+    the configurable instructions point INTERVIEWER_INSTRUCTIONS_PATH at their own file."""
+    monkeypatch.setenv("INTERVIEWER_INSTRUCTIONS_PATH", str(tmp_path / "no-interviewer-instructions.yaml"))

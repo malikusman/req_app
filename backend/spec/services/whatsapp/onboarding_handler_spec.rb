@@ -133,6 +133,29 @@ RSpec.describe Whatsapp::OnboardingHandler do
         end
       end
 
+      # Regression: a mistyped "YESS" re-prompts, and must not leave the
+      # conversation stuck — a later exact "YES" still has to get through.
+      it "accepts YES after one or more invalid YESS replies" do
+        web_handler = lambda do |reply|
+          described_class.new(employee: employee.reload, conversation: conversation.reload,
+                              client: client, channel: "web").handle_inbound_text(reply)
+        end
+        conversation.messages.create!(direction: "outbound", channel: "web",
+                                      message_type: "text", body: "Reply YES to continue.")
+
+        2.times { web_handler.call("YESS") }
+        expect(employee.reload.onboarding_step).to eq("awaiting_consent")
+        expect(employee.consent_given_at).to be_nil
+        expect(conversation.messages.where(direction: "outbound").last.body)
+          .to eq("Please reply YES to continue or STOP to opt out.")
+
+        web_handler.call("YES")
+        employee.reload
+        expect(employee.onboarding_step).to eq("verified")
+        expect(employee.consent_given_at).to be_present
+        expect(conversation.reload.status).not_to eq("onboarding")
+      end
+
       it "records which consent text version was agreed to" do
         consent_after("Yes, happy to take part")
         expect(employee.reload.consent_text_version).to eq("2026-06-20")

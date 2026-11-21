@@ -194,16 +194,21 @@ export function DiscoverChat() {
   // page opened), so each question is read out once, when it arrives.
   const lastSpokenRef = useRef<number | null>(null);
 
+  // The consent step (WhatsApp-style "reply YES" copy) is only needed until the
+  // employee has agreed; after that, e.g. on the web consent screen, it is noise.
+  const consented = Boolean(state && state.onboarding_step !== 'awaiting_consent');
+  const shown = useMemo(() => (consented ? raw.filter((m) => m.track !== 'onboarding') : raw), [raw, consented]);
+
   const messages = useMemo(
     () =>
-      mapMessages(optimistic && !raw.some(m => m.submission_id === optimistic.id)
-        ? [...raw, { id: -1, direction: 'inbound', message_type: optimistic.file?.type.startsWith('audio/') ? 'audio' : 'text',
+      mapMessages(optimistic && !shown.some(m => m.submission_id === optimistic.id)
+        ? [...shown, { id: -1, direction: 'inbound', message_type: optimistic.file?.type.startsWith('audio/') ? 'audio' : 'text',
           body: optimistic.body || optimistic.file?.name || '', is_discovery_question: false, created_at: optimistic.createdAt }]
-        : raw, {
+        : shown, {
         onPlay: (m) => void readAloud.speak(m.id, m.body),
         speakingId: readAloud.speakingId,
       }),
-    [raw, optimistic, readAloud]
+    [shown, optimistic, readAloud]
   );
 
   useEffect(() => {

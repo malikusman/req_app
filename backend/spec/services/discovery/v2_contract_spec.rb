@@ -40,6 +40,13 @@ RSpec.describe Discovery::V2Contract do
     expect(value.dig('blackboard', 'employee_discovery_v2', 'evidence_references').map { |e| e['source_type'] }.uniq).to eq(['TRANSCRIPT'])
   end
 
+  it 'records live avatar answers (typed path, spoken input) as transcripts' do
+    source.update!(raw_payload: { 'input_mode' => 'voice', 'interrupted_question' => false })
+    value = result
+    described_class.prepare!(value, conversation: conversation, source: source)
+    expect(value.dig('blackboard', 'employee_discovery_v2', 'evidence_references').map { |e| e['source_type'] }.uniq).to eq(['TRANSCRIPT'])
+  end
+
   it 'preserves a reported weekly effort total without turning it into per-interview time' do
     source.update!(body: 'Recruitment coordination takes 4–6 hours per week.')
     value = result

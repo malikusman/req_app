@@ -2,7 +2,15 @@ module Discovery
   class AdmitSubmission
     class Conflict < StandardError; end
 
-    def self.call(conversation:, employee:, submission_id:, body:, file: nil)
+    # How a typed-path answer was given. Only these keys and values are kept: a
+    # spoken (avatar) answer, and whether it cut the interviewer's question short.
+    def self.input_meta(params)
+      return {} unless params[:input_mode].to_s == 'voice'
+
+      { 'input_mode' => 'voice', 'interrupted_question' => ActiveModel::Type::Boolean.new.cast(params[:interrupted_question]) == true }
+    end
+
+    def self.call(conversation:, employee:, submission_id:, body:, file: nil, input_meta: {})
       text = file ? "attachment:#{Digest::SHA256.file(file.tempfile.path).hexdigest()}:#{body}" : body.to_s.strip
       raise Conflict, 'An answer is required' if text.blank?
       key = submission_id.presence || SecureRandom.uuid # Old clients remain supported.
@@ -20,11 +28,17 @@ module Discovery
           raise Conflict, 'Your previous answer is saved; wait or retry it before sending another answer'
         end
         submission = EmployeeSubmission.create!(conversation: conversation, submission_id: key, body: text)
+        last_id = conversation.messages.maximum(:id).to_i
         DiscoveryRequest.set(admitting: true, submission: submission) do
           if file
             Web::TurnRouter.handle_media(employee: employee, conversation: conversation, file: file, caption: body)
           else
             Web::TurnRouter.handle_text(employee: employee, conversation: conversation, text: text)
+          end
+        end
+        if input_meta.present? && !file
+          conversation.messages.where(direction: 'inbound').where('id > ?', last_id).find_each do |message|
+            message.update_columns(raw_payload: (message.raw_payload || {}).merge(input_meta))
           end
         end
         conversation.increment!(:discovery_state_version)
