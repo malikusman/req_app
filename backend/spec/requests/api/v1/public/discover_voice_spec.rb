@@ -3,8 +3,8 @@
 require 'rails_helper'
 
 # Server side of the live avatar interview. Providers are stubbed here, so these
-# examples check access control, credential handling and streaming plumbing only —
-# not the real-time experience (see frontend e2e/avatar-live.spec.ts).
+# examples check access control and credential handling only — not the real-time
+# experience (see frontend e2e/liveavatar-page-mocked.spec.ts).
 RSpec.describe 'Api::V1::Public::DiscoverVoice', type: :request do
   let(:company) { create(:company) }
   let(:employee) { create(:employee, company: company, onboarding_step: 'verified', participation_status: 'started') }
@@ -12,31 +12,28 @@ RSpec.describe 'Api::V1::Public::DiscoverVoice', type: :request do
   let(:headers) { employee_web_headers(session: session, employee: employee) }
   let!(:conversation) { create(:conversation, employee: employee, company: company, status: 'discovery', question_count: 1) }
 
+  # The avatar's lines come from the shared instructions file; these examples
+  # assert the built-in wording, whatever the operator has configured.
+  around do |example|
+    saved = ENV['INTERVIEWER_INSTRUCTIONS_PATH']
+    ENV['INTERVIEWER_INSTRUCTIONS_PATH'] = Rails.root.join('tmp', 'no-interviewer-instructions.yaml').to_s
+    Voice::InterviewerPhrases.reset!
+    example.run
+  ensure
+    saved.nil? ? ENV.delete('INTERVIEWER_INSTRUCTIONS_PATH') : ENV['INTERVIEWER_INSTRUCTIONS_PATH'] = saved
+    Voice::InterviewerPhrases.reset!
+  end
+
   before do
     Rails.cache.clear
-    Voice::PhraseAudioCache.clear
-  end
-
-  it 'issues only short-lived browser credentials, never the provider keys' do
-    allow(Voice::AvatarSession).to receive(:simli_token).and_return(session_token: 'simli-session', face_id: 'face-1')
-    allow(Voice::AvatarSession).to receive(:transcription_secret).and_return(client_secret: 'ek_test', expires_at: 1, webrtc_url: 'https://api.openai.com/v1/realtime/calls')
-    stub_const('ENV', ENV.to_h.merge('SIMLI_API_KEY' => 'simli-secret-key', 'OPENAI_API_KEY' => 'sk-test-secret-key-0000000000'))
-    post '/api/v1/public/discover/voice/session', headers: headers
-    expect(response).to have_http_status(:ok)
-    expect(response.parsed_body).to include('simli' => include('session_token' => 'simli-session'),
-                                            'transcription' => include('client_secret' => 'ek_test'))
-    expect(response.body).not_to include('simli-secret-key', 'sk-test-secret-key')
-  end
-
-  it 'reports a provider outage per component so the page can fall back' do
-    allow(Voice::AvatarSession).to receive(:simli_token).and_raise(Voice::AvatarSession::Error, 'api.simli.ai refused the session (HTTP 402)')
-    allow(Voice::AvatarSession).to receive(:transcription_secret).and_return(client_secret: 'ek_test', expires_at: 1, webrtc_url: 'x')
-    post '/api/v1/public/discover/voice/session', headers: headers
-    expect(response.parsed_body).to include('simli_error' => include('402'), 'transcription' => be_present)
-    expect(response.parsed_body).not_to have_key('simli')
   end
 
   it 'requires the employee session and an open interview, and rate-limits sessions' do
+    la_client = instance_double(LiveAvatar::Client, stop_session: true)
+    allow(LiveAvatar::Client).to receive(:new).and_return(la_client)
+    allow(LiveAvatar::Client).to receive(:configured?).and_return(true)
+    allow(la_client).to receive(:create_session).and_return(
+      LiveAvatar::Client::Session.new(session_id: 's', session_token: 't', mode: 'FULL', sandbox: false, max_session_duration: nil))
     post '/api/v1/public/discover/voice/session'
     expect(response).to have_http_status(:unauthorized)
     conversation.update!(status: 'completed')
@@ -44,65 +41,73 @@ RSpec.describe 'Api::V1::Public::DiscoverVoice', type: :request do
     expect(response).to have_http_status(:conflict)
     conversation.update!(status: 'discovery')
     allow(Rails).to receive(:cache).and_return(ActiveSupport::Cache::MemoryStore.new) # production uses Redis
-    allow(Voice::AvatarSession).to receive(:simli_token).and_return(session_token: 't', face_id: 'f')
-    allow(Voice::AvatarSession).to receive(:transcription_secret).and_return(client_secret: 'ek', expires_at: 1, webrtc_url: 'x')
     statuses = Array.new(9) { post('/api/v1/public/discover/voice/session', headers: headers) && response.status }
     expect(statuses.last).to eq(429)
   end
 
-  it 'speaks only this employee\'s interviewer messages and fixed phrases' do
-    mine = create(:message, conversation: conversation, direction: 'outbound', track: 'discovery', body: "• Weekly report: every Monday; 1–2 hours")
-    other = create(:conversation, company: company, employee: create(:employee, company: company), status: 'discovery')
-    theirs = create(:message, conversation: other, direction: 'outbound', track: 'discovery', body: 'Private question')
-    answer = create(:message, conversation: conversation, direction: 'inbound', track: 'discovery', body: 'My own answer')
-    spoken = []
-    client = instance_double(Openai::Client, speech_available?: true)
-    allow(Openai::Client).to receive(:new).and_return(client)
-    allow(client).to receive(:speech_stream) { |text:, &block| spoken << text; block.call("\x01\x02".b) }
-
-    get "/api/v1/public/discover/voice/speech?message_id=#{mine.id}", headers: headers
-    expect(response).to have_http_status(:ok)
-    expect(spoken.last).to eq('Weekly report: every Monday; 1 to 2 hours')
-    get "/api/v1/public/discover/voice/speech?phrase=greeting", headers: headers
-    expect(spoken.last).to start_with('Hi, thanks for joining')
-    get "/api/v1/public/discover/voice/speech?acknowledgement=1", headers: headers
-    expect(spoken.last).to eq('Okay, thanks.')
-
-    [theirs.id, answer.id].each do |id|
-      get "/api/v1/public/discover/voice/speech?message_id=#{id}", headers: headers
-      expect(response).to have_http_status(:not_found)
+  describe 'LiveAvatar (mocked: no LiveAvatar request, session or credit)' do
+    let(:live) do
+      LiveAvatar::Client::Session.new(session_id: 'la-sess-1', session_token: 'la-token', mode: 'FULL', sandbox: false,
+                                      max_session_duration: nil)
     end
-    get '/api/v1/public/discover/voice/speech?phrase=anything', headers: headers
-    expect(response).to have_http_status(:not_found)
-    expect(spoken.size).to eq(3)
-  end
+    let(:la_client) { instance_double(LiveAvatar::Client) }
 
-  it 'reuses synthesised audio for fixed phrases but never for interview questions' do
-    question = create(:message, conversation: conversation, direction: 'outbound', track: 'discovery', body: 'What do you do on Mondays?')
-    client = instance_double(Openai::Client, speech_available?: true)
-    allow(Openai::Client).to receive(:new).and_return(client)
-    calls = Hash.new(0)
-    allow(client).to receive(:speech_stream) { |text:, &block| calls[text] += 1; block.call("".b); block.call("".b) }
-
-    2.times do
-      get '/api/v1/public/discover/voice/speech?acknowledgement=0', headers: headers
-      expect(response.body.b).to eq("".b)
-      get "/api/v1/public/discover/voice/speech?message_id=#{question.id}", headers: headers
-      expect(response.body.b).to eq("".b)
+    before do
+      allow(LiveAvatar::Client).to receive(:new).and_return(la_client)
+      allow(LiveAvatar::Client).to receive(:configured?).and_return(true)
+      allow(la_client).to receive(:stop_session).and_return(true)
+      stub_const('ENV', ENV.to_h.merge('LIVEAVATAR_API_KEY' => 'la-secret-key', 'SIMLI_API_KEY' => 'simli-secret-key'))
+      allow(Rails).to receive(:cache).and_return(ActiveSupport::Cache::MemoryStore.new)
     end
-    expect(calls).to eq('Thank you.' => 1, 'What do you do on Mondays?' => 2)
-  end
 
-  it 'does not cache a fixed phrase whose synthesis failed part-way' do
-    client = instance_double(Openai::Client, speech_available?: true)
-    allow(Openai::Client).to receive(:new).and_return(client)
-    attempts = 0
-    allow(client).to receive(:speech_stream) do |text:, &block|
-      attempts += 1
-      block.call("".b)
-      raise Openai::Client::Error, 'speech failed (HTTP 500)' if attempts == 1
+    it 'issues a FULL session token (never the key) and the fixed texts June speaks' do
+      allow(la_client).to receive(:create_session).and_return(live)
+      post '/api/v1/public/discover/voice/session', headers: headers
+      expect(response).to have_http_status(:ok)
+      body = response.parsed_body
+      expect(body).to include('provider' => 'liveavatar', 'display_name' => be_present,
+                              'liveavatar' => include('session_token' => 'la-token', 'session_id' => 'la-sess-1', 'mode' => 'FULL'))
+      expect(body.dig('texts', 'acknowledgements').first).to eq('Thank you.')
+      expect(body.dig('texts', 'phrases', 'greeting')).to start_with('Hi, thanks for joining')
+      expect(response.body).not_to include('la-secret-key', 'simli')
+      expect(body.keys).not_to include('transcription', 'simli', 'simli_available')
     end
-    2.times { get '/api/v1/public/discover/voice/speech?phrase=greeting', headers: headers }
-    expect(attempts).to eq(2)
+
+    it 'ignores any request for LITE or another avatar: one LiveAvatar FULL session' do
+      expect(la_client).to receive(:create_session).with(language: anything).and_return(live)
+      post '/api/v1/public/discover/voice/session', params: { liveavatar_mode: 'LITE', fallback: 'simli' }, headers: headers, as: :json
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body).not_to have_key('simli')
+    end
+
+    it 'reports a LiveAvatar refusal as a retryable error and never substitutes another avatar' do
+      allow(la_client).to receive(:create_session).and_raise(LiveAvatar::Client::Error, 'LiveAvatar refused /v1/sessions/token (HTTP 402): no credits')
+      post '/api/v1/public/discover/voice/session', headers: headers
+      expect(response).to have_http_status(:service_unavailable)
+      expect(response.parsed_body).to eq('error' => 'LiveAvatar refused /v1/sessions/token (HTTP 402): no credits', 'retryable' => true)
+    end
+
+    it 'says clearly when LiveAvatar is not configured' do
+      allow(LiveAvatar::Client).to receive(:configured?).and_return(false)
+      expect(la_client).not_to receive(:create_session)
+      post '/api/v1/public/discover/voice/session', headers: headers
+      expect(response).to have_http_status(:service_unavailable)
+      expect(response.parsed_body).to include('retryable' => false)
+    end
+
+    it "stops the employee's previous LiveAvatar session on restart and on the stop backstop" do
+      allow(la_client).to receive(:create_session).and_return(live)
+      post '/api/v1/public/discover/voice/session', headers: headers
+      expect(la_client).not_to have_received(:stop_session)
+      post '/api/v1/public/discover/voice/session', headers: headers
+      expect(la_client).to have_received(:stop_session).with('la-sess-1').once
+      post '/api/v1/public/discover/voice/session/stop', headers: headers
+      expect(la_client).to have_received(:stop_session).with('la-sess-1').twice
+      expect(response.parsed_body).to eq('stopped' => true)
+      post '/api/v1/public/discover/voice/session/stop', headers: headers
+      expect(response.parsed_body).to eq('stopped' => false) # nothing left to stop
+      post '/api/v1/public/discover/voice/session/stop'
+      expect(response).to have_http_status(:unauthorized)
+    end
   end
 end

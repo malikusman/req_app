@@ -99,44 +99,52 @@ module Whatsapp
       end
 
       if consent_confirmed?(text, consent)
-        unless Subscriptions::ConversationLimitEnforcer.can_start_discovery?(company: @company)
-          send_text("Discovery is temporarily unavailable for your organization. Please contact your admin.")
-          return
-        end
-
-        @employee.update!(
-          onboarding_step: "verified",
-          consent_given_at: Time.current,
-          consent_text_version: consent.version
-        )
-        lang = LanguageDetector.detect(text)
-        @employee.update!(preferred_language: lang) if @employee.preferred_language.blank?
-
-        if Whatsapp::ProfilingHandler.enabled?(@company) && !@employee.profile_complete?
-          @conversation.update!(status: "profiling", started_at: Time.current)
-          Subscriptions::ConversationLimitEnforcer.record_discovery_started!(
-            company: @company,
-            conversation: @conversation
-          )
-          Whatsapp::ProfilingHandler.new(employee: @employee, conversation: @conversation, client: @client, channel: @channel).start!
-        else
-          @conversation.update!(status: "discovery", started_at: Time.current)
-          Subscriptions::ConversationLimitEnforcer.record_discovery_started!(
-            company: @company,
-            conversation: @conversation
-          )
-          Discovery::ProactiveStartService.call(
-            conversation: @conversation,
-            employee: @employee,
-            client: @client,
-            trigger_message_id: external_id,
-            delivery_channel: delivery_channel
-          )
-        end
+        accept_consent!(version: consent.version, language_hint: text, trigger_message_id: external_id)
       else
         send_text("Please reply YES to continue or STOP to opt out.")
       end
     end
+
+    # Consent given: by a "YES" reply (WhatsApp, text interview) or explicitly on
+    # the web avatar's consent screen (Web::ConsentService). Same effects either way.
+    def accept_consent!(version:, language_hint: nil, trigger_message_id: nil)
+      unless Subscriptions::ConversationLimitEnforcer.can_start_discovery?(company: @company)
+        send_text("Discovery is temporarily unavailable for your organization. Please contact your admin.")
+        return false
+      end
+
+      @employee.update!(
+        onboarding_step: "verified",
+        consent_given_at: Time.current,
+        consent_text_version: version
+      )
+      lang = language_hint.present? ? LanguageDetector.detect(language_hint) : nil
+      @employee.update!(preferred_language: lang) if lang.present? && @employee.preferred_language.blank?
+
+      if Whatsapp::ProfilingHandler.enabled?(@company) && !@employee.profile_complete?
+        @conversation.update!(status: "profiling", started_at: Time.current)
+        Subscriptions::ConversationLimitEnforcer.record_discovery_started!(
+          company: @company,
+          conversation: @conversation
+        )
+        Whatsapp::ProfilingHandler.new(employee: @employee, conversation: @conversation, client: @client, channel: @channel).start!
+      else
+        @conversation.update!(status: "discovery", started_at: Time.current)
+        Subscriptions::ConversationLimitEnforcer.record_discovery_started!(
+          company: @company,
+          conversation: @conversation
+        )
+        Discovery::ProactiveStartService.call(
+          conversation: @conversation,
+          employee: @employee,
+          client: @client,
+          trigger_message_id: trigger_message_id,
+          delivery_channel: delivery_channel
+        )
+      end
+      true
+    end
+    public :accept_consent!
 
     def handle_post_verification(text)
       lang = @employee.preferred_language.presence || LanguageDetector.detect(text)
